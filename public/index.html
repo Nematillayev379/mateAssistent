@@ -3,1200 +3,287 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>Yangiliklar Bot</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<title>Newsroom Web3 Ecosystem</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{
-  --bg:#0b0e11;--surface:#151a21;--card:#1c232d;--border:#2c3e50;
-  --green:#2ecc71;--green2:#27ae60;--green-dim:rgba(46,204,113,0.1);
-  --text:#ffffff;--text2:#b2bec3;--text3:#636e72;
-  --red:#e74c3c;--red-bg:rgba(231,76,60,0.1);
-  --amber:#f1c40f;--amber-bg:rgba(241,196,15,0.1);
-  --blue:#3498db;--blue-bg:rgba(52,152,219,0.1);
-  --gold:#ffd700;--gold-dim:rgba(255,215,0,0.12);
-  --ton:#0088cc;--ton-dim:rgba(0,136,204,0.12);
-  --radius:16px;--radius-sm:12px;--radius-xs:8px;
-  --grad:linear-gradient(135deg,#2ecc71 0%,#27ae60 100%);
-  --shadow:0 8px 32px rgba(0,0,0,0.5);
+:root {
+  --bg: #05080a;
+  --surface: rgba(16, 22, 28, 0.7);
+  --card: rgba(26, 35, 45, 0.5);
+  --border: rgba(44, 62, 80, 0.4);
+  --accent: #00d2ff;
+  --accent-dim: rgba(0, 210, 255, 0.1);
+  --green: #2ecc71;
+  --green-dim: rgba(46, 204, 113, 0.15);
+  --gold: #f1c40f;
+  --text: #ffffff;
+  --text-dim: #a0aec0;
+  --red: #ff4757;
+  --glass: blur(12px) saturate(180%);
 }
-body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100dvh;overflow-x:hidden;padding-bottom:80px}
-.mono{font-family:'JetBrains Mono',monospace}
-.hidden{display:none!important}
-.page{display:none;padding:12px 12px 0;min-height:calc(100dvh - 80px)}
-.page.active{display:block}
-nav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;padding:6px 0 calc(6px + env(safe-area-inset-bottom))}
-.nav-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:48px;padding:8px 4px;border-radius:8px;cursor:pointer;transition:all .15s;color:var(--text3);background:transparent;border:none}
-.nav-btn.active{color:var(--green);background:var(--green-dim)}
-.nav-btn .mi{font-size:22px;font-family:'Material Symbols Outlined';line-height:1}
-.nav-btn label{font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;color:inherit;line-height:1}
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
-.page-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-.page-hdr h2{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text3)}
-.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px;text-transform:uppercase}
-.badge-owner{background:#1a1f00;border:1px solid #aeea00;color:#aeea00}
-.badge-premium{background:#1a0e2a;border:1px solid #ce93d8;color:#ce93d8}
-.badge-active{background:var(--green-dim);border:1px solid #2e7d32;color:var(--green)}
-.badge-trial{background:#1a1000;border:1px solid #f57c00;color:#ff9800}
-.badge-banned{background:var(--red-bg);border:1px solid var(--red);color:var(--red)}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:var(--radius-sm);border:1px solid transparent;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .15s;font-weight:500;white-space:nowrap}
-.btn:active{transform:scale(.97)}
-.btn-primary{background:var(--green-dim);border-color:#2e7d32;color:var(--green)}
-.btn-danger{background:var(--red-bg);border-color:var(--red);color:var(--red)}
-.btn-amber{background:var(--amber-bg);border-color:#f57c00;color:var(--amber)}
-.btn-ghost{background:transparent;border-color:var(--border);color:var(--text2)}
-.btn-ton{background:var(--ton-dim);border-color:var(--ton);color:var(--ton)}
-.btn-gold{background:var(--gold-dim);border-color:#b8860b;color:var(--gold)}
-.btn-sm{padding:6px 10px;font-size:10px}
-.btn-full{width:100%;display:flex}
-.inp{width:100%;background:#0d1710;border:1px solid var(--border);border-radius:var(--radius-xs);padding:10px 12px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;outline:none;transition:border-color .15s}
-.inp:focus{border-color:var(--green)}
-.inp::placeholder{color:var(--text3)}
-select.inp option{background:var(--surface)}
-.inp-label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;display:block}
-.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;text-align:center}
-.stat-val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--green)}
-.stat-lbl{font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-top:2px}
-.src-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px}
-.src-info{flex:1;min-width:0}
-.src-name{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.src-url{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
-.svc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
-.svc-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 8px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:all .15s;text-align:center;width:100%}
-.svc-btn:active{transform:scale(.97);background:#1a2b1e}
-.svc-btn .mi{font-size:28px;font-family:'Material Symbols Outlined';color:var(--green);line-height:1}
-.svc-btn span.lbl{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.5px;color:var(--text2)}
-.lang-row{display:flex;gap:8px}
-.lang-btn{flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card);color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;transition:all .15s;text-align:center}
-.lang-btn.active{border-color:var(--green);background:var(--green-dim);color:var(--green)}
-#toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 18px;font-family:'JetBrains Mono',monospace;font-size:12px;z-index:9999;opacity:0;transition:all .25s;pointer-events:none;max-width:90vw;text-align:center}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.err{border-color:var(--red);color:var(--red)}
-#toast.ok{border-color:var(--green);color:var(--green)}
-.spin{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.modal-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;padding:16px}
-.modal-bg.open{display:flex}
-.modal-box{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;max-height:85dvh;overflow-y:auto}
-.modal-title{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text);margin-bottom:14px}
-.ref-link-box{background:#0a1512;border:1px solid #1b4a20;border-radius:var(--radius-sm);padding:10px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:border-color .15s;margin-bottom:4px}
-.ref-link-box:active{border-color:var(--green)}
-.ref-link-text{flex:1;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.divider{height:1px;background:var(--border);margin:12px 0}
-.info-box{background:#0a1520;border:1px solid #1a3a5c;border-radius:var(--radius-sm);padding:12px;margin-bottom:10px}
-.info-box.amber{background:var(--amber-bg);border-color:#7a5800}
-.info-box.green{background:var(--green-dim);border-color:#2e7d32}
-.info-box.red{background:var(--red-bg);border-color:#7a1a1a}
-.prog-track{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin:5px 0}
-.prog-fill{height:5px;border-radius:3px;background:linear-gradient(90deg,var(--green2),var(--green));transition:width .4s}
-.prog-fill.warn{background:linear-gradient(90deg,#f57c00,#ffc107)}
-.prog-fill.danger{background:linear-gradient(90deg,#c62828,var(--red))}
-.user-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px}
-.tag{display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-family:'JetBrains Mono',monospace}
-.tag-blue{background:#0a1520;border:1px solid #1a3a5c;color:var(--blue)}
-.player-bar{position:fixed;bottom:80px;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:12px;z-index:60;transition:all .3s;transform:translateY(100%)}
-.player-bar.active{transform:translateY(0)}
-.player-info{flex:1;min-width:0}
-.player-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.player-controls{display:flex;align-items:center;gap:8px}
-.player-btn{background:none;border:none;color:var(--text);cursor:pointer;display:flex;align-items:center}
-.player-btn .mi{font-size:24px}
-/* Web3 wallet card */
-.wallet-card{background:linear-gradient(135deg,#0a1a2e 0%,#0d2137 100%);border:1px solid var(--ton);border-radius:var(--radius);padding:16px;margin-bottom:10px;position:relative;overflow:hidden}
-.wallet-card::before{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:rgba(0,136,204,0.08)}
-.wallet-connected{background:linear-gradient(135deg,#0a1e0a 0%,#0d2a0d 100%);border-color:var(--green)}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--bg);
+  background-image: radial-gradient(circle at 50% -20%, #1a3a5c 0%, var(--bg) 60%);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  min-height: 100dvh;
+  padding-bottom: 90px;
+  overflow-x: hidden;
+}
+
+.glass-card {
+  background: var(--card);
+  backdrop-filter: var(--glass);
+  -webkit-backdrop-filter: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: transform 0.2s ease;
+}
+
+.page { display: none; padding: 20px 16px; animation: fadeIn 0.4s ease-out; }
+.page.active { display: block; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 80px;
+  background: rgba(10, 15, 20, 0.85);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1000;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.nav-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  color: var(--text-dim); cursor: pointer; transition: 0.3s;
+  background: none; border: none;
+}
+
+.nav-btn.active { color: var(--accent); }
+.nav-btn .mi { font-size: 26px; }
+.nav-btn span { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 20px; border-radius: 16px; border: none;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: 0.2s; text-transform: uppercase;
+}
+
+.btn-primary { background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); color: white; }
+.btn-glass { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--accent); }
+
+.inp {
+  width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px; color: white; font-family: 'JetBrains Mono', monospace;
+  outline: none; transition: 0.3s;
+}
+
+.premium-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+.premium-table th, .premium-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+.premium-table th { color: var(--accent); font-weight: 600; }
+.check-icon { color: var(--green); }
+.cross-icon { color: var(--red); }
+
+#toast {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  padding: 12px 24px; border-radius: 12px; background: var(--card);
+  backdrop-filter: blur(10px); border: 1px solid var(--accent);
+  z-index: 2000; opacity: 0; transition: 0.3s; pointer-events: none;
+}
+#toast.show { opacity: 1; top: 40px; }
+
 </style>
 </head>
 <body>
 
+<div id="toast"></div>
+
+<!-- Page: Dashboard -->
 <div id="p-dashboard" class="page active">
-  <div class="page-hdr"><h2>⚡ Dashboard</h2><span id="u-badge" class="badge badge-active">ACTIVE</span></div>
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-      <div style="width:44px;height:44px;border-radius:22px;background:var(--green-dim);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:22px;font-family:'Material Symbols Outlined'">person</div>
-      <div style="flex:1;min-width:0">
-        <div id="u-name" style="font-weight:600;font-size:15px">Yuklanmoqda...</div>
-        <div id="u-username" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)"></div>
+  <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h1 style="font-size: 24px; font-weight: 700;">Dashboard</h1>
+    <div id="u-badge-container"></div>
+  </div>
+
+  <div class="glass-card">
+    <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
+      <div id="u-avatar" style="width:56px; height:56px; border-radius:18px; background:var(--accent-dim); display:flex; align-items:center; justify-content:center; font-size:28px; border:1px solid var(--accent);">
+        <span class="mi">person</span>
       </div>
-      <div id="u-status" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)">● FAOL</div>
-    </div>
-    <div class="stat-row">
-      <div class="stat-box"><div class="stat-val" id="s-posts">—</div><div class="stat-lbl">Yuborildi</div></div>
-      <div class="stat-box"><div class="stat-val" id="s-dups">—</div><div class="stat-lbl">Dublikat</div></div>
-      <div class="stat-box"><div class="stat-val" id="s-sources">—</div><div class="stat-lbl">Manbalar</div></div>
-    </div>
-  </div>
-  <div class="card">
-    <label class="inp-label">Telegram Kanal ID</label>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <input type="text" id="set-channel" class="inp" placeholder="@kanalim yoki -100..." style="flex:1"/>
-      <button class="btn btn-primary btn-sm" onclick="saveChannel()">OK</button>
-    </div>
-    <label class="inp-label">Yangilik intervali</label>
-    <div style="display:flex;gap:8px">
-      <select id="set-interval" class="inp" style="flex:1">
-        <option value="5">5 daqiqa</option>
-        <option value="10">10 daqiqa</option>
-        <option value="15" selected>15 daqiqa</option>
-        <option value="30">30 daqiqa</option>
-        <option value="60">1 soat</option>
-        <option value="120">2 soat</option>
-        <option value="360">6 soat</option>
-      </select>
-      <button class="btn btn-primary btn-sm" onclick="saveInterval()">OK</button>
-    </div>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:10px">
-    <button id="btn-toggle" class="btn btn-danger btn-sm" style="flex:1" onclick="toggleBot()">BOT O'CHIRISH</button>
-    <button class="btn btn-ghost btn-sm" style="flex:1" onclick="nav('settings')">SOZLAMALAR</button>
-  </div>
-  <div id="src-limit-warn" class="info-box amber hidden">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amber)">⚠ MANBA LIMITI TOLDI</div>
-    <div style="font-size:12px;color:#d4a000;margin-top:4px">Qo'shimcha manba uchun AI sahifada API kalit ulang (+1 kalit = +1 manba)</div>
-  </div>
-</div>
-
-<div id="p-sources" class="page">
-  <div class="page-hdr">
-    <h2>📡 RSS Manbalar</h2>
-    <button class="btn btn-primary btn-sm" onclick="openAddSource()">+ QO'SHISH</button>
-  </div>
-  <div class="card" id="limit-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">MANBA LIMITI</span>
-      <span id="limit-text" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green)">…</span>
-    </div>
-    <div class="prog-track"><div class="prog-fill" id="limit-bar" style="width:0%"></div></div>
-    <div id="limit-hint" style="font-size:11px;color:var(--text3);margin-top:4px">Yuklanmoqda...</div>
-  </div>
-  <div id="sources-list"><div style="text-align:center;padding:30px;color:var(--text3);font-size:12px">Yuklanmoqda...</div></div>
-</div>
-
-<div id="p-services" class="page">
-  <div class="page-hdr"><h2>🔧 Xizmatlar</h2></div>
-  <div class="svc-grid">
-    <button class="svc-btn" onclick="nav('svc-music')"><span class="mi">music_note</span><span class="lbl">Musiqa</span></button>
-    <button class="svc-btn" onclick="nav('svc-youtube')"><span class="mi">play_circle</span><span class="lbl">Video</span></button>
-    <button class="svc-btn" onclick="nav('svc-price')"><span class="mi">price_check</span><span class="lbl">Narx</span></button>
-    <button class="svc-btn" onclick="nav('svc-monitor')"><span class="mi">monitor_heart</span><span class="lbl">Monitoring</span></button>
-    <button class="svc-btn" onclick="nav('svc-smm')"><span class="mi">edit_note</span><span class="lbl">AI SMM</span></button>
-    <button class="svc-btn" onclick="nav('web3')"><span class="mi" style="color:var(--ton)">account_balance_wallet</span><span class="lbl">Web3</span></button>
-  </div>
-</div>
-
-<div id="p-svc-music" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('services')">← ORQAGA</button><h2>🎵 Musiqa</h2></div>
-  <div class="info-box green">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);margin-bottom:4px">ℹ FOYDALANISH</div>
-    <div style="font-size:12px;color:var(--text2);line-height:1.7">Botga yozing: <b>/music Xonanda nomi</b><br>Masalan: <b>/music Shaxriyor</b><br>→ Bot 5 ta qo'shiq topib yuboradi</div>
-  </div>
-  <label class="inp-label">YouTube'dan qidirish</label>
-  <div style="display:flex;gap:8px;margin-bottom:10px">
-    <input type="text" id="music-q" class="inp" placeholder="Xonanda yoki qo'shiq nomi..." style="flex:1"/>
-    <button class="btn btn-primary btn-sm" onclick="searchMusic()">QIDIRISH</button>
-  </div>
-  <div id="music-results"></div>
-</div>
-
-<div id="media-player" class="player-bar">
-  <div class="player-info">
-    <div id="player-title" class="player-title">Hozir hech narsa ijro etilmayapti</div>
-  </div>
-  <div class="player-controls">
-    <audio id="main-audio" class="hidden"></audio>
-    <video id="main-video" class="hidden"></video>
-    <button class="player-btn" onclick="togglePlay()"><span id="play-icon" class="mi">play_arrow</span></button>
-    <button class="player-btn" onclick="closePlayer()"><span class="mi">close</span></button>
-  </div>
-</div>
-
-<div id="p-svc-youtube" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('services')">← ORQAGA</button><h2>📹 Video</h2></div>
-  <div class="info-box">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue);margin-bottom:6px">ℹ FOYDALANISH</div>
-    <div style="font-size:12px;color:var(--text2);line-height:1.8">
-      <b>YouTube:</b> Havolani botga yuboring<br>
-      <b>Instagram:</b> Post havolasini botga yuboring<br>
-      Bot "Video yuklash" yoki "Audio yuklash" tanlovini ko'rsatadi<br><br>
-      <i>Fayllar bot orqali kanalingizga yuboriladi</i>
-    </div>
-  </div>
-  <div class="card">
-    <label class="inp-label">URL tekshirish</label>
-    <div style="display:flex;gap:8px;margin-bottom:8px">
-      <input type="text" id="yt-url" class="inp" placeholder="https://youtube.com/watch?v=..." style="flex:1"/>
-      <button class="btn btn-primary btn-sm" onclick="checkYtUrl()">TEKSHIR</button>
-    </div>
-    <div id="yt-result"></div>
-  </div>
-</div>
-
-<div id="p-svc-price" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('services')">← ORQAGA</button><h2>💰 Narx</h2></div>
-  <div class="info-box">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue);margin-bottom:4px">ℹ FOYDALANISH</div>
-    <div style="font-size:12px;color:var(--text2);line-height:1.7">Mahsulot narxini kuzatish uchun:<br><b>/track [uzum yoki olx havolasi]</b><br>Narx tushganda bot xabar beradi</div>
-  </div>
-  <label class="inp-label">Mahsulot qidirish</label>
-  <div style="display:flex;gap:8px;margin-bottom:10px">
-    <input type="text" id="price-q" class="inp" placeholder="iPhone 15, Laptop..." style="flex:1"/>
-    <button class="btn btn-primary btn-sm" onclick="searchPrice()">QIDIRISH</button>
-  </div>
-  <div id="price-results"></div>
-</div>
-
-<div id="p-svc-monitor" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('services')">← ORQAGA</button><h2>📡 Monitoring</h2></div>
-  <div class="info-box green">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);margin-bottom:6px">ℹ KANAL MONITORINGI</div>
-    <div style="font-size:12px;color:var(--text2);line-height:1.7">
-      YouTube yoki Instagram kanalingizni kuzatadi.<br>
-      Yangi post chiqqanda → kanalingizga avtomatik yuboradi.<br><br>
-      <b>Qanday qo'shiladi:</b><br>
-      1. Platforma tanlang (YouTube/Instagram)<br>
-      2. Kanal ID yoki username kiriting<br>
-      3. "Qo'shish" tugmasini bosing<br><br>
-      Bot har 30 daqiqada tekshiradi.
-    </div>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:10px">KANAL QO'SHISH</div>
-    <label class="inp-label">Platforma</label>
-    <select id="mon-platform" class="inp" style="margin-bottom:8px">
-      <option value="youtube">📹 YouTube</option>
-      <option value="instagram">📸 Instagram</option>
-    </select>
-    <label class="inp-label">Kanal ID / Username</label>
-    <input type="text" id="mon-channel-id" class="inp" placeholder="UCxxxxxx yoki @username" style="margin-bottom:8px"/>
-    <label class="inp-label">Nom (ixtiyoriy)</label>
-    <input type="text" id="mon-channel-name" class="inp" placeholder="Kanal nomi" style="margin-bottom:10px"/>
-    <button class="btn btn-primary btn-full" onclick="addMonitor()">
-      <span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined'">add_circle</span> QO'SHISH
-    </button>
-  </div>
-  <div class="page-hdr" style="margin-top:4px"><h2>KUZATILAYOTGAN KANALLAR</h2></div>
-  <div id="monitor-list"><div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Yuklanmoqda...</div></div>
-</div>
-
-<div id="p-svc-smm" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('services')">← ORQAGA</button><h2>✍ AI SMM</h2></div>
-  <div class="card">
-    <label class="inp-label">Mavzu yoki g'oya</label>
-    <textarea id="smm-prompt" class="inp" rows="3" placeholder="Yangi mahsulot, aksiya, tadbir..." style="resize:none;margin-bottom:10px"></textarea>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" style="flex:1" onclick="genSmm(false)">📝 MATN</button>
-      <button class="btn btn-amber" style="flex:1" onclick="genSmm(true)">🖼 RASMLI</button>
-    </div>
-    <div id="smm-loading" style="display:none;text-align:center;padding:12px"><div class="spin"></div></div>
-  </div>
-  <div id="smm-result" style="display:none" class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:8px">TAYYOR POST</div>
-    <div id="smm-text" style="font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.6;margin-bottom:10px"></div>
-    <img id="smm-img" src="" style="display:none;width:100%;border-radius:8px;margin-bottom:10px"/>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary btn-sm" style="flex:1" onclick="copySmm()">📋 NUSXA</button>
-      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="sendSmmToChannel()">📣 KANALGA</button>
-      <button class="btn btn-ghost btn-sm" style="flex:1" onclick="genSmm(document.getElementById('smm-img').style.display!=='none')">🔄 YANGI</button>
-    </div>
-  </div>
-</div>
-
-<!-- Web3 Page -->
-<div id="p-web3" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('services')">← ORQAGA</button><h2>🌐 Web3</h2></div>
-
-  <div class="wallet-card" id="wallet-card">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <span style="font-size:28px;font-family:'Material Symbols Outlined';color:var(--ton)">account_balance_wallet</span>
       <div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ton)">TON HAMYON</div>
-        <div id="wallet-status-txt" style="font-size:11px;color:var(--text3)">Ulanmagan</div>
-      </div>
-      <div style="margin-left:auto">
-        <span id="wallet-dot" style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text3)">○</span>
+        <h2 id="u-name" style="font-size:18px; font-weight:600;">Yuklanmoqda...</h2>
+        <p id="u-username" style="color:var(--text-dim); font-size:13px;">@username</p>
       </div>
     </div>
-    <div id="wallet-address-box" style="display:none;background:rgba(0,136,204,0.08);border:1px solid rgba(0,136,204,0.2);border-radius:8px;padding:8px 10px;margin-bottom:10px">
-      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:2px">MANZIL</div>
-      <div id="wallet-address" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ton);word-break:break-all"></div>
-    </div>
-    <button id="wallet-connect-btn" class="btn btn-ton btn-full" onclick="connectTonWallet()">
-      <span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined'">link</span> TON HAMYON ULASH
-    </button>
-    <button id="wallet-disconnect-btn" class="btn btn-ghost btn-full" style="display:none;margin-top:6px" onclick="disconnectWallet()">
-      <span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined'">link_off</span> UZISH
-    </button>
-  </div>
-
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:10px">WEB3 EKOTIZIM</div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#0a1520;border:1px solid #1a3a5c;border-radius:10px">
-        <span style="font-size:20px">💎</span>
-        <div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue)">TON BLOCKCHAIN</div>
-          <div style="font-size:11px;color:var(--text3)">Premium to'lovlari TON orqali</div>
-        </div>
-        <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)">FAOL</span>
+    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+      <div style="text-align:center;">
+        <p id="s-posts" style="font-size:20px; font-weight:700; color:var(--accent);">0</p>
+        <p style="font-size:10px; color:var(--text-dim); text-transform:uppercase;">Posts</p>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#0a1520;border:1px solid #1a3a5c;border-radius:10px">
-        <span style="font-size:20px">⭐</span>
-        <div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amber)">TELEGRAM STARS</div>
-          <div style="font-size:11px;color:var(--text3)">In-app to'lov tizimi</div>
-        </div>
-        <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)">FAOL</span>
+      <div style="text-align:center; border-left:1px solid var(--border); border-right:1px solid var(--border);">
+        <p id="s-dups" style="font-size:20px; font-weight:700; color:var(--red);">0</p>
+        <p style="font-size:10px; color:var(--text-dim); text-transform:uppercase;">Dups</p>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#0a1520;border:1px solid #1a3a5c;border-radius:10px">
-        <span style="font-size:20px">🔐</span>
-        <div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)">DECENTRALIZED</div>
-          <div style="font-size:11px;color:var(--text3)">Ma'lumotlar shifrlangan</div>
-        </div>
+      <div style="text-align:center;">
+        <p id="s-sources" style="font-size:20px; font-weight:700; color:var(--green);">0</p>
+        <p style="font-size:10px; color:var(--text-dim); text-transform:uppercase;">Feeds</p>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">TON ORQALI PREMIUM OLISH</div>
-    <div id="w3-price-info" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ton);margin-bottom:10px">Yuklanmoqda...</div>
-    <button class="btn btn-ton btn-full" onclick="buyPremium('ton')">
-      💎 TON BILAN TO'LASH
-    </button>
+  <div class="glass-card">
+    <h3 style="font-size:14px; color:var(--accent); margin-bottom:12px;">CHANNEL CONFIG</h3>
+    <div style="display:flex; gap:10px;">
+      <input type="text" id="set-channel" class="inp" placeholder="@channel">
+      <button class="btn btn-primary" onclick="saveChannel()"><span class="mi">save</span></button>
+    </div>
   </div>
 </div>
 
-<div id="p-ai-page" class="page">
-  <div class="page-hdr"><h2>🤖 AI Sozlamalar</h2></div>
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">API KALITLAR</div>
-        <div id="key-count-text" style="font-family:'JetBrains Mono',monospace;font-size:24px;color:var(--green);margin-top:2px">0</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Har kalit = +1 manba (max 3 bonus)</div>
-      </div>
-      <span style="font-size:36px;font-family:'Material Symbols Outlined';color:var(--green)">key</span>
+<!-- Page: Calendar (New) -->
+<div id="p-calendar" class="page">
+  <h1 style="margin-bottom:20px;">Content Calendar</h1>
+  <div class="glass-card">
+    <h3 style="font-size:14px; color:var(--accent); margin-bottom:12px;">REJALASHTIRILGAN POSTLAR</h3>
+    <div id="scheduled-list" style="display:flex; flex-direction:column; gap:12px;">
+      <p style="color:var(--text-dim); font-size:13px; text-align:center;">Hozircha reja yo'q...</p>
     </div>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:10px">YANGI API KALIT QO'SHISH</div>
-    <label class="inp-label">Platform</label>
-    <select id="key-type" class="inp" style="margin-bottom:8px">
-      <option value="groq">Groq (Bepul, tavsiya etiladi)</option>
-      <option value="gemini">Gemini (Google)</option>
-      <option value="cerebras">Cerebras</option>
-      <option value="openrouter">OpenRouter</option>
-      <option value="openai">OpenAI</option>
-    </select>
-    <label class="inp-label">API Kalit</label>
-    <input type="password" id="key-val" class="inp" placeholder="gsk_... yoki sk-..." style="margin-bottom:10px"/>
-    <div id="key-adding" style="display:none;text-align:center;padding:8px"><div class="spin"></div><span style="font-size:11px;color:var(--text3);margin-left:8px">Tekshirilmoqda...</span></div>
-    <button id="key-add-btn" class="btn btn-primary btn-full" onclick="addApiKey()">
-      <span class="mi" style="font-size:15px;font-family:'Material Symbols Outlined'">add</span> QO'SHISH VA TEKSHIRISH
-    </button>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">BEPUL API OLISH</div>
-    <div style="display:flex;flex-direction:column;gap:6px">
-      <a href="https://console.groq.com/keys" target="_blank" class="info-box" style="text-decoration:none;display:flex;align-items:center;gap:8px">
-        <span style="font-size:20px;font-family:'Material Symbols Outlined';color:var(--blue)">open_in_new</span>
-        <div><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue)">GROQ (TAVSIYA)</div><div style="font-size:11px;color:var(--text3)">console.groq.com/keys</div></div>
-      </a>
-      <a href="https://aistudio.google.com/app/apikey" target="_blank" class="info-box" style="text-decoration:none;display:flex;align-items:center;gap:8px">
-        <span style="font-size:20px;font-family:'Material Symbols Outlined';color:var(--blue)">open_in_new</span>
-        <div><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue)">GEMINI</div><div style="font-size:11px;color:var(--text3)">aistudio.google.com/app/apikey</div></div>
-      </a>
-      <a href="https://openrouter.ai/keys" target="_blank" class="info-box" style="text-decoration:none;display:flex;align-items:center;gap:8px">
-        <span style="font-size:20px;font-family:'Material Symbols Outlined';color:var(--blue)">open_in_new</span>
-        <div><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue)">OPENROUTER</div><div style="font-size:11px;color:var(--text3)">openrouter.ai/keys</div></div>
-      </a>
-    </div>
-  </div>
-  <div class="page-hdr" style="margin-top:4px"><h2>ULANGAN KALITLAR</h2></div>
-  <div id="keys-list"><div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Yuklanmoqda...</div></div>
-</div>
-
-<div id="p-profile" class="page">
-  <div class="page-hdr"><h2>👤 Profil</h2></div>
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:14px">
-      <div style="width:52px;height:52px;border-radius:26px;background:var(--green-dim);border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:26px;font-family:'Material Symbols Outlined'">person</div>
-      <div style="flex:1">
-        <div id="profile-name" style="font-weight:600;font-size:16px">Yuklanmoqda...</div>
-        <div id="profile-username" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-top:1px"></div>
-        <div id="profile-status-badge" style="margin-top:5px"></div>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3)">TELEGRAM ID</div>
-    <div id="profile-id" style="font-family:'JetBrains Mono',monospace;font-size:14px;margin-top:2px">—</div>
-  </div>
-  <div id="profile-premium-card" style="display:none" class="card" style="border-color:var(--gold)">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <span style="font-size:20px;font-family:'Material Symbols Outlined';color:var(--gold)">workspace_premium</span>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold)">PREMIUM FAOL</span>
-    </div>
-    <div style="font-size:12px;color:var(--text3)">Muddati: <span id="profile-premium-until" style="color:var(--text2)">Cheksiz</span></div>
-  </div>
-  <div style="display:flex;flex-direction:column;gap:8px">
-    <button class="btn btn-ghost btn-full" onclick="nav('settings')"><span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined'">settings</span> SOZLAMALAR</button>
-    <button class="btn btn-ghost btn-full" onclick="nav('premium')"><span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined'">workspace_premium</span> PREMIUM TARIF</button>
-    <button class="btn btn-ghost btn-full" onclick="nav('referral')"><span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined'">share</span> TAVSIYA &amp; REFERRAL</button>
-    <button class="btn btn-ton btn-full" onclick="nav('web3')"><span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined'">account_balance_wallet</span> WEB3 HAMYON</button>
   </div>
 </div>
 
-<div id="p-settings" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('profile')">← ORQAGA</button><h2>⚙ Sozlamalar</h2></div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:10px">INTERFEYS TILI</div>
-    <div class="lang-row">
-      <button class="lang-btn" id="lang-uz" onclick="setLanguage('uz')">🇺🇿 UZ</button>
-      <button class="lang-btn" id="lang-ru" onclick="setLanguage('ru')">🇷🇺 RU</button>
-      <button class="lang-btn" id="lang-en" onclick="setLanguage('en')">🇬🇧 EN</button>
-    </div>
-    <div id="lang-status" style="display:none;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green)">✓ SAQLANDI</div>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:4px">KALIT SO'ZLAR FILTRI</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Faqat shu so'zlarni o'z ichiga olgan yangiliklar keladi (vergul bilan)</div>
-    <input type="text" id="keywords-input" class="inp" placeholder="Toshkent, dollar, texnologiya..." style="margin-bottom:8px"/>
-    <button class="btn btn-primary btn-full" onclick="saveKeywords()">SAQLASH</button>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:4px">JADVAL BO'YICHA YUBORISH</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Soat (HH:MM), vergul bilan ajratilgan</div>
-    <input type="text" id="schedule-input" class="inp" placeholder="08:00,12:00,18:00" style="margin-bottom:8px"/>
-    <button class="btn btn-primary btn-full" onclick="saveSchedule()">SAQLASH</button>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:4px">KUNLIK DIGEST</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Kunlik top yangiliklar xulosa vaqti</div>
-    <input type="time" id="digest-time" class="inp" value="20:00" style="margin-bottom:10px"/>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" style="flex:1" onclick="saveDigest(true)">YOQISH</button>
-      <button class="btn btn-danger" style="flex:1" onclick="saveDigest(false)">O'CHIRISH</button>
-    </div>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">BOT HOLATI</div>
-    <div id="bot-status-text" style="font-size:12px;color:var(--text2);margin-bottom:10px">Yuklanmoqda...</div>
-    <button id="btn-toggle-settings" class="btn btn-danger btn-full" onclick="toggleBot()">BOT O'CHIRISH</button>
-  </div>
-</div>
-
+<!-- Page: Premium -->
 <div id="p-premium" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('profile')">← ORQAGA</button><h2>⭐ Premium</h2></div>
-  <div class="card" style="border-color:#7a5500">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <span style="font-size:28px;font-family:'Material Symbols Outlined';color:var(--gold)">workspace_premium</span>
-      <div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--gold)">PREMIUM TARIF</div>
-        <div style="font-size:11px;color:var(--text3)">Cheksiz imkoniyatlar</div>
-      </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">
-      <div style="font-size:12px;color:var(--text2)"><span style="color:var(--green)">✓</span> 3 ta RSS manba + API kalit bonuslari</div>
-      <div style="font-size:12px;color:var(--text2)"><span style="color:var(--green)">✓</span> Yuqori chastotali yangiliklar</div>
-      <div style="font-size:12px;color:var(--text2)"><span style="color:var(--green)">✓</span> Kanal monitoringi</div>
-      <div style="font-size:12px;color:var(--text2)"><span style="color:var(--green)">✓</span> Barcha xizmatlar ochiq</div>
-      <div style="font-size:12px;color:var(--text2)"><span style="color:var(--green)">✓</span> Kunlik digest</div>
-    </div>
-    <div id="prem-price-info" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:12px">Narx yuklanmoqda...</div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <button class="btn btn-amber btn-full" onclick="buyPremium('stars')">⭐ STARS BILAN TO'LASH</button>
-      <button class="btn btn-ton btn-full" onclick="buyPremium('ton')">💎 TON BILAN TO'LASH</button>
-      <button class="btn btn-ghost btn-full" onclick="buyPremium('uzs')">💳 KARTA BILAN TO'LASH</button>
-    </div>
-  </div>
-  <div id="prem-detail" style="display:none" class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">TO'LOV MA'LUMOTLARI</div>
-    <div id="prem-detail-text" style="font-size:12px;color:var(--text2);white-space:pre-line;line-height:1.7"></div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="navigator.clipboard.writeText(document.getElementById('prem-detail-text').textContent).then(()=>toast('✓ Nusxalandi'))">📋 NUSXA</button>
+  <h1 style="margin-bottom:20px;">Premium Plans</h1>
+  <div class="glass-card">
+    <table class="premium-table">
+      <thead>
+        <tr><th>Imkoniyat</th><th>Free</th><th>Premium</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>RSS Manbalar</td><td>1 dona</td><td>Cheksiz</td></tr>
+        <tr><td>Rejalashtirish</td><td>3 ta post</td><td>Cheksiz</td></tr>
+        <tr><td>Ommaviy yuklash</td><td><span class="mi cross-icon">close</span></td><td><span class="mi check-icon">check</span></td></tr>
+        <tr><td>AI Summary</td><td>Oddiy</td><td>Professional</td></tr>
+        <tr><td>Multi-Language</td><td>3 ta til</td><td>15 ta til</td></tr>
+      </tbody>
+    </table>
+    <button class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="showToast('To\'lov tizimi tez kunda...')">Premiumga o'tish</button>
   </div>
 </div>
 
-<div id="p-referral" class="page">
-  <div class="page-hdr"><button class="btn btn-ghost btn-sm" onclick="nav('profile')">← ORQAGA</button><h2>🤝 Referral</h2></div>
-  <div class="info-box green">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);margin-bottom:4px">ℹ QANDAY ISHLAYDI</div>
-    <div style="font-size:12px;color:var(--text2)">Do'stlaringizni taklif qiling.<br><b>10 ta faol referral = 30 kun BEPUL PREMIUM!</b></div>
+<!-- Page: Profile/Settings -->
+<div id="p-profile" class="page">
+  <h1>Settings</h1>
+  <div class="glass-card" style="margin-top:20px;">
+    <button class="btn btn-glass" style="width:100%;" onclick="nav('lang')">🌐 Tilni o'zgartirish</button>
+    <button class="btn btn-glass" style="width:100%; margin-top:10px;" onclick="location.reload()">🔄 Yangilash</button>
   </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">SIZNING TAKLIF HAVOLASI</div>
-    <div class="ref-link-box" onclick="copyRefLink()">
-      <span class="mi" style="font-size:18px;font-family:'Material Symbols Outlined';color:var(--green)">link</span>
-      <span class="ref-link-text" id="ref-link-text">Yuklanmoqda...</span>
-      <span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined';color:var(--text3)">content_copy</span>
-    </div>
-    <div style="font-size:10px;color:var(--text3)">Bosing → nusxalanadi</div>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:10px">STATISTIKA</div>
-    <div id="referral-stats"><div style="text-align:center;padding:16px;color:var(--text3);font-size:12px">Yuklanmoqda...</div></div>
-  </div>
-  <button class="btn btn-primary btn-full" onclick="shareRefLink()">
-    <span class="mi" style="font-size:16px;font-family:'Material Symbols Outlined'">share</span> DO'STLARGA ULASHISH
-  </button>
 </div>
 
-<div id="p-admin" class="page">
-  <div class="page-hdr"><h2>🛡 Admin Panel</h2></div>
-  <div class="stat-row" style="margin-bottom:10px">
-    <div class="stat-box"><div class="stat-val" id="adm-total">—</div><div class="stat-lbl">Jami</div></div>
-    <div class="stat-box"><div class="stat-val" id="adm-active">—</div><div class="stat-lbl">Faol</div></div>
-    <div class="stat-box"><div class="stat-val" id="adm-premium">—</div><div class="stat-lbl">Premium</div></div>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">BROADCAST</div>
-    <textarea id="broadcast-msg" class="inp" rows="3" placeholder="Barcha foydalanuvchilarga xabar..." style="resize:none;margin-bottom:8px"></textarea>
-    <button class="btn btn-amber btn-full" onclick="sendBroadcast()">📢 YUBORISH</button>
-  </div>
-  <div class="card">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">PREMIUM NARXLARI</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px">
-      <div><label class="inp-label">Stars</label><input type="text" id="price-stars-config" class="inp" placeholder="500"/></div>
-      <div><label class="inp-label">TON</label><input type="text" id="price-ton-config" class="inp" placeholder="2.5"/></div>
-      <div><label class="inp-label">UZS</label><input type="text" id="price-uzs-config" class="inp" placeholder="120,000"/></div>
-    </div>
-    <button class="btn btn-primary btn-full" onclick="saveAdminPrices()">SAQLASH</button>
-  </div>
-  <div class="page-hdr" style="margin-top:4px">
-    <h2>FOYDALANUVCHILAR</h2>
-    <button class="btn btn-ghost btn-sm" onclick="exportUsersCSV()">CSV</button>
-  </div>
-  <input type="text" id="user-search" class="inp" style="margin-bottom:10px" placeholder="ID yoki username..." oninput="filterUsers(this.value)"/>
-  <div id="adm-user-list"><div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Yuklanmoqda...</div></div>
+<!-- Page: Lang -->
+<div id="p-lang" class="page">
+    <h1 style="margin-bottom:20px;">Til tanlang</h1>
+    <div class="lang-grid" id="lang-list"></div>
 </div>
 
 <nav>
   <button class="nav-btn active" id="nav-dashboard" onclick="nav('dashboard')">
-    <span class="mi">home</span><label>Bosh</label>
+    <span class="mi">dashboard</span><span>Bosh</span>
   </button>
-  <button class="nav-btn" id="nav-sources" onclick="nav('sources')">
-    <span class="mi">database</span><label>Manbalar</label>
+  <button class="nav-btn" id="nav-calendar" onclick="nav('calendar')">
+    <span class="mi">calendar_month</span><span>Reja</span>
   </button>
-  <button class="nav-btn" id="nav-services" onclick="nav('services')">
-    <span class="mi">grid_view</span><label>Xizmatlar</label>
-  </button>
-  <button class="nav-btn" id="nav-ai-page" onclick="nav('ai-page')">
-    <span class="mi">neurology</span><label>AI</label>
+  <button class="nav-btn" id="nav-premium" onclick="nav('premium')">
+    <span class="mi">rocket</span><span>Premium</span>
   </button>
   <button class="nav-btn" id="nav-profile" onclick="nav('profile')">
-    <span class="mi">account_circle</span><label>Profil</label>
-  </button>
-  <button class="nav-btn" id="nav-admin" style="display:none" onclick="nav('admin')">
-    <span class="mi" style="font-variation-settings:'FILL' 1">admin_panel_settings</span><label>Admin</label>
+    <span class="mi">settings</span><span>Sozlama</span>
   </button>
 </nav>
 
-<!-- MODAL: Add source -->
-<div class="modal-bg" id="modal-add-source">
-  <div class="modal-box">
-    <div class="modal-title">📡 Manba Qo'shish</div>
-    <label class="inp-label">Manba nomi</label>
-    <input type="text" id="in-src-name" class="inp" placeholder="BBC O'zbek, Kun.uz..." style="margin-bottom:8px"/>
-    <label class="inp-label">RSS URL</label>
-    <input type="text" id="in-src-url" class="inp" placeholder="https://example.com/rss" style="margin-bottom:8px"/>
-    <label class="inp-label">Tili</label>
-    <select id="in-src-lang" class="inp" style="margin-bottom:14px">
-      <option value="uz">O'zbekcha</option>
-      <option value="ru">Ruscha</option>
-      <option value="en">Inglizcha</option>
-    </select>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost btn-full" onclick="closeModal('modal-add-source')">BEKOR</button>
-      <button class="btn btn-primary btn-full" onclick="addSource()">QO'SHISH</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
 <script>
-const tg = window.Telegram?.WebApp;
-if (tg) { tg.expand(); tg.setHeaderColor?.('#0a110d'); tg.setBackgroundColor?.('#0a110d'); }
-const userId = tg?.initDataUnsafe?.user?.id || new URLSearchParams(location.search).get('user_id');
-const token  = new URLSearchParams(location.search).get('token') || '';
-let userData = null;
-let allAdminUsers = [];
-let refLink = '';
-let smmLastText = '';
-let walletAddress = null;
+const params = new URLSearchParams(location.search);
+const userId = params.get('user_id');
+const token  = params.get('token');
 
-// ── API helper ─────────────────────────────────────────────────────
 async function api(path, method = 'GET', body = null) {
-  try {
-    const sep = path.includes('?') ? '&' : '?';
-    const url = token ? (path + sep + 'token=' + encodeURIComponent(token)) : path;
-    const opts = { method, headers: { 'Content-Type': 'application/json', 'x-bot-token': token } };
-    if (body) opts.body = JSON.stringify(body);
-    const r = await fetch(url, opts);
-    const raw = await r.text().catch(() => '');
-    try { return raw ? JSON.parse(raw) : {}; }
-    catch { return { error: raw || ('HTTP ' + r.status) }; }
-  } catch (e) { return { error: e.message }; }
+  const res = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'x-bot-token': token, 'x-user-id': userId },
+    body: body ? JSON.stringify(body) : null
+  });
+  return await res.json();
 }
 
-// ── Toast ───────────────────────────────────────────────────────────
-let toastTimer;
-function toast(msg, type = 'ok') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'show ' + type;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ── Modals ──────────────────────────────────────────────────────────
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
-
-// ── Navigation ──────────────────────────────────────────────────────
 function nav(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const t = document.getElementById('p-' + page);
-  if (!t) return;
-  t.classList.add('active');
+  document.getElementById('p-' + page).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  let nid = 'nav-' + page;
-  if (['svc-music','svc-youtube','svc-price','svc-monitor','svc-smm','services','web3'].includes(page)) nid = 'nav-services';
-  if (['settings','premium','referral'].includes(page)) nid = 'nav-profile';
-  const nb = document.getElementById(nid);
-  if (nb) nb.classList.add('active');
-  if (page === 'dashboard')   initDashboard();
-  if (page === 'sources')     loadSources();
-  if (page === 'ai-page')     loadApiKeys();
-  if (page === 'premium')     { loadPremium(); loadPrices(); }
-  if (page === 'profile')     initProfile();
-  if (page === 'settings')    initSettings();
-  if (page === 'referral')    loadReferral();
-  if (page === 'admin')       initAdmin();
-  if (page === 'svc-monitor') loadMonitor();
-  if (page === 'web3')        initWeb3();
+  document.getElementById('nav-' + page).classList.add('active');
+  if (page === 'calendar') initCalendar();
+  if (page === 'dashboard') initDashboard();
 }
 
-// ── Translation ────────────────────────────────────────────────────
-const translations = {
-  uz: { welcome: 'Xush kelibsiz', search: 'Qidirish', play: 'Tinglash', download: 'Yuklash', post: 'Post qilish' },
-  en: { welcome: 'Welcome', search: 'Search', play: 'Listen', download: 'Download', post: 'Post' },
-  ru: { welcome: 'Добро пожаловать', search: 'Поиск', play: 'Слушать', download: 'Скачать', post: 'Пост' }
-};
-function t(key) {
-  const lang = userData?.language || 'uz';
-  return translations[lang]?.[key] || key;
-}
-
-// ── Dashboard ───────────────────────────────────────────────────────
 async function initDashboard() {
-  if (!userId) {
-    document.getElementById('u-name').textContent = 'Bot orqali kiring';
-    document.getElementById('u-username').textContent = 'URL parametrlar topilmadi';
+  const data = await api(`/api/user/${userId}`);
+  document.getElementById('u-name').textContent = data.first_name || 'User';
+  document.getElementById('u-username').textContent = data.username ? '@' + data.username : '';
+  const badge = document.getElementById('u-badge-container');
+  badge.innerHTML = data.is_premium ? '<span class="badge badge-premium">PREMIUM</span>' : '<span class="badge">FREE</span>';
+  
+  const stats = await api(`/api/stats/${userId}`);
+  document.getElementById('s-posts').textContent = stats.total_posts || 0;
+  document.getElementById('s-dups').textContent = stats.total_duplicates || 0;
+  if (data.target_channel) document.getElementById('set-channel').value = data.target_channel;
+}
+
+async function initCalendar() {
+  const container = document.getElementById('scheduled-list');
+  const posts = await api(`/api/scheduled/${userId}`);
+  if (posts.length === 0) {
+    container.innerHTML = `<p style="color:var(--text-dim); font-size:13px; text-align:center;">Hozircha reja yo'q...</p>`;
     return;
   }
-  const [statsR, userR] = await Promise.all([api('/api/stats/' + userId), api('/api/user/' + userId)]);
-  userData = (userR && !userR.error) ? userR : null;
-  if (userData) {
-    const tgUser = tg?.initDataUnsafe?.user;
-    document.getElementById('u-name').textContent = tgUser?.first_name || userData.first_name || 'Foydalanuvchi';
-    document.getElementById('u-username').textContent = (tgUser?.username || userData.username) ? '@' + (tgUser?.username || userData.username) : '';
-    const badge = document.getElementById('u-badge');
-    if (userData.is_owner) {
-      badge.className = 'badge badge-owner'; badge.textContent = 'OWNER';
-      const na = document.getElementById('nav-admin');
-      na.style.display = 'flex';
-    } else if (userData.is_premium) {
-      badge.className = 'badge badge-premium'; badge.textContent = 'PREMIUM';
-    } else if (userData.is_approved) {
-      badge.className = 'badge badge-active'; badge.textContent = 'ACTIVE';
-    } else {
-      badge.className = 'badge badge-trial'; badge.textContent = 'TRIAL';
-    }
-    const ustat = document.getElementById('u-status');
-    ustat.textContent = userData.is_active ? '● YOQILGAN' : '○ OCHIRILGAN';
-    ustat.style.color = userData.is_active ? 'var(--green)' : 'var(--red)';
-    const btn = document.getElementById('btn-toggle');
-    if (btn) { btn.textContent = userData.is_active ? "BOT O'CHIRISH" : "BOT YOQISH"; btn.className = 'btn ' + (userData.is_active ? 'btn-danger' : 'btn-primary') + ' btn-sm'; btn.style.flex = '1'; }
-    if (userData.target_channel) document.getElementById('set-channel').value = userData.target_channel;
-    if (userData.interval_minutes) document.getElementById('set-interval').value = userData.interval_minutes;
-  } else {
-    document.getElementById('u-name').textContent = 'Foydalanuvchi topilmadi';
-  }
-  document.getElementById('s-posts').textContent = statsR?.total_posts ?? '—';
-  document.getElementById('s-dups').textContent = statsR?.total_duplicates ?? '—';
-  const srcR = await api('/api/sources/' + userId);
-  document.getElementById('s-sources').textContent = Array.isArray(srcR) ? srcR.length : '—';
-}
-
-async function saveChannel() {
-  const ch = document.getElementById('set-channel').value.trim();
-  if (!ch) { toast('Kanal ID kiriting', 'err'); return; }
-  const r = await api('/api/settings/' + userId, 'POST', { channel: ch });
-  r.success ? toast('✓ Kanal saqlandi') : toast('Xato: ' + (r.error || '?'), 'err');
-}
-async function saveInterval() {
-  const iv = document.getElementById('set-interval').value;
-  const r = await api('/api/settings/' + userId, 'POST', { interval: parseInt(iv) });
-  r.success ? toast('✓ Interval saqlandi') : toast('Xato: ' + (r.error || '?'), 'err');
-}
-async function toggleBot() {
-  const r = await api('/api/settings/' + userId + '/toggle', 'POST', {});
-  if (r.success) { toast(r.is_active ? '✓ Bot yoqildi' : "✓ Bot o'chirildi"); await initDashboard(); if (document.getElementById('p-settings').classList.contains('active')) initSettings(); }
-  else toast('Xato: ' + (r.error || '?'), 'err');
-}
-
-// ── Sources ─────────────────────────────────────────────────────────
-async function loadSources() {
-  const [srcR, limR] = await Promise.all([api('/api/sources/' + userId), api('/api/sources/' + userId + '/limit')]);
-  if (limR && !limR.error) {
-    const cur = limR.current, tot = limR.total;
-    const pct = tot >= 999 ? 100 : Math.min(100, Math.round(cur / tot * 100));
-    document.getElementById('limit-text').textContent = limR.is_owner ? (cur + '/∞') : (cur + '/' + tot);
-    const bar = document.getElementById('limit-bar');
-    bar.style.width = pct + '%';
-    bar.className = 'prog-fill' + (pct >= 100 ? ' danger' : pct >= 70 ? ' warn' : '');
-    let hint = '';
-    if (limR.is_owner) hint = 'Owner: cheksiz manbalar';
-    else if (limR.is_premium) hint = 'Premium: 3 ta + ' + limR.bonus + ' ta API bonus = jami ' + tot + ' ta';
-    else hint = 'Asosiy: 1 ta + ' + limR.bonus + ' ta API bonus = jami ' + tot + ' ta (max bonus: +3)';
-    document.getElementById('limit-hint').textContent = hint;
-    if (!limR.is_owner && cur >= tot) document.getElementById('src-limit-warn')?.classList.remove('hidden');
-  }
-  const list = document.getElementById('sources-list');
-  if (!Array.isArray(srcR) || srcR.length === 0) {
-    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);font-family:\'JetBrains Mono\',monospace;font-size:12px">Hali manba qo\'shilmagan</div>';
-    return;
-  }
-  list.innerHTML = srcR.map(s => '<div class="src-item"><div class="src-info"><div class="src-name">' + esc(s.name) + '</div><div class="src-url">' + esc(s.url) + '</div><div style="margin-top:3px"><span class="tag tag-blue">' + (s.lang||'uz').toUpperCase() + '</span></div></div><button onclick="deleteSource(' + s.id + ')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;transition:color .15s" onmouseover="this.style.color=\'var(--red)\'" onmouseout="this.style.color=\'var(--text3)\'"><span style="font-size:20px;font-family:\'Material Symbols Outlined\'">delete</span></button></div>').join('');
-}
-
-function openAddSource() {
-  document.getElementById('in-src-name').value = '';
-  document.getElementById('in-src-url').value = '';
-  openModal('modal-add-source');
-}
-async function addSource() {
-  const name = document.getElementById('in-src-name').value.trim();
-  const url  = document.getElementById('in-src-url').value.trim();
-  const lang = document.getElementById('in-src-lang').value;
-  if (!name || !url) { toast('Nom va URL kiritilishi shart', 'err'); return; }
-  const r = await api('/api/sources/' + userId, 'POST', { name, url, lang });
-  if (r.success) { toast("✓ Manba qo'shildi"); closeModal('modal-add-source'); loadSources(); }
-  else toast(r.error || 'Xatolik', 'err');
-}
-async function deleteSource(id) {
-  if (!confirm("Manbani o'chirasizmi?")) return;
-  const r = await api('/api/sources/' + userId + '/' + id, 'DELETE');
-  if (r.success) { toast("✓ O'chirildi"); loadSources(); }
-  else toast(r.error || 'Xatolik', 'err');
-}
-
-// ── AI Keys ─────────────────────────────────────────────────────────
-async function loadApiKeys() {
-  const [keysR, limR] = await Promise.all([api('/api/api-keys/' + userId), api('/api/sources/' + userId + '/limit')]);
-  if (limR && !limR.error) document.getElementById('key-count-text').textContent = (limR.api_key_count || 0) + ' ta';
-  const list = document.getElementById('keys-list');
-  if (!Array.isArray(keysR) || keysR.length === 0) {
-    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Hali kalit qo\'shilmagan</div>';
-    return;
-  }
-  list.innerHTML = keysR.map(k => '<div class="src-item"><div class="src-info"><div class="src-name">' + esc((k.api_type||'KEY').toUpperCase()) + '</div><div class="src-url" style="font-family:\'JetBrains Mono\',monospace">' + esc(k.api_key) + '</div></div><span class="badge badge-active">✓ FAOL</span></div>').join('');
-}
-
-async function addApiKey() {
-  const key  = document.getElementById('key-val').value.trim();
-  const type = document.getElementById('key-type').value;
-  if (!key) { toast('API kalit kiriting', 'err'); return; }
-  document.getElementById('key-adding').style.display = 'flex';
-  document.getElementById('key-adding').style.alignItems = 'center';
-  document.getElementById('key-add-btn').disabled = true;
-  const r = await api('/api/api-keys', 'POST', { userId, key, type });
-  document.getElementById('key-adding').style.display = 'none';
-  document.getElementById('key-add-btn').disabled = false;
-  if (r.success) { toast('✓ ' + (r.message || "Kalit qo'shildi")); document.getElementById('key-val').value = ''; loadApiKeys(); }
-  else toast(r.error || 'Xatolik', 'err');
-}
-
-// ── Profile ─────────────────────────────────────────────────────────
-async function initProfile() {
-  if (!userData) { const res = await api('/api/user/' + userId); userData = (res && !res.error) ? res : null; }
-  if (!userData) return;
-  const tgUser = tg?.initDataUnsafe?.user;
-  document.getElementById('profile-name').textContent = tgUser?.first_name || userData.first_name || 'Foydalanuvchi';
-  document.getElementById('profile-username').textContent = (tgUser?.username || userData.username) ? '@' + (tgUser?.username || userData.username) : '';
-  document.getElementById('profile-id').textContent = userId;
-  const sb = document.getElementById('profile-status-badge');
-  if (userData.is_owner) sb.innerHTML = '<span class="badge badge-owner">OWNER</span>';
-  else if (userData.is_premium) {
-    sb.innerHTML = '<span class="badge badge-premium">PREMIUM</span>';
-    document.getElementById('profile-premium-card').style.display = 'block';
-    document.getElementById('profile-premium-until').textContent = userData.premium_until ? new Date(userData.premium_until).toLocaleDateString('uz-UZ') : 'Cheksiz';
-  } else if (userData.is_approved) sb.innerHTML = '<span class="badge badge-active">ACTIVE</span>';
-  else sb.innerHTML = '<span class="badge badge-trial">TRIAL</span>';
-}
-
-// ── Settings ─────────────────────────────────────────────────────────
-async function initSettings() {
-  if (!userData) { const res = await api('/api/user/' + userId); userData = (res && !res.error) ? res : null; }
-  if (!userData) return;
-  updateLangButtons(userData.language || 'uz');
-  const kw = document.getElementById('keywords-input'); if (kw) kw.value = userData.keywords || '';
-  const sch = document.getElementById('schedule-input'); if (sch) sch.value = userData.schedule_times || '';
-  const dgt = document.getElementById('digest-time'); if (dgt) dgt.value = userData.digest_time || '20:00';
-  const bst = document.getElementById('bot-status-text');
-  if (bst) { bst.textContent = userData.is_active ? '● Bot yoqilgan' : "○ Bot o'chirilgan"; bst.style.color = userData.is_active ? 'var(--green)' : 'var(--red)'; }
-  const btn = document.getElementById('btn-toggle-settings');
-  if (btn) { btn.textContent = userData.is_active ? "BOT O'CHIRISH" : 'BOT YOQISH'; btn.className = 'btn ' + (userData.is_active ? 'btn-danger' : 'btn-primary') + ' btn-full'; }
-}
-
-function updateLangButtons(lang) {
-  ['uz','ru','en'].forEach(l => { const b = document.getElementById('lang-' + l); if (b) b.className = l === lang ? 'lang-btn active' : 'lang-btn'; });
-}
-
-async function setLanguage(lang) {
-  updateLangButtons(lang);
-  const r = await api('/api/settings/' + userId + '/language', 'POST', { language: lang });
-  const st = document.getElementById('lang-status');
-  if (r.success) { if (userData) userData.language = lang; st.style.display = 'block'; setTimeout(() => st.style.display = 'none', 2500); toast('✓ Til saqlandi'); }
-  else toast('Xato: ' + (r.error || '?'), 'err');
-}
-async function saveKeywords() {
-  const r = await api('/api/settings/' + userId, 'POST', { keywords: document.getElementById('keywords-input').value });
-  r.success ? toast("✓ Kalit so'zlar saqlandi") : toast('Xato: ' + (r.error || '?'), 'err');
-}
-async function saveSchedule() {
-  const r = await api('/api/settings/' + userId + '/schedule', 'POST', { schedule: document.getElementById('schedule-input').value });
-  r.success ? toast('✓ Jadval saqlandi') : toast('Xato: ' + (r.error || '?'), 'err');
-}
-async function saveDigest(enabled) {
-  const time = document.getElementById('digest-time').value || '20:00';
-  const r = await api('/api/settings/' + userId + '/digest', 'POST', { enabled, time });
-  r.success ? toast(enabled ? '✓ Digest yoqildi' : "✓ Digest o'chirildi") : toast('Xato: ' + (r.error || '?'), 'err');
-}
-
-// ── Premium ──────────────────────────────────────────────────────────
-function loadPremium() {
-  // Alias kept for nav() call — actual data loaded by loadPrices()
-}
-
-async function loadPrices() {
-  const p = await api('/api/admin/prices');
-  if (p && !p.error) {
-    document.getElementById('prem-price-info').textContent = '⭐ ' + p.stars + ' Stars | 💎 ' + p.ton + ' TON | 💳 ' + p.uzs + ' UZS/oy';
-    const w3el = document.getElementById('w3-price-info');
-    if (w3el) w3el.textContent = '💎 ' + p.ton + ' TON / oy';
-  }
-}
-
-// FIX: use the passed method argument directly (was always using selectedMethod='stars')
-async function buyPremium(method) {
-  if (!userId) { toast('Avval botga kiring', 'err'); return; }
-  const r = await api('/api/premium/buy', 'POST', { userId, method: method, plan: method });
-  if (r.invoice_url && tg) tg.openInvoice(r.invoice_url);
-  else if (r.url && tg) tg.openLink(r.url);
-  else if (r.url) window.open(r.url, '_blank');
-  else if (r.details) { document.getElementById('prem-detail-text').textContent = r.details; document.getElementById('prem-detail').style.display = 'block'; }
-  else toast(r.error || 'Xatolik', 'err');
-}
-
-// ── Web3 / TON Wallet ─────────────────────────────────────────────────
-async function initWeb3() {
-  await loadPrices();
-  updateWalletUI();
-}
-
-function updateWalletUI() {
-  const saved = localStorage.getItem('ton_wallet');
-  if (saved) {
-    walletAddress = saved;
-    document.getElementById('wallet-status-txt').textContent = 'Ulangan';
-    document.getElementById('wallet-dot').textContent = '●';
-    document.getElementById('wallet-dot').style.color = 'var(--green)';
-    document.getElementById('wallet-address').textContent = saved;
-    document.getElementById('wallet-address-box').style.display = 'block';
-    document.getElementById('wallet-connect-btn').style.display = 'none';
-    document.getElementById('wallet-disconnect-btn').style.display = 'flex';
-    document.getElementById('wallet-card').classList.add('wallet-connected');
-  } else {
-    walletAddress = null;
-    document.getElementById('wallet-status-txt').textContent = 'Ulanmagan';
-    document.getElementById('wallet-dot').textContent = '○';
-    document.getElementById('wallet-dot').style.color = 'var(--text3)';
-    document.getElementById('wallet-address-box').style.display = 'none';
-    document.getElementById('wallet-connect-btn').style.display = 'flex';
-    document.getElementById('wallet-disconnect-btn').style.display = 'none';
-    document.getElementById('wallet-card').classList.remove('wallet-connected');
-  }
-}
-
-async function connectTonWallet() {
-  if (tg?.openLink) {
-    // Try to open TON wallet deep link in Telegram
-    tg.openLink('https://t.me/wallet');
-    toast('Telegram Wallet ilovasida hamyoningizni tasdiqlang');
-  } else {
-    // Fallback: prompt for address
-    const addr = prompt('TON hamyon manzilingizni kiriting:');
-    if (addr && addr.trim().length > 10) {
-      localStorage.setItem('ton_wallet', addr.trim());
-      updateWalletUI();
-      toast('✓ Hamyon ulandi');
-      // Notify server
-      await api('/api/user/' + userId + '/wallet', 'POST', { wallet: addr.trim() }).catch(() => {});
-    }
-  }
-}
-
-function disconnectWallet() {
-  localStorage.removeItem('ton_wallet');
-  walletAddress = null;
-  updateWalletUI();
-  toast("✓ Hamyon uzildi");
-}
-
-// ── Referral ─────────────────────────────────────────────────────────
-async function loadReferral() {
-  const r = await api('/api/referral/' + userId);
-  if (r && !r.error) {
-    refLink = r.link || '';
-    document.getElementById('ref-link-text').textContent = refLink || 'Yuklanmadi';
-    const filled = r.active % 10;
-    const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
-    document.getElementById('referral-stats').innerHTML = '<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="font-size:12px;color:var(--text2)">Jami: <b style="color:var(--text)">' + r.total + '</b></span><span style="font-size:12px;color:var(--text2)">Faol: <b style="color:var(--green)">' + r.active + '</b></span></div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;color:var(--green);letter-spacing:2px">' + bar + '</div><div style="font-size:11px;color:var(--text3);margin-top:5px">' + (r.active%10) + '/10 → Premiumga yana <b style="color:var(--text)">' + r.needed + '</b> ta tavsiya</div></div>' + (r.code ? '<div style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--text3)">KOD: <span style="color:var(--green)">' + r.code + '</span></div>' : '');
-  } else { document.getElementById('referral-stats').innerHTML = '<div style="color:var(--text3);font-size:12px">Ma\'lumot yuklanmadi</div>'; }
-}
-function copyRefLink() {
-  if (!refLink) { toast('Havola yuklanmoqda...', 'err'); return; }
-  navigator.clipboard.writeText(refLink).then(() => toast('✓ Havola nusxalandi'));
-}
-function shareRefLink() {
-  if (!refLink) return;
-  if (tg?.switchInlineQuery) tg.switchInlineQuery("Do'stim seni taklif qildi! " + refLink);
-  else if (navigator.share) navigator.share({ title: 'Yangiliklar Bot', url: refLink });
-  else copyRefLink();
-}
-
-// ── Services ──────────────────────────────────────────────────────────
-function extractYouTubeId(urlOrId) {
-  if (!urlOrId) return '';
-  // Already an ID (11 chars, no slashes)
-  if (/^[A-Za-z0-9_-]{11}$/.test(urlOrId)) return urlOrId;
-  // Extract from URL
-  const m = urlOrId.match(/(?:v=|youtu\.be\/|embed\/)([A-Za-z0-9_-]{11})/);
-  return m ? m[1] : urlOrId;
-}
-
-async function searchMusic() {
-  const q = document.getElementById('music-q').value.trim();
-  if (!q) { toast("Qidiruv so'zi kiriting", 'err'); return; }
-  const res = document.getElementById('music-results');
-  res.innerHTML = '<div style="text-align:center;padding:20px"><div class="spin"></div></div>';
-  const r = await api('/api/music/search?q=' + encodeURIComponent(q));
-  if (!r || r.error || !Array.isArray(r) || r.length === 0) {
-    res.innerHTML = '<div class="info-box amber"><div style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--amber);margin-bottom:4px">BOTGA YUBORING</div><div style="font-size:12px;color:var(--text2)">Bot orqali bajaring: <b>/music ' + esc(q) + '</b></div></div>';
-    return;
-  }
-  res.innerHTML = r.map(m => {
-    // Support both {id, title} and {url, title} formats from API
-    const vid = m.id ? String(m.id) : extractYouTubeId(m.url || '');
-    const safeTitle = esc(m.title || '').replace(/'/g, "\\'");
-    return `<div class="card">
-      <div style="font-weight:600;font-size:13px;margin-bottom:8px">${esc(m.title)}</div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-primary btn-sm" onclick="playMedia('${vid}','${safeTitle}','audio')"><span class="mi">play_arrow</span> ${t('play')}</button>
-        <button class="btn btn-ghost btn-sm" onclick="downloadMedia('${vid}','audio')"><span class="mi">download</span></button>
-        <button class="btn btn-ghost btn-sm" onclick="postMediaToChannel('${vid}','${safeTitle}')"><span class="mi">send</span></button>
+  container.innerHTML = posts.map(p => `
+    <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <p style="font-weight:600; font-size:14px;">${p.type.toUpperCase()} Post</p>
+        <p style="font-size:11px; color:var(--text-dim);">${new Date(p.scheduled_at).toLocaleString()}</p>
       </div>
-    </div>`;
-  }).join('');
+      <span class="badge" style="background:var(--accent-dim); color:var(--accent);">${p.status}</span>
+    </div>
+  `).join('');
 }
 
-function playMedia(id, title, type) {
-  const bar = document.getElementById('media-player');
-  const audio = document.getElementById('main-audio');
-  const video = document.getElementById('main-video');
-  const titleEl = document.getElementById('player-title');
-  const icon = document.getElementById('play-icon');
-  bar.classList.add('active');
-  titleEl.textContent = title;
-  if (type === 'audio') {
-    video.classList.add('hidden'); audio.classList.remove('hidden');
-    audio.src = `/api/music/download/${id}`; audio.play();
-  } else {
-    audio.classList.add('hidden'); video.classList.remove('hidden');
-    video.src = `/api/music/download/${id}`; video.play();
-  }
-  icon.textContent = 'pause';
-}
-
-function togglePlay() {
-  const audio = document.getElementById('main-audio');
-  const video = document.getElementById('main-video');
-  const icon = document.getElementById('play-icon');
-  const active = !audio.classList.contains('hidden') ? audio : video;
-  if (active.paused) { active.play(); icon.textContent = 'pause'; }
-  else { active.pause(); icon.textContent = 'play_arrow'; }
-}
-
-function closePlayer() {
-  document.getElementById('media-player').classList.remove('active');
-  document.getElementById('main-audio').pause();
-  document.getElementById('main-video').pause();
-}
-
-async function downloadMedia(id) { window.open(`/api/music/download/${id}`, '_blank'); }
-
-async function postMediaToChannel(id, title) {
-  if (!userData?.target_channel) return toast('Kanal sozlanmagan', 'err');
-  toast('Yuborilmoqda...');
-  const r = await api('/api/ai/post-to-channel', 'POST', { userId, text: `🎵 <b>${title}</b>\n\n🔗 https://youtu.be/${id}` });
-  if (r.success) toast('✓ Yuborildi'); else toast(r.error || 'Xato', 'err');
-}
-
-function checkYtUrl() {
-  const url = document.getElementById('yt-url').value.trim();
-  const res = document.getElementById('yt-result');
-  if (!url) { toast('URL kiriting', 'err'); return; }
-  if (!url.includes('youtu') && !url.includes('instagram')) {
-    res.innerHTML = '<div class="info-box red" style="color:var(--red);font-size:12px">Noto\'g\'ri havola (YouTube yoki Instagram kerak)</div>';
-    return;
-  }
-  res.innerHTML = '<div class="info-box green"><div style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--green);margin-bottom:4px">✓ TO\'G\'RI HAVOLA</div><div style="font-size:12px;color:var(--text2)">Ushbu havolani <b>botga yuboring</b> — bot video/audio yuklash imkoniyatini taklif qiladi.</div></div>';
-}
-
-async function searchPrice() {
-  const q = document.getElementById('price-q').value.trim();
-  if (!q) { toast('Mahsulot nomini kiriting', 'err'); return; }
-  const res = document.getElementById('price-results');
-  res.innerHTML = '<div style="text-align:center;padding:20px"><div class="spin"></div></div>';
-  const r = await api('/api/price/search?q=' + encodeURIComponent(q));
-  if (!r || r.error || (Array.isArray(r) && r.length === 0)) {
-    res.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Mahsulot topilmadi</div>';
-    return;
-  }
-  res.innerHTML = (Array.isArray(r) ? r : []).map(p => '<div class="src-item" style="cursor:pointer" onclick="window.open(\'' + esc(p.url||'#') + '\',\'_blank\')"><div class="src-info"><div class="src-name">' + esc(p.name||p.title||'—') + '</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:12px;color:var(--green);margin-top:2px">' + (p.price||0).toLocaleString() + ' UZS</div><div class="src-url">' + esc(p.store||p.source||'') + '</div></div><span style="font-size:20px;font-family:\'Material Symbols Outlined\';color:var(--text3)">open_in_new</span></div>').join('');
-}
-
-async function loadMonitor() {
-  const r = await api('/api/monitor/' + userId);
-  const list = document.getElementById('monitor-list');
-  if (!Array.isArray(r) || r.length === 0) { list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Hali kanal qo\'shilmagan</div>'; return; }
-  list.innerHTML = r.map(c => '<div class="src-item"><div class="src-info"><div class="src-name">' + esc(c.name||c.channel_id) + '</div><div class="src-url">' + esc((c.platform||'').toUpperCase()) + ' · ' + esc(c.channel_id) + '</div></div><button onclick="deleteMonitor(' + c.id + ')" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:4px"><span style="font-size:20px;font-family:\'Material Symbols Outlined\'">delete</span></button></div>').join('');
-}
-async function addMonitor() {
-  const platform = document.getElementById('mon-platform').value;
-  const channelId = document.getElementById('mon-channel-id').value.trim();
-  const name = document.getElementById('mon-channel-name').value.trim();
-  if (!channelId) { toast('Kanal ID kiriting', 'err'); return; }
-  const r = await api('/api/monitor/add', 'POST', { userId, platform, channelId, name });
-  if (r.success) { toast("✓ Kanal qo'shildi"); loadMonitor(); document.getElementById('mon-channel-id').value = ''; document.getElementById('mon-channel-name').value = ''; }
-  else toast(r.error || 'Xatolik', 'err');
-}
-async function deleteMonitor(id) {
-  if (!confirm("O'chirilsinmi?")) return;
-  const r = await api('/api/monitor/' + userId + '/' + id, 'DELETE');
-  if (r.success) { toast("✓ O'chirildi"); loadMonitor(); }
-  else toast(r.error || 'Xatolik', 'err');
-}
-
-async function genSmm(withImage) {
-  const prompt = document.getElementById('smm-prompt').value.trim();
-  if (!prompt) { toast('Mavzu kiriting', 'err'); return; }
-  document.getElementById('smm-loading').style.display = 'block';
-  document.getElementById('smm-result').style.display = 'none';
-  const r = await api('/api/ai/smm', 'POST', { userId, prompt, withImage });
-  document.getElementById('smm-loading').style.display = 'none';
-  if (r.error) { toast(r.error, 'err'); return; }
-  smmLastText = r.text || '';
-  document.getElementById('smm-text').textContent = smmLastText;
-  const img = document.getElementById('smm-img');
-  if (r.imageUrl) { img.src = r.imageUrl; img.style.display = 'block'; } else img.style.display = 'none';
-  document.getElementById('smm-result').style.display = 'block';
-}
-function copySmm() { navigator.clipboard.writeText(smmLastText).then(() => toast('✓ Nusxalandi')); }
-async function sendSmmToChannel() {
-  if (!smmLastText) return;
-  const r = await api('/api/ai/post-to-channel', 'POST', { userId, text: smmLastText });
-  r.success ? toast('✓ Kanalga yuborildi') : toast(r.error || 'Xatolik', 'err');
-}
-
-// ── Admin ─────────────────────────────────────────────────────────────
-async function initAdmin() {
-  if (!userData?.is_owner) { nav('dashboard'); return; }
-  const users = await api('/api/users?userId=' + userId);
-  if (users?.error) { toast("Admin ma'lumotlari yuklanmadi", 'err'); return; }
-  allAdminUsers = Array.isArray(users) ? users : [];
-  document.getElementById('adm-total').textContent = allAdminUsers.length;
-  document.getElementById('adm-active').textContent = allAdminUsers.filter(u => u.is_active).length;
-  document.getElementById('adm-premium').textContent = allAdminUsers.filter(u => u.is_premium).length;
-  renderAdminUsers(allAdminUsers);
-  loadAdminPrices();
-}
-function filterUsers(q) {
-  if (!q) { renderAdminUsers(allAdminUsers); return; }
-  const ql = q.toLowerCase();
-  renderAdminUsers(allAdminUsers.filter(u => String(u.telegram_id).includes(ql) || (u.username && u.username.toLowerCase().includes(ql)) || (u.first_name && u.first_name.toLowerCase().includes(ql))));
-}
-function renderAdminUsers(users) {
-  const el = document.getElementById('adm-user-list');
-  if (!users || !users.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">Foydalanuvchi topilmadi</div>'; return; }
-  el.innerHTML = users.map(u => {
-    const nm = u.first_name || (u.username ? '@' + u.username : String(u.telegram_id));
-    let plan = u.is_owner ? '<span class="badge badge-owner">OWNER</span>' : u.is_premium ? '<span class="badge badge-premium">PREMIUM</span>' : u.is_approved ? '<span class="badge badge-active">FREE</span>' : '<span class="badge badge-trial">TRIAL</span>';
-    return '<div class="user-item"><div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px"><div><div style="font-weight:600;font-size:13px;margin-bottom:3px">' + esc(nm) + ' ' + plan + '</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--text3)">' + (u.username?'@'+u.username+' · ':'') + 'ID: ' + u.telegram_id + '</div>' + (u.target_channel?'<div style="font-size:10px;color:var(--text3)">📣 '+esc(u.target_channel)+'</div>':'') + '</div><span style="font-size:12px;font-family:\'JetBrains Mono\',monospace;color:' + (u.is_active?'var(--green)':'var(--red)') + '">' + (u.is_active?'●':'○') + '</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"><button class="btn ' + (u.is_premium?'btn-ghost':'btn-amber') + ' btn-sm" onclick="togglePremium(' + u.telegram_id + ',' + (u.is_premium?-1:30) + ')">' + (u.is_premium?'★ OL':'★ BER') + '</button><button class="btn ' + (u.is_approved?'btn-danger':'btn-primary') + ' btn-sm" onclick="' + (u.is_approved?'blockUser':'approveUser') + '(' + u.telegram_id + ')">' + (u.is_approved?'BAN':'OK') + '</button><button class="btn btn-ghost btn-sm" onclick="alert(\'ID: ' + u.telegram_id + '\\nKanal: ' + (u.target_channel||'—') + '\\nPremium: ' + (u.is_premium?'Ha':'Yo\'q') + '\')">INFO</button></div></div>';
-  }).join('');
-}
-async function togglePremium(id, days) {
-  const r = await api('/api/admin/users/' + id + '/premium', 'POST', { userId, days });
-  if (r.success) { toast(days > 0 ? '✓ Premium berildi' : '✓ Premium olindi'); initAdmin(); }
-  else toast(r.error || 'Xatolik', 'err');
-}
-async function approveUser(id) {
-  const r = await api('/api/admin/users/' + id + '/approve', 'POST', { userId });
-  if (r.success) { toast('✓ Tasdiqlandi'); initAdmin(); }
-  else toast(r.error || 'Xatolik', 'err');
-}
-async function blockUser(id) {
-  if (!confirm('Banlashni tasdiqlaysizmi?')) return;
-  const r = await api('/api/admin/users/' + id + '/block', 'POST', { userId });
-  if (r.success) { toast('✓ Banlandi'); initAdmin(); }
-  else toast(r.error || 'Xatolik', 'err');
-}
-async function loadAdminPrices() {
-  const p = await api('/api/admin/prices');
-  if (p && !p.error) { document.getElementById('price-stars-config').value = p.stars||''; document.getElementById('price-ton-config').value = p.ton||''; document.getElementById('price-uzs-config').value = p.uzs||''; }
-}
-async function saveAdminPrices() {
-  const r = await api('/api/admin/prices', 'POST', { userId, stars: document.getElementById('price-stars-config').value, ton: document.getElementById('price-ton-config').value, uzs: document.getElementById('price-uzs-config').value });
-  r.success ? toast('✓ Narxlar saqlandi') : toast(r.error || 'Xatolik', 'err');
-}
-async function sendBroadcast() {
-  const msg = document.getElementById('broadcast-msg').value.trim();
-  if (!msg) { toast('Xabar kiriting', 'err'); return; }
-  const r = await api('/api/admin/broadcast', 'POST', { userId, message: msg });
-  if (r.success) { toast('✓ ' + r.count + ' ta foydalanuvchiga yuborildi'); document.getElementById('broadcast-msg').value = ''; }
-  else toast(r.error || 'Xatolik', 'err');
-}
-async function exportUsersCSV() {
-  const users = await api('/api/users?userId=' + userId);
-  if (!users || users.error || !Array.isArray(users)) return;
-  const csv = 'ID,Username,FirstName,Active,Plan\n' + users.map(u => u.telegram_id + ',' + (u.username?'@'+u.username:'') + ',' + (u.first_name||'') + ',' + (u.is_active?'Active':'Inactive') + ',' + (u.is_premium?'Premium':u.is_approved?'Free':'Trial')).join('\n');
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download = 'users.csv'; a.click();
-}
-
-// ── Util ───────────────────────────────────────────────────────────────
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-// ── Boot ────────────────────────────────────────────────────────────────
-if (userId) {
-  initDashboard();
-} else {
-  document.getElementById('u-name').textContent = 'Botdan kiring';
-  document.getElementById('u-username').textContent = 'Web ilovadan kirish uchun bot havolasini bosing';
-}
+nav('dashboard');
 </script>
 </body>
 </html>

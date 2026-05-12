@@ -4,7 +4,7 @@ exports.trackCommand = void 0;
 const database_1 = require("../services/database");
 const scraper_1 = require("../services/scraper");
 exports.trackCommand = {
-    pattern: /^\/track(?: (.+))?$/,
+    pattern: /track|kuzatish|sources|manba/i,
     description: '🔔 Narx kuzatish',
     handler: async (bot, msg, match) => {
         const chatId = msg.chat.id;

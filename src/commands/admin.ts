@@ -4,7 +4,7 @@ import { CONFIG } from "../config/config";
 import { DBService } from "../services/database";
 
 export const adminCommand: BotCommand = {
-  pattern: /^\/admin$/,
+  pattern: /admin|dashboard|panel/i,
   description: '⚙️ Admin paneli',
   handler: async (bot: TelegramBot, msg: TelegramBot.Message) => {
     const chatId = msg.chat.id;

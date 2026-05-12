@@ -57,26 +57,41 @@ if (!CONFIG.REDIS_URL || CONFIG.REDIS_URL.trim() === '') {
   logger.info('👷 Scraper Worker started');
 }
 
-export async function processArticleInline(userId: number, article: any, lang: string): Promise<void> {
+export async function processArticleInline(userId: number, article: any, sourceLang: string): Promise<void> {
   try {
-    const systemPrompt = `Siz professional jurnalist va Telegram kanal adminisiz. 
-    Berilgan yangilikni qisqa (maks 100 so'z), qiziqarli va emojilar bilan boyitilgan holda ${lang || 'uz'} tilida xulosa qiling. 
-    Post oxirida manbani ko'rsatmang (u alohida qo'shiladi).`;
+    const user = await DBService.getUser(userId);
+    if (!user || !user.target_channel || !user.is_active) return;
 
-    const userPrompt = `Sarlavha: ${article.title}\nMazmun: ${article.content}`;
+    const userLang = user.language || sourceLang || 'uz';
+
+    const systemPrompt = `You are a professional news editor. 
+    Summarize the news in ${userLang} language. 
+    Keep it under 100 words, engaging, and use relevant emojis. 
+    Do not include the source link at the end. 
+    Response language must be strictly: ${userLang}.`;
+
+    const userPrompt = `Title: ${article.title}\nContent: ${article.content}\nSource Language: ${sourceLang}`;
+    
+    logger.info(`🤖 AI processing for user ${userId} in ${userLang}...`);
     const summary = await getSmartAIResponse(systemPrompt, userPrompt);
 
-    if (!summary) return;
-
-    const enrichedArticle = { ...article, content: summary, emoji: '🗞' };
-    const user = await DBService.getUser(userId);
-
-    if (user && user.target_channel && user.is_active) {
-      await safeSend(user, enrichedArticle);
-      logger.info(`✅ [inline] Post sent to channel ${user.target_channel}`);
+    if (!summary || summary.length < 10) {
+      logger.warn(`⚠️ AI returned invalid summary for user ${userId}`);
+      return;
     }
+
+    const enrichedArticle = { 
+      ...article, 
+      content: summary, 
+      emoji: '🗞',
+      source: article.source || 'Newsroom'
+    };
+
+    await safeSend(user, enrichedArticle);
+    logger.info(`✅ [inline] Post sent to channel ${user.target_channel} in ${userLang}`);
   } catch (err: any) {
-    logger.error(`❌ Inline article processing error: ${err.message}`);
+    logger.error(`❌ Inline article processing error for user ${userId}: ${err.message}`);
+    throw err; // Rethrow to prevent markSeen in caller if needed
   }
 }
 

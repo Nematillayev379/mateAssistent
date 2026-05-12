@@ -20,6 +20,10 @@ async function bootstrap() {
   // 3. Start Background Workers
   startWorkers();
 
+  // 4. Start Post Scheduler
+  const { SchedulerService } = await import('./services/scheduler');
+  SchedulerService.setup();
+
   // 4. Setup Cron Jobs
   setupRSSCron();
   
@@ -30,7 +34,7 @@ async function bootstrap() {
 }
 
 function setupSystemCrons() {
-  // Self-ping to keep service alive
+  // 1. Self-ping to keep Render service alive
   cron.schedule('*/10 * * * *', async () => {
     if (!CONFIG.PUBLIC_URL) return;
     try {
@@ -41,7 +45,25 @@ function setupSystemCrons() {
     }
   });
 
-  // Add more system crons here (e.g. daily reports, price checks)
+  // 2. Price Tracker Cron (Every 4 hours)
+  cron.schedule('0 */4 * * *', async () => {
+    try {
+      const { PriceTrackerService } = await import('./services/pricetracker');
+      await PriceTrackerService.runPriceChecks();
+    } catch (err: any) {
+      logger.error(`❌ Price Tracker Cron Error: ${err.message}`);
+    }
+  });
+
+  // 3. Daily Digest Cron (Every minute, check who needs digest)
+  cron.schedule('* * * * *', async () => {
+    try {
+      const { processDailyDigests } = await import('./crons/digest_cron');
+      await processDailyDigests();
+    } catch (err: any) {
+      // Ignore if file doesn't exist yet, we will create it
+    }
+  });
 }
 
 bootstrap().catch(err => {

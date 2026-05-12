@@ -59,7 +59,7 @@ exports.CONFIG = {
         "to'lov", "oyiga", "bonus", "sovg'a", "narxi", "sotiladi",
         "tushum", "chegirma", "1xbet", "melbet", "qimor"
     ],
-    PUBLIC_URL: process.env.PUBLIC_URL || "",
+    PUBLIC_URL: (process.env.PUBLIC_URL || "").replace(/\/$/, ""),
     SUPABASE_URL: process.env.SUPABASE_URL || "",
     SUPABASE_KEY: process.env.SUPABASE_KEY || "",
     DASHBOARD_SECRET: (() => {

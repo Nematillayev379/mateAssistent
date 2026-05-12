@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.statusCommand = void 0;
 const database_1 = require("../services/database");
 exports.statusCommand = {
-    pattern: /^\/status$/,
+    pattern: /status|statistika/i,
     description: '📊 Statistika va holat',
     handler: async (bot, msg) => {
         const chatId = msg.chat.id;

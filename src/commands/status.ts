@@ -4,7 +4,7 @@ import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
 
 export const statusCommand: BotCommand = {
-  pattern: /^\/status$/,
+  pattern: /status|statistika/i,
   description: '📊 Statistika va holat',
   handler: async (bot: TelegramBot, msg: TelegramBot.Message) => {
     const chatId = msg.chat.id;

@@ -383,5 +383,60 @@ exports.DBService = {
     async getPrice(type) {
         const val = await this.getSetting(`price_${type}`);
         return val ? parseInt(val) : 0;
+    },
+    // ── SCHEDULED POSTS (Content Calendar) ────
+    async addScheduledPost(userId, type, content, scheduledAt) {
+        const { error } = await supabase.from('scheduled_posts').insert({
+            user_id: userId,
+            type: type,
+            content: content,
+            scheduled_at: scheduledAt,
+            status: 'pending'
+        });
+        if (error)
+            logger_1.logger.error(`addScheduledPost error: ${error.message}`);
+    },
+    async getPendingScheduledPosts() {
+        const now = new Date().toISOString();
+        const { data, error } = await supabase
+            .from('scheduled_posts')
+            .select('*')
+            .eq('status', 'pending')
+            .lte('scheduled_at', now);
+        if (error)
+            logger_1.logger.error(`getPendingScheduledPosts error: ${error.message}`);
+        return data || [];
+    },
+    async getUserScheduledPosts(userId) {
+        const { data, error } = await supabase
+            .from('scheduled_posts')
+            .select('*')
+            .eq('user_id', userId)
+            .order('scheduled_at', { ascending: false });
+        if (error)
+            logger_1.logger.error(`getUserScheduledPosts error: ${error.message}`);
+        return data || [];
+    },
+    async markScheduledPostSent(id) {
+        await supabase.from('scheduled_posts').update({ status: 'sent' }).eq('id', id);
+    },
+    // ── LIMIT CHECKS (Free vs Premium) ────────
+    async checkUserLimit(userId, limitType) {
+        const isPremium = await this.isPremiumActive(userId);
+        if (isPremium)
+            return true; // Premium has no limits (or very high)
+        if (limitType === 'sources') {
+            const sources = await this.getUserSources(userId);
+            return sources.length < 1; // Free limit: 1 source
+        }
+        if (limitType === 'channels') {
+            const channels = await this.getUserMonitoredChannels(userId);
+            return channels.length < 1; // Free limit: 1 channel
+        }
+        if (limitType === 'scheduled') {
+            const { count } = await supabase.from('scheduled_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending');
+            return (count || 0) < 3; // Free limit: 3 pending posts
+        }
+        return true;
     }
 };

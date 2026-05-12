@@ -57,23 +57,35 @@ else {
     }, { connection: redisConnection });
     logger_1.logger.info('👷 Scraper Worker started');
 }
-async function processArticleInline(userId, article, lang) {
+async function processArticleInline(userId, article, sourceLang) {
     try {
-        const systemPrompt = `Siz professional jurnalist va Telegram kanal adminisiz. 
-    Berilgan yangilikni qisqa (maks 100 so'z), qiziqarli va emojilar bilan boyitilgan holda ${lang || 'uz'} tilida xulosa qiling. 
-    Post oxirida manbani ko'rsatmang (u alohida qo'shiladi).`;
-        const userPrompt = `Sarlavha: ${article.title}\nMazmun: ${article.content}`;
-        const summary = await (0, ai_1.getSmartAIResponse)(systemPrompt, userPrompt);
-        if (!summary)
-            return;
-        const enrichedArticle = { ...article, content: summary, emoji: '🗞' };
         const user = await database_1.DBService.getUser(userId);
-        if (user && user.target_channel && user.is_active) {
-            await (0, telegram_1.safeSend)(user, enrichedArticle);
-            logger_1.logger.info(`✅ [inline] Post sent to channel ${user.target_channel}`);
+        if (!user || !user.target_channel || !user.is_active)
+            return;
+        const userLang = user.language || sourceLang || 'uz';
+        const systemPrompt = `You are a professional news editor. 
+    Summarize the news in ${userLang} language. 
+    Keep it under 100 words, engaging, and use relevant emojis. 
+    Do not include the source link at the end. 
+    Response language must be strictly: ${userLang}.`;
+        const userPrompt = `Title: ${article.title}\nContent: ${article.content}\nSource Language: ${sourceLang}`;
+        logger_1.logger.info(`🤖 AI processing for user ${userId} in ${userLang}...`);
+        const summary = await (0, ai_1.getSmartAIResponse)(systemPrompt, userPrompt);
+        if (!summary || summary.length < 10) {
+            logger_1.logger.warn(`⚠️ AI returned invalid summary for user ${userId}`);
+            return;
         }
+        const enrichedArticle = {
+            ...article,
+            content: summary,
+            emoji: '🗞',
+            source: article.source || 'Newsroom'
+        };
+        await (0, telegram_1.safeSend)(user, enrichedArticle);
+        logger_1.logger.info(`✅ [inline] Post sent to channel ${user.target_channel} in ${userLang}`);
     }
     catch (err) {
-        logger_1.logger.error(`❌ Inline article processing error: ${err.message}`);
+        logger_1.logger.error(`❌ Inline article processing error for user ${userId}: ${err.message}`);
+        throw err; // Rethrow to prevent markSeen in caller if needed
     }
 }

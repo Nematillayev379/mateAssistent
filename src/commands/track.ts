@@ -5,7 +5,7 @@ import { ScraperService } from "../services/scraper";
 import { logger } from "../utils/logger";
 
 export const trackCommand: BotCommand = {
-  pattern: /^\/track(?: (.+))?$/,
+  pattern: /track|kuzatish|sources|manba/i,
   description: '🔔 Narx kuzatish',
   handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;

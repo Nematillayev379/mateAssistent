@@ -19,8 +19,21 @@ function setupRSSCron() {
                 const intervalMs = (user.interval_minutes || 15) * 60 * 1000;
                 const lastRun = userLastRun.get(user.telegram_id) || 0;
                 const now = Date.now();
-                if (now - lastRun < intervalMs)
+                const nowObj = new Date();
+                const currentTime = `${nowObj.getHours().toString().padStart(2, '0')}:${nowObj.getMinutes().toString().padStart(2, '0')}`;
+                // Strategy 1: Fixed Schedule
+                if (user.schedule_times && user.schedule_times.trim() !== '') {
+                    const times = user.schedule_times.split(',').map((t) => t.trim());
+                    if (!times.includes(currentTime))
+                        continue;
+                    // Avoid multiple triggers within the same minute
+                    if (now - lastRun < 65000)
+                        continue;
+                }
+                // Strategy 2: Interval
+                else if (now - lastRun < intervalMs) {
                     continue;
+                }
                 userLastRun.set(user.telegram_id, now);
                 const sources = await database_1.DBService.getUserSources(user.telegram_id);
                 if (!sources || sources.length === 0)

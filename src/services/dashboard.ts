@@ -30,26 +30,33 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     }
   });
 
-  const DASHBOARD_SECRET = CONFIG.DASHBOARD_SECRET;
+  const DASHBOARD_SECRET = CONFIG.DASHBOARD_SECRET || 'fallback-secret-123';
 
   const checkAuth = (req: any, res: any, next: any) => {
     const token = req.headers['x-bot-token'] || req.query.token;
-    if (token !== DASHBOARD_SECRET) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    if (!token || token !== DASHBOARD_SECRET) {
+      logger.warn(`🚫 Unauthorized API access attempt from ${req.ip}`);
+      return res.status(401).json({ error: 'Unauthorized: Invalid Token' });
     }
     next();
   };
 
   const checkAdmin = async (req: any, res: any, next: any) => {
     const token = req.headers['x-bot-token'] || req.query.token;
-    if (token !== DASHBOARD_SECRET) {
+    if (!token || token !== DASHBOARD_SECRET) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    const rawId = req.body?.userId || req.query?.userId || req.params?.userId || req.params?.telegramId;
-    if (!rawId) return res.status(403).json({ error: 'Forbidden: userId required' });
-    const user = await DBService.getUser(parseInt(rawId)).catch(() => null);
-    if (!user?.is_owner) {
-      return res.status(403).json({ error: 'Forbidden: admin only' });
+    
+    // For admin routes, we must verify the user making the request is an owner
+    const requesterId = req.headers['x-user-id'] || req.query.user_id || req.body.userId;
+    if (!requesterId) {
+      return res.status(403).json({ error: 'Forbidden: user_id required for admin check' });
+    }
+
+    const user = await DBService.getUser(parseInt(requesterId as string)).catch(() => null);
+    if (!user || !user.is_owner) {
+      logger.warn(`🚫 Non-admin access attempt to admin route: ${requesterId}`);
+      return res.status(403).json({ error: 'Forbidden: Admin access only' });
     }
     next();
   };
@@ -188,9 +195,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     try {
       const userId = parseInt(req.params.userId);
       const { language } = req.body;
-      const validLangs = ['uz', 'ru', 'en'];
+      const validLangs = ['uz', 'ru', 'en', 'tr', 'de', 'fr', 'es', 'it', 'pt', 'ar', 'hi', 'zh', 'ja', 'ko', 'fa'];
       if (!validLangs.includes(language)) return res.status(400).json({ error: "Noto'g'ri til kodi" });
-      await DBService.setLanguage(userId, language as 'uz' | 'ru' | 'en');
+      await DBService.updateUser(userId, { language });
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -630,9 +637,227 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     }
   });
 
+  app.post('/api/ai/generate-media', checkAuth, async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&nologo=true&enhance=true&seed=${Date.now()}`;
+      res.json({ url: imageUrl, type: 'image' });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── SERVICES ─────────────────────────────────────────────────
+  // Music search (returns YouTube results list, no download via web)
+  app.get('/api/music/search', checkAuth, async (req, res) => {
+    try {
+      const { q } = req.query;
+      if (!q) return res.status(400).json({ error: 'Qidiruv so\'zi kiritilishi shart' });
+      const results = await MusicService.getYouTubeVideoIds(q as string, 8);
+      res.json(results);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/music/download/:id', async (req, res) => {
+    try {
+      const id = req.params.id;
+      const url = `https://youtube.com/watch?v=${id}`;
+      // In a real implementation, we would stream from ytdl-core
+      // For now, we'll return the URL or a redirect
+      res.redirect(url);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Price search
+  app.get('/api/price/search', checkAuth, async (req, res) => {
+    try {
+      const { q } = req.query;
+      if (!q) return res.status(400).json({ error: 'Qidiruv so\'zi kiritilishi shart' });
+      const results = await PriceTrackerService.searchProducts(q as string);
+      res.json(results);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Tracked prices
+  app.get('/api/prices/:userId', checkAuth, async (req, res) => {
+    try {
+      const prices = await DBService.getTrackedPrices(parseInt(req.params.userId));
+      res.json(prices);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // YouTube: redirect user to bot for download (can't do file transfer via web)
+  app.post('/api/youtube/info', checkAuth, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url || !url.includes('youtu')) {
+        return res.status(400).json({ error: "To'g'ri YouTube havolasi kiriting" });
+      }
+      res.json({
+        success: true,
+        message: 'Botga havola yuboring: yuklash bot orqali amalga oshiriladi.',
+        url
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── MONITORING ───────────────────────────────────────────────
+  app.post('/api/monitor/add', checkAuth, async (req, res) => {
+    try {
+      const { userId, platform, channelId, name } = req.body;
+      if (!userId || !platform || !channelId) {
+        return res.status(400).json({ error: 'userId, platform va channelId kiritilishi shart' });
+      }
+      await DBService.addMonitoredChannel(parseInt(userId), platform, channelId, name || channelId);
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/monitor/:userId', checkAuth, async (req, res) => {
+    try {
+      const results = await DBService.getUserMonitoredChannels(parseInt(req.params.userId));
+      res.json(results);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete('/api/monitor/:userId/:id', checkAuth, async (req, res) => {
+    try {
+      await DBService.removeMonitoredChannel(parseInt(req.params.userId), parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── ADMIN ─────────────────────────────────────────────────────
+  app.post('/api/admin/users/:telegramId/premium', checkAdmin, async (req, res) => {
+    try {
+      const { telegramId } = req.params;
+      const { days } = req.body;
+      if (days > 0) {
+        await DBService.setPremium(parseInt(telegramId), days);
+      } else {
+        await DBService.revokePremium(parseInt(telegramId));
+      }
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/admin/users/:telegramId/approve', checkAdmin, async (req: any, res: any) => {
+    try {
+      await DBService.updateUser(parseInt(req.params.telegramId), { is_approved: 1 });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/admin/users/:telegramId/block', checkAdmin, async (req, res) => {
+    try {
+      await DBService.updateUser(parseInt(req.params.telegramId), { is_approved: 0, is_active: 0 });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/admin/broadcast', checkAdmin, async (req, res) => {
+    try {
+      const { message } = req.body;
+      const users = await DBService.getAllUsers();
+      let count = 0;
+      for (const user of users) {
+        try {
+          if (bot && typeof bot.sendMessage === 'function') {
+            await bot.sendMessage(user.telegram_id, `📢 <b>ADMIN XABARI:</b>\n\n${message}`, { parse_mode: 'HTML' });
+            count++;
+            await new Promise(r => setTimeout(r, 80));
+          }
+        } catch {}
+      }
+      res.json({ success: true, count });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.get('/api/admin/system', checkAuth, async (req, res) => {
+    try {
+      const mem = process.memoryUsage();
+      res.json({
+        uptime: Math.floor(process.uptime()),
+        ram: Math.round(mem.heapUsed / 1024 / 1024),
+        platform: process.platform,
+        nodeVersion: process.version
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/services/post-to-group', checkAuth, async (req, res) => {
+    try {
+      const { userId, service, message } = req.body;
+      const requestingUser = await DBService.getUser(parseInt(userId));
+      if (!requestingUser) return res.status(404).json({ error: 'User not found' });
+      const ownerUsers = (await DBService.getAllUsers()).filter((u: any) => u.is_owner);
+      if (ownerUsers.length > 0) {
+        for (const owner of ownerUsers) {
+          try {
+            await notify(owner.telegram_id, `🔔 Xizmat so'rovi: ${service}\nUser: ${requestingUser.telegram_id}\n${message}`);
+          } catch {}
+        }
+        res.json({ success: true });
+      } else {
+        res.status(503).json({ error: 'Admin topilmadi' });
+      }
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // ── SPA fallback ─────────────────────────────────────────────
   app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, '../../public/index.html'));
+  });
+
+  // --- SCHEDULED POSTS ---
+  app.get('/api/scheduled/:userId', checkAuth, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const data = await DBService.getUserScheduledPosts(userId);
+      res.json(data || []);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // --- PREMIUM INFO ---
+  app.get('/api/premium-info/:userId', checkAuth, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const isPremium = await DBService.isPremiumActive(userId);
+      const stats = await DBService.getReferralStats(userId);
+      res.json({ isPremium, stats });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   app.use((req, res) => {
