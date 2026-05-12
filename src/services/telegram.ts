@@ -18,12 +18,16 @@ export async function startBot() {
   registerCommands(bot);
 
   // Setup Bot Commands Menu
-  await bot.setMyCommands([
-    { command: 'start', description: '🏠 Boshlash' },
-    { command: 'status', description: '📊 Statistika' },
-    { command: 'track',  description: '🔔 Narx kuzatish' },
-    { command: 'help',  description: '📚 Yordam' },
-  ]).catch(e => logger.warn(`setMyCommands error: ${e.message}`));
+  try {
+    await bot.setMyCommands([
+      { command: 'start', description: '🏠 Boshlash' },
+      { command: 'status', description: '📊 Statistika' },
+      { command: 'track',  description: '🔔 Narx kuzatish' },
+      { command: 'help',  description: '📚 Yordam' },
+    ]);
+  } catch (e: any) {
+    logger.warn(`⚠️ setMyCommands error: ${e.message}`);
+  }
 
   // ── CALLBACK QUERIES ─────────────────────────────────────────────
   bot.on('callback_query', async (query) => {
@@ -185,13 +189,21 @@ export async function startBot() {
   });
 
   // Use Polling for better stability on Render free tier
-  await bot.deleteWebHook();
-  bot.startPolling({ polling: { interval: 1000 } });
-  logger.info(`🚀 Polling started (Production mode)`);
+  try {
+    await bot.deleteWebHook();
+    bot.startPolling({ polling: { interval: 1000 } });
+    logger.info(`🚀 Polling started (Production mode)`);
+  } catch (err: any) {
+    logger.error(`❌ startPolling error: ${err.message}`);
+    // Fallback: try polling anyway after delay
+    setTimeout(() => bot.startPolling(), 5000);
+  }
 
   // Startup notification
   if (CONFIG.OWNER_ID) {
-    await notify(CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0 Modularized</b> is active!`);
+    try {
+      await notify(CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0 Modularized</b> is active!`);
+    } catch {}
   }
 }
 

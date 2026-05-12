@@ -56,12 +56,17 @@ async function startBot() {
     // Register commands
     (0, commands_1.registerCommands)(bot_instance_1.bot);
     // Setup Bot Commands Menu
-    await bot_instance_1.bot.setMyCommands([
-        { command: 'start', description: '🏠 Boshlash' },
-        { command: 'status', description: '📊 Statistika' },
-        { command: 'track', description: '🔔 Narx kuzatish' },
-        { command: 'help', description: '📚 Yordam' },
-    ]).catch(e => logger_1.logger.warn(`setMyCommands error: ${e.message}`));
+    try {
+        await bot_instance_1.bot.setMyCommands([
+            { command: 'start', description: '🏠 Boshlash' },
+            { command: 'status', description: '📊 Statistika' },
+            { command: 'track', description: '🔔 Narx kuzatish' },
+            { command: 'help', description: '📚 Yordam' },
+        ]);
+    }
+    catch (e) {
+        logger_1.logger.warn(`⚠️ setMyCommands error: ${e.message}`);
+    }
     // ── CALLBACK QUERIES ─────────────────────────────────────────────
     bot_instance_1.bot.on('callback_query', async (query) => {
         const chatId = query.message?.chat.id;
@@ -212,12 +217,22 @@ async function startBot() {
         }
     });
     // Use Polling for better stability on Render free tier
-    await bot_instance_1.bot.deleteWebHook();
-    bot_instance_1.bot.startPolling({ polling: { interval: 1000 } });
-    logger_1.logger.info(`🚀 Polling started (Production mode)`);
+    try {
+        await bot_instance_1.bot.deleteWebHook();
+        bot_instance_1.bot.startPolling({ polling: { interval: 1000 } });
+        logger_1.logger.info(`🚀 Polling started (Production mode)`);
+    }
+    catch (err) {
+        logger_1.logger.error(`❌ startPolling error: ${err.message}`);
+        // Fallback: try polling anyway after delay
+        setTimeout(() => bot_instance_1.bot.startPolling(), 5000);
+    }
     // Startup notification
     if (config_1.CONFIG.OWNER_ID) {
-        await (0, bot_instance_1.notify)(config_1.CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0 Modularized</b> is active!`);
+        try {
+            await (0, bot_instance_1.notify)(config_1.CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0 Modularized</b> is active!`);
+        }
+        catch { }
     }
 }
 /**
