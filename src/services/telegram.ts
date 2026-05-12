@@ -188,21 +188,26 @@ export async function startBot() {
     }
   });
 
-  // Use Polling for better stability on Render free tier
-  try {
-    await bot.deleteWebHook();
-    bot.startPolling({ polling: { interval: 1000 } });
-    logger.info(`🚀 Polling started (Production mode)`);
-  } catch (err: any) {
-    logger.error(`❌ startPolling error: ${err.message}`);
-    // Fallback: try polling anyway after delay
-    setTimeout(() => bot.startPolling(), 5000);
+  // --- WEBHOOK SETUP FOR RENDER ---
+  if (CONFIG.PUBLIC_URL) {
+    try {
+      const webhookUrl = `${CONFIG.PUBLIC_URL}/api/bot/webhook`;
+      await bot.setWebHook(webhookUrl);
+      logger.info(`🌐 Webhook set to: ${webhookUrl}`);
+    } catch (err: any) {
+      logger.error(`❌ setWebHook error: ${err.message}`);
+    }
+  } else {
+    // Fallback to polling if no public URL
+    await bot.deleteWebHook().catch(() => {});
+    bot.startPolling({ polling: { interval: 2000 } });
+    logger.info(`🚀 Polling started (Development mode)`);
   }
 
   // Startup notification
   if (CONFIG.OWNER_ID) {
     try {
-      await notify(CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0 Modularized</b> is active!`);
+      await notify(CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0</b> is live via Webhook!`);
     } catch {}
   }
 }

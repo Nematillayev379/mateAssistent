@@ -95,17 +95,16 @@ exports.DBService = {
     },
     // --- NEWS DEDUPLICATION ---
     async isSeen(userId, url) {
-        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('url', url).maybeSingle();
+        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('url', url).limit(1);
         if (error)
             logger_1.logger.error(`isSeen error: ${error.message}`);
-        return !!data;
+        return !!(data && data.length > 0);
     },
     async isSeenByTitle(userId, title) {
-        // Supabase simplified title check (since fuzzy match is harder in cloud)
-        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('title', title).maybeSingle();
+        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('title', title).limit(1);
         if (error)
             logger_1.logger.error(`isSeenByTitle error: ${error.message}`);
-        return !!data;
+        return !!(data && data.length > 0);
     },
     async markSeen(userId, url, title) {
         const { error } = await supabase.from('processed_news').insert({ user_id: userId, url, title });
