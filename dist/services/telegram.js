@@ -57,17 +57,10 @@ async function startBot() {
             await bot_instance_1.bot.sendMessage(chatId, text, { parse_mode: "HTML", reply_markup: { inline_keyboard } });
         }
     });
-    // Webhook vs Polling logic
-    if (config_1.CONFIG.PUBLIC_URL) {
-        const webhookUrl = `${config_1.CONFIG.PUBLIC_URL}/api/bot/webhook`;
-        await bot_instance_1.bot.setWebHook(webhookUrl);
-        logger_1.logger.info(`🌐 Webhook set to: ${webhookUrl}`);
-    }
-    else {
-        await bot_instance_1.bot.deleteWebHook();
-        bot_instance_1.bot.startPolling();
-        logger_1.logger.info(`🚀 Polling started (Development mode)`);
-    }
+    // Use Polling for better stability on Render free tier
+    await bot_instance_1.bot.deleteWebHook();
+    bot_instance_1.bot.startPolling({ polling: { interval: 1000 } });
+    logger_1.logger.info(`🚀 Polling started (Production mode)`);
     // Startup notification
     if (config_1.CONFIG.OWNER_ID) {
         await (0, bot_instance_1.notify)(config_1.CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0 Modularized</b> is active!`);

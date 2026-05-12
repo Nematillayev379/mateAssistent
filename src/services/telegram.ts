@@ -55,16 +55,10 @@ export async function startBot() {
     }
   });
 
-  // Webhook vs Polling logic
-  if (CONFIG.PUBLIC_URL) {
-    const webhookUrl = `${CONFIG.PUBLIC_URL}/api/bot/webhook`;
-    await bot.setWebHook(webhookUrl);
-    logger.info(`🌐 Webhook set to: ${webhookUrl}`);
-  } else {
-    await bot.deleteWebHook();
-    bot.startPolling();
-    logger.info(`🚀 Polling started (Development mode)`);
-  }
+  // Use Polling for better stability on Render free tier
+  await bot.deleteWebHook();
+  bot.startPolling({ polling: { interval: 1000 } });
+  logger.info(`🚀 Polling started (Production mode)`);
 
   // Startup notification
   if (CONFIG.OWNER_ID) {
