@@ -44,6 +44,11 @@ const workers_1 = require("./workers");
 const rss_cron_1 = require("./crons/rss_cron");
 const node_cron_1 = __importDefault(require("node-cron"));
 const axios_1 = __importDefault(require("axios"));
+const dns_1 = __importDefault(require("dns"));
+// Fix for Render/Node18+ AggregateError (forces IPv4)
+if (dns_1.default.setDefaultResultOrder) {
+    dns_1.default.setDefaultResultOrder('ipv4first');
+}
 async function bootstrap() {
     logger_1.logger.info("🚀 Bootstrapping Newsroom Bot Ecosystem...");
     // 1. Start Dashboard

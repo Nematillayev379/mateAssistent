@@ -6,6 +6,12 @@ import { startWorkers } from "./workers";
 import { setupRSSCron } from "./crons/rss_cron";
 import cron from "node-cron";
 import axios from 'axios';
+import dns from 'dns';
+
+// Fix for Render/Node18+ AggregateError (forces IPv4)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 async function bootstrap() {
   logger.info("🚀 Bootstrapping Newsroom Bot Ecosystem...");
