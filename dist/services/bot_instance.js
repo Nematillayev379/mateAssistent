@@ -8,8 +8,11 @@ exports.notify = notify;
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const config_1 = require("../config/config");
 const logger_1 = require("../utils/logger");
-// Initialize bot without polling - startBot() in telegram.ts will handle it
-exports.bot = new node_telegram_bot_api_1.default(config_1.CONFIG.TELEGRAM_TOKEN, { polling: false });
+// Initialize bot with optimized network settings for Render/Linux
+exports.bot = new node_telegram_bot_api_1.default(config_1.CONFIG.TELEGRAM_TOKEN, {
+    polling: false,
+    filepath: false, // Optimizes memory
+});
 /**
  * Shared notify helper to send messages safely
  */

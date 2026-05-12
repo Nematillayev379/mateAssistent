@@ -5,7 +5,7 @@ import * as crypto from "crypto";
 dotenv.config();
 
 export const CONFIG = {
-  TELEGRAM_TOKEN:  process.env.TELEGRAM_BOT_TOKEN  ?? "",
+  TELEGRAM_TOKEN:  process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN || "",
   MAX_TOKENS:      2000,
   TEMPERATURE:     0.6,
   WATCHER_CRON:    "* * * * *", // Har minut ishlaydi, ichkarida foydalanuvchi intervali tekshiriladi

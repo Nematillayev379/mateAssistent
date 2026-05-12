@@ -2,8 +2,11 @@ import TelegramBot from "node-telegram-bot-api";
 import { CONFIG } from "../config/config";
 import { logger } from "../utils/logger";
 
-// Initialize bot without polling - startBot() in telegram.ts will handle it
-export const bot = new TelegramBot(CONFIG.TELEGRAM_TOKEN, { polling: false });
+// Initialize bot with optimized network settings for Render/Linux
+export const bot = new TelegramBot(CONFIG.TELEGRAM_TOKEN, { 
+  polling: false,
+  filepath: false, // Optimizes memory
+});
 
 /**
  * Shared notify helper to send messages safely
