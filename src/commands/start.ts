@@ -14,37 +14,49 @@ export const startCommand: BotCommand = {
     
     const user = await DBService.upsertUser(chatId, isOwner ? 1 : 0, msg.from?.username, msg.from?.first_name);
     const lang = user?.language || 'uz';
+    const role = user.role || 'user';
 
-    // 1. Check Onboarding State
-    if (!user.target_channel) {
-       const text = i18n.t('onboarding_welcome', { lng: lang }) + "\n\n" + i18n.t('onboarding_ask_channel', { lng: lang });
-       await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
-       return;
-    }
-
+    // 1. Onboarding: Ask for Language first
     if (!user.language) {
-       const text = i18n.t('onboarding_ask_lang', { lng: lang });
+       const text = "🌍 <b>Welcome! Please choose your language:</b>\n\n<i>Salom! Tilni tanlang:</i>";
        const inline_keyboard = [
-         [{ text: "🇺🇿 O'zbek", callback_data: "set_lang_uz" }, { text: "🇷🇺 Русский", callback_data: "set_lang_ru" }],
-         [{ text: "🇺🇸 English", callback_data: "set_lang_en" }, { text: "🇹🇷 Türkçe", callback_data: "set_lang_tr" }]
+         [{ text: "🇺🇿 O'zbek", callback_data: "setlang_uz" }, { text: "🇷🇺 Русский", callback_data: "setlang_ru" }],
+         [{ text: "🇺🇸 English", callback_data: "setlang_en" }, { text: "🇹🇷 Türkçe", callback_data: "setlang_tr" }]
        ];
        await bot.sendMessage(chatId, text, { parse_mode: 'HTML', reply_markup: { inline_keyboard } });
        return;
     }
 
-    // 2. Main Dashboard (if onboarding complete)
-    const token = CONFIG.DASHBOARD_SECRET;
-    const dashUrl = CONFIG.PUBLIC_URL ? `${CONFIG.PUBLIC_URL}/?user_id=${chatId}&token=${token}` : null;
-    
-    const welcomeText = i18n.t('onboarding_success', { lng: lang });
-    const inline_keyboard: any[][] = [];
-    if (dashUrl) {
-      inline_keyboard.push([{ text: `🚀 ${i18n.t('nav_dashboard', { lng: lang })}`, web_app: { url: dashUrl } }]);
+    // 2. Onboarding: Ask for Channel
+    if (!user.target_channel) {
+       const text = "🗞 <b>So'nggi qadam!</b>\n\nYangiliklar qaysi kanalga yuborilsin? Kanal nomini @belgisi bilan yuboring (Masalan: @kanalingiz).\n\n<i>Eslatma: Botni kanalingizga 'Admin' qilishingiz shart!</i>";
+       await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
+       return;
     }
-    inline_keyboard.push([{ text: "⚙️ Settings", callback_data: "cmd_settings" }]);
 
-    await bot.sendMessage(chatId, welcomeText, {
-      parse_mode: "HTML",
+    // 3. Elite Welcome Experience
+    const welcomeMsg = {
+      owner: "👑 <b>Xush kelibsiz, Janob Owner!</b>\n\nTizim 100% sizning nazoratingizda. Admin panel orqali foydalanuvchilarni boshqarishingiz mumkin.",
+      admin: "🛠 <b>Admin Panelga xush kelibsiz!</b>\n\nSupport so'rovlarini ko'rib chiqish va botni boshqarish uchun dashboardga o'ting.",
+      premium: "🚀 <b>Siz Premium foydalanuvchisiz!</b>\n\nBarcha cheklovlar olib tashlangan. Ommaviy yuklash va AI media xizmatlaridan foydalanishingiz mumkin.",
+      user: "🗞 <b>Newsroom Botga xush kelibsiz!</b>\n\nDunyo yangiliklarini avtomatik ravishda kanalingizga joylab boring."
+    }[role as 'owner' | 'admin' | 'premium' | 'user'] || "👋 Salom!";
+
+    const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?user=${chatId}`;
+    const dashboardSecret = CONFIG.DASHBOARD_SECRET;
+
+    const inline_keyboard: any[][] = [
+      [{ text: "🖥 Elite Dashboard", web_app: { url: dashboardUrl } }],
+      [{ text: "⚙️ Sozlamalar", callback_data: 'cmd_settings' }, { text: "📊 Statistika", callback_data: 'cmd_stats' }],
+      [{ text: "🎁 Referral Tizimi", callback_data: 'cmd_referral' }]
+    ];
+
+    if (role === 'user' && !user.is_premium) {
+      inline_keyboard.push([{ text: "💎 Premium Sotib Olish", callback_data: 'buy_premium' }]);
+    }
+
+    await bot.sendMessage(chatId, welcomeMsg + `\n\n🔑 <b>Dashboard Kalitingiz:</b> <code>${dashboardSecret}</code>\n\n<i>Kalitni nusxalab oling va Dashboardga kirishda foydalaning.</i>`, {
+      parse_mode: 'HTML',
       reply_markup: { inline_keyboard }
     });
   }

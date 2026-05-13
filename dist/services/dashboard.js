@@ -852,24 +852,37 @@ function startDashboardServer(port, _bot) {
     app.get('/dashboard', (req, res) => {
         res.sendFile(path_1.default.join(__dirname, '../../public/index.html'));
     });
-    // --- SCHEDULED POSTS ---
-    app.get('/api/scheduled/:userId', checkAuth, async (req, res) => {
+    // ── DASHBOARD INFO (ELITE API) ───────────────────────────────
+    app.get('/api/dashboard-info', checkAuth, async (req, res) => {
         try {
-            const userId = parseInt(req.params.userId);
-            const data = await database_1.DBService.getUserScheduledPosts(userId);
-            res.json(data || []);
-        }
-        catch (e) {
-            res.status(500).json({ error: e.message });
-        }
-    });
-    // --- PREMIUM INFO ---
-    app.get('/api/premium-info/:userId', checkAuth, async (req, res) => {
-        try {
-            const userId = parseInt(req.params.userId);
-            const isPremium = await database_1.DBService.isPremiumActive(userId);
-            const stats = await database_1.DBService.getReferralStats(userId);
-            res.json({ isPremium, stats });
+            const userId = parseInt(req.query.userId);
+            const user = await database_1.DBService.getUser(userId);
+            if (!user)
+                return res.status(404).json({ error: 'User not found' });
+            const stats = await database_1.DBService.getStats(userId);
+            const scheduled = await database_1.DBService.getUserScheduledPosts(userId);
+            const referrals = await database_1.DBService.getReferralStats(userId);
+            let tickets = [];
+            if (user.role === 'owner' || user.role === 'admin') {
+                tickets = await database_1.DBService.getTickets();
+            }
+            else {
+                tickets = await database_1.DBService.getUserTickets(userId);
+            }
+            res.json({
+                user: {
+                    id: user.telegram_id,
+                    username: user.username,
+                    language: user.language,
+                    is_premium: user.is_premium,
+                    role: user.role || 'user',
+                    premium_until: user.premium_until,
+                    stats
+                },
+                scheduled,
+                referrals,
+                tickets
+            });
         }
         catch (e) {
             res.status(500).json({ error: e.message });

@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS public.referrals (
 );
 
 -- 3. Extend Users Table
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user'; -- 'user', 'premium', 'admin', 'owner'
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS daily_digest BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS digest_time TEXT DEFAULT '08:00';
@@ -27,7 +28,16 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS schedule_times TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMP WITH TIME ZONE;
 
--- 4. RPC Functions for Stats
+-- 4. Support Tickets (For Elite Support Panel)
+CREATE TABLE IF NOT EXISTS public.support_tickets (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES public.users(telegram_id) ON DELETE CASCADE,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'open', -- 'open', 'resolved', 'closed'
+    assigned_to BIGINT REFERENCES public.users(telegram_id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 CREATE OR REPLACE FUNCTION increment_stat(p_user_id BIGINT, p_field TEXT)
 RETURNS VOID AS $$
 BEGIN

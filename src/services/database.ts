@@ -457,7 +457,37 @@ export const DBService = {
     if (limitType === 'scheduled') {
       const { count } = await supabase.from('scheduled_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending');
       return (count || 0) < 3; // Free limit: 3 pending posts
-    }
-    return true;
+  // --- SUPPORT TICKETS ---
+  async createTicket(userId: number, subject: string, message: string) {
+    const { data, error } = await supabase.from('support_tickets').insert({ user_id: userId, subject, message }).select().single();
+    if (error) logger.error(`createTicket error: ${error.message}`);
+    return data;
+  },
+
+  async getUserTickets(userId: number) {
+    const { data, error } = await supabase.from('support_tickets').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    if (error) logger.error(`getUserTickets error: ${error.message}`);
+    return data || [];
+  },
+
+  async getTickets() {
+    const { data, error } = await supabase.from('support_tickets').select('*, users(username, first_name)').order('created_at', { ascending: false });
+    if (error) logger.error(`getTickets error: ${error.message}`);
+    return data || [];
+  },
+
+  async updateTicketStatus(ticketId: number, status: string) {
+    await supabase.from('support_tickets').update({ status }).eq('id', ticketId);
+  },
+
+  // --- ROLE MANAGEMENT ---
+  async updateUserRole(telegramId: number, role: string) {
+    await supabase.from('users').update({ role }).eq('telegram_id', telegramId);
+  },
+
+  async getUsersForAdmin() {
+    const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+    if (error) logger.error(`getUsersForAdmin error: ${error.message}`);
+    return data || [];
   }
 };

@@ -837,24 +837,38 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     res.sendFile(path.join(__dirname, '../../public/index.html'));
   });
 
-  // --- SCHEDULED POSTS ---
-  app.get('/api/scheduled/:userId', checkAuth, async (req, res) => {
+  // ── DASHBOARD INFO (ELITE API) ───────────────────────────────
+  app.get('/api/dashboard-info', checkAuth, async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
-      const data = await DBService.getUserScheduledPosts(userId);
-      res.json(data || []);
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
+      const userId = parseInt(req.query.userId as string);
+      const user = await DBService.getUser(userId);
+      if (!user) return res.status(404).json({ error: 'User not found' });
 
-  // --- PREMIUM INFO ---
-  app.get('/api/premium-info/:userId', checkAuth, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.userId);
-      const isPremium = await DBService.isPremiumActive(userId);
-      const stats = await DBService.getReferralStats(userId);
-      res.json({ isPremium, stats });
+      const stats = await DBService.getStats(userId);
+      const scheduled = await DBService.getUserScheduledPosts(userId);
+      const referrals = await DBService.getReferralStats(userId);
+      
+      let tickets = [];
+      if (user.role === 'owner' || user.role === 'admin') {
+        tickets = await DBService.getTickets();
+      } else {
+        tickets = await DBService.getUserTickets(userId);
+      }
+
+      res.json({
+        user: {
+          id: user.telegram_id,
+          username: user.username,
+          language: user.language,
+          is_premium: user.is_premium,
+          role: user.role || 'user',
+          premium_until: user.premium_until,
+          stats
+        },
+        scheduled,
+        referrals,
+        tickets
+      });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
