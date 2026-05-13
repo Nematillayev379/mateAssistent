@@ -51,24 +51,28 @@ function downloadFile(url, destination) {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(destination);
     
-    https.get(url, (response) => {
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        // Handle redirects
-        https.get(response.headers.location, (redirectResponse) => {
-          redirectResponse.pipe(file);
+    function performGet(currentUrl) {
+      https.get(currentUrl, (response) => {
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          // BUG #101 Fix: Recursive redirect support
+          performGet(response.headers.location);
+        } else if (response.statusCode === 200) {
+          response.pipe(file);
           file.on('finish', () => {
             file.close();
             resolve();
           });
-        }).on('error', reject);
-      } else {
-        response.pipe(file);
-        file.on('finish', () => {
-          file.close();
-          resolve();
-        });
-      }
-    }).on('error', reject);
+        } else {
+          reject(new Error(`Failed to download: ${response.statusCode}`));
+        }
+      }).on('error', (err) => {
+        file.close();
+        fs.unlinkSync(destination);
+        reject(err);
+      });
+    }
+
+    performGet(url);
   });
 }
 

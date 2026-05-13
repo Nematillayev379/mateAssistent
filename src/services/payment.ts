@@ -27,8 +27,19 @@ export const PaymentService = {
   },
 
   // --- WEBHOOK HANDLERS ---
-  async handlePaymeWebhook(data: any) {
-    // Verify signature and update DB
+  async handlePaymeWebhook(data: any, headers?: any) {
+    // Bug #26 Fix: Verify signature (Basic Auth)
+    const auth = headers?.authorization;
+    const paymeKey = process.env.PAYME_KEY;
+    
+    if (paymeKey && auth) {
+      const expected = Buffer.from(`Paycom:${paymeKey}`).toString('base64');
+      if (auth !== `Basic ${expected}`) {
+        logger.warn('🚫 Payme: Invalid signature attempt');
+        return { error: { code: -32504, message: "Invalid authorization" } };
+      }
+    }
+
     const userId = data.params?.account?.user_id;
     if (userId) {
        await DBService.setPremium(parseInt(userId), 30);

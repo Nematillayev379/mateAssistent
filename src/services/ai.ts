@@ -10,6 +10,10 @@ let globalKeyIndex = 0;
 let embeddingKeyIndex = 0;
 let activeKeys: { key: string; type: "groq" | "cerebras" | "openrouter" | "gemini" | "openai" }[] = [...KEY_POOL];
 
+// BUG #143 Fix: Client caching to save resources
+const groqClients = new Map<string, Groq>();
+const openaiClients = new Map<string, OpenAI>();
+
 /** Bazadan va ENV dan kalitlarni yuklash */
 export async function refreshKeyPool() {
   try {
@@ -42,7 +46,11 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
 
   try {
     if (currentKeyObj.type === "groq") {
-      const groq = new Groq({ apiKey: currentKeyObj.key, timeout: 15000 });
+      let groq = groqClients.get(currentKeyObj.key);
+      if (!groq) {
+        groq = new Groq({ apiKey: currentKeyObj.key, timeout: 15000 });
+        groqClients.set(currentKeyObj.key, groq);
+      }
       const res = await groq.chat.completions.create({
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
         model: "llama-3.3-70b-versatile",
@@ -53,7 +61,7 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system_instruction: { parts: { text: system } },
+          system_instruction: { parts: [{ text: system }] },
           contents: [{ parts: [{ text: user }] }]
         })
       });
@@ -65,7 +73,11 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
       const data = await response.json() as any;
       return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     } else if (currentKeyObj.type === "openai") {
-      const client = new OpenAI({ apiKey: currentKeyObj.key, timeout: 15000 });
+      let client = openaiClients.get(currentKeyObj.key);
+      if (!client) {
+        client = new OpenAI({ apiKey: currentKeyObj.key, timeout: 15000 });
+        openaiClients.set(currentKeyObj.key, client);
+      }
       const res = await client.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
@@ -85,11 +97,17 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
           model = "google/gemini-2.0-flash-001";
           break;
       }
-      const client = new OpenAI({
-        apiKey: currentKeyObj.key,
-        baseURL,
-        timeout: 15000
-      });
+      
+      let client = openaiClients.get(`${baseURL}:${currentKeyObj.key}`);
+      if (!client) {
+        client = new OpenAI({
+          apiKey: currentKeyObj.key,
+          baseURL,
+          timeout: 15000
+        });
+        openaiClients.set(`${baseURL}:${currentKeyObj.key}`, client);
+      }
+      
       const res = await client.chat.completions.create({
         model,
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
@@ -101,7 +119,13 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
     const status = (error as any)?.status ?? (error as any)?.response?.status;
     if (status === 429 || status === 401) {
       logger.warn(`[${currentKeyObj.type.toUpperCase()}] Kalit #${idx} charchadi. Keyingisiga o'tilmoqda...`);
-      globalKeyIndex = (globalKeyIndex + 1) % activeKeys.length;
+      
+      // BUG #70 & #56 Fix: Increment index only if it hasn't been incremented by another parallel request
+      // and ensure we don't retry the same key infinitely if there's only one.
+      if (globalKeyIndex % activeKeys.length === idx) {
+        globalKeyIndex = (globalKeyIndex + 1) % activeKeys.length;
+      }
+      
       return getSmartAIResponse(system, user, retryCount + 1);
     }
     throw error;
@@ -303,7 +327,8 @@ export async function getEmbedding(text: string, retryCount = 0): Promise<number
 
     if (!response.ok) {
        if (response.status === 429) {
-          embeddingKeyIndex++;
+          // BUG #102 & #122 Fix: Modulo result to prevent uncontrolled growth
+          embeddingKeyIndex = (embeddingKeyIndex + 1) % geminiKeys.length;
           return getEmbedding(text, retryCount + 1);
        }
        return null;

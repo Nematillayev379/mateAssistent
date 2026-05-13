@@ -1,5 +1,5 @@
 import axios from 'axios';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -93,12 +93,16 @@ export const YoutubeService = {
     try {
       const ytdlpPath = getYtDlpPath();
       if (!ytdlpPath) throw new Error('yt-dlp not found');
-      const { stdout } = await execPromise(`"${ytdlpPath}" --flat-playlist --get-title --get-id --max-downloads ${limit} "${url}"`, { timeout: 30000 });
-      const lines = stdout.trim().split('\n');
+      
+      // BUG #105 Fix: Use --print instead of deprecated --get-title --get-id
+      const { stdout } = await execPromise(`"${ytdlpPath}" --flat-playlist --print "%(id)s|||%(title)s" --max-downloads ${limit} "${url.replace(/"/g, '')}"`, { timeout: 30000 });
+      
+      const lines = stdout.trim().split('\n').filter(l => l.includes('|||'));
       const results: { title: string, url: string }[] = [];
-      for (let i = 0; i < lines.length; i += 2) {
-        if (lines[i] && lines[i+1]) {
-          results.push({ title: lines[i], url: `https://www.youtube.com/watch?v=${lines[i+1]}` });
+      for (const line of lines) {
+        const [id, title] = line.split('|||');
+        if (id && title) {
+          results.push({ title, url: `https://www.youtube.com/watch?v=${id}` });
         }
       }
       return results;
@@ -113,22 +117,46 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
   if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
   const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
   const filePath = path.join(TEMP_DIR, `yt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`);
-  const maxBytes = (parseInt(process.env.YOUTUBE_MAX_SIZE_MB || '50') * 1024 * 1024);
+  
+  // BUG #95 Fix: Sanitize URL to prevent shell injection
+  const safeUrl = urlParam.replace(/"/g, '').trim();
+  if (!safeUrl.startsWith('http')) throw new Error('Invalid URL');
 
   const ytdlpPath = getYtDlpPath();
   if (ytdlpPath) {
     try {
-      let command = typeParam === 'audio' 
-        ? `"${ytdlpPath}" -f "bestaudio[ext=m4a]" -o "${filePath}" "${urlParam}" --no-warnings --no-playlist --max-filesize 49M`
-        : `"${ytdlpPath}" -f "best[ext=mp4][filesize<50M]/best[filesize<50M]/best" -o "${filePath}" "${urlParam}" --no-warnings --no-playlist`;
-      await execPromise(command, { timeout: 120000 });
+      const args = typeParam === 'audio' 
+        ? ['-f', 'bestaudio[ext=m4a]', '-o', filePath, safeUrl, '--no-warnings', '--no-playlist', '--max-filesize', '49M']
+        : ['-f', 'best[ext=mp4][filesize<50M]/best[filesize<50M]/best', '-o', filePath, safeUrl, '--no-warnings', '--no-playlist'];
+      
+      const { spawn } = await import('child_process');
+      await new Promise((resolve, reject) => {
+        const proc = spawn(ytdlpPath, args);
+        proc.on('close', (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp exited with code ${code}`)));
+        proc.on('error', reject);
+        // Timeout
+        setTimeout(() => { proc.kill(); reject(new Error('Download timeout')); }, 180000);
+      });
+
       if (fs.existsSync(filePath)) return filePath;
     } catch (e: any) {
       logger.warn(`yt-dlp failed: ${e.message}`);
     }
   }
 
-  // Fallback to ytdl-core or Cobalt (omitted for brevity but kept in original)
+  // BUG #100 Fix: Fallback to Cobalt (consolidated logic)
+  try {
+    const { DownloaderService } = await import('./downloader');
+    const cobaltUrl = await DownloaderService.getCobaltMedia(safeUrl);
+    if (cobaltUrl) {
+      const response = await axios.get(cobaltUrl, { responseType: 'arraybuffer', timeout: 60000 });
+      fs.writeFileSync(filePath, Buffer.from(response.data));
+      return filePath;
+    }
+  } catch (e: any) {
+    logger.warn(`Cobalt fallback failed: ${e.message}`);
+  }
+
   throw new Error('Yuklash muvaffaqiyatsiz tugadi.');
 }
 

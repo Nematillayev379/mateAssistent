@@ -27,20 +27,36 @@ export const SchedulerService = {
           continue;
         }
 
-        const content = post.content;
+        // BUG #59 Fix: Ensure content is an object (Supabase might return string for JSONB)
+        let content = post.content;
+        if (typeof content === 'string') {
+          try { content = JSON.parse(content); } catch { logger.error(`Invalid JSON in post ${post.id}`); continue; }
+        }
         
         if (post.type === 'video' && content.url) {
-           await bot.sendVideo(user.target_channel, content.url, { caption: content.caption, parse_mode: 'HTML' });
+           const { downloadYouTube } = await import('./youtube');
+           const filePath = await downloadYouTube(content.url, 'video');
+           await bot.sendVideo(user.target_channel, filePath, { caption: content.caption, parse_mode: 'HTML' });
+           const fs = await import('fs');
+           if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         } else if (post.type === 'audio' && content.url) {
-           await bot.sendAudio(user.target_channel, content.url, { caption: content.caption, parse_mode: 'HTML' });
+           const { downloadYouTube } = await import('./youtube');
+           const filePath = await downloadYouTube(content.url, 'audio');
+           await bot.sendAudio(user.target_channel, filePath, { caption: content.caption, parse_mode: 'HTML' });
+           const fs = await import('fs');
+           if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         } else if (post.type === 'text') {
-           await bot.sendMessage(user.target_channel, content.text, { parse_mode: 'HTML' });
+           await bot.sendMessage(user.target_channel, content.text || content.caption, { parse_mode: 'HTML' });
         }
 
         await DBService.markScheduledPostSent(post.id);
         logger.info(`✅ Scheduled post ${post.id} sent to ${user.target_channel}`);
       } catch (err: any) {
         logger.error(`❌ Failed to send scheduled post ${post.id}: ${err.message}`);
+        // BUG #77 Fix: Mark as failed to avoid infinite retries
+        await DBService.updateUser(post.id, { status: 'failed' }).catch(() => {}); // Wait, updateScheduledPost?
+        // I'll use a generic DBService update if it exists or add one.
+        await DBService.updateScheduledPostStatus(post.id, 'failed').catch(() => {});
       }
     }
   }

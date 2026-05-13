@@ -5,11 +5,11 @@ import { ScraperService } from "../services/scraper";
 import { logger } from "../utils/logger";
 
 export const trackCommand: BotCommand = {
-  pattern: /track|kuzatish|sources|manba/i,
+  pattern: /track\s*(.*)|kuzatish\s*(.*)|sources\s*(.*)|manba\s*(.*)/i,
   description: '🔔 Narx kuzatish',
   handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
-    const url = match?.[1]?.trim();
+    const url = (match?.[1] || match?.[2] || match?.[3] || match?.[4])?.trim();
 
     if (!url) {
       const items = await DBService.getTrackedPrices(chatId);

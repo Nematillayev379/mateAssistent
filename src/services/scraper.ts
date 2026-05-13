@@ -31,7 +31,7 @@ async function fetchWithRetry(url: string, retries = 3): Promise<string> {
 }
 
 export const ScraperService = {
-  async getFullArticle(url: string) {
+  async scrapeArticle(url: string) {
     try {
       const html = await fetchWithRetry(url);
       const $ = cheerio.load(html);
@@ -52,12 +52,25 @@ export const ScraperService = {
       if (imageUrl === url || !this.isMediaUrl(imageUrl)) imageUrl = undefined;
 
       const paragraphs: string[] = [];
-      $("article p, .news-text p, .content p, .article-body p").each((_, p) => {
+      // BUG #149 Fix: More robust selectors for various news sites
+      const selectors = [
+        "article p", ".news-text p", ".content p", ".article-body p", 
+        ".post-content p", ".entry-content p", "main p", ".article__text p",
+        "#article-body p", ".story-body p"
+      ];
+      
+      $(selectors.join(", ")).each((_, p) => {
         const t = $(p).text().trim();
-        if (t.length > 50 && !t.toLowerCase().includes("reklama")) {
+        if (t.length > 50 && !t.toLowerCase().includes("reklama") && !t.toLowerCase().includes("copyright")) {
           paragraphs.push(t);
         }
       });
+
+      // Fallback to meta description if no paragraphs found
+      if (paragraphs.length === 0) {
+        const metaDesc = $("meta[name='description']").attr("content") || $("meta[property='og:description']").attr("content");
+        if (metaDesc) paragraphs.push(metaDesc);
+      }
 
       // Musiqa yoki video fayllarni qidirish
       let audioUrl = $("enclosure[type^='audio']").attr("url") || $("a[href$='.mp3']").first().attr("href");
@@ -139,11 +152,22 @@ export const ScraperService = {
       const $ = cheerio.load(xml, { xmlMode: true });
       const items: any[] = [];
 
-      $("item").each((_, el) => {
+      // BUG #87 Fix: Support both RSS (item) and Atom (entry) formats
+      const entries = $("item").length ? $("item") : $("entry");
+      
+      entries.each((_, el) => {
         const title = $(el).find("title").text().trim();
         const link = this.extractLink(el, $);
-        const description = $(el).find("description").text().trim();
-        const pubDate = $(el).find("pubDate").text().trim();
+        
+        // Atom uses summary/content, RSS uses description
+        const description = $(el).find("description").text().trim() || 
+                            $(el).find("summary").text().trim() || 
+                            $(el).find("content").text().trim();
+                            
+        const pubDate = $(el).find("pubDate").text().trim() || 
+                        $(el).find("published").text().trim() || 
+                        $(el).find("updated").text().trim();
+                        
         const media = this.extractMedia(el, $);
 
         if (title && link) {
@@ -191,7 +215,7 @@ export const ScraperService = {
         try {
           // Quick HEAD request to see if it returns XML
           const { data } = await httpClient.get(trial, { headers: { 'User-Agent': USER_AGENT }, timeout: 5000 });
-          if (data && typeof data === 'string' && data.includes('<rss')) {
+          if (data && typeof data === 'string' && (data.includes('<rss') || data.includes('<feed') || data.includes('<atom'))) {
             return trial;
           }
         } catch {
@@ -199,16 +223,42 @@ export const ScraperService = {
         }
       }
       // 4. As fallback, ask AI to locate an RSS feed for the site
-      const prompt = `Find the RSS feed URL for the website ${websiteUrl}. Respond ONLY with the full URL or say NONE.`;
+      const prompt = `Find the RSS/Atom feed URL for the website ${websiteUrl}. Respond ONLY with the full URL or say NONE.`;
       const aiResponse = await getSmartAIResponse(prompt, websiteUrl);
       const urlMatch = aiResponse.match(/https?:\/\/[^\s]+/i);
+      
       if (urlMatch) {
-        return urlMatch[0];
+        const discovered = urlMatch[0];
+        // BUG #97 Fix: Prevent SSRF by validating the discovered URL
+        try {
+          const originalHost = new URL(websiteUrl).hostname.replace('www.', '');
+          const discoveredHost = new URL(discovered).hostname.replace('www.', '');
+          
+          // Basic security: hostname must match or be a subdomain, or at least not a local/private IP
+          if (!discoveredHost.includes(originalHost) && !this.isPublicExternalUrl(discovered)) {
+            logger.warn(`🚫 SSRF Protection: AI returned suspicious URL: ${discovered}`);
+            return null;
+          }
+          return discovered;
+        } catch {
+          return null;
+        }
       }
     } catch (e: any) {
       logger.warn(`discoverRSS failed for ${websiteUrl}: ${e.message}`);
     }
     return null;
+  },
+
+  isPublicExternalUrl(url: string): boolean {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.toLowerCase();
+      if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.startsWith('10.')) return false;
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   /** Extract Price from Any Online Store */

@@ -16,27 +16,39 @@ if (dns.setDefaultResultOrder) {
 async function bootstrap() {
   logger.info("🚀 Bootstrapping Newsroom Bot Ecosystem...");
 
-  // 1. Start Dashboard
-  const PORT = process.env.PORT || 3000;
-  startDashboardServer(PORT, bot);
+  try {
+    // BUG #1 & #2: Critical Service Initialization
+    const { initI18n } = await import("./services/i18n");
+    const { refreshKeyPool } = await import("./services/ai");
+    await initI18n();
+    await refreshKeyPool();
+    logger.info("✅ Localization and AI KeyPool initialized");
 
-  // 2. Start Bot
-  await startBot();
+    // 1. Start Dashboard
+    const PORT = process.env.PORT || 3000;
+    startDashboardServer(PORT, bot);
 
-  // 3. Start Background Workers
-  startWorkers();
+    // 2. Start Bot
+    await startBot();
 
-  // 4. Start Post Scheduler
-  const { SchedulerService } = await import('./services/scheduler');
-  SchedulerService.setup();
+    // 3. Start Background Workers
+    startWorkers();
 
-  // 4. Setup Cron Jobs
-  setupRSSCron();
-  
-  // Setup other crons
-  setupSystemCrons();
+    // 4. Start Post Scheduler
+    const { SchedulerService } = await import('./services/scheduler');
+    SchedulerService.setup();
 
-  logger.info("✅ Ecosystem is up and running!");
+    // 4. Setup Cron Jobs
+    setupRSSCron();
+    
+    // Setup other crons
+    setupSystemCrons();
+
+    logger.info("✅ Ecosystem is up and running!");
+  } catch (err: any) {
+    logger.error(`🔥 Fatal Initialization Error: ${err.message}`);
+    process.exit(1);
+  }
 }
 
 function setupSystemCrons() {
@@ -68,6 +80,33 @@ function setupSystemCrons() {
       await processDailyDigests();
     } catch (err: any) {
       // Ignore if file doesn't exist yet, we will create it
+    }
+  });
+
+  // 4. BUG #11 & #12: System Cleanup (Every 6 hours)
+  cron.schedule('0 */6 * * *', async () => {
+    try {
+      const { DownloaderService } = await import('./services/downloader');
+      const { MusicService } = await import('./services/music');
+      const { DBService } = await import('./services/database');
+      
+      await DownloaderService.cleanup();
+      await MusicService.cleanup();
+      await DBService.cleanupOldEmbeddings(7);
+      
+      logger.info(`🧹 System cleanup completed`);
+    } catch (err: any) {
+      logger.error(`❌ System Cleanup Error: ${err.message}`);
+    }
+  });
+
+  // BUG #2: Refresh Key Pool every hour
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const { refreshKeyPool } = await import('./services/ai');
+      await refreshKeyPool();
+    } catch (err: any) {
+      logger.error(`❌ Key Pool Refresh Error: ${err.message}`);
     }
   });
 }

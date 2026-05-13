@@ -1,57 +1,86 @@
 import { Worker, Job } from 'bullmq';
-import IORedis from 'ioredis';
+import { getRedisConnection } from '../services/redis';
 import { CONFIG } from '../config/config';
-import { getSmartAIResponse } from '../services/ai';
+import { getSmartAIResponse, moderateContent, checkSemanticDuplicate, categorizeNews, getNiceEmoji } from '../services/ai';
 import { safeSend } from '../services/telegram';
 import { logger } from '../utils/logger';
 import { DBService } from '../services/database';
 
-if (!CONFIG.REDIS_URL || CONFIG.REDIS_URL.trim() === '') {
-  logger.warn('ai_worker: no REDIS_URL, worker not started');
-} else {
-  const redisConnection = new IORedis(CONFIG.REDIS_URL, {
-    maxRetriesPerRequest: null,
-  });
+const connection = getRedisConnection();
 
+if (!connection) {
+  logger.warn('ai_worker: no Redis connection, worker not started');
+} else {
   const aiWorker = new Worker('ai-queue', async (job: Job) => {
     const { userId, article, lang } = job.data;
 
     try {
       logger.info(`🤖 Job ${job.id}: AI processing for ${article.title}`);
 
-      const systemPrompt = `Siz professional jurnalist va Telegram kanal adminisiz. 
-    Berilgan yangilikni qisqa (maks 100 so'z), qiziqarli va emojilar bilan boyitilgan holda ${lang || 'uz'} tilida xulosa qiling. 
-    Post oxirida manbani ko'rsatmang (u alohida qo'shiladi).`;
-
-      const userPrompt = `Sarlavha: ${article.title}\nMazmun: ${article.content}`;
-
-      const summary = await getSmartAIResponse(systemPrompt, userPrompt);
-
-      if (!summary) {
-        throw new Error('AI summary generation failed');
+      // BUG #103 Fix: Filter out ads
+      const adKeywords = (process.env.AD_KEYWORDS || "reklama,buy,sotib oling,click here,bosing").split(',');
+      const textToScan = `${article.title} ${article.content}`.toLowerCase();
+      if (adKeywords.some(k => textToScan.includes(k.trim().toLowerCase()))) {
+        logger.info(`🚫 Ad filtered: ${article.title}`);
+        await DBService.markSeen(userId, article.url, article.title);
+        return;
       }
 
-      const enrichedArticle = {
-        ...article,
-        content: summary,
-        emoji: '🗞',
-      };
+      // 1. Content Moderation (Bug #23)
+      const moderation = await moderateContent(article.title, article.content);
+      if (moderation.status === 'BLOCKED') {
+        logger.warn(`🚫 Article blocked for user ${userId}: ${moderation.reason}`);
+        // We mark as seen to not process it again
+        await DBService.markSeen(userId, article.url, article.title);
+        return;
+      }
 
+      // 2. Semantic Deduplication (Bug #23)
+      const isSemanticDup = await checkSemanticDuplicate(userId, article.title, article.content);
+      if (isSemanticDup) {
+        await DBService.incrementStat(userId, 'total_duplicates');
+        await DBService.markSeen(userId, article.url, article.title);
+        return;
+      }
+
+      // 3. AI Summary Generation
+      const userLang = lang || 'uz';
+      const langMap: Record<string, string> = { 'uz': "O'zbek", 'ru': 'Russian', 'en': 'English', 'tr': 'Turkish' };
+      const fullLangName = langMap[userLang] || userLang;
+
+      const systemPrompt = `Summarize this news in ${fullLangName}. Max 100 words, engaging, no source links. Use professional tone. Response MUST be in ${fullLangName}.`;
+      const userPrompt = `Title: ${article.title}\nContent: ${article.content}`;
+
+      const summary = await getSmartAIResponse(systemPrompt, userPrompt);
+      if (!summary) throw new Error('AI summary generation failed');
+
+      // 4. Categorization and Emoji (Bug #23)
+      const category = await categorizeNews(article.title, summary);
+      const emoji = await getNiceEmoji(article.title);
+
+      const enrichedArticle = { 
+        ...article, 
+        content: summary, 
+        emoji: emoji,
+        category: category 
+      };
+      
       const user = await DBService.getUser(userId);
 
       if (user && user.target_channel && user.is_active) {
         await safeSend(user, enrichedArticle);
-        logger.info(`✅ Post sent to channel ${user.target_channel}`);
-      } else {
-        logger.warn(`⚠️ User ${userId} not eligible for posting (inactive or no channel)`);
+        
+        // BUG #13: Mark as seen ONLY after successful delivery
+        await DBService.markSeen(userId, article.url, article.title);
+        logger.info(`✅ Post sent to channel ${user.target_channel} for user ${userId}`);
       }
     } catch (error) {
-      logger.error(`❌ AI Worker Error: ${error}`);
-      throw error;
+      logger.error(`❌ AI Worker Error for job ${job.id}: ${error}`);
+      throw error; // Let BullMQ handle retries
     }
-  }, { connection: redisConnection });
+  }, { connection });
 
-  logger.info('👷 AI Worker started');
+  logger.info('👷 AI Worker started with shared connection (Full Elite Pipeline)');
 }
 
 export {};

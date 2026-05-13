@@ -77,11 +77,22 @@ export const MusicService = {
 
     try {
       // First search for video URLs
-      const searchQuery = `${artist} music audio`;
-      const { stdout } = await execPromise(
-        `"${ytdlpPath}" "ytsearch${amount * 2}:${searchQuery.replace(/"/g, '\\"')}" --flat-playlist --print "%(id)s|||%(title)s" --no-warnings`,
-        { timeout: 30000 }
-      );
+      const safeArtist = artist.replace(/"/g, '').trim();
+      const searchQuery = `${safeArtist} music audio`;
+      
+      const { spawn } = await import('child_process');
+      const stdout = await new Promise<string>((resolve, reject) => {
+        const proc = spawn(ytdlpPath, [
+          `ytsearch${amount * 2}:${searchQuery}`,
+          '--flat-playlist',
+          '--print', '%(id)s|||%(title)s',
+          '--no-warnings'
+        ]);
+        let data = '';
+        proc.stdout.on('data', (d) => data += d.toString());
+        proc.on('close', (code) => code === 0 ? resolve(data) : reject(new Error(`yt-dlp exited with code ${code}`)));
+        proc.on('error', reject);
+      });
 
       const lines = stdout.trim().split('\n').filter(l => l.includes('|||'));
       const seen = new Set<string>();

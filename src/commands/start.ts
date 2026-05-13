@@ -4,31 +4,56 @@ import { DBService } from "../services/database";
 import { CONFIG } from "../config/config";
 import { i18n } from "../services/i18n";
 import { logger } from "../utils/logger";
+import { generateDashboardToken } from "../services/bot_instance";
 
 export const startCommand: BotCommand = {
-  pattern: /start|boshlash|начать/i,
+  pattern: /start\s*(.*)|boshlash\s*(.*)|начать\s*(.*)/i,
   description: '🏠 Botni boshlash / Start',
   handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
     const isOwner = chatId === CONFIG.OWNER_ID;
     
-    const user = await DBService.upsertUser(chatId, isOwner ? 1 : 0, msg.from?.username, msg.from?.first_name);
-    const lang = user?.language || 'uz';
-    const role = user.role || 'user';
-
-    // 1. Onboarding: Ask for Language first
-    if (!user.language) {
-       const text = "🌍 <b>Welcome! Please choose your language:</b>\n\n<i>Salom! Tilni tanlang:</i>";
-       const inline_keyboard = [
-         [{ text: "🇺🇿 O'zbek", callback_data: "setlang_uz" }, { text: "🇷🇺 Русский", callback_data: "setlang_ru" }],
-         [{ text: "🇺🇸 English", callback_data: "setlang_en" }, { text: "🇹🇷 Türkçe", callback_data: "setlang_tr" }]
-       ];
-       await bot.sendMessage(chatId, text, { parse_mode: 'HTML', reply_markup: { inline_keyboard } });
-       return;
+    // Bug #24: Referral System Fix
+    const payload = match?.[1] || match?.[2] || match?.[3];
+    if (payload && payload.startsWith('ref_')) {
+      const referrerCode = payload.replace('ref_', '').trim();
+      const referrer = await DBService.getUserByReferralCode(referrerCode);
+      if (referrer && referrer.telegram_id !== chatId) {
+        const isNewUser = !(await DBService.getUser(chatId));
+        if (isNewUser) {
+           await DBService.createReferral(referrer.telegram_id, chatId);
+           logger.info(`🎁 New referral: ${chatId} invited by ${referrer.telegram_id}`);
+           await bot.sendMessage(referrer.telegram_id, "🎁 <b>Yangi referral!</b> Sizga bonus berildi.");
+        }
+      }
     }
 
-    // 2. Onboarding: Ask for Channel
+    const user = await DBService.upsertUser(chatId, isOwner ? 1 : 0, msg.from?.username, msg.from?.first_name);
+    // BUG #46 Fix: handle null user
+    if (!user) return;
+    
+    const lang = user.language || 'uz';
+    const role = user.role || 'user';
+
+    // BUG #83 Fix: Check if user is approved
+    if (!user.is_approved && !isOwner && role !== 'admin') {
+      await bot.sendMessage(chatId, "⏳ <b>Sizning profilingiz hali tasdiqlanmagan.</b>\n\nAdminlar tasdiqlaganidan so'ng botdan foydalanishingiz mumkin.");
+      return;
+    }
+
+    // Let's keep it simple: if target_channel is missing, show onboarding steps.
     if (!user.target_channel) {
+       if (!user.has_seen_lang) { // We'll add this to user record or just use language === 'uz' as a proxy for 'new'
+          const text = "🌍 <b>Welcome! Please choose your language:</b>\n\n<i>Salom! Tilni tanlang:</i>";
+          const inline_keyboard = [
+            [{ text: "🇺🇿 O'zbek", callback_data: "setlang_uz" }, { text: "🇷🇺 Русский", callback_data: "setlang_ru" }],
+            [{ text: "🇺🇸 English", callback_data: "setlang_en" }, { text: "🇹🇷 Türkçe", callback_data: "setlang_tr" }]
+          ];
+          await bot.sendMessage(chatId, text, { parse_mode: 'HTML', reply_markup: { inline_keyboard } });
+          await DBService.updateUser(chatId, { has_seen_lang: true }); // We should add this column
+          return;
+       }
+
        const text = "🗞 <b>So'nggi qadam!</b>\n\nYangiliklar qaysi kanalga yuborilsin? Kanal nomini @belgisi bilan yuboring (Masalan: @kanalingiz).\n\n<i>Eslatma: Botni kanalingizga 'Admin' qilishingiz shart!</i>";
        await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
        return;
@@ -42,8 +67,9 @@ export const startCommand: BotCommand = {
       user: "🗞 <b>Newsroom Botga xush kelibsiz!</b>\n\nDunyo yangiliklarini avtomatik ravishda kanalingizga joylab boring."
     }[role as 'owner' | 'admin' | 'premium' | 'user'] || "👋 Salom!";
 
-    const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?user=${chatId}`;
-    const dashboardSecret = CONFIG.DASHBOARD_SECRET;
+    // Bug #27 Fix: Per-user token for IDOR protection
+    const token = generateDashboardToken(chatId);
+    const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?user=${chatId}&token=${token}`;
 
     const inline_keyboard: any[][] = [
       [{ text: "🖥 Elite Dashboard", web_app: { url: dashboardUrl } }],
@@ -55,7 +81,7 @@ export const startCommand: BotCommand = {
       inline_keyboard.push([{ text: "💎 Premium Sotib Olish", callback_data: 'buy_premium' }]);
     }
 
-    await bot.sendMessage(chatId, welcomeMsg + `\n\n🔑 <b>Dashboard Kalitingiz:</b> <code>${dashboardSecret}</code>\n\n<i>Kalitni nusxalab oling va Dashboardga kirishda foydalaning.</i>`, {
+    await bot.sendMessage(chatId, welcomeMsg + `\n\n🔑 <b>Dashboard Kalitingiz:</b> <code>${token}</code>\n\n<i>Kalitni nusxalab oling va Dashboardga kirishda foydalaning.</i>`, {
       parse_mode: 'HTML',
       reply_markup: { inline_keyboard }
     });

@@ -5,14 +5,14 @@ import * as crypto from "crypto";
 dotenv.config();
 
 export const CONFIG = {
-  TELEGRAM_TOKEN:  process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN || "",
+  TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN || "",
   MAX_TOKENS:      2000,
   TEMPERATURE:     0.6,
   WATCHER_CRON:    "* * * * *", // Har minut ishlaydi, ichkarida foydalanuvchi intervali tekshiriladi
   TIMEZONE:        "Asia/Tashkent",
   LOG_DIR:         path.join(process.cwd(), "logs"),
   MAX_SEEN:        10000,
-  OWNER_ID:        parseInt(process.env.OWNER_ID || "0", 10),
+  OWNER_ID:        process.env.OWNER_ID ? parseInt(process.env.OWNER_ID, 10) : null,
   DEDUPLICATION_PROMPT: 
     "Siz tajribali yangiliklar muharririsiz. Vazifangiz: yangi xabar avvalroq kanalga chiqarilganmi yoki yo'qligini aniqlash.\n" +
     "MUHIM: So'zma-so'z o'xshashlikka emas, balki xabarning ASOSIY MAZMUNI, VOQEA VA SHAxslarga e'tibor bering.\n" +
