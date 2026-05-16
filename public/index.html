@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Newsroom Elite Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --surface-hover: #171717;
+            --border: #262626;
+            --primary: #ffffff;
+            --secondary: #a3a3a3;
+            --accent: #3b82f6;
+            --danger: #ef4444;
+            --success: #10b981;
+            --gold: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--primary);
+            padding-bottom: 90px;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .bg-glow {
+            position: fixed; top: -150px; left: 50%; transform: translateX(-50%);
+            width: 300px; height: 300px; background: var(--accent); filter: blur(150px); opacity: 0.15; z-index: -1;
+        }
+
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .user-pill { display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 8px 16px; border-radius: 30px; border: 1px solid var(--border); }
+        .user-pill img, .user-pill i { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .card-title i { color: var(--accent); }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .stat-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 16px; border-radius: 16px; }
+        .stat-val { font-size: 1.5rem; font-weight: 700; }
+        .stat-lab { font-size: 0.75rem; color: var(--secondary); margin-top: 4px; }
+
+        .input-group { margin-bottom: 12px; }
+        .input-group input, .input-group textarea, .input-group select {
+            width: 100%; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            color: white; outline: none; font-family: inherit; transition: 0.2s;
+        }
+        .input-group input:focus { border-color: var(--accent); }
+
+        .btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: var(--bg); }
+        .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
+        .btn-ghost { background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border); }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(10,10,10,0.85); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 10px; z-index: 1000; overflow-x: auto; }
+        .nav-item { min-width: 60px; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--secondary); font-size: 0.7rem; cursor: pointer; transition: 0.2s; }
+        .nav-item i { font-size: 1.2rem; }
+        .nav-item.active { color: var(--accent); }
+
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); margin-bottom: 8px; border: 1px solid var(--border); }
+        .item-info h4 { font-size: 0.9rem; margin-bottom: 2px; }
+        .item-info p { font-size: 0.75rem; color: var(--secondary); }
+
+        .page { display: none; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .badge-premium { color: var(--gold); font-size: 0.8rem; display: flex; align-items: center; gap: 4px; font-weight: bold; }
+
+        #auth-screen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
+    </style>
+</head>
+<body>
+    <div class="bg-glow"></div>
+
+    <div id="auth-screen">
+        <i class="fas fa-diamond" style="font-size: 3rem; color: var(--accent); margin-bottom: 20px;"></i>
+        <h2 style="margin-bottom: 8px;">Newsroom Elite</h2>
+        <p id="auth-status" style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 30px;">Xavfsiz ulanish tekshirilmoqda...</p>
+        <div id="manual-login" style="display: none; width: 100%; max-width: 320px; padding: 0 20px;">
+            <input type="password" id="auth-key" placeholder="Maxfiy kalit" style="width: 100%; padding: 15px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: white; margin-bottom: 15px; outline: none;">
+            <button class="btn btn-primary" onclick="login()">Dashboardni ochish</button>
+        </div>
+    </div>
+
+    <div id="app" style="display: none;">
+        <div class="container">
+            <header>
+                <div class="user-pill">
+                    <div class="avatar" style="background: var(--accent)"><i class="fas fa-user"></i></div>
+                    <div style="font-size: 0.85rem; font-weight: 600;" id="user-name">Foydalanuvchi</div>
+                </div>
+                <div id="user-premium-badge" class="badge-premium" style="display: none;"><i class="fas fa-crown"></i> ELITE</div>
+            </header>
+
+            <!-- 1. Home Page -->
+            <section id="page-home" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-chart-line"></i> Statistika</div>
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <div class="stat-val" id="stat-posts">0</div>
+                            <div class="stat-lab">Jami Postlar</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-val" id="stat-dupes">0</div>
+                            <div class="stat-lab">Dublikatlar</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-val" id="stat-sources">0</div>
+                            <div class="stat-lab">Manbalar</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-val" id="stat-refs">0</div>
+                            <div class="stat-lab">Referrallar</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-clock"></i> Navbatdagi Postlar</div>
+                    <div id="scheduled-list"></div>
+                </div>
+            </section>
+
+            <!-- 2. Content Page (RSS + AI + Channels) -->
+            <section id="page-content" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-rss"></i> RSS Manbalar</div>
+                    <div class="input-group"><input type="text" id="src-name" placeholder="Nomi"></div>
+                    <div class="input-group"><input type="text" id="src-url" placeholder="RSS URL"></div>
+                    <button class="btn btn-primary" onclick="saveSource()">Manba qo'shish</button>
+                    <div id="sources-list" style="margin-top: 20px;"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-robot"></i> AI SMM Generator</div>
+                    <div class="input-group"><textarea id="ai-prompt" rows="3" placeholder="Mavzu..."></textarea></div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
+                        <input type="checkbox" id="ai-image" style="width: 18px; height: 18px;"> <label>Rasm generatsiya qilinsin</label>
+                    </div>
+                    <button class="btn btn-primary" id="btn-ai" onclick="generateAIPost()">Post yaratish</button>
+                    <div id="ai-result" style="margin-top: 15px; display: none;">
+                        <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
+                            <img id="ai-res-img" style="width: 100%; border-radius: 8px; margin-bottom: 10px; display: none;">
+                            <p id="ai-res-text" style="font-size: 0.9rem; white-space: pre-wrap;"></p>
+                            <button class="btn btn-primary" style="margin-top: 15px;" id="btn-send-ai" onclick="sendAIPostToChannel()">Kanalga yuborish</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-tv"></i> Kuzatilayotgan Kanallar</div>
+                    <div class="input-group">
+                        <input type="text" id="channel-platform" placeholder="Platform (telegram)">
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="channel-id" placeholder="Kanal ID">
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="channel-name" placeholder="Kanal nomi">
+                    </div>
+                    <button class="btn btn-primary" onclick="addChannel()">Kanal qo'shish</button>
+                    <div id="channels-list" style="margin-top: 20px;"></div>
+                </div>
+            </section>
+
+            <!-- 3. Services Page (contains Media, Finance, Tracker) -->
+            <section id="page-services" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-th-large"></i> Xizmatlar</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <button class="btn btn-ghost" onclick="showSubPage('media')"><i class="fas fa-play-circle"></i> Media</button>
+                        <button class="btn btn-ghost" onclick="showSubPage('finance')"><i class="fas fa-chart-bar"></i> Moliya</button>
+                        <button class="btn btn-ghost" onclick="showSubPage('tracker')"><i class="fas fa-bell"></i> Tracker</button>
+                    </div>
+                </div>
+
+                <!-- Media Sub-page -->
+                <div id="subpage-media" style="display: none;">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-music"></i> Musiqa Qidirish</div>
+                        <div style="display: flex; gap: 10px;" class="input-group">
+                            <input type="text" id="music-q" placeholder="Artist yoki qo'shiq...">
+                            <button class="btn btn-primary" style="width: 60px;" onclick="searchMusic()"><i class="fas fa-search"></i></button>
+                        </div>
+                        <div id="music-list" style="margin-top: 15px;"></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-download"></i> Video Yuklovchi</div>
+                        <p style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 15px;">YouTube, Instagram yoki TikTok linkini bering.</p>
+                        <div class="input-group"><input type="text" id="dl-url" placeholder="Link..."></div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button class="btn btn-ghost" onclick="downloadMedia('video')"><i class="fas fa-video"></i> Video</button>
+                            <button class="btn btn-ghost" onclick="downloadMedia('audio')"><i class="fas fa-music"></i> Audio</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
+                </div>
+
+                <!-- Finance Sub-page -->
+                <div id="subpage-finance" style="display: none;">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-coins"></i> Bozor Holati</div>
+                        <div id="finance-list">
+                            <div class="item-row">
+                                <div class="item-info"><h4>Bitcoin (BTC)</h4><p>Global kriptovalyuta</p></div>
+                                <div class="stat-val" style="font-size: 1.1rem;" id="f-btc">---</div>
+                            </div>
+                            <div class="item-row">
+                                <div class="item-info"><h4>AQSh Dollari (USD)</h4><p>MB kursi</p></div>
+                                <div class="stat-val" style="font-size: 1.1rem;" id="f-usd">---</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadFinance()">Yangilash</button>
+                    </div>
+                    <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
+                </div>
+
+                <!-- Tracker Sub-page -->
+                <div id="subpage-tracker" style="display: none;">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-bell"></i> Narx Kuzatuv</div>
+                        <div class="input-group">
+                            <input type="text" id="track-url" placeholder="Uzum yoki OLX link">
+                        </div>
+                        <button class="btn btn-primary" onclick="trackPrice()">Kuzatishni boshlash</button>
+                        <div id="tracked-list" style="margin-top: 20px;"></div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
+                </div>
+            </section>
+
+            <!-- 5. Profile & Settings Page -->
+            <section id="page-profile" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-cog"></i> Sozlamalar</div>
+                    <div class="input-group">
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Til (Language)</label>
+                        <select id="set-lang">
+                            <option value="uz">O'zbek tili</option>
+                            <option value="ru">Русский язык</option>
+                            <option value="en">English</option>
+                            <option value="tr">Türkçe</option>
+                            <option value="de">Deutsch</option>
+                            <option value="fr">Français</option>
+                            <option value="es">Español</option>
+                            <option value="it">Italiano</option>
+                            <option value="pt">Português</option>
+                            <option value="ar">العربية</option>
+                            <option value="hi">हिन्दी</option>
+                            <option value="zh">中文</option>
+                            <option value="ja">日本語</option>
+                            <option value="ko">한국어</option>
+                            <option value="fa">فارسی</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Kanal (Target Channel)</label>
+                        <input type="text" id="set-channel" placeholder="@kanalingiz yoki -100...">
+                    </div>
+                    <div class="input-group">
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Kalit so'zlar (Keywords)</label>
+                        <input type="text" id="set-keywords" placeholder="so'z1, so'z2, so'z3">
+                    </div>
+                    <div class="input-group">
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Kunlik Digest</label>
+                        <select id="set-digest">
+                            <option value="false">O'chirilgan</option>
+                            <option value="true">Yoqilgan</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Digest Vaqti</label>
+                        <input type="time" id="set-digest-time" value="20:00">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">Saqlash</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-crown"></i> Premium</div>
+                    <div id="premium-status"></div>
+                    <div id="premium-plans" style="margin-top: 20px;">
+                        <div class="item-row" style="margin-bottom: 15px;">
+                            <div>
+                                <h4>1 Oylik</h4>
+                                <p style="color: var(--secondary);">Barcha imkoniyatlar</p>
+                            </div>
+                            <button class="btn btn-primary" style="width: auto; padding: 8px 16px;" onclick="buyPremium('monthly')">Sotib olish</button>
+                        </div>
+                        <div class="item-row">
+                            <div>
+                                <h4>1 Yillik</h4>
+                                <p style="color: var(--secondary);">10% chegirma</p>
+                            </div>
+                            <button class="btn btn-primary" style="width: auto; padding: 8px 16px;" onclick="buyPremium('yearly')">Sotib olish</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-gift"></i> Referral Tizimi</div>
+                    <div id="referral-info"></div>
+                    <button class="btn btn-ghost" style="margin-top: 15px;" onclick="copyReferralLink()">Havolani nusxalash</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-headset"></i> Support</div>
+                    <div class="input-group">
+                        <input type="text" id="ticket-subject" placeholder="Mavzu">
+                    </div>
+                    <div class="input-group">
+                        <textarea id="ticket-message" rows="3" placeholder="Xabaringiz..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="createTicket()">Yuborish</button>
+                    <div id="tickets-list" style="margin-top: 15px;"></div>
+                </div>
+
+                <div class="card" id="admin-card" style="display: none;">
+                    <div class="card-title"><i class="fas fa-user-shield"></i> Admin Panel</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn btn-ghost" onclick="showPage('admin-users')"><i class="fas fa-users"></i> Foydalanuvchilar</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-sources')"><i class="fas fa-rss"></i> Manbalar</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-broadcast')"><i class="fas fa-bullhorn"></i> Broadcast</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-settings')"><i class="fas fa-cogs"></i> Sozlamalar</button>
+                        <button class="btn btn-ghost" onclick="showPage('status')"><i class="fas fa-server"></i> Tizim Statusi</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-tickets')"><i class="fas fa-ticket-alt"></i> Ticketlar</button>
+                    </div>
+                </div>
+
+                <div id="page-status" style="display: none; margin-top: 20px;">
+                    <div class="card">
+                        <div class="card-title">Tizim Ma'lumotlari</div>
+                        <div class="item-row"><span>Uptime</span> <span id="sys-uptime">--</span></div>
+                        <div class="item-row"><span>Redis</span> <span id="sys-redis">--</span></div>
+                        <div class="item-row"><span>Node</span> <span id="sys-node">--</span></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-ghost" style="color: var(--danger); margin-top: 20px;" onclick="logout()">Chiqish <i class="fas fa-sign-out-alt"></i></button>
+            </section>
+
+            <!-- 4. API Page -->
+            <section id="page-api" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-key"></i> API Kalitlari</div>
+                    <div style="background: rgba(59, 130, 246, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--accent);">
+                        <h4 style="color: var(--accent); margin-bottom: 10px;">🎁 API Kalit Qo'shish Bonuslari:</h4>
+                        <ul style="font-size: 0.85rem; color: var(--secondary); margin-left: 20px;">
+                            <li>Har bir API kalit uchun +1 RSS manba limiti</li>
+                            <li>AI xizmatlaridan tezroq foydalanish</li>
+                            <li>Yuqori sifatli yangiliklar tarjimalari</li>
+                            <li>3 ta kalitgacha maksimal limit</li>
+                        </ul>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="api-key" placeholder="API kaliti">
+                        <select id="api-key-type" style="margin-top: 10px;">
+                            <option value="groq">Groq</option>
+                            <option value="cerebras">Cerebras</option>
+                            <option value="openrouter">OpenRouter</option>
+                            <option value="gemini">Google Gemini</option>
+                            <option value="openai">OpenAI</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="addApiKey()" style="margin-bottom: 15px;">Kalit qo'shish</button>
+                    <div id="api-keys-list"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-info-circle"></i> API Kalitlarni Qanday Olish</div>
+                    <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6;">
+                        <p style="margin-bottom: 10px;"><strong>Groq:</strong> console.groq.com saytida bepul kalit oling</p>
+                        <p style="margin-bottom: 10px;"><strong>Cerebras:</strong> cloud.cerebras.ai saytida ro'yxatdan o'ting</p>
+                        <p style="margin-bottom: 10px;"><strong>OpenRouter:</strong> openrouter.ai saytida API kalit oling</p>
+                        <p style="margin-bottom: 10px;"><strong>Google Gemini:</strong> makersuite.google.com saytida API kalit oling</p>
+                        <p><strong>OpenAI:</strong> platform.openai.com saytida API kalit oling</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Admin Users Page -->
+            <section id="page-admin-users" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-users"></i> Foydalanuvchilar</div>
+                    <div id="admin-users-list"></div>
+                </div>
+                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+            </section>
+
+            <!-- 6. Admin Sources Page -->
+            <section id="page-admin-sources" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-rss"></i> Barcha Manbalar</div>
+                    <div id="admin-sources-list"></div>
+                </div>
+                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+            </section>
+
+            <!-- 7. Admin Broadcast Page -->
+            <section id="page-admin-broadcast" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-bullhorn"></i> Broadcast Xabar</div>
+                    <div class="input-group">
+                        <textarea id="broadcast-message" rows="5" placeholder="Xabaringiz..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendBroadcast()">Barchaga yuborish</button>
+                </div>
+                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+            </section>
+
+            <!-- 8. Admin Settings Page -->
+            <section id="page-admin-settings" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-cogs"></i> Admin Sozlamalari</div>
+                    <div class="input-group">
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Premium Stars Narxi</label>
+                        <input type="number" id="admin-stars-price" placeholder="500">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveAdminSettings()">Saqlash</button>
+                </div>
+                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+            </section>
+
+            <!-- 9. Admin Tickets Page -->
+            <section id="page-admin-tickets" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-ticket-alt"></i> Support Ticketlar</div>
+                    <div id="admin-tickets-list"></div>
+                </div>
+                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+            </section>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active" id="nav-home" onclick="showPage('home')"><i class="fas fa-home"></i><span>Asosiy</span></div>
+            <div class="nav-item" id="nav-content" onclick="showPage('content')"><i class="fas fa-file-alt"></i><span>Kontent</span></div>
+            <div class="nav-item" id="nav-services" onclick="showPage('services')"><i class="fas fa-th-large"></i><span>Xizmatlar</span></div>
+            <div class="nav-item" id="nav-api" onclick="showPage('api')"><i class="fas fa-key"></i><span>API</span></div>
+            <div class="nav-item" id="nav-profile" onclick="showPage('profile')"><i class="fas fa-user-circle"></i><span>Profil</span></div>
+        </nav>
+    </div>
+
+    <script>
+        let userData = null;
+        let token = localStorage.getItem('bot_token');
+        let userId = localStorage.getItem('bot_user_id');
+
+        function apiFetch(resource, options = {}) {
+            const headers = {
+                ...(options.headers || {}),
+                'x-bot-token': token
+            };
+            if (userId) headers['x-user-id'] = userId;
+            return fetch(resource, { ...options, headers });
+        }
+
+        const tg = window.Telegram?.WebApp;
+        if (tg && tg.initData) {
+            tg.expand();
+            tg.ready();
+            fetch('/api/auth/telegram', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: tg.initData })
+            }).then(async res => {
+                if (!res.ok) throw new Error('Auth fail');
+                return res.json();
+            }).then(data => {
+                token = data.token; userId = data.userId;
+                localStorage.setItem('bot_token', token);
+                login(token);
+            }).catch(() => {
+                document.getElementById('auth-status').textContent = 'Kirishda xatolik. Kalitni yozing.';
+                document.getElementById('manual-login').style.display = 'block';
+            });
+        } else {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('token')) {
+                token = urlParams.get('token'); userId = urlParams.get('user');
+                localStorage.setItem('bot_token', token);
+                window.history.replaceState({}, '', '/dashboard?user=' + userId);
+            }
+            if (token) login(token);
+            else {
+                document.getElementById('auth-status').textContent = 'Admin panelga xush kelibsiz!';
+                document.getElementById('manual-login').style.display = 'block';
+            }
+        }
+
+        async function login(k) {
+            const key = k || document.getElementById('auth-key')?.value;
+            if (!key) return;
+            try {
+                if (!userId) {
+                    const r = await fetch('/api/auth/master', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: key }) });
+                    if (r.ok) { const d = await r.json(); userId = d.userId; token = d.token; }
+                }
+                const res = await apiFetch(`/api/dashboard-info?userId=${userId}`, { headers: { 'x-bot-token': key } });
+                if (!res.ok) throw new Error('Kalit noto\'g\'ri!');
+                userData = await res.json();
+                token = key;
+                localStorage.setItem('bot_token', token);
+                if (userId) localStorage.setItem('bot_user_id', userId);
+                renderUI();
+                document.getElementById('auth-screen').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                showPage('home');
+            } catch(e) { alert(e.message); localStorage.removeItem('bot_token'); }
+        }
+
+        function renderUI() {
+            const u = userData.user || {};
+            document.getElementById('user-name').textContent = u.username || u.id || 'User';
+            if (u.is_premium) document.getElementById('user-premium-badge').style.display = 'flex';
+            // UI-8 Fix: Fix owner account recognition - treat owner as admin not regular user
+            if (u.role === 'owner' || u.role === 'admin') {
+                document.getElementById('admin-card').style.display = 'block';
+                // Also show admin panel in navigation for easier access
+                const adminNav = document.getElementById('nav-admin');
+                if (!adminNav) {
+                    const nav = document.querySelector('.bottom-nav');
+                    const adminNavItem = document.createElement('div');
+                    adminNavItem.className = 'nav-item';
+                    adminNavItem.id = 'nav-admin';
+                    adminNavItem.innerHTML = '<i class="fas fa-shield-alt"></i><span>Admin</span>';
+                    adminNavItem.onclick = () => showPage('profile');
+                    nav.appendChild(adminNavItem);
+                }
+            }
+
+            document.getElementById('stat-posts').textContent = userData.stats?.total_posts || 0;
+            document.getElementById('stat-dupes').textContent = userData.stats?.total_duplicates || 0;
+            document.getElementById('stat-refs').textContent = userData.referrals?.total || 0;
+            
+            document.getElementById('set-channel').value = u.target_channel || '';
+            document.getElementById('set-lang').value = u.language || 'uz';
+
+            // UI-5 Fix: Display full user info - connected RSS and channel
+            const userInfo = document.getElementById('user-info') || document.createElement('div');
+            userInfo.id = 'user-info';
+            userInfo.style.cssText = 'background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;';
+            userInfo.innerHTML = `
+                <div style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 8px;">Foydalanuvchi Ma'lumotlari</div>
+                <div class="item-row"><span>Telegram ID</span><span>${u.telegram_id || 'Noma\'lum'}</span></div>
+                <div class="item-row"><span>Username</span><span>${u.username || 'Noma\'lum'}</span></div>
+                <div class="item-row"><span>Target Kanal</span><span>${u.target_channel || 'Sozlanmagan'}</span></div>
+                <div class="item-row"><span>Til</span><span>${u.language || 'uz'}</span></div>
+                <div class="item-row"><span>Rol</span><span>${u.role || 'user'}</span></div>
+                <div class="item-row"><span>Premium</span><span>${u.is_premium ? 'Ha' : 'Yo\'q'}</span></div>
+            `;
+            const homePage = document.getElementById('page-home');
+            if (!document.getElementById('user-info')) {
+                homePage.insertBefore(userInfo, homePage.firstChild);
+            }
+
+            const sch = document.getElementById('scheduled-list');
+            sch.innerHTML = '';
+            if (userData.scheduled?.length) {
+                userData.scheduled.slice(0, 3).forEach(p => {
+                    sch.innerHTML += `<div class="item-row"><div><h4>${p.type.toUpperCase()}</h4><p>${new Date(p.scheduled_at).toLocaleTimeString()}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="cancelScheduled(${p.id})">❌</button></div>`;
+                });
+            } else sch.innerHTML = '<p style="color:var(--secondary); font-size:0.8rem">Navbatda postlar yo\'q.</p>';
+
+            fetchSources();
+            fetchExtendedSettings();
+            fetchApiKeys();
+            fetchTickets();
+            fetchTrackedPrices();
+            fetchChannels();
+            fetchReferralInfo();
+            fetchPremiumStatus();
+        }
+
+        async function fetchSources() {
+            const r = await apiFetch(`/api/sources/${userId}`, { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            document.getElementById('stat-sources').textContent = data.length || 0;
+            const list = document.getElementById('sources-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(s => {
+                    list.innerHTML += `<div class="item-row"><div><h4>${s.name}</h4><p>${s.url.slice(0, 30)}...</p></div><i class="fas fa-trash" style="color:var(--danger)" onclick="deleteSource(${s.id})"></i></div>`;
+                });
+            }
+        }
+
+        async function saveSource() {
+            const name = document.getElementById('src-name').value;
+            const url = document.getElementById('src-url').value;
+            if (!name || !url) return;
+            const res = await apiFetch(`/api/sources/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ name, url }) });
+            if (res.ok) { document.getElementById('src-name').value = ''; document.getElementById('src-url').value = ''; fetchSources(); }
+        }
+
+        async function deleteSource(id) {
+            if (confirm('O\'chirilsinmi?')) {
+                await apiFetch(`/api/sources/${userId}/${id}`, { method: 'DELETE', headers: { 'x-bot-token': token } });
+                fetchSources();
+            }
+        }
+
+        async function generateAIPost() {
+            const prompt = document.getElementById('ai-prompt').value;
+            if (!prompt) {
+                alert('Iltimos mavzu kiriting!');
+                return;
+            }
+            const btn = document.getElementById('btn-ai'); 
+            btn.disabled = true; 
+            btn.textContent = 'Kutilmoqda...';
+            try {
+                const res = await apiFetch('/api/ai/smm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ prompt, withImage: document.getElementById('ai-image').checked }) });
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.error || 'Xatolik yuz berdi');
+                }
+                const data = await res.json();
+                document.getElementById('ai-result').style.display = 'block';
+                document.getElementById('ai-res-text').textContent = data.text;
+                const img = document.getElementById('ai-res-img');
+                if (data.imageUrl) { 
+                    img.src = data.imageUrl; 
+                    img.style.display = 'block'; 
+                } else { 
+                    img.style.display = 'none'; 
+                }
+            } catch (error) {
+                alert('Xatolik: ' + error.message);
+                document.getElementById('ai-result').style.display = 'none';
+            } finally { 
+                btn.disabled = false; 
+                btn.textContent = 'Post yaratish'; 
+            }
+        }
+
+        async function searchMusic() {
+            const q = document.getElementById('music-q').value;
+            if (!q) return;
+            const list = document.getElementById('music-list'); list.innerHTML = '<p>Qidirilmoqda...</p>';
+            const res = await apiFetch(`/api/music/search?q=${encodeURIComponent(q)}`, { headers: { 'x-bot-token': token } });
+            const data = await res.json();
+            list.innerHTML = '';
+            data.forEach(m => {
+                list.innerHTML += `<div class="item-row"><div><h4>${m.title}</h4></div><button class="btn btn-primary" style="width:auto; padding:8px 12px;" onclick="downloadM('${m.url}')"><i class="fas fa-download"></i></button></div>`;
+            });
+        }
+
+        async function downloadM(url) {
+            alert('Musiqa bot orqali sizga yuborilmoqda. Iltimos botni tekshiring!');
+            const id = url.split('v=')[1];
+            apiFetch(`/api/music/download/${id}`, { headers: { 'x-bot-token': token } });
+        }
+
+        async function downloadMedia(type) {
+            const url = document.getElementById('dl-url').value;
+            if (!url) return;
+            alert('Media yuklanmoqda va bot orqali yuboriladi...');
+            await apiFetch('/api/media/download', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ url, type }) });
+        }
+
+        async function loadFinance() {
+            const res = await apiFetch('/api/finance/prices', { headers: { 'x-bot-token': token } });
+            const data = await res.json();
+            document.getElementById('f-btc').textContent = '$' + data.btc;
+            document.getElementById('f-usd').textContent = data.usd + ' so\'m';
+        }
+
+        async function saveSettings() {
+            const language = document.getElementById('set-lang').value;
+            const target_channel = document.getElementById('set-channel').value;
+            const keywords = document.getElementById('set-keywords').value;
+            const daily_digest = document.getElementById('set-digest').value === 'true';
+            const digest_time = document.getElementById('set-digest-time').value;
+            const res = await apiFetch(`/api/settings/${userId}/extended`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ language, target_channel, keywords, daily_digest, digest_time }) });
+            if (res.ok) {
+                // UI-6 Fix: Update language immediately without reload
+                userData.user.language = language;
+                document.documentElement.lang = language;
+                alert('Sozlamalar saqlandi! Til o\'zgartirildi.');
+            } else {
+                alert('Xatolik yuz berdi. Iltimos qayta urinib ko\'ring.');
+            }
+        }
+
+        async function loadSystemStatus() {
+            const res = await fetch('/api/admin/system', { headers: { 'x-bot-token': token } });
+            const data = await res.json();
+            document.getElementById('sys-uptime').textContent = Math.floor(data.uptime/3600) + ' soat';
+            document.getElementById('sys-redis').textContent = data.redis ? 'Online' : 'Offline';
+            document.getElementById('sys-node').textContent = data.nodeVersion;
+            document.getElementById('page-status').style.display = 'block';
+        }
+
+        function showPage(p) {
+            document.querySelectorAll('.page').forEach(page => page.style.display = 'none');
+            document.querySelectorAll('[id^="subpage-"]').forEach(subpage => subpage.style.display = 'none');
+            document.getElementById('page-' + p).style.display = 'block';
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById('nav-' + p)?.classList.add('active');
+            if (p === 'services') {
+                const sm = document.getElementById('services-menu');
+                if (sm) sm.style.display = 'block';
+            }
+            if (p === 'finance') loadFinance();
+            if (p === 'status') loadSystemStatus();
+            if (p === 'admin-users') fetchAdminUsers();
+            if (p === 'admin-sources') fetchAdminSources();
+            if (p === 'admin-tickets') fetchAdminTickets();
+            if (p === 'api') fetchApiKeys();
+            window.scrollTo(0,0);
+        }
+
+        function showSubPage(p) {
+            document.querySelectorAll('.page').forEach(page => page.style.display = 'none');
+            document.querySelectorAll('[id^="subpage-"]').forEach(subpage => subpage.style.display = 'none');
+            const subpage = document.getElementById('subpage-' + p);
+            if (subpage) {
+                subpage.style.display = 'block';
+                // UI-3 Fix: Ensure services page is also visible to prevent black screen
+                document.getElementById('page-services').style.display = 'block';
+            }
+            if (p === 'finance') loadFinance();
+            window.scrollTo(0,0);
+        }
+
+        async function fetchExtendedSettings() {
+            const r = await apiFetch(`/api/settings/${userId}/extended`, { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            document.getElementById('set-keywords').value = data.keywords || '';
+            document.getElementById('set-digest').value = data.daily_digest ? 'true' : 'false';
+            document.getElementById('set-digest-time').value = data.digest_time || '20:00';
+        }
+
+        async function fetchApiKeys() {
+            const r = await apiFetch(`/api/keys/${userId}`, { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            const list = document.getElementById('api-keys-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(k => {
+                    const safeKey = k.api_key ? k.api_key.slice(0, 10) : 'Noma\'lum';
+                    list.innerHTML += `<div class="item-row"><div><h4>${k.api_type || 'Kalit'}</h4><p>${safeKey}...</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteApiKey('${k.api_key}')">❌</button></div>`;
+                });
+            }
+        }
+
+        async function deleteApiKey(key) {
+            if (confirm('Kalitni o\'chirasizmi?')) {
+                const res = await apiFetch(`/api/keys/${userId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ key }) });
+                if (res.ok) fetchApiKeys();
+            }
+        }
+
+        async function addApiKey() {
+            const key = document.getElementById('api-key').value;
+            const type = document.getElementById('api-key-type').value;
+            if (!key) return;
+            const res = await apiFetch(`/api/keys/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ key, type }) });
+            if (res.ok) { document.getElementById('api-key').value = ''; fetchApiKeys(); }
+        }
+
+        async function fetchTickets() {
+            const r = await apiFetch(`/api/tickets/${userId}`, { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            const list = document.getElementById('tickets-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(t => {
+                    list.innerHTML += `<div class="item-row"><div><h4>${t.subject}</h4><p>${t.status}</p></div></div>`;
+                });
+            }
+        }
+
+        async function createTicket() {
+            const subject = document.getElementById('ticket-subject').value;
+            const message = document.getElementById('ticket-message').value;
+            if (!subject || !message) return;
+            const res = await apiFetch(`/api/tickets/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ subject, message }) });
+            if (res.ok) { document.getElementById('ticket-subject').value = ''; document.getElementById('ticket-message').value = ''; fetchTickets(); alert('Ticket yuborildi!'); }
+        }
+
+        async function fetchTrackedPrices() {
+            const r = await apiFetch(`/api/prices/${userId}`, { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            const list = document.getElementById('tracked-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(p => {
+                    list.innerHTML += `<div class="item-row"><div><h4>${p.item_name}</h4><p>${p.last_price.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${p.id})">❌</button></div>`;
+                });
+            }
+        }
+
+        async function trackPrice() {
+            const url = document.getElementById('track-url').value;
+            if (!url) return;
+            alert('Narx tekshirilmoqda...');
+            // This would need backend scraping support
+            const res = await apiFetch(`/api/prices/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ url, name: 'Tovar', price: 0 }) });
+            if (res.ok) { document.getElementById('track-url').value = ''; fetchTrackedPrices(); }
+        }
+
+        async function deletePrice(id) {
+            await apiFetch(`/api/prices/${userId}/${id}`, { method: 'DELETE', headers: { 'x-bot-token': token } });
+            fetchTrackedPrices();
+        }
+
+        async function fetchChannels() {
+            const r = await apiFetch(`/api/channels/${userId}`, { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            const list = document.getElementById('channels-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(c => {
+                    list.innerHTML += `<div class="item-row"><div><h4>${c.name}</h4><p>${c.platform}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteChannel(${c.id})">❌</button></div>`;
+                });
+            }
+        }
+
+        async function addChannel() {
+            const platform = document.getElementById('channel-platform').value;
+            const channelId = document.getElementById('channel-id').value;
+            const name = document.getElementById('channel-name').value;
+            if (!platform || !channelId || !name) return;
+            const res = await apiFetch(`/api/channels/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ platform, channelId, name }) });
+            if (res.ok) { document.getElementById('channel-platform').value = ''; document.getElementById('channel-id').value = ''; document.getElementById('channel-name').value = ''; fetchChannels(); }
+        }
+
+        async function deleteChannel(id) {
+            await apiFetch(`/api/channels/${userId}/${id}`, { method: 'DELETE', headers: { 'x-bot-token': token } });
+            fetchChannels();
+        }
+
+        async function fetchReferralInfo() {
+            const r = await apiFetch(`/api/referral/${userId}`, { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            const info = document.getElementById('referral-info');
+            info.innerHTML = `<div class="item-row"><div><h4>Havola</h4><p style="font-size:0.7rem; word-break:break-all;">${data.refLink}</p></div></div>
+                <div class="item-row"><span>Jami</span><span>${data.stats.total}</span></div>
+                <div class="item-row"><span>Aktiv</span><span>${data.stats.active}</span></div>
+                <div class="item-row"><span>Premiumgacha</span><span>${data.stats.needed} ta</span></div>`;
+        }
+
+        function copyReferralLink() {
+            const link = document.querySelector('#referral-info p')?.textContent;
+            if (link) { navigator.clipboard.writeText(link); alert('Havola nusxalandi!'); }
+        }
+
+        async function fetchPremiumStatus() {
+            const u = userData.user || {};
+            const status = document.getElementById('premium-status');
+            if (u.is_premium) {
+                status.innerHTML = `<div style="color: var(--gold); font-weight: bold; margin-bottom: 10px;">✅ Premium faol</div>`;
+            } else {
+                status.innerHTML = `<div style="color: var(--secondary); margin-bottom: 10px;">Premium yoqilgan emas</div>`;
+            }
+        }
+
+        async function buyPremium(plan) {
+            const res = await apiFetch('/api/premium/buy', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ userId, method: 'stars', plan }) });
+            const data = await res.json();
+            if (data.url) window.open(data.url, '_blank');
+        }
+
+        async function cancelScheduled(id) {
+            await apiFetch(`/api/scheduled/${userId}/${id}`, { method: 'DELETE', headers: { 'x-bot-token': token } });
+            const r = await apiFetch(`/api/dashboard-info?userId=${userId}`, { headers: { 'x-bot-token': token } });
+            userData = await r.json();
+            renderUI();
+        }
+
+        async function fetchAdminUsers() {
+            const r = await apiFetch('/api/admin/users', { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            const list = document.getElementById('admin-users-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(u => {
+                    const rss = u.sources && u.sources.length ? u.sources.map(s => s.url).join(', ') : 'Yo\'q';
+                    const target = u.target_channel || 'Yo\'q';
+                    list.innerHTML += `
+                        <div class="item-row" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; width: 100%;">
+                                <h4>${u.username || u.telegram_id}</h4>
+                                <span style="font-size: 0.8rem; background: var(--accent); padding: 2px 6px; border-radius: 4px;">${u.role} | ${u.is_premium ? 'Premium' : 'Free'}</span>
+                            </div>
+                            <div style="font-size: 0.8rem; color: var(--secondary); word-break: break-all;">
+                                <p><strong>RSS:</strong> ${rss}</p>
+                                <p><strong>Target:</strong> ${target}</p>
+                            </div>
+                            <button class="btn btn-ghost" style="width:auto; padding:4px 8px; align-self: flex-end;" onclick="changeUserRole(${u.telegram_id})">Rolni o'zgartirish</button>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        async function fetchAdminSources() {
+            const r = await apiFetch('/api/admin/sources', { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            const list = document.getElementById('admin-sources-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(s => {
+                    list.innerHTML += `<div class="item-row"><div><h4>${s.name}</h4><p>User: ${s.user_id}</p></div></div>`;
+                });
+            }
+        }
+
+        async function sendBroadcast() {
+            const message = document.getElementById('broadcast-message').value;
+            if (!message) return;
+            const res = await apiFetch('/api/admin/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ message }) });
+            if (res.ok) {
+                alert('Broadcast yuborildi!');
+                document.getElementById('broadcast-message').value = '';
+            }
+        }
+
+        async function saveAdminSettings() {
+            const starsPrice = document.getElementById('admin-stars-price').value;
+            const res = await apiFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ premium_stars_price: starsPrice }) });
+            if (res.ok) alert('Sozlamalar saqlandi!');
+        }
+
+        async function changeUserRole(telegramId) {
+            const newRole = prompt('Yangi rol (user, admin, premium):');
+            if (!newRole) return;
+            const res = await apiFetch(`/api/admin/users/${telegramId}/role`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ role: newRole }) });
+            if (res.ok) fetchAdminUsers();
+        }
+
+        async function fetchAdminTickets() {
+            const r = await apiFetch('/api/tickets/all', { headers: { 'x-bot-token': token } });
+            const data = await r.json();
+            const list = document.getElementById('admin-tickets-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(t => {
+                    list.innerHTML += `<div class="item-row"><div><h4>${t.subject}</h4><p>${t.status} | User: ${t.user_id}</p></div></div>`;
+                });
+            }
+        }
+
+        async function saveSettings() {
+            const language = document.getElementById('set-lang').value;
+            const target_channel = document.getElementById('set-channel').value;
+            const keywords = document.getElementById('set-keywords').value;
+            const daily_digest = document.getElementById('set-digest').value === 'true';
+            const digest_time = document.getElementById('set-digest-time').value;
+            const res = await apiFetch(`/api/settings/${userId}/extended`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ language, target_channel, keywords, daily_digest, digest_time }) });
+            if (res.ok) alert('Sozlamalar saqlandi!');
+        }
+
+        function logout() { localStorage.clear(); location.reload(); }
+    </script>
+</body>
+</html>

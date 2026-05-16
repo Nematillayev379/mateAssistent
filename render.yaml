@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: uzbekistan-news-bot-nematillayev
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: OWNER_ID
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: GROQ_KEYS
+        sync: false
+      - key: CEREBRAS_KEYS
+        sync: false
+      - key: OPENROUTER_KEYS
+        sync: false
+      - key: GEMINI_KEYS
+        sync: false
+      - key: DASHBOARD_SECRET
+        sync: false
+      - key: TELEGRAM_CHANNEL_ID
+        sync: false
+      - key: REDIS_URL
+        value: ""
+      - key: PUBLIC_URL
+        value: https://uzbekistan-news-bot-nematillayev.onrender.com
+    region: oregon

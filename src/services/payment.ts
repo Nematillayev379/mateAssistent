@@ -1,0 +1,94 @@
+import axios from 'axios';
+import { CONFIG } from '../config/config';
+import { logger } from '../utils/logger';
+import { DBService } from './database';
+
+export const PaymentService = {
+  // --- STRIPE ---
+  // BUG-043 Fix: Do not return fake URL, properly stub it to null so caller knows it's not implemented yet
+  async createStripeSession(userId: number, amount: number) {
+    logger.info(`Stripe session creation attempted for user ${userId}, amount ${amount} - Not Implemented`);
+    return null;
+  },
+
+  // --- PAYME ---
+  // BUG-121 Fix: Validate merchant ID exists
+  async generatePaymeLink(userId: number, amount: number) {
+    const merchantId = process.env.PAYME_MERCHANT_ID;
+    if (!merchantId) {
+      logger.warn('PAYME_MERCHANT_ID not configured');
+      return null;
+    }
+    // BUG-041 Fix: Ensure exact integer for tiyin (1 UZS = 100 tiyin)
+    const tiyin = Math.round(amount * 100);
+    const base64Params = Buffer.from(`m=${merchantId};ac.user_id=${userId};a=${tiyin}`).toString('base64');
+    return `https://checkout.paycom.uz/${base64Params}`;
+  },
+
+  // --- CLICK ---
+  // BUG-122 Fix: Validate service and merchant ID exist
+  async generateClickLink(userId: number, amount: number) {
+    const serviceId = process.env.CLICK_SERVICE_ID;
+    const merchantId = process.env.CLICK_MERCHANT_ID;
+    if (!serviceId || !merchantId) {
+      logger.warn('CLICK_SERVICE_ID or CLICK_MERCHANT_ID not configured');
+      return null;
+    }
+    return `https://my.click.uz/services/pay?service_id=${serviceId}&merchant_id=${merchantId}&amount=${amount}&transaction_param=${userId}`;
+  },
+
+  // --- WEBHOOK HANDLERS ---
+  // BUG-123 Fix: Always verify Payme signature (fail-closed)
+  async handlePaymeWebhook(data: any, headers?: any) {
+    const paymeKey = process.env.PAYME_KEY;
+    if (!paymeKey) {
+      logger.error('🚫 Payme: PAYME_KEY not configured. Webhook rejected.');
+      return { error: { code: -32504, message: "Server not configured" } };
+    }
+
+    const auth = headers?.authorization;
+    if (!auth) {
+      logger.warn('🚫 Payme: Missing authorization header');
+      return { error: { code: -32504, message: "Authorization required" } };
+    }
+    
+    const expected = Buffer.from(`Paycom:${paymeKey}`).toString('base64');
+    if (auth !== `Basic ${expected}`) {
+      logger.warn('🚫 Payme: Invalid signature attempt');
+      return { error: { code: -32504, message: "Invalid authorization" } };
+    }
+
+    const method = data.method;
+    const requestId = data.id ?? data.params?.id ?? 0;
+    const rawUserId = data.params?.account?.user_id;
+    const parsedUserId = parseInt(String(typeof rawUserId === 'object' && rawUserId !== null ? rawUserId.user_id || rawUserId.id : rawUserId));
+    const hasValidUser = !Number.isNaN(parsedUserId);
+
+    const baseResult = { id: requestId, jsonrpc: '2.0' };
+
+    switch (method) {
+      case 'CheckPerformTransaction':
+        return { ...baseResult, result: { allow: true, details: { } } };
+
+      case 'CreateTransaction':
+        return { ...baseResult, result: { transaction: { id: data.params?.id || 0, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: 0, state: 1 } } };
+
+      case 'PerformTransaction':
+        if (!hasValidUser) {
+          return { error: { code: -31050, message: 'Invalid account' } };
+        }
+        await DBService.setPremium(parsedUserId, 30);
+        logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
+        return { ...baseResult, result: { transaction: { id: data.params?.transaction?.id || 0, create_time: Math.floor(Date.now() / 1000), perform_time: Math.floor(Date.now() / 1000), cancel_time: 0, state: 2 } } };
+
+      case 'CheckTransaction':
+        return { ...baseResult, result: { transaction: { id: data.params?.transaction?.id || 0, state: 2, create_time: data.params?.transaction?.create_time || Math.floor(Date.now() / 1000), perform_time: data.params?.transaction?.perform_time || Math.floor(Date.now() / 1000), cancel_time: data.params?.transaction?.cancel_time || 0 } } };
+
+      case 'CancelTransaction':
+        return { ...baseResult, result: { transaction: { id: data.params?.transaction?.id || 0, create_time: data.params?.transaction?.create_time || Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: Math.floor(Date.now() / 1000), state: 3 } } };
+
+      default:
+        return { error: { code: -32601, message: 'Method not found' } };
+    }
+  }
+};

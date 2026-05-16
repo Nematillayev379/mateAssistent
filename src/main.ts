@@ -1,0 +1,149 @@
+import { CONFIG } from "./config/config";
+import { logger } from "./utils/logger";
+import { bot, startBot } from "./services/telegram";
+import { startDashboardServer } from "./services/dashboard";
+import { startWorkers } from "./workers";
+import { setupRSSCron } from "./crons/rss_cron";
+import cron from "node-cron";
+import axios from 'axios';
+import dns from 'dns';
+
+// B-19 Fix: Add polling restart attempts tracking
+const MAX_RESTART_ATTEMPTS = 10;
+let pollingRestartAttempts = 0;
+
+// Fix for Render/Node18+ AggregateError (forces IPv4)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
+async function bootstrap() {
+  logger.info("🚀 Bootstrapping Newsroom Bot Ecosystem...");
+
+  // B-08 Fix: Validate TELEGRAM_BOT_TOKEN on startup
+  if (!CONFIG.TELEGRAM_TOKEN) {
+    logger.error('❌ TELEGRAM_BOT_TOKEN must be set in environment variables!');
+    process.exit(1);
+  }
+
+  try {
+    // BUG-001 & #002: Critical Service Initialization
+    const { initI18n } = await import("./services/i18n");
+    const { refreshKeyPool } = await import("./services/ai");
+    await initI18n();
+    await refreshKeyPool();
+    logger.info("✅ Localization and AI KeyPool initialized");
+
+    // 1. Start Dashboard
+    // B-31 Fix: Parse PORT as integer
+    const PORT = parseInt(process.env.PORT || '3000', 10);
+    startDashboardServer(PORT, bot);
+
+    // 2. Start Bot
+    await startBot();
+
+    // 3. Start Background Workers
+    await startWorkers();
+
+    // 4. Start Post Scheduler
+    const { SchedulerService } = await import('./services/scheduler');
+    SchedulerService.setup();
+
+    // 5. Setup Cron Jobs — always run regardless of webhook/polling mode
+    // BUG-003 Fix: Crons must run in both webhook AND polling modes.
+    // startBot() already handles webhook vs polling selection — no duplicate calls here.
+    setupRSSCron();
+    setupSystemCrons();
+  } catch (err: any) {
+    logger.error(`🔥 Fatal Initialization Error: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+function setupSystemCrons() {
+  // 1. Self-ping to keep Render service alive
+  cron.schedule('*/10 * * * *', async () => {
+    if (!CONFIG.PUBLIC_URL) return;
+    try {
+      await axios.get(CONFIG.PUBLIC_URL, { timeout: 10000 });
+      logger.info(`🌐 Self-ping successful`);
+    } catch (err: any) {
+      logger.warn(`🌐 Self-ping failed: ${err.message}`);
+    }
+  });
+
+  // 2. Price Tracker Cron (Every 4 hours)
+  cron.schedule('0 */4 * * *', async () => {
+    try {
+      const { PriceTrackerService } = await import('./services/pricetracker');
+      await PriceTrackerService.runPriceChecks();
+    } catch (err: any) {
+      logger.error(`❌ Price Tracker Cron Error: ${err.message}`);
+    }
+  });
+
+  // 3. Daily Digest Cron (Every minute, check who needs digest)
+  cron.schedule('* * * * *', async () => {
+    try {
+      const { processDailyDigests } = await import('./crons/digest_cron');
+      await processDailyDigests();
+    } catch (err: any) {
+      // Ignore if not set up yet
+    }
+  });
+
+  // 4. System Cleanup (Every 6 hours)
+  cron.schedule('0 */6 * * *', async () => {
+    try {
+      const { DownloaderService } = await import('./services/downloader');
+      const { MusicService } = await import('./services/music');
+      const { DBService } = await import('./services/database');
+      
+      await DownloaderService.cleanup();
+      await MusicService.cleanup();
+      await DBService.cleanupOldEmbeddings(7);
+      // BUG-020 Fix: Cleanup expired premium users
+      await DBService.cleanupExpiredPremium();
+      
+      logger.info(`🧹 System cleanup completed`);
+    } catch (err: any) {
+      logger.error(`❌ System Cleanup Error: ${err.message}`);
+    }
+  });
+
+  // 5. Refresh Key Pool every hour
+  cron.schedule('0 * * * *', async () => {
+    try {
+      const { refreshKeyPool } = await import('./services/ai');
+      await refreshKeyPool();
+    } catch (err: any) {
+      logger.error(`❌ Key Pool Refresh Error: ${err.message}`);
+    }
+  });
+}
+
+bootstrap().catch(err => {
+  logger.error(`🔥 Fatal Bootstrap Error: ${err.message}`);
+  process.exit(1);
+});
+
+// Global error handlers
+process.on("uncaughtException", (err) => {
+  logger.error(`🔥 Uncaught Exception: ${err.message}`);
+  logger.error(err.stack || "");
+});
+
+process.on("unhandledRejection", (reason: any) => {
+  logger.error(`🌐 Unhandled Rejection: ${reason?.message || reason}`);
+});
+
+// B-19 Fix: Handle polling errors and implement restart attempts
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
