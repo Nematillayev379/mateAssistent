@@ -1,0 +1,91 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.startCommand = void 0;
+const database_1 = require("../services/database");
+const config_1 = require("../config/config");
+const logger_1 = require("../utils/logger");
+const bot_instance_1 = require("../services/bot_instance");
+exports.startCommand = {
+    pattern: /\/start\s*(.*)|\/boshlash\s*(.*)|\/начать\s*(.*)/i,
+    description: '🏠 Botni boshlash / Start',
+    handler: async (bot, msg, match) => {
+        const chatId = msg.chat.id;
+        const isOwner = (0, config_1.isOwnerId)(chatId);
+        // BUG-083 Fix: Referral before upsert to catch new users
+        const payload = (match?.[1] || match?.[2] || match?.[3] || '').trim();
+        if (payload && payload.startsWith('ref_')) {
+            const referrerCode = payload.replace('ref_', '').trim();
+            const referrer = await database_1.DBService.getUserByReferralCode(referrerCode);
+            if (referrer && referrer.telegram_id !== chatId) {
+                const isNewUser = !(await database_1.DBService.getUser(chatId));
+                if (isNewUser) {
+                    // BUG-022 Fix: createReferral checks for duplicates internally
+                    const created = await database_1.DBService.createReferral(referrer.telegram_id, chatId);
+                    if (created) {
+                        logger_1.logger.info(`🎁 New referral: ${chatId} invited by ${referrer.telegram_id}`);
+                        // BUG-084 Fix: Wrap in try/catch for blocked users
+                        try {
+                            await bot.sendMessage(referrer.telegram_id, "🎁 <b>Yangi referral!</b> Sizga bonus berildi.", { parse_mode: 'HTML' });
+                        }
+                        catch (e) {
+                            logger_1.logger.warn(`Could not notify referrer ${referrer.telegram_id}: ${e.message}`);
+                        }
+                    }
+                }
+            }
+        }
+        const user = await database_1.DBService.upsertUser(chatId, isOwner ? 1 : 0, msg.from?.username, msg.from?.first_name);
+        if (!user)
+            return;
+        if (isOwner && user.role !== 'owner') {
+            await database_1.DBService.updateUserRole(chatId, 'owner');
+            user.role = 'owner';
+        }
+        const lang = user.language || 'uz';
+        // BUG-085 Fix: Default role to 'user' if null
+        const role = user.role || 'user';
+        // BUG-083 Fix: Check if user is approved
+        if (!user.is_approved && !isOwner && role !== 'admin' && role !== 'owner') {
+            await bot.sendMessage(chatId, "⏳ <b>Sizning profilingiz hali tasdiqlanmagan.</b>\n\nAdminlar tasdiqlaganidan so'ng botdan foydalanishingiz mumkin.", { parse_mode: 'HTML' });
+            return;
+        }
+        // BUG-081/082 Fix: Use DB field has_seen_lang (now in schema)
+        if (!user.target_channel) {
+            if (!user.has_seen_lang) {
+                const text = "🌍 <b>Welcome! Please choose your language:</b>\n\n<i>Salom! Tilni tanlang:</i>";
+                const inline_keyboard = [
+                    [{ text: "🇺🇿 O'zbek", callback_data: "setlang_uz" }, { text: "🇷🇺 Русский", callback_data: "setlang_ru" }],
+                    [{ text: "🇺🇸 English", callback_data: "setlang_en" }, { text: "🇹🇷 Türkçe", callback_data: "setlang_tr" }]
+                ];
+                await bot.sendMessage(chatId, text, { parse_mode: 'HTML', reply_markup: { inline_keyboard } });
+                await database_1.DBService.updateUser(chatId, { has_seen_lang: true });
+                return;
+            }
+            const text = "🗞 <b>So'nggi qadam!</b>\n\nYangiliklar qaysi kanalga yuborilsin? Kanal nomini @belgisi bilan yuboring (Masalan: @kanalingiz).\n\n<i>Eslatma: Botni kanalingizga 'Admin' qilishingiz shart!</i>";
+            await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
+            return;
+        }
+        // 3. Elite Welcome Experience
+        const welcomeMsg = {
+            owner: "👑 <b>Xush kelibsiz, Janob Owner!</b>\n\nTizim 100% sizning nazoratingizda. Admin panel orqali foydalanuvchilarni boshqarishingiz mumkin.",
+            admin: "🛠 <b>Admin Panelga xush kelibsiz!</b>\n\nSupport so'rovlarini ko'rib chiqish va botni boshqarish uchun dashboardga o'ting.",
+            premium: "🚀 <b>Siz Premium foydalanuvchisiz!</b>\n\nBarcha cheklovlar olib tashlangan. Ommaviy yuklash va AI media xizmatlaridan foydalanishingiz mumkin.",
+            user: "🗞 <b>Newsroom Botga xush kelibsiz!</b>\n\nDunyo yangiliklarini avtomatik ravishda kanalingizga joylab boring."
+        }[role] || "👋 Salom!";
+        // BUG-086 Fix: Don't show raw token in message, just provide dashboard link
+        const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}`;
+        const inline_keyboard = [
+            [{ text: "🖥 Elite Dashboard", web_app: { url: dashboardUrl } }],
+            [{ text: "⚙️ Sozlamalar", callback_data: 'cmd_settings' }, { text: "📊 Statistika", callback_data: 'cmd_stats' }],
+            [{ text: "🎁 Referral Tizimi", callback_data: 'cmd_referral' }]
+        ];
+        if (role === 'user' && !user.is_premium) {
+            inline_keyboard.push([{ text: "💎 Premium Sotib Olish", callback_data: 'buy_premium' }]);
+        }
+        // BUG-086 Fix: Removed token from visible message text
+        await bot.sendMessage(chatId, welcomeMsg + `\n\n<i>Dashboard orqali barcha sozlamalarni boshqarishingiz mumkin.</i>`, {
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard }
+        });
+    }
+};
