@@ -9,7 +9,7 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { MusicService } from './music';
 import { PaymentService } from './payment';
-import { getSmartAIResponse, validateKey } from './ai';
+import { generateSmmImage, generateSmmPost, getSmartAIResponse, validateKey } from './ai';
 import { ScraperService } from './scraper';
 import { FinanceService } from './finance';
 import { TelegramMonitorService, normalizeTelegramChannelId } from './telegram_monitor';
@@ -467,49 +467,33 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   // BUG-060 Fix: Parse withImage as boolean properly
   app.post('/api/ai/smm', checkAuth, aiLimiter, async (req: any, res: any) => {
     const { prompt, withImage } = req.body;
-    // BUG-022 Fix: Reject empty prompt
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
       return res.status(400).json({ error: 'Prompt bo\'sh bo\'lishi mumkin emas.' });
     }
 
     const topic = prompt.trim();
-    const systemPrompt =
-      "Siz professional SMM mutaxassisisiz. Telegram kanallari uchun postlar yozasiz.\n" +
-      "QOIDALAR:\n" +
-      "- Javob FAQAT o'zbek tilida bo'lsin\n" +
-      "- Post foydalanuvchi bergan MAVZUGA to'liq mos va mazmunli bo'lsin\n" +
-      "- 80-150 so'z, qiziqarli kirish, 3-4 qisqa paragraph\n" +
-      "- Tegishli emojilar (haddan tashqari emas)\n" +
-      "- Umumiy salomlashish yoki mavzudan uzoq matn yozmang\n" +
-      "- Faqat tayyor post matnini qaytaring, boshqa izoh yo'q";
-    const userPrompt = `MAVZU: «${topic}»\n\nYuqoridagi mavzu bo'yicha kanalga joylash uchun tayyor Telegram post yozing.`;
+    const wantImage = withImage === true || withImage === 'true';
 
     try {
-      const text = (await getSmartAIResponse(systemPrompt, userPrompt)).trim();
-      if (!text || text.length < 20) {
-        return res.status(502).json({ error: 'AI post yaratmadi. Qayta urinib ko\'ring.' });
-      }
+      const text = await generateSmmPost(topic);
 
-      const wantImage = withImage === true || withImage === 'true';
       let imageUrl: string | null = null;
+      let imageBase64: string | null = null;
       if (wantImage) {
-        const imagePrompt =
-          `Professional social media banner illustration about: ${topic}. ` +
-          'Modern, vibrant, high quality, cinematic lighting, no text, no watermark, 16:9';
-        const seed = Date.now() % 100000;
-        imageUrl =
-          `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}` +
-          `?width=1280&height=720&nologo=true&seed=${seed}`;
+        const img = await generateSmmImage(topic);
+        imageUrl = img.imageUrl;
+        imageBase64 = img.imageBase64;
       }
 
-      res.json({ text, imageUrl });
+      res.json({ text, imageUrl, imageBase64 });
     } catch (e: any) {
+      logger.error(`SMM generate error: ${e.message}`);
       res.status(500).json({ error: e.message || 'AI xatolik' });
     }
   });
 
   app.post('/api/ai/post-to-channel', checkAuth, async (req: any, res: any) => {
-    const { text, imageUrl } = req.body;
+    const { text, imageUrl, imageBase64 } = req.body;
     if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Invalid text' });
 
     const user = await DBService.getUser(parseInt(req.authenticatedUserId));
@@ -517,7 +501,11 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       return res.status(400).json({ error: 'No channel configured' });
     }
 
-    if (imageUrl) {
+    if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
+      const base64Data = imageBase64.split(',')[1];
+      const buffer = Buffer.from(base64Data, 'base64');
+      await bot.sendPhoto(user.target_channel, buffer, { caption: text });
+    } else if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
       await bot.sendPhoto(user.target_channel, imageUrl, { caption: text });
     } else {
       await bot.sendMessage(user.target_channel, text);

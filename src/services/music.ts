@@ -1,6 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { logger, sanitizeLogInput } from '../utils/logger';
+import { resolveYtDlpPath } from '../utils/ytdlp';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -342,6 +343,45 @@ export const MusicService = {
       }
     } catch (e: any) {
       logger.warn(`YouTube search error: ${e.message}`);
+    }
+
+    if (results.length === 0) {
+      const ytdlpResults = await this.searchYouTubeIdsWithYtDlp(query, limit);
+      results.push(...ytdlpResults);
+    }
+
+    return results;
+  },
+
+  async searchYouTubeIdsWithYtDlp(query: string, limit: number): Promise<{ title: string; url: string; videoId: string }[]> {
+    const results: { title: string; url: string; videoId: string }[] = [];
+    const ytdlpPath = await resolveYtDlpPath();
+    if (!ytdlpPath) return results;
+
+    try {
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const execFilePromise = promisify(execFile);
+      const { stdout } = await execFilePromise(
+        ytdlpPath,
+        [`ytsearch${limit}:${query}`, '--print', '%(id)s|||%(title)s', '--flat-playlist', '--no-warnings'],
+        { timeout: 90000, maxBuffer: 4 * 1024 * 1024 }
+      );
+
+      for (const line of stdout.trim().split('\n')) {
+        if (results.length >= limit) break;
+        if (!line.includes('|||')) continue;
+        const [id, title] = line.split('|||');
+        if (id && /^[a-zA-Z0-9_-]{11}$/.test(id)) {
+          results.push({
+            title: (title || query).trim(),
+            url: `https://www.youtube.com/watch?v=${id}`,
+            videoId: id,
+          });
+        }
+      }
+    } catch (e: any) {
+      logger.warn(`yt-dlp music search failed: ${e.message}`);
     }
 
     return results;

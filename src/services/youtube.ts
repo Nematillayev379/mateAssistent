@@ -3,21 +3,16 @@ import * as cheerio from 'cheerio';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { promisify } from 'util';
-import { exec } from 'child_process';
 import { logger } from '../utils/logger';
+import { findNewestFile, resolveYtDlpPath } from '../utils/ytdlp';
 
-const execPromise = promisify(exec);
-
-// Use a dedicated temp directory
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_yt');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
 export const YoutubeService = {
-  /** Get latest video from channel via RSS */
   async getLatestVideo(channelId: string) {
     try {
-      const url = channelId.startsWith('UC') 
+      const url = channelId.startsWith('UC')
         ? `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`
         : `https://www.youtube.com/feeds/videos.xml?user=${channelId}`;
 
@@ -26,15 +21,17 @@ export const YoutubeService = {
       const latestEntry = $('entry').first();
       if (!latestEntry.length) return null;
 
-      // BUG-050 Fix: Fallback to regex if cheerio namespace selector fails
       const videoIdMatch = res.data.match(/<yt:videoId>([^<]+)<\/yt:videoId>/);
-      const id = latestEntry.find('yt\\:videoId').text() || latestEntry.find('videoId').text() || (videoIdMatch ? videoIdMatch[1] : '');
+      const id =
+        latestEntry.find('yt\\:videoId').text() ||
+        latestEntry.find('videoId').text() ||
+        (videoIdMatch ? videoIdMatch[1] : '');
 
       return {
         id,
         title: latestEntry.find('title').text(),
         url: latestEntry.find('link').attr('href'),
-        published: latestEntry.find('published').text()
+        published: latestEntry.find('published').text(),
       };
     } catch (e: any) {
       logger.error(`YoutubeService error: ${e.message}`);
@@ -42,7 +39,6 @@ export const YoutubeService = {
     }
   },
 
-  /** Try to extract channel ID from URL */
   async getChannelId(url: string): Promise<string | null> {
     if (url.includes('/channel/')) return url.split('/channel/')[1].split('/')[0];
     if (url.includes('/u/')) return url.split('/u/')[1].split('/')[0];
@@ -56,34 +52,36 @@ export const YoutubeService = {
     }
   },
 
-  /** Search YouTube videos */
-  async searchVideos(query: string, limit: number = 5): Promise<{ title: string, url: string }[]> {
+  async searchVideos(query: string, limit: number = 5): Promise<{ title: string; url: string }[]> {
     try {
       const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
       const res = await axios.get(searchUrl, { timeout: 10000 });
       const $ = cheerio.load(res.data);
-      const results: { title: string, url: string }[] = [];
+      const results: { title: string; url: string }[] = [];
       const scripts = $('script').toArray();
       for (const script of scripts) {
         const scriptText = $(script).text();
         if (scriptText.includes('ytInitialData')) {
           try {
-            // BUG-051 Fix: More resilient regex for ytInitialData, also matches window["ytInitialData"]
             const match = scriptText.match(/(?:var ytInitialData|window\["ytInitialData"\])\s*=\s*(\{[\s\S]+?\});/);
             if (match) {
               const data = JSON.parse(match[1]);
-              const videos = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
+              const videos =
+                data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
+                  ?.contents?.[0]?.itemSectionRenderer?.contents || [];
               for (const item of videos) {
                 if (item.videoRenderer) {
                   const video = item.videoRenderer;
                   results.push({
                     title: video.title?.runs?.[0]?.text || video.title?.simpleText || '',
-                    url: `https://www.youtube.com/watch?v=${video.videoId}`
+                    url: `https://www.youtube.com/watch?v=${video.videoId}`,
                   });
                 }
               }
             }
-          } catch {}
+          } catch {
+            /* ignore */
+          }
         }
       }
       return results;
@@ -93,105 +91,126 @@ export const YoutubeService = {
     }
   },
 
-  /** Extract all video links from a playlist or channel */
-  async extractPlaylistLinks(url: string, limit: number = 20): Promise<{ title: string, url: string }[]> {
+  async extractPlaylistLinks(url: string, limit: number = 20): Promise<{ title: string; url: string }[]> {
     try {
-      const ytdlpPath = await getYtDlpPath();
+      const ytdlpPath = await resolveYtDlpPath();
       if (!ytdlpPath) throw new Error('yt-dlp not found');
-      
-      // BUG-052 Fix: Use child_process.execFile to completely prevent shell injection
+
       const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
       const execFilePromise = promisify(execFile);
-      const { stdout } = await execFilePromise(ytdlpPath, [
-        '--flat-playlist',
-        '--print', '%(id)s|||%(title)s',
-        '--max-downloads', String(limit),
-        url.trim()
-      ], { timeout: 30000 });
-      
-      const lines = stdout.trim().split('\n').filter(l => l.includes('|||'));
-      const results: { title: string, url: string }[] = [];
-      for (const line of lines) {
+      const { stdout } = await execFilePromise(
+        ytdlpPath,
+        ['--flat-playlist', '--print', '%(id)s|||%(title)s', '--playlist-end', String(limit), url.trim()],
+        { timeout: 60000 }
+      );
+
+      const lines = stdout.trim().split('\n').filter((l) => l.includes('|||'));
+      return lines.map((line) => {
         const [id, title] = line.split('|||');
-        if (id && title) {
-          results.push({ title, url: `https://www.youtube.com/watch?v=${id}` });
-        }
-      }
-      return results;
+        return { title, url: `https://www.youtube.com/watch?v=${id}` };
+      });
     } catch (e: any) {
       logger.error(`Playlist extraction error: ${e.message}`);
       return [];
     }
-  }
+  },
 };
 
 export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'audio'): Promise<string> {
   if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
-  const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
-  const filePath = path.join(TEMP_DIR, `yt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`);
-  
-  // BUG #95 Fix: Sanitize URL to prevent shell injection
+
   const safeUrl = urlParam.replace(/"/g, '').trim();
   if (!safeUrl.startsWith('http')) throw new Error('Invalid URL');
 
-  const ytdlpPath = await getYtDlpPath();
+  const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const ytdlpPath = await resolveYtDlpPath();
+
   if (ytdlpPath) {
     try {
-      const args = typeParam === 'audio' 
-        ? ['-f', 'bestaudio[ext=m4a]', '-o', filePath, safeUrl, '--no-warnings', '--no-playlist', '--max-filesize', '49M']
-        : ['-f', 'best[ext=mp4][filesize<50M]/best[filesize<50M]/best', '-o', filePath, safeUrl, '--no-warnings', '--no-playlist'];
-      
       const { spawn } = await import('child_process');
-      await new Promise((resolve, reject) => {
-        const proc = spawn(ytdlpPath, args);
-        proc.on('close', (code) => code === 0 ? resolve(true) : reject(new Error(`yt-dlp exited with code ${code}`)));
-        proc.on('error', reject);
-        // Timeout
-        // BUG-053 Fix: Use SIGKILL to forcefully terminate hanging yt-dlp processes
-        setTimeout(() => { proc.kill('SIGKILL'); reject(new Error('Download timeout')); }, 180000);
+      const baseOut = path.join(TEMP_DIR, `yt_${stamp}`);
+      const args =
+        typeParam === 'audio'
+          ? [
+              '-f',
+              'bestaudio/best',
+              '-x',
+              '--audio-format',
+              'm4a',
+              '--audio-quality',
+              '128K',
+              '-o',
+              `${baseOut}.%(ext)s`,
+              safeUrl,
+              '--no-warnings',
+              '--no-playlist',
+              '--max-filesize',
+              '49M',
+              '--socket-timeout',
+              '30',
+            ]
+          : [
+              '-f',
+              'best[ext=mp4][filesize<50M]/best[filesize<50M]/best',
+              '-o',
+              `${baseOut}.%(ext)s`,
+              safeUrl,
+              '--no-warnings',
+              '--no-playlist',
+              '--max-filesize',
+              '49M',
+              '--socket-timeout',
+              '30',
+            ];
+
+      await new Promise<void>((resolve, reject) => {
+        const proc = spawn(ytdlpPath, args, { stdio: 'ignore' });
+        const timer = setTimeout(() => {
+          proc.kill('SIGKILL');
+          reject(new Error('Download timeout'));
+        }, 180000);
+        proc.on('close', (code) => {
+          clearTimeout(timer);
+          code === 0 ? resolve() : reject(new Error(`yt-dlp exited with code ${code}`));
+        });
+        proc.on('error', (err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
       });
 
-      if (fs.existsSync(filePath)) return filePath;
+      const ext = typeParam === 'audio' ? '.m4a' : '.mp4';
+      let filePath = findNewestFile(TEMP_DIR, `yt_${stamp}`, ext);
+      if (!filePath) filePath = findNewestFile(TEMP_DIR, `yt_${stamp}`);
+      if (filePath && fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+        return filePath;
+      }
     } catch (e: any) {
       logger.warn(`yt-dlp failed: ${e.message}`);
     }
   }
 
-  // BUG #100 Fix: Fallback to Cobalt (consolidated logic)
   try {
     const { DownloaderService } = await import('./downloader');
-    const cobaltUrl = await DownloaderService.getCobaltMedia(safeUrl);
+    const cobaltUrl = await DownloaderService.getCobaltMedia(safeUrl, {
+      audioOnly: typeParam === 'audio',
+    });
     if (cobaltUrl) {
-      const response = await axios.get(cobaltUrl, { responseType: 'arraybuffer', timeout: 60000 });
+      const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
+      const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
+      const response = await axios.get(cobaltUrl, {
+        responseType: 'arraybuffer',
+        timeout: 120000,
+        maxContentLength: 52 * 1024 * 1024,
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
       fs.writeFileSync(filePath, Buffer.from(response.data));
-      return filePath;
+      if (fs.statSync(filePath).size > 0) return filePath;
     }
   } catch (e: any) {
     logger.warn(`Cobalt fallback failed: ${e.message}`);
   }
 
-  throw new Error('Yuklash muvaffaqiyatsiz tugadi.');
-}
-
-// BUG-054 Fix: Cache path to avoid blocking event loop with execSync on every call
-let cachedYtDlpPath: string | null = null;
-let ytDlpChecked = false;
-async function getYtDlpPath(): Promise<string | null> {
-  if (ytDlpChecked) return cachedYtDlpPath;
-  const possiblePaths = [path.join(process.cwd(), 'yt-dlp.exe'), path.join(process.cwd(), 'yt-dlp'), 'yt-dlp'];
-  for (const p of possiblePaths) {
-    try {
-      if (p === 'yt-dlp') { 
-        await execPromise('yt-dlp --version'); 
-        cachedYtDlpPath = 'yt-dlp'; 
-        break;
-      }
-      if (fs.existsSync(p)) {
-        cachedYtDlpPath = p;
-        break;
-      }
-    } catch {}
-  }
-  ytDlpChecked = true;
-  return cachedYtDlpPath;
+  throw new Error('Yuklash muvaffaqiyatsiz. yt-dlp yoki Cobalt ishlamadi.');
 }

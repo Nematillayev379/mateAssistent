@@ -39,6 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MusicService = void 0;
 const axios_1 = __importDefault(require("axios"));
 const logger_1 = require("../utils/logger");
+const ytdlp_1 = require("../utils/ytdlp");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
@@ -369,6 +370,40 @@ exports.MusicService = {
         }
         catch (e) {
             logger_1.logger.warn(`YouTube search error: ${e.message}`);
+        }
+        if (results.length === 0) {
+            const ytdlpResults = await this.searchYouTubeIdsWithYtDlp(query, limit);
+            results.push(...ytdlpResults);
+        }
+        return results;
+    },
+    async searchYouTubeIdsWithYtDlp(query, limit) {
+        const results = [];
+        const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
+        if (!ytdlpPath)
+            return results;
+        try {
+            const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
+            const { promisify } = await Promise.resolve().then(() => __importStar(require('util')));
+            const execFilePromise = promisify(execFile);
+            const { stdout } = await execFilePromise(ytdlpPath, [`ytsearch${limit}:${query}`, '--print', '%(id)s|||%(title)s', '--flat-playlist', '--no-warnings'], { timeout: 90000, maxBuffer: 4 * 1024 * 1024 });
+            for (const line of stdout.trim().split('\n')) {
+                if (results.length >= limit)
+                    break;
+                if (!line.includes('|||'))
+                    continue;
+                const [id, title] = line.split('|||');
+                if (id && /^[a-zA-Z0-9_-]{11}$/.test(id)) {
+                    results.push({
+                        title: (title || query).trim(),
+                        url: `https://www.youtube.com/watch?v=${id}`,
+                        videoId: id,
+                    });
+                }
+            }
+        }
+        catch (e) {
+            logger_1.logger.warn(`yt-dlp music search failed: ${e.message}`);
         }
         return results;
     },

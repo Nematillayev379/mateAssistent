@@ -92,43 +92,57 @@ export const DownloaderService = {
   },
 
   /** Cobalt API fallback for any social media */
-  async getCobaltMedia(url: string): Promise<string | null> {
+  async getCobaltMedia(url: string, opts?: { audioOnly?: boolean }): Promise<string | null> {
+    const audioOnly = !!opts?.audioOnly;
     const instances = [
       'https://api.cobalt.tools',
-      'https://cobalt.liubquanti.click',
+      'https://cobalt.api.timelessnesses.me',
       'https://cobalt.canine.tools',
       'https://cobalt.meowing.de',
       'https://cobalt.kittycat.boo',
       'https://dl.woof.monster',
     ];
 
-    // BUG-049 Fix: Use Promise.any to fetch from multiple Cobalt instances concurrently
     const fetchFromInstance = async (base: string) => {
       try {
         const res = await axios.post(`${base}/`, {
           url,
-          videoQuality: "720",
-          filenameStyle: "basic",
-          downloadMode: "auto"
+          videoQuality: '720',
+          filenameStyle: 'basic',
+          downloadMode: audioOnly ? 'audio' : 'auto',
+          isAudioOnly: audioOnly,
+          audioFormat: 'mp3',
         }, {
-          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-          timeout: 6000
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Origin: 'https://cobalt.tools',
+          },
+          timeout: 25000,
         });
 
         if (res.data?.url) return res.data.url;
-        if (res.data?.status === 'stream') return res.data.url;
-        if (res.data?.status === 'picker' && res.data.picker?.length > 0) return res.data.picker[0].url;
+        if (res.data?.status === 'stream' && res.data?.url) return res.data.url;
+        if (res.data?.status === 'redirect' && res.data?.url) return res.data.url;
+        if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
+          return res.data.picker[0].url;
+        }
         throw new Error('No URL in response');
       } catch {
         const res = await axios.post(`${base}/api/json`, {
-          url, vQuality: "720", filenamePattern: "basic", isAudioOnly: false
+          url,
+          vQuality: '720',
+          filenamePattern: 'basic',
+          isAudioOnly: audioOnly,
         }, {
-          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-          timeout: 5000
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          timeout: 20000,
         });
         if (res.data?.url) return res.data.url;
-        if (res.data?.status === 'stream') return res.data.url;
-        if (res.data?.status === 'picker' && res.data.picker?.length > 0) return res.data.picker[0].url;
+        if (res.data?.status === 'stream' && res.data?.url) return res.data.url;
+        if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
+          return res.data.picker[0].url;
+        }
         throw new Error('No URL in response');
       }
     };

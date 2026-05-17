@@ -785,14 +785,27 @@
                     throw new Error(error.error || 'Xatolik yuz berdi');
                 }
                 const data = await res.json();
+                if (!data.text || data.text.length < 10) {
+                    throw new Error('AI post yaratmadi. API kalitlarini tekshiring (GROQ/GEMINI).');
+                }
                 document.getElementById('ai-result').style.display = 'block';
                 document.getElementById('ai-res-text').textContent = data.text;
                 const img = document.getElementById('ai-res-img');
-                if (data.imageUrl) { 
-                    img.src = data.imageUrl; 
-                    img.style.display = 'block'; 
-                } else { 
-                    img.style.display = 'none'; 
+                lastSmmImageBase64 = data.imageBase64 || null;
+                const imgSrc = data.imageBase64 || data.imageUrl;
+                if (imgSrc) {
+                    img.onload = () => { img.style.display = 'block'; };
+                    img.onerror = () => {
+                        img.style.display = 'none';
+                        if (data.imageUrl && data.imageUrl !== imgSrc) {
+                            img.src = data.imageUrl;
+                            img.style.display = 'block';
+                        }
+                    };
+                    img.src = imgSrc;
+                    img.style.display = 'block';
+                } else {
+                    img.style.display = 'none';
                 }
             } catch (error) {
                 alert('Xatolik: ' + error.message);
@@ -803,10 +816,13 @@
             }
         }
 
+        let lastSmmImageBase64 = null;
+
         async function sendAIPostToChannel() {
             const text = document.getElementById('ai-res-text').textContent;
             const img = document.getElementById('ai-res-img');
-            const imageUrl = img.style.display === 'block' ? img.src : null;
+            const imageBase64 = img.style.display === 'block' && img.src?.startsWith('data:') ? img.src : lastSmmImageBase64;
+            const imageUrl = img.style.display === 'block' && img.src?.startsWith('http') ? img.src : null;
             if (!text) return;
             const btn = document.getElementById('btn-send-ai');
             btn.disabled = true;
@@ -814,7 +830,7 @@
                 const res = await apiFetch('/api/ai/post-to-channel', { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, 
-                    body: JSON.stringify({ text, imageUrl }) 
+                    body: JSON.stringify({ text, imageUrl, imageBase64 }) 
                 });
                 if (res.ok) alert('Post kanalga yuborildi!');
                 else alert('Xatolik yuz berdi');

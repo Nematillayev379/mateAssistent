@@ -481,6 +481,73 @@ export async function selectTopNews(titles: {title: string, url: string}[]): Pro
   }
 }
 
+export async function generateSmmPost(topic: string): Promise<string> {
+  if (activeKeys.length === 0) {
+    await refreshKeyPool();
+  }
+  if (activeKeys.length === 0) {
+    throw new Error("AI kalitlari topilmadi. Render .env ga GROQ_KEYS yoki GEMINI_KEYS qo'shing.");
+  }
+
+  const cleanTopic = topic.trim();
+  const systemPrompt =
+    "Siz O'zbekistondagi mashhur Telegram kanallar uchun SMM post yozuvchisisiz.\n" +
+    "FAQAT o'zbek tilida yozing.\n" +
+    "Foydalanuvchi bergan MAVZU — postning yagona mavzusi; boshqa mavzuga o'tmang.\n" +
+    "Format: qiziqarli sarlavha (1 qator), keyin 3-4 qisqa paragraph, oxirida CTA.\n" +
+    "80-140 so'z, tegishli emojilar (4-8 ta).\n" +
+    "Taqiqlangan: umumiy salomlashish, 'bugun sizga', mavzudan uzoq matn, inglizcha so'zlar.\n" +
+    "Faqat tayyor post matnini qaytaring.";
+
+  const userPrompt =
+    `MAVZU: «${cleanTopic}»\n\n` +
+    `Yuqoridagi mavzu bo'yicha Telegram kanalga joylash uchun viral post yozing. ` +
+    `Post mazmuni aynan shu mavzuga tegishli bo'lsin.`;
+
+  let text = (await getSmartAIResponse(systemPrompt, userPrompt)).trim();
+  text = text.replace(/^```(?:markdown|text)?\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  if (!text || text.length < 25) {
+    throw new Error('AI mavzuga mos post yaratmadi. API kalitlarini tekshiring.');
+  }
+
+  return text;
+}
+
+export type SmmImageResult = { imageUrl: string; imageBase64: string | null };
+
+export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
+  const cleanTopic = topic.trim().slice(0, 200);
+  const imagePrompt =
+    `Professional social media banner illustration, topic: ${cleanTopic}. ` +
+    'Modern vibrant design, cinematic lighting, Uzbek cultural elements if relevant, ' +
+    'high quality, 16:9, no text, no watermark, no letters';
+
+  const seed = Date.now() % 1_000_000;
+  const urls = [
+    `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux`,
+    `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1024&height=576&nologo=true&seed=${seed + 1}`,
+  ];
+
+  for (const imageUrl of urls) {
+    try {
+      const res = await fetch(imageUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 NewsroomBot/1.0' },
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!res.ok) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length < 2000) continue;
+      const imageBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
+      return { imageUrl, imageBase64 };
+    } catch (e: any) {
+      logger.warn(`SMM image fetch failed: ${e.message}`);
+    }
+  }
+
+  return { imageUrl: urls[0], imageBase64: null };
+}
+
 export async function generateAudioSummary(title: string, content: string): Promise<string> {
   const summary = await getSmartAIResponse(
     `Bu yangilikni 3-4 jumlada qisqacha xulosa qil. Podcast uchun tabiiy, quloqqa yoqimli tilda yoz. O'zbek tilida.`,
