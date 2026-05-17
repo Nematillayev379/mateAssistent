@@ -65,18 +65,73 @@ export const isOwnerId = (id?: number | string | null): boolean => {
   return String(id).trim() === String(CONFIG.OWNER_ID).trim();
 };
 
-// BUG-002 Fix: Added 'google' type support. BUG-006 Fix: Fixed dedup logic for empty strings
-export const KEY_POOL: { key: string; type: "groq" | "cerebras" | "openrouter" | "gemini" | "openai" | "google" }[] = [
-  ...(process.env.GROQ_KEYS?.split(",").map(k => ({ key: k.trim(), type: "groq" as const })) || []),
-  ...(process.env.GROQ_API_KEY && !(process.env.GROQ_KEYS && process.env.GROQ_KEYS.trim().length > 0)
-    ? [{ key: process.env.GROQ_API_KEY.trim(), type: "groq" as const }]
-    : []),
-  ...(process.env.CEREBRAS_KEYS?.split(",").map(k => ({ key: k.trim(), type: "cerebras" as const })) || []),
-  ...(process.env.OPENROUTER_KEYS?.split(",").map(k => ({ key: k.trim(), type: "openrouter" as const })) || []),
-  ...(process.env.GEMINI_KEYS?.split(",").map(k => ({ key: k.trim(), type: "gemini" as const })) || []),
-  ...(process.env.GOOGLE_KEYS?.split(",").map(k => ({ key: k.trim(), type: "google" as const })) || []),
-  ...(process.env.OPENAI_KEYS?.split(",").map(k => ({ key: k.trim(), type: "openai" as const })) || []),
-  ...(process.env.OPENAI_API_KEY && !(process.env.OPENAI_KEYS && process.env.OPENAI_KEYS.trim().length > 0)
-    ? [{ key: process.env.OPENAI_API_KEY.trim(), type: "openai" as const }]
-    : []),
-].filter(k => k.key.length > 0);
+export type AiKeyType = 'groq' | 'cerebras' | 'openrouter' | 'gemini' | 'openai' | 'google';
+export type AiKeyEntry = { key: string; type: AiKeyType };
+
+/** Parse comma, newline, or semicolon separated keys (Render Secret Files often use newlines). */
+export function parseKeyList(raw: string | undefined): string[] {
+  if (!raw?.trim()) return [];
+  return raw
+    .split(/[,;\n\r]+/)
+    .map((k) => k.trim().replace(/^["']|["']$/g, ''))
+    .filter((k) => k.length >= 8);
+}
+
+function collectProviderKeys(
+  envPrefix: string,
+  type: AiKeyType,
+  singleEnvNames: string[]
+): AiKeyEntry[] {
+  const found: AiKeyEntry[] = [];
+  const bulk = process.env[`${envPrefix}_KEYS`];
+  for (const k of parseKeyList(bulk)) {
+    found.push({ key: k, type });
+  }
+  for (const name of singleEnvNames) {
+    const v = process.env[name]?.trim();
+    if (v && v.length >= 8) found.push({ key: v.replace(/^["']|["']$/g, ''), type });
+  }
+  // GROQ_KEY_1, GEMINI_KEY_2, GROQ_01, etc.
+  const prefixUpper = envPrefix.toUpperCase();
+  for (const [name, value] of Object.entries(process.env)) {
+    if (!value?.trim()) continue;
+    const upper = name.toUpperCase();
+    if (
+      upper.startsWith(`${prefixUpper}_`) &&
+      (/_KEY_\d+$/i.test(upper) || /^[A-Z]+_\d+$/i.test(upper) || /_API_KEY_\d+$/i.test(upper))
+    ) {
+      const cleaned = value.trim().replace(/^["']|["']$/g, '');
+      if (cleaned.length >= 8) found.push({ key: cleaned, type });
+    }
+  }
+  return found;
+}
+
+/** Build AI key pool from environment (supports 20+ keys, newlines, indexed vars). */
+export function buildKeyPoolFromEnv(): AiKeyEntry[] {
+  const all: AiKeyEntry[] = [
+    ...collectProviderKeys('GROQ', 'groq', ['GROQ_API_KEY']),
+    ...collectProviderKeys('GEMINI', 'gemini', []),
+    ...collectProviderKeys('GOOGLE', 'google', []),
+    ...collectProviderKeys('CEREBRAS', 'cerebras', []),
+    ...collectProviderKeys('OPENROUTER', 'openrouter', []),
+    ...collectProviderKeys('OPENAI', 'openai', ['OPENAI_API_KEY']),
+  ];
+
+  const seen = new Set<string>();
+  return all.filter((entry) => {
+    if (seen.has(entry.key)) return false;
+    seen.add(entry.key);
+    return true;
+  });
+}
+
+export function countKeysByProvider(pool: AiKeyEntry[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const k of pool) {
+    counts[k.type] = (counts[k.type] || 0) + 1;
+  }
+  return counts;
+}
+
+export const KEY_POOL: AiKeyEntry[] = buildKeyPoolFromEnv();

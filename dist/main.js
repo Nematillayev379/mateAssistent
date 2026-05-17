@@ -62,7 +62,12 @@ async function bootstrap() {
         const { refreshKeyPool } = await Promise.resolve().then(() => __importStar(require("./services/ai")));
         await initI18n();
         await refreshKeyPool();
-        logger_1.logger.info("✅ Localization and AI KeyPool initialized");
+        const { getActiveKeyStats } = await Promise.resolve().then(() => __importStar(require("./services/ai")));
+        const keyStats = getActiveKeyStats();
+        logger_1.logger.info(`✅ Localization and AI KeyPool initialized (${keyStats.total} keys)`, keyStats.byProvider);
+        if (keyStats.total === 0) {
+            logger_1.logger.warn('⚠️  AI KEY POOL BO\'SH! Render .env da GROQ_KEYS / GEMINI_KEYS (vergul yoki yangi qator) qo\'ying.');
+        }
         // 1. Start Dashboard
         // B-31 Fix: Parse PORT as integer
         const PORT = parseInt(process.env.PORT || '3000', 10);

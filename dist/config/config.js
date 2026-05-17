@@ -34,6 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.KEY_POOL = exports.isOwnerId = exports.CONFIG = exports.MAX_TOKENS_BY_PROVIDER = void 0;
+exports.parseKeyList = parseKeyList;
+exports.buildKeyPoolFromEnv = buildKeyPoolFromEnv;
+exports.countKeysByProvider = countKeysByProvider;
 const dotenv = __importStar(require("dotenv"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
@@ -96,18 +99,64 @@ const isOwnerId = (id) => {
     return String(id).trim() === String(exports.CONFIG.OWNER_ID).trim();
 };
 exports.isOwnerId = isOwnerId;
-// BUG-002 Fix: Added 'google' type support. BUG-006 Fix: Fixed dedup logic for empty strings
-exports.KEY_POOL = [
-    ...(process.env.GROQ_KEYS?.split(",").map(k => ({ key: k.trim(), type: "groq" })) || []),
-    ...(process.env.GROQ_API_KEY && !(process.env.GROQ_KEYS && process.env.GROQ_KEYS.trim().length > 0)
-        ? [{ key: process.env.GROQ_API_KEY.trim(), type: "groq" }]
-        : []),
-    ...(process.env.CEREBRAS_KEYS?.split(",").map(k => ({ key: k.trim(), type: "cerebras" })) || []),
-    ...(process.env.OPENROUTER_KEYS?.split(",").map(k => ({ key: k.trim(), type: "openrouter" })) || []),
-    ...(process.env.GEMINI_KEYS?.split(",").map(k => ({ key: k.trim(), type: "gemini" })) || []),
-    ...(process.env.GOOGLE_KEYS?.split(",").map(k => ({ key: k.trim(), type: "google" })) || []),
-    ...(process.env.OPENAI_KEYS?.split(",").map(k => ({ key: k.trim(), type: "openai" })) || []),
-    ...(process.env.OPENAI_API_KEY && !(process.env.OPENAI_KEYS && process.env.OPENAI_KEYS.trim().length > 0)
-        ? [{ key: process.env.OPENAI_API_KEY.trim(), type: "openai" }]
-        : []),
-].filter(k => k.key.length > 0);
+/** Parse comma, newline, or semicolon separated keys (Render Secret Files often use newlines). */
+function parseKeyList(raw) {
+    if (!raw?.trim())
+        return [];
+    return raw
+        .split(/[,;\n\r]+/)
+        .map((k) => k.trim().replace(/^["']|["']$/g, ''))
+        .filter((k) => k.length >= 8);
+}
+function collectProviderKeys(envPrefix, type, singleEnvNames) {
+    const found = [];
+    const bulk = process.env[`${envPrefix}_KEYS`];
+    for (const k of parseKeyList(bulk)) {
+        found.push({ key: k, type });
+    }
+    for (const name of singleEnvNames) {
+        const v = process.env[name]?.trim();
+        if (v && v.length >= 8)
+            found.push({ key: v.replace(/^["']|["']$/g, ''), type });
+    }
+    // GROQ_KEY_1, GEMINI_KEY_2, GROQ_01, etc.
+    const prefixUpper = envPrefix.toUpperCase();
+    for (const [name, value] of Object.entries(process.env)) {
+        if (!value?.trim())
+            continue;
+        const upper = name.toUpperCase();
+        if (upper.startsWith(`${prefixUpper}_`) &&
+            (/_KEY_\d+$/i.test(upper) || /^[A-Z]+_\d+$/i.test(upper) || /_API_KEY_\d+$/i.test(upper))) {
+            const cleaned = value.trim().replace(/^["']|["']$/g, '');
+            if (cleaned.length >= 8)
+                found.push({ key: cleaned, type });
+        }
+    }
+    return found;
+}
+/** Build AI key pool from environment (supports 20+ keys, newlines, indexed vars). */
+function buildKeyPoolFromEnv() {
+    const all = [
+        ...collectProviderKeys('GROQ', 'groq', ['GROQ_API_KEY']),
+        ...collectProviderKeys('GEMINI', 'gemini', []),
+        ...collectProviderKeys('GOOGLE', 'google', []),
+        ...collectProviderKeys('CEREBRAS', 'cerebras', []),
+        ...collectProviderKeys('OPENROUTER', 'openrouter', []),
+        ...collectProviderKeys('OPENAI', 'openai', ['OPENAI_API_KEY']),
+    ];
+    const seen = new Set();
+    return all.filter((entry) => {
+        if (seen.has(entry.key))
+            return false;
+        seen.add(entry.key);
+        return true;
+    });
+}
+function countKeysByProvider(pool) {
+    const counts = {};
+    for (const k of pool) {
+        counts[k.type] = (counts[k.type] || 0) + 1;
+    }
+    return counts;
+}
+exports.KEY_POOL = buildKeyPoolFromEnv();

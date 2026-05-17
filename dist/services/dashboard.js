@@ -49,6 +49,7 @@ const fs_1 = __importDefault(require("fs"));
 const music_1 = require("./music");
 const payment_1 = require("./payment");
 const ai_1 = require("./ai");
+const config_2 = require("../config/config");
 const scraper_1 = require("./scraper");
 const finance_1 = require("./finance");
 const telegram_monitor_1 = require("./telegram_monitor");
@@ -355,13 +356,25 @@ function startDashboardServer(port, _bot) {
             }
         }
         catch { }
+        const envPool = (0, config_2.buildKeyPoolFromEnv)();
+        const active = (0, ai_1.getActiveKeyStats)();
         res.json({
             uptime: process.uptime(),
             memory: process.memoryUsage(),
             redis: redisStatus,
             ownerId: config_1.CONFIG.OWNER_ID,
-            nodeVersion: process.version
+            nodeVersion: process.version,
+            aiKeys: {
+                envLoaded: envPool.length,
+                activeLoaded: active.total,
+                envByProvider: (0, config_2.countKeysByProvider)(envPool),
+                activeByProvider: active.byProvider,
+            },
         });
+    });
+    app.post('/api/admin/ai-keys/refresh', checkAdmin, async (_req, res) => {
+        await (0, ai_1.refreshKeyPool)();
+        res.json({ success: true, ...(0, ai_1.getActiveKeyStats)() });
     });
     // BUG-085 Fix: Admin broadcast rate limit applied via aiLimiter (or custom)
     app.post('/api/admin/broadcast', checkAdmin, aiLimiter, async (req, res) => {

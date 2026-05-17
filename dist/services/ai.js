@@ -49,6 +49,7 @@ exports.categorizeNews = categorizeNews;
 exports.categorizeAndAnalyze = categorizeAndAnalyze;
 exports.analyzeSentiment = analyzeSentiment;
 exports.selectTopNews = selectTopNews;
+exports.getActiveKeyStats = getActiveKeyStats;
 exports.generateSmmPost = generateSmmPost;
 exports.generateSmmImage = generateSmmImage;
 exports.generateAudioSummary = generateAudioSummary;
@@ -64,7 +65,7 @@ const database_1 = require("./database");
 // BUG-031 Fix: Use mutex to prevent race conditions on globalKeyIndex
 let globalKeyIndex = 0;
 let embeddingKeyIndex = 0;
-let activeKeys = [...config_1.KEY_POOL];
+let activeKeys = (0, config_1.buildKeyPoolFromEnv)();
 const keyMutex = { locked: false, queue: [] };
 async function withKeyMutex(fn) {
     while (keyMutex.locked) {
@@ -87,9 +88,9 @@ async function refreshKeyPool() {
     await withKeyMutex(async () => {
         try {
             const dbKeys = await database_1.DBService.getValidApiKeys();
-            const allKeys = [...config_1.KEY_POOL];
+            const allKeys = (0, config_1.buildKeyPoolFromEnv)();
             for (const dbK of dbKeys) {
-                if (!allKeys.find(k => k.key === dbK.key)) {
+                if (!allKeys.find((k) => k.key === dbK.key)) {
                     allKeys.push(dbK);
                 }
             }
@@ -108,7 +109,8 @@ async function refreshKeyPool() {
                 if (!allKeys.find(k => k.key === realKey))
                     openaiClients.delete(key);
             }
-            logger_1.logger.info(`🔄 AI Key Pool yangilandi. Jami: ${activeKeys.length} ta kalit.`);
+            const byProvider = (0, config_1.countKeysByProvider)(activeKeys);
+            logger_1.logger.info(`🔄 AI Key Pool yangilandi. Jami: ${activeKeys.length} ta kalit.`, byProvider);
         }
         catch (e) {
             logger_1.logger.error(`Key pool refresh failed: ${e.message}`);
@@ -119,9 +121,9 @@ async function refreshKeyPool() {
 async function getSmartAIResponse(system, user, retryCount = 0) {
     if (activeKeys.length === 0)
         throw new Error("API kalitlar mavjud emas!");
-    const maxRetries = Math.max(Math.min(activeKeys.length, 10), 3);
+    const maxRetries = Math.max(Math.min(activeKeys.length, 30), 3);
     if (retryCount >= maxRetries)
-        throw new Error("Barcha API kalitlar tugadi!");
+        throw new Error("Barcha API kalitlar tugadi (limit yoki xato).");
     // BUG-003 Fix: Max delay 5 seconds to avoid Webhook timeout
     if (retryCount > 0) {
         await new Promise(resolve => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
@@ -511,12 +513,115 @@ async function selectTopNews(titles) {
         return titles.slice(0, 5);
     }
 }
+function getKeysSortedForSmm() {
+    const preferred = ['gemini', 'google', 'openrouter', 'groq', 'cerebras', 'openai'];
+    return [...activeKeys].sort((a, b) => preferred.indexOf(a.type) - preferred.indexOf(b.type));
+}
+async function getSmartAIResponseWithKeys(keys, system, user, retryCount = 0) {
+    if (keys.length === 0)
+        throw new Error('API kalitlar mavjud emas!');
+    const maxRetries = Math.max(Math.min(keys.length, 30), 3);
+    if (retryCount >= maxRetries)
+        throw new Error('Barcha API kalitlar tugadi (limit yoki xato).');
+    if (retryCount > 0) {
+        await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
+    }
+    const idx = retryCount % keys.length;
+    const currentKeyObj = keys[idx];
+    try {
+        const maxTokens = config_1.MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || config_1.CONFIG.MAX_TOKENS;
+        if (currentKeyObj.type === 'groq') {
+            let groq = groqClients.get(currentKeyObj.key);
+            if (!groq) {
+                groq = new groq_sdk_1.default({ apiKey: currentKeyObj.key, timeout: 20000 });
+                groqClients.set(currentKeyObj.key, groq);
+            }
+            const res = await groq.chat.completions.create({
+                messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+                model: 'llama-3.3-70b-versatile',
+                max_tokens: maxTokens,
+            });
+            return res.choices[0]?.message?.content ?? '';
+        }
+        if (currentKeyObj.type === 'gemini' || currentKeyObj.type === 'google') {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    system_instruction: { parts: [{ text: system }] },
+                    contents: [{ parts: [{ text: user }] }],
+                }),
+                signal: AbortSignal.timeout(25000),
+            });
+            if (!response.ok) {
+                const errorBody = await response.text().catch(() => '');
+                throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), {
+                    status: response.status,
+                });
+            }
+            const data = (await response.json().catch(() => ({})));
+            return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+        }
+        if (currentKeyObj.type === 'openai') {
+            let client = openaiClients.get(currentKeyObj.key);
+            if (!client) {
+                client = new openai_1.OpenAI({ apiKey: currentKeyObj.key, timeout: 20000 });
+                openaiClients.set(currentKeyObj.key, client);
+            }
+            const res = await client.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+                max_tokens: maxTokens,
+            });
+            return res.choices[0]?.message?.content ?? '';
+        }
+        let baseURL;
+        let model;
+        switch (currentKeyObj.type) {
+            case 'cerebras':
+                baseURL = 'https://api.cerebras.ai/v1';
+                model = 'llama-3.1-70b';
+                break;
+            case 'openrouter':
+                baseURL = 'https://openrouter.ai/api/v1';
+                model = 'google/gemini-2.0-flash-001';
+                break;
+            default:
+                throw new Error(`Unsupported AI provider type: ${currentKeyObj.type}`);
+        }
+        let client = openaiClients.get(`${baseURL}:${currentKeyObj.key}`);
+        if (!client) {
+            client = new openai_1.OpenAI({ apiKey: currentKeyObj.key, baseURL, timeout: 20000 });
+            openaiClients.set(`${baseURL}:${currentKeyObj.key}`, client);
+        }
+        const res = await client.chat.completions.create({
+            model,
+            messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+            max_tokens: maxTokens,
+        });
+        return res.choices[0]?.message?.content ?? '';
+    }
+    catch (error) {
+        const status = error?.status ?? error?.response?.status;
+        if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
+            logger_1.logger.warn(`[SMM ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato (${status}), keyingisi...`);
+            return getSmartAIResponseWithKeys(keys, system, user, retryCount + 1);
+        }
+        throw error;
+    }
+}
+function getActiveKeyStats() {
+    return {
+        total: activeKeys.length,
+        byProvider: (0, config_1.countKeysByProvider)(activeKeys),
+    };
+}
 async function generateSmmPost(topic) {
     if (activeKeys.length === 0) {
         await refreshKeyPool();
     }
     if (activeKeys.length === 0) {
-        throw new Error("AI kalitlari topilmadi. Render .env ga GROQ_KEYS yoki GEMINI_KEYS qo'shing.");
+        throw new Error("AI kalitlari topilmadi. Render .env da GROQ_KEYS yoki GEMINI_KEYS (vergul yoki yangi qator bilan) tekshiring.");
     }
     const cleanTopic = topic.trim();
     const systemPrompt = "Siz O'zbekistondagi mashhur Telegram kanallar uchun SMM post yozuvchisisiz.\n" +
@@ -529,7 +634,8 @@ async function generateSmmPost(topic) {
     const userPrompt = `MAVZU: «${cleanTopic}»\n\n` +
         `Yuqoridagi mavzu bo'yicha Telegram kanalga joylash uchun viral post yozing. ` +
         `Post mazmuni aynan shu mavzuga tegishli bo'lsin.`;
-    let text = (await getSmartAIResponse(systemPrompt, userPrompt)).trim();
+    const smmKeys = getKeysSortedForSmm();
+    let text = (await getSmartAIResponseWithKeys(smmKeys, systemPrompt, userPrompt)).trim();
     text = text.replace(/^```(?:markdown|text)?\s*/i, '').replace(/```\s*$/i, '').trim();
     if (!text || text.length < 25) {
         throw new Error('AI mavzuga mos post yaratmadi. API kalitlarini tekshiring.');

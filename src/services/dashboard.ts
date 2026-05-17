@@ -9,7 +9,8 @@ import crypto from 'crypto';
 import fs from 'fs';
 import { MusicService } from './music';
 import { PaymentService } from './payment';
-import { generateSmmImage, generateSmmPost, getSmartAIResponse, validateKey } from './ai';
+import { generateSmmImage, generateSmmPost, getActiveKeyStats, getSmartAIResponse, refreshKeyPool, validateKey } from './ai';
+import { buildKeyPoolFromEnv, countKeysByProvider } from '../config/config';
 import { ScraperService } from './scraper';
 import { FinanceService } from './finance';
 import { TelegramMonitorService, normalizeTelegramChannelId } from './telegram_monitor';
@@ -337,13 +338,26 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       }
     } catch {}
     
+    const envPool = buildKeyPoolFromEnv();
+    const active = getActiveKeyStats();
     res.json({
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       redis: redisStatus,
       ownerId: CONFIG.OWNER_ID,
-      nodeVersion: process.version
+      nodeVersion: process.version,
+      aiKeys: {
+        envLoaded: envPool.length,
+        activeLoaded: active.total,
+        envByProvider: countKeysByProvider(envPool),
+        activeByProvider: active.byProvider,
+      },
     });
+  });
+
+  app.post('/api/admin/ai-keys/refresh', checkAdmin, async (_req, res) => {
+    await refreshKeyPool();
+    res.json({ success: true, ...getActiveKeyStats() });
   });
 
   // BUG-085 Fix: Admin broadcast rate limit applied via aiLimiter (or custom)
