@@ -26,6 +26,33 @@ interface UserStateEntry {
   createdAt: number;
 }
 
+function extractUrlFromText(text: string): string | null {
+  const match = text.match(/(https?:\/\/[^\s]+)/);
+  return match ? match[0] : null;
+}
+
+function resolveMediaUrl(query: TelegramBot.CallbackQuery, userStates: Map<number, UserStateEntry>, chatId: number): string | null {
+  const pending = userStates.get(chatId);
+  if (pending?.url && (pending.type === 'media_download' || pending.type === 'schedule_time')) {
+    return pending.url;
+  }
+  const msg = query.message as any;
+  const replyText = msg?.reply_to_message?.text || '';
+  const fromReply = extractUrlFromText(replyText);
+  if (fromReply) return fromReply;
+  const fromMessage = extractUrlFromText(msg?.text || '');
+  if (fromMessage) return fromMessage;
+  const entities = msg?.reply_to_message?.entities || [];
+  const text = replyText;
+  const urlEntity = entities.find((e: any) => e.type === 'url' || e.type === 'text_link');
+  if (urlEntity) {
+    return urlEntity.type === 'url'
+      ? text.substring(urlEntity.offset, urlEntity.offset + urlEntity.length)
+      : urlEntity.url;
+  }
+  return null;
+}
+
 let cachedBotInfo: TelegramBot.User | null = null;
 
 export function registerCommands(bot: TelegramBot) {
@@ -103,7 +130,10 @@ export function registerCommands(bot: TelegramBot) {
 
         const mediaType = state.mediaType || 'video';
         const article = await ScraperService.scrapeArticle(state.url).catch(() => null);
-        const caption = article?.title ? `🗞 <b>${article.title}</b>\n\n${article.content?.slice(0, 400)}` : "Scheduled Post";
+        const esc = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const caption = article?.title
+          ? `🗞 <b>${esc(article.title)}</b>\n\n${esc((article.content || '').slice(0, 400))}`
+          : "Scheduled Post";
 
         await DBService.addScheduledPost(chatId, mediaType as any, { url: state.url, caption }, scheduledDate.toISOString());
         userStates.delete(chatId);
@@ -147,6 +177,10 @@ export function registerCommands(bot: TelegramBot) {
 
     // E. Detect Media Links
     if (msg.text && /youtube\.com|youtu\.be|instagram\.com|tiktok\.com|soundcloud\.com/.test(msg.text)) {
+       const mediaUrl = extractUrlFromText(msg.text);
+       if (mediaUrl) {
+         userStates.set(chatId, { type: 'media_download', url: mediaUrl, createdAt: Date.now() });
+       }
        const isPlaylist = msg.text.includes('playlist') || msg.text.includes('list=') || msg.text.includes('/sets/');
        const prompt = `📹 <b>${i18n.t('media_detected', { lng: lang }) || 'Media Link Detected!'}</b>\n\n${isPlaylist ? '📝 <b>Playlist aniqlandi!</b>\n\n' : ''}${i18n.t('download_ask', { lng: lang }) || 'Choose format to download:'}`;
        
@@ -161,7 +195,11 @@ export function registerCommands(bot: TelegramBot) {
        inline_keyboard.push([{ text: "📅 Rejalashtirish (Schedule)", callback_data: `schedule_media` }]);
        inline_keyboard.push([{ text: "❌ " + (i18n.t('cancel', { lng: lang }) || 'Cancel'), callback_data: `cancel_dl` }]);
        
-       await bot.sendMessage(chatId, prompt, { parse_mode: "HTML", reply_markup: { inline_keyboard } });
+       await bot.sendMessage(chatId, prompt, {
+         parse_mode: "HTML",
+         reply_markup: { inline_keyboard },
+         reply_to_message_id: msg.message_id,
+       });
     }
   });
 
@@ -189,6 +227,9 @@ export function registerCommands(bot: TelegramBot) {
       await bot.answerPreCheckoutQuery(query.id, true);
     } catch (e: any) {
       logger.error(`pre_checkout_query error: ${e.message}`);
+      try {
+        await bot.answerPreCheckoutQuery(query.id, false, { error_message: 'Server error' });
+      } catch {}
     }
   });
 
@@ -205,11 +246,10 @@ export function registerCommands(bot: TelegramBot) {
         const withoutPrefix = payload.replace('premium_sub_', '');
         const isYearly = withoutPrefix.endsWith('_yearly');
         const userIdStr = isYearly ? withoutPrefix.replace('_yearly', '') : withoutPrefix;
-        const userId = parseInt(userIdStr);
-        
-        if (isNaN(userId)) {
-          logger.error(`Invalid userId in payment payload: ${payload}`);
-          return;
+        let userId = parseInt(userIdStr, 10);
+        if (Number.isNaN(userId) || userId <= 0) {
+          userId = chatId;
+          logger.warn(`Payment payload userId invalid (${payload}), using chatId ${chatId}`);
         }
         
         const days = isYearly ? 365 : 30;
@@ -258,25 +298,7 @@ export function registerCommands(bot: TelegramBot) {
           return;
         }
         
-        // BUG-074 Fix: Extract URL from the original message text (not reply_to)
-        let url = (query.message as any)?.reply_to_message?.text;
-        if (!url) {
-           // Try to find URL in the message that triggered the callback buttons
-           const msgText = (query.message as any)?.reply_to_message?.text || '';
-           const urlMatch = msgText.match(/(https?:\/\/[^\s]+)/);
-           if (urlMatch) url = urlMatch[0];
-        }
-        // BUG-074 Fix: Also check entities for URLs  
-        if (!url) {
-          const entities = (query.message as any)?.reply_to_message?.entities || [];
-          const text = (query.message as any)?.reply_to_message?.text || "";
-          const urlEntity = entities.find((e: any) => e.type === 'url' || e.type === 'text_link');
-          if (urlEntity) {
-            url = urlEntity.type === 'url' ? text.substring(urlEntity.offset, urlEntity.offset + urlEntity.length) : urlEntity.url;
-          }
-        }
-        // Last resort: check parent message text
-        if (!url) url = (query.message as any)?.text?.match(/(https?:\/\/[^\s]+)/)?.[0];
+        const url = resolveMediaUrl(query, userStates, chatId);
 
         if (!url) {
           await bot.answerCallbackQuery(query.id, { text: "❌ Havola topilmadi", show_alert: true });
@@ -297,13 +319,12 @@ export function registerCommands(bot: TelegramBot) {
           await bot.deleteMessage(chatId, waitMsg.message_id);
           const fs = await import('fs');
           if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+          userStates.delete(chatId);
         } catch (err: any) {
           await bot.editMessageText(`❌ Error: ${err.message}`, { chat_id: chatId, message_id: waitMsg.message_id });
         }
       } else if (data === 'dl_playlist_all') {
-        // BUG-075 Fix: Handle playlist download
-        let url = (query.message as any)?.reply_to_message?.text?.match(/(https?:\/\/[^\s]+)/)?.[0];
-        if (!url) url = (query.message as any)?.text?.match(/(https?:\/\/[^\s]+)/)?.[0];
+        const url = resolveMediaUrl(query, userStates, chatId);
         
         if (!url) {
           await bot.answerCallbackQuery(query.id, { text: "❌ Playlist havolasi topilmadi", show_alert: true });
@@ -328,14 +349,13 @@ export function registerCommands(bot: TelegramBot) {
         const canSchedule = await DBService.checkUserLimit(chatId, 'scheduled');
         if (!canSchedule) return bot.sendMessage(chatId, "⭐ <b>Limitga yetdingiz!</b>");
         
-        // BUG-076 Fix: Robust URL extraction for scheduling
-        let url = (query.message as any)?.reply_to_message?.text?.match(/(https?:\/\/[^\s]+)/)?.[0];
-        if (!url) url = (query.message as any)?.text?.match(/(https?:\/\/[^\s]+)/)?.[0];
+        const url = resolveMediaUrl(query, userStates, chatId);
         if (!url) return bot.sendMessage(chatId, "❌ Link topilmadi.");
 
         userStates.set(chatId, { type: 'schedule_time', url, mediaType: 'video', createdAt: Date.now() });
         await bot.sendMessage(chatId, "⏰ <b>Post qachon chiqsin? (SS:DD formatida, masalan: 18:30):</b>", { parse_mode: 'HTML' });
       } else if (data === 'cancel_dl') {
+        userStates.delete(chatId);
         await bot.deleteMessage(chatId, query.message!.message_id);
       } else if (data === 'cmd_settings') {
         const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}`;

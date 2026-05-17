@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.i18n = void 0;
+exports.WEBAPP_LANGS = exports.i18n = void 0;
 exports.initI18n = initI18n;
 const i18next_1 = __importDefault(require("i18next"));
 const logger_1 = require("../utils/logger");
@@ -67,6 +67,8 @@ const resources = {
     ko: { translation: { welcome: '🌐 <b>환영합니다!</b>', help: '📚 <b>도움말:</b>', settings: '⚙️ <b>설정</b>', status: '📊 <b>통계</b>', premium: '🚀 <b>프리미엄</b>', daily_digest_header: '일일 뉴스 요약', media_detected: '미디어 링크가 감지되었습니다!', download_ask: '다운로드 형식을 선택하십시오:', cancel: '취소', processing: '처리 중...', err_invalid_url: "❌ 잘못된 URL" } },
     fa: { translation: { welcome: '🌐 <b>خوش آمدید!</b>', help: '📚 <b>راهنما:</b>', settings: '⚙️ <b>تنظیمات</b>', status: '📊 <b>آمار</b>', premium: '🚀 <b>پریمیوم</b>', daily_digest_header: 'خلاصه اخبار روزانه', media_detected: 'لینک چندرسانه‌ای شناسایی شد!', download_ask: 'فرمت دانلود را انتخاب کنید:', cancel: 'لغو', processing: 'در حال پردازش...', err_invalid_url: "❌ لینک نامعتبر" } }
 };
+/** WebApp UI strings — synced with public/js/i18n-client.js */
+exports.WEBAPP_LANGS = ['uz', 'ru', 'en', 'tr', 'de', 'fr', 'es', 'it', 'pt', 'ar', 'hi', 'zh', 'ja', 'ko', 'fa'];
 async function initI18n() {
     await exports.i18n.init({
         lng: 'uz',

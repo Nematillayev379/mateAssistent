@@ -61,7 +61,9 @@ function setupRSSCron() {
             }
             logger_1.logger.info('🧹 Memory cleanup: userLastRun cache pruned');
         }
-        catch { }
+        catch (err) {
+            logger_1.logger.error(`❌ Memory cleanup cron failed: ${err.message}`);
+        }
     });
     node_cron_1.default.schedule('*/2 * * * *', async () => {
         try {
@@ -147,7 +149,7 @@ async function checkMonitoredChannels() {
                 latestPost = await InstagramService.getLatestPost(channel.channel_id);
             }
             if (latestPost && latestPost.id !== channel.last_post_id) {
-                logger_1.logger.info(`📢 New post found on ${channel.platform} channel ${channel.name}`);
+                logger_1.logger.info(`📢 New post found on ${(0, logger_1.sanitizeLogInput)(channel.platform)} channel ${(0, logger_1.sanitizeLogInput)(channel.name)}`);
                 const user = await database_1.DBService.getUser(channel.user_id);
                 if (user && user.target_channel) {
                     const caption = `📢 <b>Yangi ${channel.platform} xabari!</b>\n\n${latestPost.title}\n\n🔗 <a href="${latestPost.url}">Ko'rish</a>`;
@@ -172,13 +174,10 @@ async function processDirectly(userId, source) {
         const lang = source.lang || 'uz';
         for (const article of articles) {
             try {
-                const seen = await database_1.DBService.isSeen(userId, article.link);
-                if (seen)
+                const isDuplicate = await database_1.DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
+                if (isDuplicate)
                     continue;
-                const titleSeen = await database_1.DBService.isSeenByTitle(userId, article.title);
-                if (titleSeen)
-                    continue;
-                logger_1.logger.info(`🆕 [direct] New article: ${article.title}`);
+                logger_1.logger.info(`🆕 [direct] New article: ${(0, logger_1.sanitizeLogInput)(article.title)}`);
                 const articleData = {
                     title: article.title,
                     url: article.link,
@@ -193,15 +192,15 @@ async function processDirectly(userId, source) {
                     await (0, scraper_worker_1.processArticleInline)(userId, articleData, lang);
                 }
                 catch (articleErr) {
-                    logger_1.logger.error(`❌ Error inline processing article ${article.link}: ${articleErr.message}`);
+                    logger_1.logger.error(`❌ Error inline processing article ${(0, logger_1.sanitizeLogInput)(article.link)}: ${articleErr.message}`);
                 }
             }
             catch (articleErr) {
-                logger_1.logger.error(`❌ Error handling article ${article.link}: ${articleErr.message}`);
+                logger_1.logger.error(`❌ Error handling article ${(0, logger_1.sanitizeLogInput)(article.link)}: ${articleErr.message}`);
             }
         }
     }
     catch (err) {
-        logger_1.logger.warn(`⚠️ Direct RSS process error for ${source.url}: ${err.message}`);
+        logger_1.logger.warn(`⚠️ Direct RSS process error for ${(0, logger_1.sanitizeLogInput)(source.url)}: ${err.message}`);
     }
 }

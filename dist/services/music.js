@@ -60,7 +60,7 @@ exports.MusicService = {
         const results = [];
         // Strategy 1: yt-dlp YouTube search + download (most reliable)
         try {
-            logger_1.logger.info(`MusicService: yt-dlp orqali "${artist}" qidirilmoqda...`);
+            logger_1.logger.info(`MusicService: yt-dlp orqali "${(0, logger_1.sanitizeLogInput)(artist)}" qidirilmoqda...`);
             const ytdlpResults = await this.searchWithYtDlp(artist, amount);
             results.push(...ytdlpResults);
         }
@@ -146,7 +146,7 @@ exports.MusicService = {
                         const stats = fs_1.default.statSync(filePath);
                         if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
                             results.push({ title: title.trim(), path: filePath });
-                            logger_1.logger.info(`✅ Music downloaded: ${title.trim()} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
+                            logger_1.logger.info(`✅ Music downloaded: ${(0, logger_1.sanitizeLogInput)(title.trim())} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
                         }
                         else {
                             // B-14 Fix: Delete temp file if invalid size
@@ -164,14 +164,14 @@ exports.MusicService = {
                             const stats = fs_1.default.statSync(altPath);
                             if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
                                 results.push({ title: title.trim(), path: altPath });
-                                logger_1.logger.info(`✅ Music downloaded: ${title.trim()} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
+                                logger_1.logger.info(`✅ Music downloaded: ${(0, logger_1.sanitizeLogInput)(title.trim())} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
                                 break;
                             }
                         }
                     }
                 }
                 catch (dlErr) {
-                    logger_1.logger.warn(`yt-dlp download error for "${title}": ${dlErr.message?.slice(0, 100)}`);
+                    logger_1.logger.warn(`yt-dlp download error for "${(0, logger_1.sanitizeLogInput)(title)}": ${dlErr.message?.slice(0, 100)}`);
                     try {
                         if (fs_1.default.existsSync(filePath))
                             fs_1.default.unlinkSync(filePath);
@@ -259,7 +259,7 @@ exports.MusicService = {
                         const stats = fs_1.default.statSync(filePath);
                         if (stats.size > 10000 && stats.size < MAX_FILE_SIZE) {
                             results.push({ title: video.title, path: filePath });
-                            logger_1.logger.info(`✅ Cobalt download: ${video.title} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
+                            logger_1.logger.info(`✅ Cobalt download: ${(0, logger_1.sanitizeLogInput)(video.title)} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
                             break; // Success, move to next video
                         }
                         else {
@@ -354,7 +354,8 @@ exports.MusicService = {
                                 if (title) {
                                     results.push({
                                         title,
-                                        url: `https://www.youtube.com/watch?v=${video.videoId}`
+                                        url: `https://www.youtube.com/watch?v=${video.videoId}`,
+                                        videoId: video.videoId,
                                     });
                                 }
                             }
@@ -408,7 +409,7 @@ exports.MusicService = {
     /**
      * Clean up old temp files
      */
-    cleanup() {
+    async cleanup() {
         try {
             if (!fs_1.default.existsSync(TEMP_DIR))
                 return;

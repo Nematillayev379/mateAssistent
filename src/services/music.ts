@@ -297,8 +297,8 @@ export const MusicService = {
    * Search YouTube and return video IDs + titles
    * B-48 Fix: Improved parsing with better error handling and fallbacks
    */
-  async getYouTubeVideoIds(query: string, limit: number = 10): Promise<{ title: string, url: string }[]> {
-    const results: { title: string, url: string }[] = [];
+  async getYouTubeVideoIds(query: string, limit: number = 10): Promise<{ title: string, url: string, videoId: string }[]> {
+    const results: { title: string, url: string, videoId: string }[] = [];
 
     try {
       const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query + ' audio music')}&sp=EgIQAQ%253D%253D`;
@@ -329,7 +329,8 @@ export const MusicService = {
                 if (title) {
                   results.push({
                     title,
-                    url: `https://www.youtube.com/watch?v=${video.videoId}`
+                    url: `https://www.youtube.com/watch?v=${video.videoId}`,
+                    videoId: video.videoId,
                   });
                 }
               }

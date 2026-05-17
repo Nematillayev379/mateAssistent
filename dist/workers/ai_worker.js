@@ -15,34 +15,30 @@ else {
     const aiWorker = new bullmq_1.Worker('ai-queue', async (job) => {
         const { userId, article, lang } = job.data;
         try {
-            logger_1.logger.info(`🤖 Job ${job.id}: AI processing for ${article.title}`);
+            logger_1.logger.info(`🤖 Job ${job.id}: AI processing for ${(0, logger_1.sanitizeLogInput)(article.title)}`);
             // BUG-104 Fix: Use CONFIG.AD_KEYWORDS instead of process.env
             const adKeywords = config_1.CONFIG.AD_KEYWORDS.map(k => k.toLowerCase());
             const textToScan = `${article.title} ${article.content || ''}`.toLowerCase();
             if (adKeywords.some(k => textToScan.includes(k))) {
-                logger_1.logger.info(`🚫 Ad filtered: ${article.title}`);
-                await database_1.DBService.markSeen(userId, article.url, article.title);
+                logger_1.logger.info(`🚫 Ad filtered: ${(0, logger_1.sanitizeLogInput)(article.title)}`);
                 return;
             }
             // BUG-107 Fix: Check user BEFORE doing expensive AI processing
             const user = await database_1.DBService.getUser(userId);
             if (!user || !user.target_channel || !user.is_active) {
                 logger_1.logger.info(`Skip AI: User ${userId} inactive or no channel`);
-                await database_1.DBService.markSeen(userId, article.url, article.title);
                 return;
             }
             // 1. Content Moderation
             const moderation = await (0, ai_1.moderateContent)(article.title, article.content || '');
             if (moderation.status === 'BLOCKED') {
-                logger_1.logger.warn(`🚫 Article blocked for user ${userId}: ${moderation.reason}`);
-                await database_1.DBService.markSeen(userId, article.url, article.title);
+                logger_1.logger.warn(`🚫 Article blocked for user ${userId}: ${(0, logger_1.sanitizeLogInput)(moderation.reason)}`);
                 return;
             }
             // 2. Semantic Deduplication
             const isSemanticDup = await (0, ai_1.checkSemanticDuplicate)(userId, article.title, article.content || '');
             if (isSemanticDup) {
                 await database_1.DBService.incrementStat(userId, 'total_duplicates');
-                await database_1.DBService.markSeen(userId, article.url, article.title);
                 return;
             }
             // 3. AI Summary Generation
@@ -55,7 +51,6 @@ else {
             // BUG-029 Fix: Skip processing instead of throwing error if summary is empty
             if (!summary || summary.length < 10) {
                 logger_1.logger.warn(`Skip AI: Summary generation failed or too short for user ${userId}`);
-                await database_1.DBService.markSeen(userId, article.url, article.title);
                 return;
             }
             // BUG-105 Fix: Reduce AI calls - combine categorization with emoji
@@ -68,8 +63,6 @@ else {
                 emoji: emoji || '🔹',
                 category: category
             };
-            // BUG-028 Fix: Mark as seen BEFORE sending to prevent infinite loops if channel is invalid
-            await database_1.DBService.markSeen(userId, article.url, article.title);
             await (0, telegram_1.safeSend)(user, enrichedArticle);
             logger_1.logger.info(`✅ Post sent to channel ${user.target_channel} for user ${userId}`);
         }
@@ -78,7 +71,6 @@ else {
             const isPermanent = error.message?.includes('400') || error.message?.includes('Bad Request');
             if (isPermanent) {
                 logger_1.logger.error(`❌ Permanent AI error for job ${job.id}: ${error.message}. Skipping.`);
-                await database_1.DBService.markSeen(userId, article.url, article.title);
                 return;
             }
             logger_1.logger.error(`❌ AI Worker Error for job ${job.id}: ${error.message}`);

@@ -12,10 +12,15 @@ import { PaymentService } from './payment';
 import { getSmartAIResponse, validateKey } from './ai';
 import { ScraperService } from './scraper';
 import { FinanceService } from './finance';
+import { TelegramMonitorService, normalizeTelegramChannelId } from './telegram_monitor';
+import { TrendsService } from './trends';
+import { generateTTS, generateAudioSummary } from './ai';
+import { safeSendToChannels } from './telegram';
 
 // B-51 Fix: Add proper type for bot parameter
 export function startDashboardServer(port: number | string, _bot?: any) {
   const app = express();
+
   app.use(express.json());
   // B-21 Fix: Add CORS middleware manually
   app.use((req, res, next) => {
@@ -126,14 +131,18 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     
     let user = await DBService.getUser(tgUser.id);
     if (!user) {
-      // Auto-upsert if not found
       user = await DBService.upsertUser(tgUser.id, isOwnerId(tgUser.id) ? 1 : 0, tgUser.username, tgUser.first_name);
       if (!user) return res.status(500).json({ error: 'User not found and creation failed' });
     }
+
+    // Sync env owner to DB role (same as /start) so WebApp shows admin panel
+    if (isOwnerId(tgUser.id) && user.role !== 'owner') {
+      await DBService.updateUserRole(tgUser.id, 'owner');
+      user.role = 'owner';
+    }
     
-    // Generate our standard dashboard token to use as a session token
     const token = generateDashboardToken(tgUser.id);
-    res.json({ token, userId: tgUser.id, role: user.role });
+    res.json({ token, userId: tgUser.id, role: user.role || 'user' });
   });
 
   app.post('/api/auth/master', async (req, res) => {
@@ -146,6 +155,10 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       let user = await DBService.getUser(ownerId);
       if (!user) {
          user = await DBService.upsertUser(ownerId, 1, 'Owner', 'Owner');
+      }
+      if (user && user.role !== 'owner') {
+        await DBService.updateUserRole(ownerId, 'owner');
+        user.role = 'owner';
       }
       res.json({ token, userId: ownerId, role: user?.role || 'owner' });
     } else {
@@ -169,8 +182,13 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     if (!adminId || !token) return res.status(401).json({ error: 'Unauthorized' });
     if (token !== generateDashboardToken(adminId)) return res.status(401).json({ error: 'Invalid admin token' });
     
-    const user = await DBService.getUser(parseInt(adminId));
-    if (!user || (user.role !== 'owner' && user.role !== 'admin')) return res.status(403).json({ error: 'Forbidden: Admin access only' });
+    const adminUid = parseInt(adminId);
+    const user = await DBService.getUser(adminUid);
+    const isAdmin = user && (
+      user.role === 'owner' || user.role === 'admin' ||
+      user.is_owner === 1 || isOwnerId(adminUid)
+    );
+    if (!isAdmin) return res.status(403).json({ error: 'Forbidden: Admin access only' });
     req.authenticatedUserId = adminId;
     next();
   };
@@ -181,8 +199,22 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const userId = parseInt(req.authenticatedUserId);
     const user = await DBService.getUser(userId);
     if (!user) return res.status(404).json({ error: 'Not found' });
+    const effectiveRole = user.role || (user.is_owner ? 'owner' : 'user');
     res.json({
-      user: { id: user.telegram_id, username: user.username, role: user.role, is_premium: user.is_premium },
+      user: {
+        id: user.telegram_id,
+        telegram_id: user.telegram_id,
+        username: user.username,
+        first_name: user.first_name,
+        role: effectiveRole,
+        is_owner: !!user.is_owner,
+        is_premium: !!user.is_premium,
+        is_approved: !!user.is_approved,
+        is_active: user.is_active !== 0,
+        target_channel: user.target_channel || null,
+        language: user.language || 'uz',
+        premium_until: user.premium_until || null
+      },
       stats: await DBService.getStats(userId),
       scheduled: await DBService.getUserScheduledPosts(userId),
       referrals: await DBService.getReferralStats(userId),
@@ -280,6 +312,20 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     res.json({ success: true });
   });
 
+  app.post('/api/admin/users/:telegramId/unblock', checkAdmin, async (req, res) => {
+    await DBService.updateUser(parseInt(req.params.telegramId), { is_active: 1 });
+    res.json({ success: true });
+  });
+
+  app.post('/api/admin/users/:telegramId/reject', checkAdmin, async (req, res) => {
+    await DBService.updateUser(parseInt(req.params.telegramId), { is_approved: 0 });
+    res.json({ success: true });
+  });
+
+  app.get('/api/payments/methods', checkAuth, async (_req, res) => {
+    res.json(PaymentService.getAvailableMethods());
+  });
+
   // BUG-059 Fix: Actually ping Redis to check connection
   app.get('/api/admin/system', checkAdmin, async (req, res) => {
     let redisStatus = false;
@@ -328,23 +374,54 @@ export function startDashboardServer(port: number | string, _bot?: any) {
 
   app.get('/api/music/search', checkAuth, async (req, res) => res.json(await MusicService.getYouTubeVideoIds(req.query.q as string, 8)));
   
+  const cleanupTempFile = (filePath: string) => {
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch {}
+  };
+
+  const serveFileDownload = async (
+    res: any,
+    filePath: string,
+    filename: string,
+    opts?: { userId?: number; notifyBot?: 'audio' | 'video' }
+  ) => {
+    if (opts?.notifyBot && opts.userId) {
+      try {
+        if (opts.notifyBot === 'video') {
+          await bot.sendVideo(opts.userId, filePath, { caption: '📥 WebApp orqali yuklandi' });
+        } else {
+          await bot.sendAudio(opts.userId, filePath, { caption: '🎵 WebApp orqali yuklandi' });
+        }
+      } catch (e: any) {
+        logger.warn(`Bot media send skipped for ${opts.userId}: ${e.message}`);
+      }
+    }
+
+    res.download(filePath, filename, (err: any) => {
+      cleanupTempFile(filePath);
+      if (err && !res.headersSent) {
+        res.status(500).json({ error: err.message || 'Download failed' });
+      }
+    });
+  };
+
   app.get('/api/music/download/:id', checkAuth, async (req: any, res: any) => {
     const videoId = req.params.id;
     if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
       return res.status(400).json({ error: 'Invalid video ID' });
     }
     const userId = parseInt(req.authenticatedUserId);
+    const webOnly = req.query.web === '1';
     try {
       const { downloadYouTube } = await import('../services/youtube');
       const url = `https://youtube.com/watch?v=${videoId}`;
       const filePath = await downloadYouTube(url, 'audio');
-      
-      // Option 1: Send to bot chat (Seamless for Telegram)
-      await bot.sendAudio(userId, filePath, { caption: "Downloaded via Dashboard" });
-      
-      // Option 2: Serve for browser download
-      res.download(filePath, (err: any) => {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      const filename = `music_${videoId}.m4a`;
+
+      await serveFileDownload(res, filePath, filename, {
+        userId,
+        notifyBot: webOnly ? undefined : 'audio',
       });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -354,6 +431,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   app.post('/api/media/download', checkAuth, async (req: any, res: any) => {
     const { url, type } = req.body; // type: 'video' | 'audio'
     const userId = parseInt(req.authenticatedUserId);
+    const webOnly = req.query.web === '1' || req.body?.delivery === 'web';
     if (!['video', 'audio'].includes(type)) {
       return res.status(400).json({ error: 'Invalid media type' });
     }
@@ -364,15 +442,12 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     try {
       const { downloadYouTube } = await import('../services/youtube');
       const filePath = await downloadYouTube(url, type);
-      
-      if (type === 'video') await bot.sendVideo(userId, filePath);
-      else await bot.sendAudio(userId, filePath);
+      const ext = type === 'video' ? 'mp4' : 'm4a';
+      const filename = `media_${Date.now()}.${ext}`;
 
-      res.download(filePath, (err: any) => {
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        if (err && !res.headersSent) {
-          res.status(500).json({ error: err.message || 'Download failed' });
-        }
+      await serveFileDownload(res, filePath, filename, {
+        userId,
+        notifyBot: webOnly ? undefined : (type === 'video' ? 'video' : 'audio'),
       });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -396,12 +471,41 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
       return res.status(400).json({ error: 'Prompt bo\'sh bo\'lishi mumkin emas.' });
     }
-    
-    const text = await getSmartAIResponse("Write a viral telegram post in Uzbek with emojis.", prompt);
-    // BUG-060 Fix: Properly parse boolean from JSON body
-    const wantImage = withImage === true || withImage === 'true';
-    const imageUrl = wantImage ? `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1280&height=720` : null;
-    res.json({ text, imageUrl });
+
+    const topic = prompt.trim();
+    const systemPrompt =
+      "Siz professional SMM mutaxassisisiz. Telegram kanallari uchun postlar yozasiz.\n" +
+      "QOIDALAR:\n" +
+      "- Javob FAQAT o'zbek tilida bo'lsin\n" +
+      "- Post foydalanuvchi bergan MAVZUGA to'liq mos va mazmunli bo'lsin\n" +
+      "- 80-150 so'z, qiziqarli kirish, 3-4 qisqa paragraph\n" +
+      "- Tegishli emojilar (haddan tashqari emas)\n" +
+      "- Umumiy salomlashish yoki mavzudan uzoq matn yozmang\n" +
+      "- Faqat tayyor post matnini qaytaring, boshqa izoh yo'q";
+    const userPrompt = `MAVZU: «${topic}»\n\nYuqoridagi mavzu bo'yicha kanalga joylash uchun tayyor Telegram post yozing.`;
+
+    try {
+      const text = (await getSmartAIResponse(systemPrompt, userPrompt)).trim();
+      if (!text || text.length < 20) {
+        return res.status(502).json({ error: 'AI post yaratmadi. Qayta urinib ko\'ring.' });
+      }
+
+      const wantImage = withImage === true || withImage === 'true';
+      let imageUrl: string | null = null;
+      if (wantImage) {
+        const imagePrompt =
+          `Professional social media banner illustration about: ${topic}. ` +
+          'Modern, vibrant, high quality, cinematic lighting, no text, no watermark, 16:9';
+        const seed = Date.now() % 100000;
+        imageUrl =
+          `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}` +
+          `?width=1280&height=720&nologo=true&seed=${seed}`;
+      }
+
+      res.json({ text, imageUrl });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || 'AI xatolik' });
+    }
   });
 
   app.post('/api/ai/post-to-channel', checkAuth, async (req: any, res: any) => {
@@ -414,9 +518,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     }
 
     if (imageUrl) {
-      await bot.sendPhoto(user.target_channel, imageUrl, { caption: text, parse_mode: 'HTML' });
+      await bot.sendPhoto(user.target_channel, imageUrl, { caption: text });
     } else {
-      await bot.sendMessage(user.target_channel, text, { parse_mode: 'HTML' });
+      await bot.sendMessage(user.target_channel, text);
     }
     res.json({ success: true });
   });
@@ -453,18 +557,141 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   app.post('/api/channels/:userId', checkAuth, async (req: any, res: any) => {
-    const { platform, channelId, name } = req.body;
-    const allowedPlatforms = ['youtube', 'instagram'];
-    if (!allowedPlatforms.includes(platform) || !channelId || !name) {
+    const uid = parseInt(req.authenticatedUserId);
+    const { platform, channelId, name, forward_mode, use_ai } = req.body;
+    const allowedPlatforms = ['youtube', 'instagram', 'telegram'];
+    if (!allowedPlatforms.includes(platform) || !channelId) {
       return res.status(400).json({ error: 'Invalid channel payload' });
     }
-    await DBService.addMonitoredChannel(parseInt(req.authenticatedUserId), platform, channelId, name);
+
+    let resolvedId = channelId;
+    let resolvedName = name || channelId;
+
+    if (platform === 'telegram') {
+      const verify = await TelegramMonitorService.verifyBotInSourceChannel(channelId);
+      if (!verify.ok) return res.status(400).json({ error: verify.error || 'Bot manba kanalda admin emas' });
+      resolvedId = verify.chatId || normalizeTelegramChannelId(channelId);
+      resolvedName = verify.title || resolvedName;
+    }
+
+    if (!(await DBService.checkUserLimit(uid, 'channels'))) {
+      return res.status(403).json({ error: 'Channel limit reached' });
+    }
+
+    await DBService.addMonitoredChannel(uid, platform, resolvedId, resolvedName, {
+      forward_mode: forward_mode || 'copy',
+      use_ai: use_ai ? 1 : 0,
+    });
+    res.json({ success: true, channelId: resolvedId, name: resolvedName });
+  });
+
+  app.patch('/api/channels/:userId/:id', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const id = parseInt(req.params.id);
+    const { forward_mode, use_ai, is_active } = req.body;
+    const updates: Record<string, any> = {};
+    if (forward_mode) updates.forward_mode = forward_mode;
+    if (use_ai !== undefined) updates.use_ai = use_ai ? 1 : 0;
+    if (is_active !== undefined) updates.is_active = is_active ? 1 : 0;
+    await DBService.updateMonitoredChannelSettings(id, uid, updates);
     res.json({ success: true });
   });
 
   app.delete('/api/channels/:userId/:id', checkAuth, async (req: any, res: any) => {
     await DBService.removeMonitoredChannel(parseInt(req.authenticatedUserId), parseInt(req.params.id));
     res.json({ success: true });
+  });
+
+  // --- MULTI-CHANNEL OUTPUT ---
+  app.get('/api/output-channels/:userId', checkAuth, async (req: any, res: any) => {
+    const u = await DBService.getUser(parseInt(req.authenticatedUserId));
+    if (!u) return res.status(404).json({ error: 'Not found' });
+    res.json({ primary: u.target_channel, extra: u.extra_channels || '', all: DBService.getUserOutputChannels(u) });
+  });
+
+  app.post('/api/output-channels/:userId', checkAuth, async (req: any, res: any) => {
+    const { channels } = req.body;
+    if (!Array.isArray(channels)) return res.status(400).json({ error: 'channels array required' });
+    await DBService.setExtraChannels(parseInt(req.authenticatedUserId), channels);
+    res.json({ success: true });
+  });
+
+  // --- UZ TRENDS RADAR ---
+  app.get('/api/trends/uz', checkAuth, async (req: any, res: any) => {
+    const force = req.query.refresh === '1' || req.query.refresh === 'true';
+    try {
+      const data = await TrendsService.scanUZTrends(force);
+      res.json(data);
+    } catch (e: any) {
+      const cached = await DBService.getLatestTrendsSnapshot();
+      if (cached) return res.json({ topics: cached.topics, summary: cached.summary, at: cached.created_at });
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // --- AI VOICE NEWS ---
+  app.post('/api/ai/voice-news', checkAuth, aiLimiter, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const { text, title, sendToChannel } = req.body;
+    const user = await DBService.getUser(uid);
+    if (!user) return res.status(404).json({ error: 'Not found' });
+
+    const script = text || await generateAudioSummary(title || 'Yangilik', title || '');
+    const audio = await generateTTS(script);
+    if (!audio) return res.status(500).json({ error: 'Ovoz generatsiyasi muvaffaqiyatsiz' });
+
+    const caption = `🎙 <b>${title || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
+    const targets = sendToChannel ? DBService.getUserOutputChannels(user) : [uid];
+
+    for (const ch of targets) {
+      try {
+        const chatId = sendToChannel ? ch : uid;
+        await bot.sendAudio(chatId, audio, { caption, parse_mode: 'HTML' });
+      } catch (e: any) {
+        logger.warn(`Voice send failed ${ch}: ${e.message}`);
+      }
+    }
+    res.json({ success: true, script: script.slice(0, 800) });
+  });
+
+  // --- VISUAL POST COMPOSER (multi-channel) ---
+  app.post('/api/posts/publish', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const { text, imageUrl, channels } = req.body;
+    if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Text required' });
+
+    const user = await DBService.getUser(uid);
+    if (!user) return res.status(404).json({ error: 'Not found' });
+
+    const targets: string[] = Array.isArray(channels) && channels.length
+      ? channels
+      : DBService.getUserOutputChannels(user);
+
+    if (!targets.length) return res.status(400).json({ error: 'No output channels configured' });
+
+    await safeSendToChannels(user, targets, async (target) => {
+      if (imageUrl) {
+        await bot.sendPhoto(target, imageUrl, { caption: text, parse_mode: 'HTML' });
+      } else {
+        await bot.sendMessage(target, text, { parse_mode: 'HTML' });
+      }
+    });
+
+    await DBService.incrementStat(uid, 'total_posts');
+    res.json({ success: true, sentTo: targets.length });
+  });
+
+  app.post('/api/posts/draft', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const { title, body, image_url, channels } = req.body;
+    if (!body) return res.status(400).json({ error: 'Body required' });
+    const draft = await DBService.savePostDraft(uid, { title, body, image_url, channels });
+    res.json({ success: true, draft });
+  });
+
+  app.get('/api/posts/drafts/:userId', checkAuth, async (req: any, res: any) => {
+    const drafts = await DBService.getUserPostDrafts(parseInt(req.authenticatedUserId));
+    res.json(drafts);
   });
 
   // --- SUPPORT TICKETS ---
@@ -594,19 +821,44 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   app.post('/api/premium/buy', checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId as string);
     const { method, plan } = req.body;
+    const isYearly = plan === 'yearly';
     
     if (method === 'stars') {
       const starsPrice = parseInt(await DBService.getSetting('premium_stars_price') || '500');
-      const price = plan === 'yearly' ? starsPrice * 10 : starsPrice;
-      const title = plan === 'yearly' ? 'Elite Premium (1 Year)' : 'Elite Premium (1 Month)';
+      const price = isYearly ? starsPrice * 10 : starsPrice;
+      const title = isYearly ? 'Elite Premium (1 Year)' : 'Elite Premium (1 Month)';
       const invoice = await bot.createInvoiceLink(
         title, 'Premium access for news automation', 
-        `premium_sub_${uid}${plan === 'yearly' ? '_yearly' : ''}`, 
+        `premium_sub_${uid}${isYearly ? '_yearly' : ''}`, 
         '', 'XTR', [{ label: 'Premium', amount: price }]
       );
-      return res.json({ success: true, url: invoice });
+      return res.json({ success: true, url: invoice, method: 'stars' });
     }
+
+    if (method === 'payme') {
+      const amount = isYearly ? await DBService.getPrice('yearly') : await DBService.getPrice('monthly');
+      const link = await PaymentService.generatePaymeLink(uid, amount);
+      if (!link) return res.status(503).json({ error: 'Payme sozlanmagan (PAYME_MERCHANT_ID)' });
+      return res.json({ success: true, url: link, method: 'payme' });
+    }
+
+    if (method === 'click') {
+      const amount = isYearly ? await DBService.getPrice('yearly') : await DBService.getPrice('monthly');
+      const link = await PaymentService.generateClickLink(uid, amount);
+      if (!link) return res.status(503).json({ error: 'Click sozlanmagan (CLICK_SERVICE_ID)' });
+      return res.json({ success: true, url: link, method: 'click' });
+    }
+
     res.status(400).json({ error: 'Unsupported method' });
+  });
+
+  app.delete('/api/keys/:userId', checkAuth, async (req: any, res: any) => {
+    const { key } = req.body;
+    if (!key || typeof key !== 'string') {
+      return res.status(400).json({ error: 'API key required' });
+    }
+    await DBService.removeApiKey(parseInt(req.authenticatedUserId), key);
+    res.json({ success: true });
   });
 
   // BUG-062 Fix: Require PAYME_KEY for webhook processing

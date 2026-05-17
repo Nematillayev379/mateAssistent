@@ -57,7 +57,7 @@ exports.DownloaderService = {
             const ytdlpName = os_1.default.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
             const ytdlpPath = path_1.default.join(process.cwd(), ytdlpName);
             if (fs_1.default.existsSync(ytdlpPath)) {
-                logger_1.logger.info(`Downloading YouTube video with yt-dlp: ${url}`);
+                logger_1.logger.info(`Downloading YouTube video with yt-dlp: ${(0, logger_1.sanitizeLogInput)(url)}`);
                 // BUG-047 Fix: Use execFile to avoid hanging processes when shell ignores SIGTERM on timeout
                 const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
                 const execFilePromise = (0, util_1.promisify)(execFile);
@@ -178,7 +178,7 @@ exports.DownloaderService = {
             return bestUrl;
         }
         catch {
-            logger_1.logger.warn(`All Cobalt instances failed for: ${url}`);
+            logger_1.logger.warn(`All Cobalt instances failed for: ${(0, logger_1.sanitizeLogInput)(url)}`);
             return null;
         }
     },

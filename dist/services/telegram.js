@@ -1,10 +1,44 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.notify = exports.bot = void 0;
 exports.startBot = startBot;
+exports.safeSendToChannels = safeSendToChannels;
 exports.safeSend = safeSend;
 const config_1 = require("../config/config");
 const logger_1 = require("../utils/logger");
@@ -14,16 +48,28 @@ Object.defineProperty(exports, "notify", { enumerable: true, get: function () { 
 const commands_1 = require("../commands");
 const database_1 = require("./database");
 const scraper_1 = require("./scraper");
-const i18n_1 = require("./i18n");
 const crypto_1 = __importDefault(require("crypto"));
 const instanceId = crypto_1.default.randomUUID();
 // BUG-066 Fix: Removed unused userStates Map (it's only in commands/index.ts now)
 let cachedBotUser = null;
 let lastBotUserFetch = 0;
+// B-19 Fix: Add polling error handler with restart attempts
+const MAX_RESTART_ATTEMPTS = 10;
+let pollingRestartAttempts = 0;
 async function startBot() {
     logger_1.logger.info(`🤖 Bot instance starting (ID: ${instanceId})`);
     // Register commands
     (0, commands_1.registerCommands)(bot_instance_1.bot);
+    // Telegram → Telegram channel monitoring (bot must be admin in source channels)
+    const { TelegramMonitorService } = await Promise.resolve().then(() => __importStar(require('./telegram_monitor')));
+    bot_instance_1.bot.on('channel_post', async (msg) => {
+        try {
+            await TelegramMonitorService.handleChannelPost(msg);
+        }
+        catch (e) {
+            logger_1.logger.error(`channel_post handler: ${e.message}`);
+        }
+    });
     // Setup Bot Commands Menu
     try {
         await bot_instance_1.bot.setMyCommands([
@@ -48,22 +94,16 @@ async function startBot() {
             logger_1.logger.error(`❌ setWebHook error: ${err.message}`);
             // Fallback to polling only if webhook fails
             await bot_instance_1.bot.deleteWebHook().catch(() => { });
-            bot_instance_1.bot.startPolling();
+            initPolling();
             logger_1.logger.info(`🚀 Polling started (webhook failed, fallback)`);
         }
     }
     else {
         // No public URL — use polling
         await bot_instance_1.bot.deleteWebHook().catch(() => { });
-        bot_instance_1.bot.startPolling();
+        initPolling();
         logger_1.logger.info(`🚀 Polling started (no PUBLIC_URL)`);
     }
-    // B-19 Fix: Add polling error handler with restart attempts
-    bot_instance_1.bot.on('polling_error', (error) => {
-        logger_1.logger.error(`❌ Polling error: ${error.message}`);
-        // Increment restart attempts counter (accessed via module-level variable in main.ts)
-        // Note: This is a simplified implementation; in production, you'd want more sophisticated retry logic
-    });
     // Startup notification
     if (config_1.CONFIG.OWNER_ID) {
         try {
@@ -72,18 +112,66 @@ async function startBot() {
         catch { }
     }
 }
+function initPolling() {
+    bot_instance_1.bot.startPolling();
+    // B-19 Fix: Add polling error handler with restart attempts
+    bot_instance_1.bot.on('polling_error', (error) => {
+        logger_1.logger.error(`❌ Polling error: ${error.message}`);
+        if (error.message.includes('409 Conflict')) {
+            logger_1.logger.warn('⚠️ Polling conflict (another instance?). Stopping polling to avoid spam.');
+            bot_instance_1.bot.stopPolling();
+            return;
+        }
+        pollingRestartAttempts++;
+        if (pollingRestartAttempts > MAX_RESTART_ATTEMPTS) {
+            logger_1.logger.error(`🔥 Too many polling errors (${pollingRestartAttempts}). Giving up to prevent infinite loop.`);
+            bot_instance_1.bot.stopPolling();
+            return;
+        }
+        logger_1.logger.info(`🔄 Attempting to recover polling (${pollingRestartAttempts}/${MAX_RESTART_ATTEMPTS})...`);
+        // Wait before continuing
+        setTimeout(() => {
+            if (!bot_instance_1.bot.isPolling()) {
+                bot_instance_1.bot.startPolling();
+            }
+        }, 5000);
+    });
+}
 /**
  * Safe send with media support
  * BUG-069 Fix: Truncate caption to Telegram limits
  * BUG-070 Fix: Validate audio URL
  * BUG-071 Fix: Handle target_channel format
  */
+/** Publish to primary + extra output channels */
+async function safeSendToChannels(user, channels, sendFn) {
+    for (const ch of channels) {
+        const normalized = normalizeChannelId(ch);
+        if (!normalized)
+            continue;
+        try {
+            await sendFn(normalized);
+        }
+        catch (e) {
+            logger_1.logger.warn(`Multi-channel send failed ${normalized}: ${e.message}`);
+        }
+    }
+}
+function normalizeChannelId(channel) {
+    let targetChannel = String(channel).trim();
+    if (!targetChannel)
+        return '';
+    if (/^\d+$/.test(targetChannel))
+        targetChannel = `-100${targetChannel}`;
+    else if (!targetChannel.startsWith('@') && !targetChannel.startsWith('-'))
+        targetChannel = `@${targetChannel}`;
+    return targetChannel;
+}
 async function safeSend(user, article) {
     if (!article) {
         logger_1.logger.warn('safeSend skipped: article is missing');
         return;
     }
-    const lang = user.language || 'uz';
     // BUG-018 & BUG-068 Fix: Refresh bot username periodically (every hour)
     if (!cachedBotUser || Date.now() - lastBotUserFetch > 3600000) {
         try {
@@ -96,45 +184,45 @@ async function safeSend(user, article) {
         }
     }
     const botUser = cachedBotUser;
-    const viralFooter = `\n\n🤖 <a href="https://t.me/${botUser}">@${botUser}</a> ${i18n_1.i18n.t('viral_tag', { lng: lang }) || 'bilan yaratildi. Siz ham qo\'shing!'}`;
+    const botAd = `🤖 <a href="https://t.me/${botUser}">@${escapeHtml(botUser)}</a>`;
     // BUG-152 Fix: Escape HTML entities in title and content
     const safeTitle = escapeHtml(article.title || '');
     const safeContent = escapeHtml(article.content || '');
     const safeSource = escapeHtml(article.source || 'Newsroom');
+    // BUG-140 Fix: Escape URL attribute safely for Telegram
+    const safeUrl = escapeUrl(article.url || '');
+    const sourceLine = `🔗 <a href="${safeUrl}">${safeSource}</a>`;
+    const footer = `\n\n${sourceLine}  ·  ${botAd}`;
     // BUG-017 Fix: Truncate safely BEFORE assembling HTML to prevent broken tags
     const isMediaMessage = !!(article.videoUrl || article.audioUrl || article.imageUrl);
     const maxLen = isMediaMessage ? 1024 : 4096;
-    const reserveLen = safeTitle.length + safeSource.length + viralFooter.length + 100;
+    const reserveLen = safeTitle.length + footer.length + 50;
     let finalContent = safeContent;
     if (finalContent.length + reserveLen > maxLen) {
         finalContent = finalContent.slice(0, Math.max(0, maxLen - reserveLen - 3)) + '...';
     }
-    // BUG-140 Fix: Escape URL attribute safely for Telegram
-    const safeUrl = escapeUrl(article.url || '');
-    const caption = `${article.emoji || '🗞'} <b>${safeTitle}</b>\n\n${finalContent}${viralFooter}\n\n🔗 <a href="${safeUrl}">${safeSource}</a>`;
+    // Rasm + sarlavha + tavsif + manba havolasi · bot reklamasi
+    const caption = `${article.emoji || '🗞'} <b>${safeTitle}</b>\n\n${finalContent}${footer}`;
     try {
         if (!user.target_channel) {
             logger_1.logger.warn(`Skip send: User ${user.telegram_id} has no target channel`);
             return;
         }
-        // BUG-071 Fix: Normalize target channel format
-        let targetChannel = user.target_channel;
-        if (/^\d+$/.test(targetChannel)) {
-            targetChannel = `-100${targetChannel}`;
-        }
-        if (article.videoUrl && (await scraper_1.ScraperService.isValidMedia(article.videoUrl))) {
-            await bot_instance_1.bot.sendVideo(targetChannel, article.videoUrl, { caption, parse_mode: "HTML" });
-        }
-        else if (article.audioUrl && (await scraper_1.ScraperService.isValidMedia(article.audioUrl))) {
-            // BUG-070 Fix: Validate audio URL before sending
-            await bot_instance_1.bot.sendAudio(targetChannel, article.audioUrl, { caption, parse_mode: "HTML" });
-        }
-        else if (article.imageUrl && (await scraper_1.ScraperService.isValidMedia(article.imageUrl))) {
-            await bot_instance_1.bot.sendPhoto(targetChannel, article.imageUrl, { caption, parse_mode: "HTML" });
-        }
-        else {
-            await bot_instance_1.bot.sendMessage(targetChannel, caption, { parse_mode: "HTML" });
-        }
+        const targets = database_1.DBService.getUserOutputChannels(user);
+        await safeSendToChannels(user, targets.length ? targets : [user.target_channel], async (targetChannel) => {
+            if (article.videoUrl && (await scraper_1.ScraperService.isValidMedia(article.videoUrl))) {
+                await bot_instance_1.bot.sendVideo(targetChannel, article.videoUrl, { caption, parse_mode: "HTML" });
+            }
+            else if (article.audioUrl && (await scraper_1.ScraperService.isValidMedia(article.audioUrl))) {
+                await bot_instance_1.bot.sendAudio(targetChannel, article.audioUrl, { caption, parse_mode: "HTML" });
+            }
+            else if (article.imageUrl && (await scraper_1.ScraperService.isValidMedia(article.imageUrl))) {
+                await bot_instance_1.bot.sendPhoto(targetChannel, article.imageUrl, { caption, parse_mode: "HTML" });
+            }
+            else {
+                await bot_instance_1.bot.sendMessage(targetChannel, caption, { parse_mode: "HTML" });
+            }
+        });
         await database_1.DBService.incrementStat(user.telegram_id, 'total_posts');
     }
     catch (e) {

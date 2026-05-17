@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.startCommand = void 0;
 const database_1 = require("../services/database");
 const config_1 = require("../config/config");
-const logger_1 = require("../utils/logger");
 const bot_instance_1 = require("../services/bot_instance");
+const logger_1 = require("../utils/logger");
 exports.startCommand = {
     pattern: /\/start\s*(.*)|\/boshlash\s*(.*)|\/начать\s*(.*)/i,
     description: '🏠 Botni boshlash / Start',
@@ -41,8 +41,6 @@ exports.startCommand = {
             await database_1.DBService.updateUserRole(chatId, 'owner');
             user.role = 'owner';
         }
-        const lang = user.language || 'uz';
-        // BUG-085 Fix: Default role to 'user' if null
         const role = user.role || 'user';
         // BUG-083 Fix: Check if user is approved
         if (!user.is_approved && !isOwner && role !== 'admin' && role !== 'owner') {
@@ -79,6 +77,9 @@ exports.startCommand = {
             [{ text: "⚙️ Sozlamalar", callback_data: 'cmd_settings' }, { text: "📊 Statistika", callback_data: 'cmd_stats' }],
             [{ text: "🎁 Referral Tizimi", callback_data: 'cmd_referral' }]
         ];
+        if (role === 'owner' || role === 'admin') {
+            inline_keyboard.unshift([{ text: "🛡 Admin Panel", callback_data: 'cmd_admin' }]);
+        }
         if (role === 'user' && !user.is_premium) {
             inline_keyboard.push([{ text: "💎 Premium Sotib Olish", callback_data: 'buy_premium' }]);
         }

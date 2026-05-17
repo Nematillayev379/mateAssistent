@@ -63,6 +63,9 @@ const resources = {
   fa: { translation: { welcome: '🌐 <b>خوش آمدید!</b>', help: '📚 <b>راهنما:</b>', settings: '⚙️ <b>تنظیمات</b>', status: '📊 <b>آمار</b>', premium: '🚀 <b>پریمیوم</b>', daily_digest_header: 'خلاصه اخبار روزانه', media_detected: 'لینک چندرسانه‌ای شناسایی شد!', download_ask: 'فرمت دانلود را انتخاب کنید:', cancel: 'لغو', processing: 'در حال پردازش...', err_invalid_url: "❌ لینک نامعتبر" }}
 };
 
+/** WebApp UI strings — synced with public/js/i18n-client.js */
+export const WEBAPP_LANGS = ['uz', 'ru', 'en', 'tr', 'de', 'fr', 'es', 'it', 'pt', 'ar', 'hi', 'zh', 'ja', 'ko', 'fa'] as const;
+
 export async function initI18n() {
   await i18n.init({
     lng: 'uz',

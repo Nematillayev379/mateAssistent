@@ -128,12 +128,12 @@ exports.ScraperService = {
             }
             catch (e) {
                 // If URL parsing fails, keep original value
-                logger_1.logger.warn(`URL conversion failed for ${url}: ${e}`);
+                logger_1.logger.warn(`URL conversion failed for ${(0, logger_1.sanitizeLogInput)(url)}: ${e}`);
             }
             return { title, content: paragraphs.join("\n\n"), imageUrl, audioUrl, videoUrl };
         }
         catch (e) {
-            logger_1.logger.warn(`Maqolani o'qishda xato: ${url} - ${e.message}`);
+            logger_1.logger.warn(`Maqolani o'qishda xato: ${(0, logger_1.sanitizeLogInput)(url)} - ${e.message}`);
             return null;
         }
     },
@@ -228,7 +228,8 @@ exports.ScraperService = {
             const $ = cheerio.load(xml, { xmlMode: true });
             const items = [];
             const entries = $("item").length ? $("item") : $("entry");
-            entries.each((_, el) => {
+            // BUG-055 Fix: Limit to 50 items to prevent memory/performance issues
+            entries.slice(0, 50).each((_, el) => {
                 const title = $(el).find("title").text().trim();
                 const link = this.extractLink(el, $);
                 const description = $(el).find("description").text().trim() ||
@@ -251,7 +252,7 @@ exports.ScraperService = {
             return items;
         }
         catch (e) {
-            logger_1.logger.error(`RSS fetch error (${url}): ${e.message}`);
+            logger_1.logger.error(`RSS fetch error (${(0, logger_1.sanitizeLogInput)(url)}): ${e.message}`);
             return [];
         }
     },
@@ -292,7 +293,7 @@ exports.ScraperService = {
                     const discoveredHost = new URL(discovered).hostname.replace('www.', '');
                     // BUG-050 Fix: Use endsWith to prevent evil-example.com matching example.com
                     if (discoveredHost !== originalHost && !discoveredHost.endsWith('.' + originalHost) && !await this.isPublicExternalUrl(discovered)) {
-                        logger_1.logger.warn(`🚫 SSRF Protection: AI returned suspicious URL: ${discovered}`);
+                        logger_1.logger.warn(`🚫 SSRF Protection: AI returned suspicious URL: ${(0, logger_1.sanitizeLogInput)(discovered)}`);
                         return null;
                     }
                     return discovered;
@@ -303,7 +304,7 @@ exports.ScraperService = {
             }
         }
         catch (e) {
-            logger_1.logger.warn(`discoverRSS failed for ${websiteUrl}: ${e.message}`);
+            logger_1.logger.warn(`discoverRSS failed for ${(0, logger_1.sanitizeLogInput)(websiteUrl)}: ${e.message}`);
         }
         return null;
     },
@@ -371,7 +372,10 @@ exports.ScraperService = {
                 let foundLd = false;
                 $('script[type="application/ld+json"]').each((_, el) => {
                     try {
-                        const data = JSON.parse($(el).html() || "");
+                        const html = $(el).html();
+                        if (!html || html.trim() === '')
+                            return;
+                        const data = JSON.parse(html);
                         const checkProduct = (obj) => {
                             if (obj && obj['@type'] === 'Product') {
                                 if (obj.name)
@@ -392,7 +396,7 @@ exports.ScraperService = {
                     catch { }
                 });
                 if (!foundLd || !priceText) {
-                    logger_1.logger.info(`Using AI fallback for price extraction on ${url}`);
+                    logger_1.logger.info(`Using AI fallback for price extraction on ${(0, logger_1.sanitizeLogInput)(url)}`);
                     $("script, style, nav, footer, iframe, noscript").remove();
                     const bodyText = $("body").text().replace(/\s+/g, " ").slice(0, 3000);
                     const prompt = `You are a data extractor. Extract the main product name and its price in UZS from the following web page text. Respond ONLY in JSON format: {"name": "Product Name", "priceText": "120000"}. If not found, use {"name": "", "priceText": ""}`;
@@ -426,7 +430,7 @@ exports.ScraperService = {
             return { price, name, imageUrl };
         }
         catch (e) {
-            logger_1.logger.error(`Price scrape failed for ${url}: ${e.message}`);
+            logger_1.logger.error(`Price scrape failed for ${(0, logger_1.sanitizeLogInput)(url)}: ${e.message}`);
             throw e;
         }
     },

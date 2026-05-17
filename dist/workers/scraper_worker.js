@@ -57,20 +57,15 @@ else {
     const scraperWorker = new bullmq_1.Worker('scraper-queue', async (job) => {
         const { userId, sourceUrl, sourceName, lang } = job.data;
         try {
-            logger_1.logger.info(`🔍 Job ${job.id}: Scraping ${sourceUrl} for user ${userId}`);
+            logger_1.logger.info(`🔍 Job ${job.id}: Scraping ${(0, logger_1.sanitizeLogInput)(sourceUrl)} for user ${userId}`);
             const articles = await scraper_1.ScraperService.fetchRSS(sourceUrl);
             for (const article of articles) {
-                const seen = await database_1.DBService.isSeen(userId, article.link);
-                if (seen) {
+                const isDuplicate = await database_1.DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
+                if (isDuplicate) {
                     await database_1.DBService.incrementStat(userId, 'total_duplicates');
                     continue;
                 }
-                const titleSeen = await database_1.DBService.isSeenByTitle(userId, article.title);
-                if (titleSeen) {
-                    await database_1.DBService.incrementStat(userId, 'total_duplicates');
-                    continue;
-                }
-                logger_1.logger.info(`🆕 New article found: ${article.title}`);
+                logger_1.logger.info(`🆕 New article found: ${(0, logger_1.sanitizeLogInput)(article.title)}`);
                 const articleData = {
                     title: article.title,
                     url: article.link,
@@ -126,7 +121,7 @@ async function processArticleInline(userId, article, sourceLang) {
         // BUG-104 & BUG-139 Fix: Use pre-computed cached lowerAdKeywords
         const textToScan = `${article.title || ''} ${article.content || ''}`.toLowerCase();
         if (lowerAdKeywords.some(k => textToScan.includes(k))) {
-            logger_1.logger.info(`🚫 Ad filtered: ${article.title}`);
+            logger_1.logger.info(`🚫 Ad filtered: ${(0, logger_1.sanitizeLogInput)(article.title)}`);
             return;
         }
         // BUG-109 & BUG-027 Fix: Check content is defined, and fallback to empty string if scrape fails completely

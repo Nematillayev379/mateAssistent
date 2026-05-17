@@ -41,7 +41,6 @@ const bot_instance_1 = require("../services/bot_instance");
 const i18n_1 = require("../services/i18n");
 async function processDailyDigests() {
     const now = new Date();
-    const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     try {
         const users = await database_1.DBService.getUsersWithDigest();
         // BUG-033 Fix: Use local timezone for 'today' date string to match now.getHours()
@@ -54,7 +53,9 @@ async function processDailyDigests() {
             const [targetH, targetM] = user.digest_time.split(':').map(Number);
             const targetTotal = targetH * 60 + targetM;
             const currentTotal = now.getHours() * 60 + now.getMinutes();
-            if (currentTotal >= targetTotal && user.digest_last_sent !== today) {
+            // BUG-033 Fix: Only send if within 60 minutes of target time to avoid late-night re-sends on restart
+            const timeDiff = currentTotal - targetTotal;
+            if (timeDiff >= 0 && timeDiff < 60 && user.digest_last_sent !== today) {
                 logger_1.logger.info(`✨ Sending daily digest to user ${user.telegram_id}`);
                 // BUG-138 Fix: Always update digest_last_sent even if it fails, to avoid infinite retry loops
                 await sendDigest(user);

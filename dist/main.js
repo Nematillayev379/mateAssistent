@@ -45,9 +45,6 @@ const rss_cron_1 = require("./crons/rss_cron");
 const node_cron_1 = __importDefault(require("node-cron"));
 const axios_1 = __importDefault(require("axios"));
 const dns_1 = __importDefault(require("dns"));
-// B-19 Fix: Add polling restart attempts tracking
-const MAX_RESTART_ATTEMPTS = 10;
-let pollingRestartAttempts = 0;
 // Fix for Render/Node18+ AggregateError (forces IPv4)
 if (dns_1.default.setDefaultResultOrder) {
     dns_1.default.setDefaultResultOrder('ipv4first');

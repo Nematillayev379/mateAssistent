@@ -51,6 +51,10 @@ const payment_1 = require("./payment");
 const ai_1 = require("./ai");
 const scraper_1 = require("./scraper");
 const finance_1 = require("./finance");
+const telegram_monitor_1 = require("./telegram_monitor");
+const trends_1 = require("./trends");
+const ai_2 = require("./ai");
+const telegram_1 = require("./telegram");
 // B-51 Fix: Add proper type for bot parameter
 function startDashboardServer(port, _bot) {
     const app = (0, express_1.default)();
@@ -160,22 +164,32 @@ function startDashboardServer(port, _bot) {
             return res.status(401).json({ error: 'Invalid Telegram data' });
         let user = await database_1.DBService.getUser(tgUser.id);
         if (!user) {
-            // Auto-upsert if not found
             user = await database_1.DBService.upsertUser(tgUser.id, (0, config_1.isOwnerId)(tgUser.id) ? 1 : 0, tgUser.username, tgUser.first_name);
             if (!user)
                 return res.status(500).json({ error: 'User not found and creation failed' });
         }
-        // Generate our standard dashboard token to use as a session token
+        // Sync env owner to DB role (same as /start) so WebApp shows admin panel
+        if ((0, config_1.isOwnerId)(tgUser.id) && user.role !== 'owner') {
+            await database_1.DBService.updateUserRole(tgUser.id, 'owner');
+            user.role = 'owner';
+        }
         const token = (0, bot_instance_1.generateDashboardToken)(tgUser.id);
-        res.json({ token, userId: tgUser.id, role: user.role });
+        res.json({ token, userId: tgUser.id, role: user.role || 'user' });
     });
     app.post('/api/auth/master', async (req, res) => {
         const { token } = req.body;
         if (token && config_1.CONFIG.DASHBOARD_SECRET && token === config_1.CONFIG.DASHBOARD_SECRET) {
+            if (config_1.CONFIG.OWNER_ID == null) {
+                return res.status(500).json({ error: 'Owner ID not configured' });
+            }
             const ownerId = config_1.CONFIG.OWNER_ID;
             let user = await database_1.DBService.getUser(ownerId);
             if (!user) {
                 user = await database_1.DBService.upsertUser(ownerId, 1, 'Owner', 'Owner');
+            }
+            if (user && user.role !== 'owner') {
+                await database_1.DBService.updateUserRole(ownerId, 'owner');
+                user.role = 'owner';
             }
             res.json({ token, userId: ownerId, role: user?.role || 'owner' });
         }
@@ -198,8 +212,11 @@ function startDashboardServer(port, _bot) {
             return res.status(401).json({ error: 'Unauthorized' });
         if (token !== (0, bot_instance_1.generateDashboardToken)(adminId))
             return res.status(401).json({ error: 'Invalid admin token' });
-        const user = await database_1.DBService.getUser(parseInt(adminId));
-        if (!user || (user.role !== 'owner' && user.role !== 'admin'))
+        const adminUid = parseInt(adminId);
+        const user = await database_1.DBService.getUser(adminUid);
+        const isAdmin = user && (user.role === 'owner' || user.role === 'admin' ||
+            user.is_owner === 1 || (0, config_1.isOwnerId)(adminUid));
+        if (!isAdmin)
             return res.status(403).json({ error: 'Forbidden: Admin access only' });
         req.authenticatedUserId = adminId;
         next();
@@ -211,8 +228,22 @@ function startDashboardServer(port, _bot) {
         const user = await database_1.DBService.getUser(userId);
         if (!user)
             return res.status(404).json({ error: 'Not found' });
+        const effectiveRole = user.role || (user.is_owner ? 'owner' : 'user');
         res.json({
-            user: { id: user.telegram_id, username: user.username, role: user.role, is_premium: user.is_premium },
+            user: {
+                id: user.telegram_id,
+                telegram_id: user.telegram_id,
+                username: user.username,
+                first_name: user.first_name,
+                role: effectiveRole,
+                is_owner: !!user.is_owner,
+                is_premium: !!user.is_premium,
+                is_approved: !!user.is_approved,
+                is_active: user.is_active !== 0,
+                target_channel: user.target_channel || null,
+                language: user.language || 'uz',
+                premium_until: user.premium_until || null
+            },
             stats: await database_1.DBService.getStats(userId),
             scheduled: await database_1.DBService.getUserScheduledPosts(userId),
             referrals: await database_1.DBService.getReferralStats(userId),
@@ -302,6 +333,17 @@ function startDashboardServer(port, _bot) {
         await database_1.DBService.updateUser(parseInt(req.params.telegramId), { is_active: 0 });
         res.json({ success: true });
     });
+    app.post('/api/admin/users/:telegramId/unblock', checkAdmin, async (req, res) => {
+        await database_1.DBService.updateUser(parseInt(req.params.telegramId), { is_active: 1 });
+        res.json({ success: true });
+    });
+    app.post('/api/admin/users/:telegramId/reject', checkAdmin, async (req, res) => {
+        await database_1.DBService.updateUser(parseInt(req.params.telegramId), { is_approved: 0 });
+        res.json({ success: true });
+    });
+    app.get('/api/payments/methods', checkAuth, async (_req, res) => {
+        res.json(payment_1.PaymentService.getAvailableMethods());
+    });
     // BUG-059 Fix: Actually ping Redis to check connection
     app.get('/api/admin/system', checkAdmin, async (req, res) => {
         let redisStatus = false;
@@ -346,19 +388,49 @@ function startDashboardServer(port, _bot) {
         res.status(202).json({ success: true, queued });
     });
     app.get('/api/music/search', checkAuth, async (req, res) => res.json(await music_1.MusicService.getYouTubeVideoIds(req.query.q, 8)));
+    const cleanupTempFile = (filePath) => {
+        try {
+            if (fs_1.default.existsSync(filePath))
+                fs_1.default.unlinkSync(filePath);
+        }
+        catch { }
+    };
+    const serveFileDownload = async (res, filePath, filename, opts) => {
+        if (opts?.notifyBot && opts.userId) {
+            try {
+                if (opts.notifyBot === 'video') {
+                    await bot_instance_1.bot.sendVideo(opts.userId, filePath, { caption: '📥 WebApp orqali yuklandi' });
+                }
+                else {
+                    await bot_instance_1.bot.sendAudio(opts.userId, filePath, { caption: '🎵 WebApp orqali yuklandi' });
+                }
+            }
+            catch (e) {
+                logger_1.logger.warn(`Bot media send skipped for ${opts.userId}: ${e.message}`);
+            }
+        }
+        res.download(filePath, filename, (err) => {
+            cleanupTempFile(filePath);
+            if (err && !res.headersSent) {
+                res.status(500).json({ error: err.message || 'Download failed' });
+            }
+        });
+    };
     app.get('/api/music/download/:id', checkAuth, async (req, res) => {
         const videoId = req.params.id;
+        if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+            return res.status(400).json({ error: 'Invalid video ID' });
+        }
         const userId = parseInt(req.authenticatedUserId);
+        const webOnly = req.query.web === '1';
         try {
             const { downloadYouTube } = await Promise.resolve().then(() => __importStar(require('../services/youtube')));
             const url = `https://youtube.com/watch?v=${videoId}`;
             const filePath = await downloadYouTube(url, 'audio');
-            // Option 1: Send to bot chat (Seamless for Telegram)
-            await bot_instance_1.bot.sendAudio(userId, filePath, { caption: "Downloaded via Dashboard" });
-            // Option 2: Serve for browser download
-            res.download(filePath, (err) => {
-                if (fs_1.default.existsSync(filePath))
-                    fs_1.default.unlinkSync(filePath);
+            const filename = `music_${videoId}.m4a`;
+            await serveFileDownload(res, filePath, filename, {
+                userId,
+                notifyBot: webOnly ? undefined : 'audio',
             });
         }
         catch (e) {
@@ -368,6 +440,7 @@ function startDashboardServer(port, _bot) {
     app.post('/api/media/download', checkAuth, async (req, res) => {
         const { url, type } = req.body; // type: 'video' | 'audio'
         const userId = parseInt(req.authenticatedUserId);
+        const webOnly = req.query.web === '1' || req.body?.delivery === 'web';
         if (!['video', 'audio'].includes(type)) {
             return res.status(400).json({ error: 'Invalid media type' });
         }
@@ -377,16 +450,11 @@ function startDashboardServer(port, _bot) {
         try {
             const { downloadYouTube } = await Promise.resolve().then(() => __importStar(require('../services/youtube')));
             const filePath = await downloadYouTube(url, type);
-            if (type === 'video')
-                await bot_instance_1.bot.sendVideo(userId, filePath);
-            else
-                await bot_instance_1.bot.sendAudio(userId, filePath);
-            res.download(filePath, (err) => {
-                if (fs_1.default.existsSync(filePath))
-                    fs_1.default.unlinkSync(filePath);
-                if (err && !res.headersSent) {
-                    res.status(500).json({ error: err.message || 'Download failed' });
-                }
+            const ext = type === 'video' ? 'mp4' : 'm4a';
+            const filename = `media_${Date.now()}.${ext}`;
+            await serveFileDownload(res, filePath, filename, {
+                userId,
+                notifyBot: webOnly ? undefined : (type === 'video' ? 'video' : 'audio'),
             });
         }
         catch (e) {
@@ -410,21 +478,51 @@ function startDashboardServer(port, _bot) {
         if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
             return res.status(400).json({ error: 'Prompt bo\'sh bo\'lishi mumkin emas.' });
         }
-        const text = await (0, ai_1.getSmartAIResponse)("Write a viral telegram post in Uzbek with emojis.", prompt);
-        // BUG-060 Fix: Properly parse boolean from JSON body
-        const wantImage = withImage === true || withImage === 'true';
-        const imageUrl = wantImage ? `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1280&height=720` : null;
-        res.json({ text, imageUrl });
+        const topic = prompt.trim();
+        const systemPrompt = "Siz professional SMM mutaxassisisiz. Telegram kanallari uchun postlar yozasiz.\n" +
+            "QOIDALAR:\n" +
+            "- Javob FAQAT o'zbek tilida bo'lsin\n" +
+            "- Post foydalanuvchi bergan MAVZUGA to'liq mos va mazmunli bo'lsin\n" +
+            "- 80-150 so'z, qiziqarli kirish, 3-4 qisqa paragraph\n" +
+            "- Tegishli emojilar (haddan tashqari emas)\n" +
+            "- Umumiy salomlashish yoki mavzudan uzoq matn yozmang\n" +
+            "- Faqat tayyor post matnini qaytaring, boshqa izoh yo'q";
+        const userPrompt = `MAVZU: «${topic}»\n\nYuqoridagi mavzu bo'yicha kanalga joylash uchun tayyor Telegram post yozing.`;
+        try {
+            const text = (await (0, ai_1.getSmartAIResponse)(systemPrompt, userPrompt)).trim();
+            if (!text || text.length < 20) {
+                return res.status(502).json({ error: 'AI post yaratmadi. Qayta urinib ko\'ring.' });
+            }
+            const wantImage = withImage === true || withImage === 'true';
+            let imageUrl = null;
+            if (wantImage) {
+                const imagePrompt = `Professional social media banner illustration about: ${topic}. ` +
+                    'Modern, vibrant, high quality, cinematic lighting, no text, no watermark, 16:9';
+                const seed = Date.now() % 100000;
+                imageUrl =
+                    `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}` +
+                        `?width=1280&height=720&nologo=true&seed=${seed}`;
+            }
+            res.json({ text, imageUrl });
+        }
+        catch (e) {
+            res.status(500).json({ error: e.message || 'AI xatolik' });
+        }
     });
     app.post('/api/ai/post-to-channel', checkAuth, async (req, res) => {
-        const { text } = req.body;
+        const { text, imageUrl } = req.body;
         if (!text || typeof text !== 'string')
             return res.status(400).json({ error: 'Invalid text' });
         const user = await database_1.DBService.getUser(parseInt(req.authenticatedUserId));
         if (!user?.target_channel) {
             return res.status(400).json({ error: 'No channel configured' });
         }
-        await bot_instance_1.bot.sendMessage(user.target_channel, text, { parse_mode: 'HTML' });
+        if (imageUrl) {
+            await bot_instance_1.bot.sendPhoto(user.target_channel, imageUrl, { caption: text });
+        }
+        else {
+            await bot_instance_1.bot.sendMessage(user.target_channel, text);
+        }
         res.json({ success: true });
     });
     // --- PRICE TRACKER ---
@@ -456,19 +554,144 @@ function startDashboardServer(port, _bot) {
         res.json(channels);
     });
     app.post('/api/channels/:userId', checkAuth, async (req, res) => {
-        const { platform, channelId, name } = req.body;
-        const allowedPlatforms = ['youtube', 'instagram'];
-        if (!allowedPlatforms.includes(platform) || !channelId || !name) {
+        const uid = parseInt(req.authenticatedUserId);
+        const { platform, channelId, name, forward_mode, use_ai } = req.body;
+        const allowedPlatforms = ['youtube', 'instagram', 'telegram'];
+        if (!allowedPlatforms.includes(platform) || !channelId) {
             return res.status(400).json({ error: 'Invalid channel payload' });
         }
-        await database_1.DBService.addMonitoredChannel(parseInt(req.authenticatedUserId), platform, channelId, name);
+        let resolvedId = channelId;
+        let resolvedName = name || channelId;
+        if (platform === 'telegram') {
+            const verify = await telegram_monitor_1.TelegramMonitorService.verifyBotInSourceChannel(channelId);
+            if (!verify.ok)
+                return res.status(400).json({ error: verify.error || 'Bot manba kanalda admin emas' });
+            resolvedId = verify.chatId || (0, telegram_monitor_1.normalizeTelegramChannelId)(channelId);
+            resolvedName = verify.title || resolvedName;
+        }
+        if (!(await database_1.DBService.checkUserLimit(uid, 'channels'))) {
+            return res.status(403).json({ error: 'Channel limit reached' });
+        }
+        await database_1.DBService.addMonitoredChannel(uid, platform, resolvedId, resolvedName, {
+            forward_mode: forward_mode || 'copy',
+            use_ai: use_ai ? 1 : 0,
+        });
+        res.json({ success: true, channelId: resolvedId, name: resolvedName });
+    });
+    app.patch('/api/channels/:userId/:id', checkAuth, async (req, res) => {
+        const uid = parseInt(req.authenticatedUserId);
+        const id = parseInt(req.params.id);
+        const { forward_mode, use_ai, is_active } = req.body;
+        const updates = {};
+        if (forward_mode)
+            updates.forward_mode = forward_mode;
+        if (use_ai !== undefined)
+            updates.use_ai = use_ai ? 1 : 0;
+        if (is_active !== undefined)
+            updates.is_active = is_active ? 1 : 0;
+        await database_1.DBService.updateMonitoredChannelSettings(id, uid, updates);
         res.json({ success: true });
     });
     app.delete('/api/channels/:userId/:id', checkAuth, async (req, res) => {
         await database_1.DBService.removeMonitoredChannel(parseInt(req.authenticatedUserId), parseInt(req.params.id));
         res.json({ success: true });
     });
+    // --- MULTI-CHANNEL OUTPUT ---
+    app.get('/api/output-channels/:userId', checkAuth, async (req, res) => {
+        const u = await database_1.DBService.getUser(parseInt(req.authenticatedUserId));
+        if (!u)
+            return res.status(404).json({ error: 'Not found' });
+        res.json({ primary: u.target_channel, extra: u.extra_channels || '', all: database_1.DBService.getUserOutputChannels(u) });
+    });
+    app.post('/api/output-channels/:userId', checkAuth, async (req, res) => {
+        const { channels } = req.body;
+        if (!Array.isArray(channels))
+            return res.status(400).json({ error: 'channels array required' });
+        await database_1.DBService.setExtraChannels(parseInt(req.authenticatedUserId), channels);
+        res.json({ success: true });
+    });
+    // --- UZ TRENDS RADAR ---
+    app.get('/api/trends/uz', checkAuth, async (req, res) => {
+        const force = req.query.refresh === '1' || req.query.refresh === 'true';
+        try {
+            const data = await trends_1.TrendsService.scanUZTrends(force);
+            res.json(data);
+        }
+        catch (e) {
+            const cached = await database_1.DBService.getLatestTrendsSnapshot();
+            if (cached)
+                return res.json({ topics: cached.topics, summary: cached.summary, at: cached.created_at });
+            res.status(500).json({ error: e.message });
+        }
+    });
+    // --- AI VOICE NEWS ---
+    app.post('/api/ai/voice-news', checkAuth, aiLimiter, async (req, res) => {
+        const uid = parseInt(req.authenticatedUserId);
+        const { text, title, sendToChannel } = req.body;
+        const user = await database_1.DBService.getUser(uid);
+        if (!user)
+            return res.status(404).json({ error: 'Not found' });
+        const script = text || await (0, ai_2.generateAudioSummary)(title || 'Yangilik', title || '');
+        const audio = await (0, ai_2.generateTTS)(script);
+        if (!audio)
+            return res.status(500).json({ error: 'Ovoz generatsiyasi muvaffaqiyatsiz' });
+        const caption = `🎙 <b>${title || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
+        const targets = sendToChannel ? database_1.DBService.getUserOutputChannels(user) : [uid];
+        for (const ch of targets) {
+            try {
+                const chatId = sendToChannel ? ch : uid;
+                await bot_instance_1.bot.sendAudio(chatId, audio, { caption, parse_mode: 'HTML' });
+            }
+            catch (e) {
+                logger_1.logger.warn(`Voice send failed ${ch}: ${e.message}`);
+            }
+        }
+        res.json({ success: true, script: script.slice(0, 800) });
+    });
+    // --- VISUAL POST COMPOSER (multi-channel) ---
+    app.post('/api/posts/publish', checkAuth, async (req, res) => {
+        const uid = parseInt(req.authenticatedUserId);
+        const { text, imageUrl, channels } = req.body;
+        if (!text || typeof text !== 'string')
+            return res.status(400).json({ error: 'Text required' });
+        const user = await database_1.DBService.getUser(uid);
+        if (!user)
+            return res.status(404).json({ error: 'Not found' });
+        const targets = Array.isArray(channels) && channels.length
+            ? channels
+            : database_1.DBService.getUserOutputChannels(user);
+        if (!targets.length)
+            return res.status(400).json({ error: 'No output channels configured' });
+        await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
+            if (imageUrl) {
+                await bot_instance_1.bot.sendPhoto(target, imageUrl, { caption: text, parse_mode: 'HTML' });
+            }
+            else {
+                await bot_instance_1.bot.sendMessage(target, text, { parse_mode: 'HTML' });
+            }
+        });
+        await database_1.DBService.incrementStat(uid, 'total_posts');
+        res.json({ success: true, sentTo: targets.length });
+    });
+    app.post('/api/posts/draft', checkAuth, async (req, res) => {
+        const uid = parseInt(req.authenticatedUserId);
+        const { title, body, image_url, channels } = req.body;
+        if (!body)
+            return res.status(400).json({ error: 'Body required' });
+        const draft = await database_1.DBService.savePostDraft(uid, { title, body, image_url, channels });
+        res.json({ success: true, draft });
+    });
+    app.get('/api/posts/drafts/:userId', checkAuth, async (req, res) => {
+        const drafts = await database_1.DBService.getUserPostDrafts(parseInt(req.authenticatedUserId));
+        res.json(drafts);
+    });
     // --- SUPPORT TICKETS ---
+    // BUG-FIX: /api/tickets/all must be registered BEFORE /api/tickets/:userId
+    // otherwise Express matches 'all' as a :userId param and this route is never reached.
+    app.get('/api/tickets/all', checkAdmin, async (req, res) => {
+        const tickets = await database_1.DBService.getTickets();
+        res.json(tickets);
+    });
     app.get('/api/tickets/:userId', checkAuth, async (req, res) => {
         const tickets = await database_1.DBService.getUserTickets(parseInt(req.authenticatedUserId));
         res.json(tickets);
@@ -562,10 +785,6 @@ function startDashboardServer(port, _bot) {
         await database_1.DBService.updateUserRole(parseInt(req.params.telegramId), role);
         res.json({ success: true });
     });
-    app.get('/api/tickets/all', checkAdmin, async (req, res) => {
-        const tickets = await database_1.DBService.getTickets();
-        res.json(tickets);
-    });
     app.get('/api/admin/sources', checkAdmin, async (req, res) => {
         const sources = await database_1.DBService.getAllSources();
         res.json(sources);
@@ -579,16 +798,39 @@ function startDashboardServer(port, _bot) {
     });
     // BUG-061 Fix: Use DB prices instead of hardcoded
     app.post('/api/premium/buy', checkAuth, async (req, res) => {
-        const { userId, method, plan } = req.body;
-        const uid = parseInt(userId);
+        const uid = parseInt(req.authenticatedUserId);
+        const { method, plan } = req.body;
+        const isYearly = plan === 'yearly';
         if (method === 'stars') {
             const starsPrice = parseInt(await database_1.DBService.getSetting('premium_stars_price') || '500');
-            const price = plan === 'yearly' ? starsPrice * 10 : starsPrice;
-            const title = plan === 'yearly' ? 'Elite Premium (1 Year)' : 'Elite Premium (1 Month)';
-            const invoice = await bot_instance_1.bot.createInvoiceLink(title, 'Premium access for news automation', `premium_sub_${uid}${plan === 'yearly' ? '_yearly' : ''}`, '', 'XTR', [{ label: 'Premium', amount: price }]);
-            return res.json({ success: true, url: invoice });
+            const price = isYearly ? starsPrice * 10 : starsPrice;
+            const title = isYearly ? 'Elite Premium (1 Year)' : 'Elite Premium (1 Month)';
+            const invoice = await bot_instance_1.bot.createInvoiceLink(title, 'Premium access for news automation', `premium_sub_${uid}${isYearly ? '_yearly' : ''}`, '', 'XTR', [{ label: 'Premium', amount: price }]);
+            return res.json({ success: true, url: invoice, method: 'stars' });
+        }
+        if (method === 'payme') {
+            const amount = isYearly ? await database_1.DBService.getPrice('yearly') : await database_1.DBService.getPrice('monthly');
+            const link = await payment_1.PaymentService.generatePaymeLink(uid, amount);
+            if (!link)
+                return res.status(503).json({ error: 'Payme sozlanmagan (PAYME_MERCHANT_ID)' });
+            return res.json({ success: true, url: link, method: 'payme' });
+        }
+        if (method === 'click') {
+            const amount = isYearly ? await database_1.DBService.getPrice('yearly') : await database_1.DBService.getPrice('monthly');
+            const link = await payment_1.PaymentService.generateClickLink(uid, amount);
+            if (!link)
+                return res.status(503).json({ error: 'Click sozlanmagan (CLICK_SERVICE_ID)' });
+            return res.json({ success: true, url: link, method: 'click' });
         }
         res.status(400).json({ error: 'Unsupported method' });
+    });
+    app.delete('/api/keys/:userId', checkAuth, async (req, res) => {
+        const { key } = req.body;
+        if (!key || typeof key !== 'string') {
+            return res.status(400).json({ error: 'API key required' });
+        }
+        await database_1.DBService.removeApiKey(parseInt(req.authenticatedUserId), key);
+        res.json({ success: true });
     });
     // BUG-062 Fix: Require PAYME_KEY for webhook processing
     app.post('/api/payments/payme', async (req, res) => {

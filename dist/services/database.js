@@ -63,6 +63,9 @@ exports.DBService = {
                 return null;
             }
             data = fallback.data;
+            if (isOwner === 1 && data) {
+                await supabase.from('users').update({ is_owner: 1 }).eq('telegram_id', telegramId);
+            }
         }
         return data;
     },
@@ -125,9 +128,9 @@ exports.DBService = {
             logger_1.logger.error(`isSeenByTitle error: ${error.message}`);
         return !!(data && data.length > 0);
     },
-    // BUG-013 Fix: Throw error on failure to prevent repeated processing of the same article
+    // BUG-013 Fix: Use upsert with onConflict to handle unique constraints gracefully
     async markSeen(userId, url, title) {
-        const { error } = await supabase.from('processed_news').insert({ user_id: userId, url, title });
+        const { error } = await supabase.from('processed_news').upsert({ user_id: userId, url, title }, { onConflict: 'user_id, url' });
         if (error) {
             logger_1.logger.error(`markSeen error: ${error.message}`);
             throw error;
@@ -151,6 +154,11 @@ exports.DBService = {
         const { error } = await supabase.from('api_keys').upsert({ user_id: userId, api_key: key, api_type: type, is_active: true }, { onConflict: 'api_key' });
         if (error)
             logger_1.logger.error(`addApiKey error: ${error.message}`);
+    },
+    async removeApiKey(userId, key) {
+        const { error } = await supabase.from('api_keys').delete().eq('user_id', userId).eq('api_key', key);
+        if (error)
+            logger_1.logger.error(`removeApiKey error: ${error.message}`);
     },
     async getUserApiKeyCount(userId) {
         const { count, error } = await supabase.from('api_keys').select('*', { count: 'exact', head: true }).eq('user_id', userId);
@@ -224,10 +232,90 @@ exports.DBService = {
             logger_1.logger.error(`getUserMonitoredChannels error: ${error.message}`);
         return data || [];
     },
-    async addMonitoredChannel(userId, platform, channelId, name) {
-        const { error } = await supabase.from('monitored_channels').insert({ user_id: userId, platform, channel_id: channelId, name });
+    async addMonitoredChannel(userId, platform, channelId, name, opts) {
+        const row = {
+            user_id: userId,
+            platform,
+            channel_id: channelId,
+            name,
+            forward_mode: opts?.forward_mode || 'copy',
+            use_ai: opts?.use_ai ?? 0,
+            is_active: 1,
+        };
+        const { error } = await supabase.from('monitored_channels').insert(row);
         if (error)
             logger_1.logger.error(`addMonitoredChannel error: ${error.message}`);
+    },
+    async updateMonitoredChannelSettings(id, userId, updates) {
+        const { error } = await supabase.from('monitored_channels').update(updates).eq('id', id).eq('user_id', userId);
+        if (error)
+            logger_1.logger.error(`updateMonitoredChannelSettings error: ${error.message}`);
+    },
+    getUserOutputChannels(user) {
+        const list = [];
+        if (user?.target_channel)
+            list.push(String(user.target_channel).trim());
+        if (user?.extra_channels) {
+            user.extra_channels.split(',').forEach((c) => {
+                const t = c.trim();
+                if (t)
+                    list.push(t);
+            });
+        }
+        return [...new Set(list)];
+    },
+    async setExtraChannels(userId, channels) {
+        const value = channels.filter(Boolean).join(',');
+        await this.updateUser(userId, { extra_channels: value });
+    },
+    async isTelegramMessageSeen(userId, sourceChatId, messageId) {
+        const { data } = await supabase.from('telegram_seen_messages')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('source_chat_id', sourceChatId)
+            .eq('message_id', messageId)
+            .maybeSingle();
+        return !!data;
+    },
+    async markTelegramMessageSeen(userId, sourceChatId, messageId) {
+        const { error } = await supabase.from('telegram_seen_messages').insert({
+            user_id: userId,
+            source_chat_id: sourceChatId,
+            message_id: messageId,
+        });
+        if (error && !String(error.message).includes('duplicate') && error.code !== '23505') {
+            logger_1.logger.warn(`markTelegramMessageSeen: ${error.message}`);
+        }
+    },
+    async getRecentNewsTitles(limit = 80) {
+        const { data, error } = await supabase.from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
+        if (error)
+            logger_1.logger.error(`getRecentNewsTitles error: ${error.message}`);
+        return (data || []).map((r) => r.title).filter(Boolean);
+    },
+    async saveTrendsSnapshot(topics, summary) {
+        await supabase.from('trends_snapshots').insert({ topics, summary });
+    },
+    async getLatestTrendsSnapshot() {
+        const { data } = await supabase.from('trends_snapshots').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+        return data;
+    },
+    async savePostDraft(userId, draft) {
+        const { data, error } = await supabase.from('post_drafts').insert({
+            user_id: userId,
+            title: draft.title || null,
+            body: draft.body,
+            image_url: draft.image_url || null,
+            channels: draft.channels || null,
+            status: 'draft',
+        }).select().single();
+        if (error)
+            logger_1.logger.error(`savePostDraft error: ${error.message}`);
+        return data;
+    },
+    async getUserPostDrafts(userId) {
+        const { data } = await supabase.from('post_drafts').select('*').eq('user_id', userId).order('updated_at', { ascending: false }).limit(20);
+        return data || [];
     },
     async removeMonitoredChannel(userId, id) {
         const { error } = await supabase.from('monitored_channels').delete().eq('id', id).eq('user_id', userId);
@@ -356,22 +444,20 @@ exports.DBService = {
     },
     // BUG-126 Fix: Add in-memory cache for premium status
     async isPremiumActive(userId) {
-        // Simple fast cache can be added here if needed, but DB is fast enough for now if indexed.
-        // To prevent large modifications, we rely on Supabase performance.
         const user = await this.getUser(userId);
         if (!user)
             return false;
-        if (user.is_premium && !user.premium_until)
-            return true; // Lifetime
+        const isPremiumFlag = Number(user.is_premium) === 1 || user.is_premium === true;
         if (user.premium_until) {
             const expiryDate = new Date(user.premium_until);
             if (expiryDate > new Date())
                 return true;
-            // BUG-019 Fix: Auto-cleanup expired premium inline
-            await supabase.from('users').update({ is_premium: 0 }).eq('telegram_id', userId);
+            if (isPremiumFlag) {
+                await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
+            }
             return false;
         }
-        return false;
+        return isPremiumFlag;
     },
     // BUG-020 Fix: Now called from main.ts system crons
     async cleanupExpiredPremium() {
@@ -492,6 +578,10 @@ exports.DBService = {
     },
     // BUG-017 Fix: Consistent limit calculation
     async checkUserLimit(userId, limitType) {
+        const user = await this.getUser(userId);
+        if (user && (user.role === 'owner' || user.role === 'admin' || user.is_owner === 1)) {
+            return true;
+        }
         const isPremium = await this.isPremiumActive(userId);
         if (isPremium)
             return true;
@@ -550,12 +640,25 @@ exports.DBService = {
             logger_1.logger.warn(`updateUserRole warning: ${error.message}`);
             return false;
         }
+        if (role === 'premium') {
+            await this.setPremium(telegramId, 30);
+        }
+        else if (role === 'user') {
+            await this.revokePremium(telegramId);
+        }
         return true;
     },
     async getUsersForAdmin() {
         const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
-        if (error)
+        if (error) {
             logger_1.logger.error(`getUsersForAdmin error: ${error.message}`);
-        return data || [];
+            return [];
+        }
+        const users = data || [];
+        const sources = await this.getAllSources();
+        return users.map(u => ({
+            ...u,
+            sources: sources.filter(s => s.user_id === u.telegram_id)
+        }));
     },
 };

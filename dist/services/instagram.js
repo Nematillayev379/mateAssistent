@@ -40,7 +40,7 @@ exports.InstagramService = {
                 }
             }
             catch (e) {
-                logger_1.logger.warn(`Instagram scrape failed for ${url}: ${e.message}`);
+                logger_1.logger.warn(`Instagram scrape failed for ${(0, logger_1.sanitizeLogInput)(url)}: ${e.message}`);
             }
         }
         return null;

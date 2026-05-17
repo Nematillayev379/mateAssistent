@@ -4,27 +4,16 @@ exports.PaymentService = void 0;
 const logger_1 = require("../utils/logger");
 const database_1 = require("./database");
 exports.PaymentService = {
-    // --- STRIPE ---
-    // BUG-043 Fix: Do not return fake URL, properly stub it to null so caller knows it's not implemented yet
-    async createStripeSession(userId, amount) {
-        logger_1.logger.info(`Stripe session creation attempted for user ${userId}, amount ${amount} - Not Implemented`);
-        return null;
-    },
-    // --- PAYME ---
-    // BUG-121 Fix: Validate merchant ID exists
     async generatePaymeLink(userId, amount) {
         const merchantId = process.env.PAYME_MERCHANT_ID;
         if (!merchantId) {
             logger_1.logger.warn('PAYME_MERCHANT_ID not configured');
             return null;
         }
-        // BUG-041 Fix: Ensure exact integer for tiyin (1 UZS = 100 tiyin)
         const tiyin = Math.round(amount * 100);
         const base64Params = Buffer.from(`m=${merchantId};ac.user_id=${userId};a=${tiyin}`).toString('base64');
         return `https://checkout.paycom.uz/${base64Params}`;
     },
-    // --- CLICK ---
-    // BUG-122 Fix: Validate service and merchant ID exist
     async generateClickLink(userId, amount) {
         const serviceId = process.env.CLICK_SERVICE_ID;
         const merchantId = process.env.CLICK_MERCHANT_ID;
@@ -34,23 +23,19 @@ exports.PaymentService = {
         }
         return `https://my.click.uz/services/pay?service_id=${serviceId}&merchant_id=${merchantId}&amount=${amount}&transaction_param=${userId}`;
     },
-    // --- WEBHOOK HANDLERS ---
-    // BUG-123 Fix: Always verify Payme signature (fail-closed)
     async handlePaymeWebhook(data, headers) {
         const paymeKey = process.env.PAYME_KEY;
         if (!paymeKey) {
             logger_1.logger.error('🚫 Payme: PAYME_KEY not configured. Webhook rejected.');
-            return { error: { code: -32504, message: "Server not configured" } };
+            return { error: { code: -32504, message: 'Server not configured' } };
         }
         const auth = headers?.authorization;
         if (!auth) {
-            logger_1.logger.warn('🚫 Payme: Missing authorization header');
-            return { error: { code: -32504, message: "Authorization required" } };
+            return { error: { code: -32504, message: 'Authorization required' } };
         }
         const expected = Buffer.from(`Paycom:${paymeKey}`).toString('base64');
         if (auth !== `Basic ${expected}`) {
-            logger_1.logger.warn('🚫 Payme: Invalid signature attempt');
-            return { error: { code: -32504, message: "Invalid authorization" } };
+            return { error: { code: -32504, message: 'Invalid authorization' } };
         }
         const method = data.method;
         const requestId = data.id ?? data.params?.id ?? 0;
@@ -64,9 +49,8 @@ exports.PaymentService = {
             case 'CreateTransaction':
                 return { ...baseResult, result: { transaction: { id: data.params?.id || 0, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: 0, state: 1 } } };
             case 'PerformTransaction':
-                if (!hasValidUser) {
+                if (!hasValidUser)
                     return { error: { code: -31050, message: 'Invalid account' } };
-                }
                 await database_1.DBService.setPremium(parsedUserId, 30);
                 logger_1.logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
                 return { ...baseResult, result: { transaction: { id: data.params?.transaction?.id || 0, create_time: Math.floor(Date.now() / 1000), perform_time: Math.floor(Date.now() / 1000), cancel_time: 0, state: 2 } } };
@@ -77,5 +61,12 @@ exports.PaymentService = {
             default:
                 return { error: { code: -32601, message: 'Method not found' } };
         }
-    }
+    },
+    getAvailableMethods() {
+        return {
+            stars: true,
+            payme: !!process.env.PAYME_MERCHANT_ID,
+            click: !!(process.env.CLICK_SERVICE_ID && process.env.CLICK_MERCHANT_ID),
+        };
+    },
 };
