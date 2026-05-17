@@ -127,7 +127,7 @@ export function registerCommands(bot: TelegramBot) {
     // D. Admin Broadcast
     // BUG-073 Fix: Check state type specifically and clean up properly
     if (state?.type === 'admin_broadcast' && text) {
-      if (user?.role !== 'owner') {
+      if (user?.role !== 'owner' && user?.role !== 'admin') {
         userStates.delete(chatId);
         return;
       }
@@ -365,6 +365,12 @@ export function registerCommands(bot: TelegramBot) {
             inline_keyboard: [[{ text: "🖥 Dashboard", web_app: { url: dashboardUrl } }]]
           }
         });
+      } else if (data === 'cmd_admin') {
+        if (user?.role === 'owner' || user?.role === 'admin') {
+          await adminCommand.handler(bot, query.message as TelegramBot.Message, null);
+        } else {
+          await bot.answerCallbackQuery(query.id, { text: "❌ Ruxsat yo'q", show_alert: true });
+        }
       } else if (data === 'adm_broadcast') {
         userStates.set(chatId, { type: 'admin_broadcast', url: '', createdAt: Date.now() });
         await bot.sendMessage(chatId, "📢 <b>Broadcast xabarini kiriting (HTML qo'llab-quvvatlanadi):</b>", { parse_mode: 'HTML' });

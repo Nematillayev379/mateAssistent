@@ -86,6 +86,10 @@ export const startCommand: BotCommand = {
       [{ text: "🎁 Referral Tizimi", callback_data: 'cmd_referral' }]
     ];
 
+    if (role === 'owner' || role === 'admin') {
+      inline_keyboard.unshift([{ text: "🛡 Admin Panel", callback_data: 'cmd_admin' }]);
+    }
+
     if (role === 'user' && !user.is_premium) {
       inline_keyboard.push([{ text: "💎 Premium Sotib Olish", callback_data: 'buy_premium' }]);
     }

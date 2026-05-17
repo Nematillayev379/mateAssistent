@@ -13,9 +13,9 @@ export const adminCommand: BotCommand = {
     const user = await DBService.getUser(chatId);
     const isOwner = isOwnerId(chatId);
     
-    // Only owner can promote
-    if (user?.role !== 'owner' && !isOwner) {
-      await bot.sendMessage(chatId, "❌ Bu buyruq faqat Owner uchun!");
+    // BUG-087 Fix: Allow both owner and admin to see the panel, but owner-only for sensitive actions
+    if (user?.role !== 'owner' && user?.role !== 'admin' && !isOwner) {
+      await bot.sendMessage(chatId, "❌ Bu buyruq faqat Adminlar uchun!");
       return;
     }
 
@@ -23,6 +23,12 @@ export const adminCommand: BotCommand = {
     
     // Logic for /promote [userId] [role]
     if (text.startsWith('/promote')) {
+      // BUG-088 Fix: Strictly restrict promotion to the OWNER_ID defined in .env
+      if (!isOwner) {
+        await bot.sendMessage(chatId, "❌ Promote qilish faqat haqiqiy Owner (.env dagi) uchun!");
+        return;
+      }
+
       const parts = text.split(' ');
       // BUG-088 Fix: Proper validation for parts
       if (parts.length < 3) {
