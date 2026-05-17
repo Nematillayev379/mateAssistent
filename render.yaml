@@ -11,7 +11,7 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: OWNER_ID
-        sync: false
+        value: "8566566223"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
