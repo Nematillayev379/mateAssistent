@@ -25,6 +25,9 @@ services:
       - key: GEMINI_KEYS
         sync: false
       - key: DASHBOARD_SECRET
+        # REQUIRED: Set this manually in Render Dashboard → Environment
+        # Generate with: openssl rand -hex 32
+        # This is the master secret for your admin dashboard links
         sync: false
       - key: TELEGRAM_CHANNEL_ID
         sync: false

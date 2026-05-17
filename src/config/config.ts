@@ -47,6 +47,9 @@ export const CONFIG = {
   SUPABASE_KEY: process.env.SUPABASE_KEY || "",
   TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID || "",
   // BUG-004 Fix: Fail early if DASHBOARD_SECRET not set (required for persistent dashboard links)
+  // IMPORTANT: Set DASHBOARD_SECRET in your .env file or Render Environment Variables.
+  // This is your master password for the admin dashboard - keep it secret!
+  // Generate one with: openssl rand -hex 32 (Linux/Mac) or generate a long random string
   DASHBOARD_SECRET: (() => {
     if (!process.env.DASHBOARD_SECRET) {
       console.error('❌ DASHBOARD_SECRET environment variable is REQUIRED! Dashboard links will not persist across restarts.');
