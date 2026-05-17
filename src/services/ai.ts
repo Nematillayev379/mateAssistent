@@ -667,6 +667,9 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
         signal: AbortSignal.timeout(60000),
       });
       if (!res.ok) continue;
+      const contentType = (res.headers.get('content-type') || '').toLowerCase();
+      // BUG-158 Fix: Ensure response is actual image, not HTML error page
+      if (!contentType.startsWith('image/')) continue;
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.length < 2000) continue;
       const imageBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
