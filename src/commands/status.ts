@@ -3,8 +3,7 @@ import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 
 export const statusCommand: BotCommand = {
-  // BUG-091 Fix: Require leading slash
-  pattern: /\/status|\/statistika/i,
+  pattern: /^\/(status|statistika)$/i,
   description: '📊 Statistika va holat',
   handler: async (bot: TelegramBot, msg: TelegramBot.Message) => {
     const chatId = msg.chat.id;

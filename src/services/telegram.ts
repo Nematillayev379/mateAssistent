@@ -109,22 +109,22 @@ function initPolling() {
  * BUG-070 Fix: Validate audio URL
  * BUG-071 Fix: Handle target_channel format
  */
-/** Publish to primary + extra output channels */
 export async function safeSendToChannels(
-  user: any,
-  channels: string[],
-  sendFn: (normalizedChannel: string) => Promise<void>
+   user: any,
+   channels: string[],
+   sendFn: (normalizedChannel: string) => Promise<void>
 ): Promise<void> {
-  for (const ch of channels) {
-    const normalized = normalizeChannelId(ch);
-    if (!normalized) continue;
-    try {
-      await sendFn(normalized);
-    } catch (e: any) {
-      logger.warn(`Multi-channel send failed ${normalized}: ${e.message}`);
-    }
-  }
-}
+   // BUG-005 Fix: Use Promise.allSettled to prevent one failure from stopping all sends
+   await Promise.allSettled(channels.map(async (ch) => {
+     const normalized = normalizeChannelId(ch);
+     if (!normalized) return;
+     try {
+       await sendFn(normalized);
+     } catch (e: any) {
+       logger.warn(`Multi-channel send failed ${normalized}: ${e.message}`);
+     }
+   }));
+ }
 
 function normalizeChannelId(channel: string): string {
   let targetChannel = String(channel).trim();
@@ -182,18 +182,19 @@ export async function safeSend(user: any, article: any): Promise<void> {
       return;
     }
 
-    const targets = DBService.getUserOutputChannels(user);
-    await safeSendToChannels(user, targets.length ? targets : [user.target_channel], async (targetChannel) => {
-      if (article.videoUrl && (await ScraperService.isValidMedia(article.videoUrl))) {
-        await bot.sendVideo(targetChannel, article.videoUrl, { caption, parse_mode: "HTML" });
-      } else if (article.audioUrl && (await ScraperService.isValidMedia(article.audioUrl))) {
-        await bot.sendAudio(targetChannel, article.audioUrl, { caption, parse_mode: "HTML" });
-      } else if (article.imageUrl && (await ScraperService.isValidMedia(article.imageUrl))) {
-        await bot.sendPhoto(targetChannel, article.imageUrl, { caption, parse_mode: "HTML" });
-      } else {
-        await bot.sendMessage(targetChannel, caption, { parse_mode: "HTML" });
-      }
-    });
+const targets = DBService.getUserOutputChannels(user);
+     await safeSendToChannels(user, targets.length ? targets : [user.target_channel], async (targetChannel) => {
+       // BUG-003 Fix: Skip isValidMedia HEAD request - Telegram will reject invalid media
+       if (article.videoUrl && ScraperService.isMediaUrl(article.videoUrl)) {
+         await bot.sendVideo(targetChannel, article.videoUrl, { caption, parse_mode: "HTML" });
+       } else if (article.audioUrl && ScraperService.isMediaUrl(article.audioUrl)) {
+         await bot.sendAudio(targetChannel, article.audioUrl, { caption, parse_mode: "HTML" });
+       } else if (article.imageUrl && ScraperService.isMediaUrl(article.imageUrl)) {
+         await bot.sendPhoto(targetChannel, article.imageUrl, { caption, parse_mode: "HTML" });
+       } else {
+         await bot.sendMessage(targetChannel, caption, { parse_mode: "HTML" });
+       }
+     });
 
     await DBService.incrementStat(user.telegram_id, 'total_posts');
   } catch (e: any) {
