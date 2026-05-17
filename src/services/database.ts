@@ -313,11 +313,11 @@ export const DBService = {
     }
   },
 
-  async getRecentNewsTitles(limit = 80): Promise<string[]> {
-    const { data, error } = await supabase.from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
-    if (error) logger.error(`getRecentNewsTitles error: ${error.message}`);
-    return (data || []).map((r: any) => r.title).filter(Boolean);
-  },
+async getRecentNewsTitles(limit = 80): Promise<string[]> {
+     const { data, error } = await supabase.from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
+     if (error) logger.error(`getRecentNewsTitles error: ${error.message}`);
+     return (data || []).map((r: any) => r?.title).filter(Boolean) as string[];
+   },
 
   async saveTrendsSnapshot(topics: any[], summary: string) {
     await supabase.from('trends_snapshots').insert({ topics, summary });
@@ -455,26 +455,30 @@ export const DBService = {
     return { total, active, needed };
   },
 
-  // BUG-021 Fix: Collision check for referral code
-  async ensureReferralCode(userId: number): Promise<string> {
-    const user = await this.getUser(userId);
-    if (user?.referral_code) return user.referral_code;
-    
-    let code: string;
-    let attempts = 0;
-    do {
-      code = crypto.randomBytes(6).toString('hex').toUpperCase().slice(0, 8);
-      const existing = await this.getUserByReferralCode(code);
-      if (!existing) break;
-      attempts++;
-    } while (attempts < 10);
-    
-    // BUG-015 Fix: Ensure code exists
-    if (attempts >= 10) throw new Error("Referral code generation failed due to collisions");
-    
-    await supabase.from('users').update({ referral_code: code }).eq('telegram_id', userId);
-    return code;
-  },
+// BUG-021 Fix: Collision check for referral code - fallback to unique suffix
+   async ensureReferralCode(userId: number): Promise<string> {
+     const user = await this.getUser(userId);
+     if (user?.referral_code) return user.referral_code;
+
+     let code: string;
+     let attempts = 0;
+     const maxAttempts = 100;
+     do {
+       code = crypto.randomBytes(6).toString('hex').toUpperCase().slice(0, 8);
+       const existing = await this.getUserByReferralCode(code);
+       if (!existing) break;
+       attempts++;
+     } while (attempts < maxAttempts);
+
+     // BUG-015 Fix: Fallback to userId-based unique code instead of throwing
+     if (attempts >= maxAttempts) {
+       const fallbackCode = `${userId.toString(36).toUpperCase().slice(-4)}${code.slice(-4)}`;
+       code = fallbackCode;
+     }
+
+     await supabase.from('users').update({ referral_code: code }).eq('telegram_id', userId);
+     return code;
+   },
 
   // BUG-126 Fix: Add in-memory cache for premium status
   async isPremiumActive(userId: number): Promise<boolean> {

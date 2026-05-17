@@ -46,12 +46,14 @@ export const CONFIG = {
   SUPABASE_URL: process.env.SUPABASE_URL || "",
   SUPABASE_KEY: process.env.SUPABASE_KEY || "",
   TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID || "",
-  // BUG-004 Fix: Persistent DASHBOARD_SECRET with strong warning
+  // BUG-004 Fix: Fail early if DASHBOARD_SECRET not set (required for persistent dashboard links)
   DASHBOARD_SECRET: (() => {
     if (!process.env.DASHBOARD_SECRET) {
-      console.warn('⚠️  DASHBOARD_SECRET muhit o\'zgaruvchisi o\'rnatilmagan! Dashboard linklari har restartda o\'zgaradi. .env fayliga DASHBOARD_SECRET=<uzun_sir_so\'z> qo\'shing.');
+      console.error('❌ DASHBOARD_SECRET environment variable is REQUIRED! Dashboard links will not persist across restarts.');
+      console.error('   Add DASHBOARD_SECRET=<your-secret> to your .env file');
+      throw new Error('DASHBOARD_SECRET is required - see errors above');
     }
-    return process.env.DASHBOARD_SECRET || crypto.randomBytes(32).toString('hex');
+    return process.env.DASHBOARD_SECRET;
   })(),
   REDIS_URL: process.env.REDIS_URL || ""
 };

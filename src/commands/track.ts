@@ -4,8 +4,7 @@ import { DBService } from "../services/database";
 import { ScraperService } from "../services/scraper";
 
 export const trackCommand: BotCommand = {
-  // BUG-091 Fix: Require leading slash to prevent overlap
-  pattern: /\/track\s*(.*)|\/kuzatish\s*(.*)|\/manba\s*(.*)/i,
+  pattern: /^\/track\s*(.*)|\/kuzatish\s*(.*)|\/manba\s*(.*)$/i,
   description: '🔔 Narx kuzatish',
   handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;

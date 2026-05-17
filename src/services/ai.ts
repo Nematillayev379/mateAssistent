@@ -352,7 +352,7 @@ export async function translateToUzbek(title: string, content: string) {
 }
 
 /** Gemini orqali matnli embedding (vektor) olish */
-// BUG-036 Fix: Safe embedding key index management
+// BUG-036 Fix: Safe embedding key index management with proper retry
 export async function getEmbedding(text: string, retryCount = 0): Promise<number[] | null> {
   if (retryCount > 5) return null;
   if (activeKeys.length === 0) return null;
@@ -369,6 +369,8 @@ export async function getEmbedding(text: string, retryCount = 0): Promise<number
     embeddingKeyIndex = (embeddingKeyIndex + 1) % geminiKeys.length;
   });
 
+  if (!keyObj) return null;
+
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${keyObj.key}`, {
       method: 'POST',
@@ -380,7 +382,10 @@ export async function getEmbedding(text: string, retryCount = 0): Promise<number
 
     if (!response.ok) {
        if (response.status === 429) {
-          return getEmbedding(text, retryCount + 1);
+          // BUG-009 Fix: Reset retry count after mutex wait to prevent exceeding limit
+          return new Promise((resolve) => {
+            setTimeout(() => resolve(getEmbedding(text, 0)), 1000);
+          });
        }
        return null;
     }

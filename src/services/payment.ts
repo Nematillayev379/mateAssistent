@@ -42,9 +42,16 @@ export const PaymentService = {
 
     const method = data.method;
     const requestId = data.id ?? data.params?.id ?? 0;
-    const rawUserId = data.params?.account?.user_id;
-    const parsedUserId = parseInt(String(typeof rawUserId === 'object' && rawUserId !== null ? rawUserId.user_id || rawUserId.id : rawUserId));
-    const hasValidUser = !Number.isNaN(parsedUserId);
+const rawUserId = data.params?.account?.user_id;
+     let parsedUserId: number;
+     if (typeof rawUserId === 'object' && rawUserId !== null) {
+       parsedUserId = parseInt(String(rawUserId.user_id || rawUserId.id || 0));
+     } else if (rawUserId !== undefined && rawUserId !== null) {
+       parsedUserId = parseInt(String(rawUserId));
+     } else {
+       parsedUserId = 0;
+     }
+     const hasValidUser = !Number.isNaN(parsedUserId) && parsedUserId > 0;
     const baseResult = { id: requestId, jsonrpc: '2.0' };
 
     switch (method) {

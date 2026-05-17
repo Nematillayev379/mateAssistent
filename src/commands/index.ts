@@ -10,6 +10,7 @@ import { i18n } from "../services/i18n";
 import { CONFIG } from "../config/config";
 import { ScraperService } from '../services/scraper';
 import { generateDashboardToken } from '../services/bot_instance';
+import { PaymentService } from '../services/payment';
 
 export const commands: BotCommand[] = [
   startCommand,
@@ -376,15 +377,30 @@ export function registerCommands(bot: TelegramBot) {
         const botMe = await getBotInfo();
         const refLink = `https://t.me/${botMe.username}?start=ref_${code}`;
         await bot.sendMessage(chatId, `🎁 <b>Referral Tizimi</b>\n\n🔗 Sizning havolangiz:\n<code>${refLink}</code>\n\n👥 Jami: ${refStats.total}\n✅ Aktiv: ${refStats.active}\n⏳ Premiumgacha: ${refStats.needed} ta qoldi`, { parse_mode: 'HTML' });
-      } else if (data === 'buy_premium') {
-        // BUG-077 Fix: Handle buy_premium callback
-        const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}`;
-        await bot.sendMessage(chatId, "💎 <b>Premium Rejalar</b>\n\nDashboard orqali premium sotib oling.", {
-          parse_mode: 'HTML',
-          reply_markup: {
-            inline_keyboard: [[{ text: "🖥 Dashboard", web_app: { url: dashboardUrl } }]]
-          }
-        });
+} else if (data === 'buy_premium') {
+         // BUG-157 Fix: Show prices directly in bot with Payme/Click options
+         const monthlyPrice = await DBService.getPrice('monthly');
+         const yearlyPrice = await DBService.getPrice('yearly');
+         
+         const paymeLink = PaymentService.generatePaymeLink(chatId, monthlyPrice);
+         const clickLink = PaymentService.generateClickLink(chatId, monthlyPrice);
+         
+         const text = `💎 <b>Premium Rejalar</b>\n\n` +
+                      `🗓 <b>Oylik</b>: ${monthlyPrice.toLocaleString()} UZS\n` +
+                      `📅 <b>Yillik</b>: ${yearlyPrice.toLocaleString()} UZS\n\n` +
+                      `💳 To'lov usulini tanlang:`;
+         
+         const inline_keyboard: any[][] = [
+           [{ text: `💳 Payme (${monthlyPrice.toLocaleString()} UZS)`, url: paymeLink || 'https://payme.uz' }],
+           [{ text: `💰 Click (${monthlyPrice.toLocaleString()} UZS)`, url: clickLink || 'https://click.uz' }],
+           [{ text: "🖥 Dashboard orqali", callback_data: 'cmd_settings' }],
+           [{ text: "🔙 Orqaga", callback_data: 'cmd_settings' }]
+         ];
+         
+         await bot.sendMessage(chatId, text, {
+           parse_mode: 'HTML',
+           reply_markup: { inline_keyboard }
+         });
       } else if (data === 'cmd_admin') {
         if (user?.role === 'owner' || user?.role === 'admin') {
           await adminCommand.handler(bot, query.message as TelegramBot.Message, null);
