@@ -369,6 +369,7 @@ function startDashboardServer(port, _bot) {
                 activeLoaded: active.total,
                 envByProvider: (0, config_2.countKeysByProvider)(envPool),
                 activeByProvider: active.byProvider,
+                envVarCounts: (0, config_2.getEnvKeySourceReport)(),
             },
         });
     });

@@ -37,6 +37,7 @@ exports.KEY_POOL = exports.isOwnerId = exports.CONFIG = exports.MAX_TOKENS_BY_PR
 exports.parseKeyList = parseKeyList;
 exports.buildKeyPoolFromEnv = buildKeyPoolFromEnv;
 exports.countKeysByProvider = countKeysByProvider;
+exports.getEnvKeySourceReport = getEnvKeySourceReport;
 const dotenv = __importStar(require("dotenv"));
 const path = __importStar(require("path"));
 const crypto = __importStar(require("crypto"));
@@ -99,13 +100,19 @@ const isOwnerId = (id) => {
     return String(id).trim() === String(exports.CONFIG.OWNER_ID).trim();
 };
 exports.isOwnerId = isOwnerId;
-/** Parse comma, newline, or semicolon separated keys (Render Secret Files often use newlines). */
+/** Parse comma-separated keys (Render default) or newline/semicolon lists. */
 function parseKeyList(raw) {
     if (!raw?.trim())
         return [];
-    return raw
+    const cleaned = raw.replace(/^\uFEFF/, '').trim();
+    // Whole value wrapped in quotes: "key1,key2,key3"
+    const unwrapped = (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+        (cleaned.startsWith("'") && cleaned.endsWith("'"))
+        ? cleaned.slice(1, -1)
+        : cleaned;
+    return unwrapped
         .split(/[,;\n\r]+/)
-        .map((k) => k.trim().replace(/^["']|["']$/g, ''))
+        .map((k) => k.trim().replace(/^["']+|["']+$/g, ''))
         .filter((k) => k.length >= 8);
 }
 function collectProviderKeys(envPrefix, type, singleEnvNames) {
@@ -115,9 +122,19 @@ function collectProviderKeys(envPrefix, type, singleEnvNames) {
         found.push({ key: k, type });
     }
     for (const name of singleEnvNames) {
-        const v = process.env[name]?.trim();
-        if (v && v.length >= 8)
-            found.push({ key: v.replace(/^["']|["']$/g, ''), type });
+        const v = process.env[name];
+        if (!v?.trim())
+            continue;
+        // Some users put comma-separated list in GROQ_API_KEY instead of GROQ_KEYS
+        if (v.includes(',') || v.includes('\n')) {
+            for (const k of parseKeyList(v))
+                found.push({ key: k, type });
+        }
+        else {
+            const single = v.trim().replace(/^["']+|["']+$/g, '');
+            if (single.length >= 8)
+                found.push({ key: single, type });
+        }
     }
     // GROQ_KEY_1, GEMINI_KEY_2, GROQ_01, etc.
     const prefixUpper = envPrefix.toUpperCase();
@@ -158,5 +175,23 @@ function countKeysByProvider(pool) {
         counts[k.type] = (counts[k.type] || 0) + 1;
     }
     return counts;
+}
+/** How many keys were read from each Render env var (for logs / admin, no secrets). */
+function getEnvKeySourceReport() {
+    const report = {};
+    const track = (name, raw) => {
+        const n = parseKeyList(raw).length;
+        if (n > 0)
+            report[name] = n;
+    };
+    track('GROQ_KEYS', process.env.GROQ_KEYS);
+    track('GROQ_API_KEY', process.env.GROQ_API_KEY);
+    track('GEMINI_KEYS', process.env.GEMINI_KEYS);
+    track('GOOGLE_KEYS', process.env.GOOGLE_KEYS);
+    track('CEREBRAS_KEYS', process.env.CEREBRAS_KEYS);
+    track('OPENROUTER_KEYS', process.env.OPENROUTER_KEYS);
+    track('OPENAI_KEYS', process.env.OPENAI_KEYS);
+    track('OPENAI_API_KEY', process.env.OPENAI_API_KEY);
+    return report;
 }
 exports.KEY_POOL = buildKeyPoolFromEnv();

@@ -10,7 +10,7 @@ import fs from 'fs';
 import { MusicService } from './music';
 import { PaymentService } from './payment';
 import { generateSmmImage, generateSmmPost, getActiveKeyStats, getSmartAIResponse, refreshKeyPool, validateKey } from './ai';
-import { buildKeyPoolFromEnv, countKeysByProvider } from '../config/config';
+import { buildKeyPoolFromEnv, countKeysByProvider, getEnvKeySourceReport } from '../config/config';
 import { ScraperService } from './scraper';
 import { FinanceService } from './finance';
 import { TelegramMonitorService, normalizeTelegramChannelId } from './telegram_monitor';
@@ -351,6 +351,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
         activeLoaded: active.total,
         envByProvider: countKeysByProvider(envPool),
         activeByProvider: active.byProvider,
+        envVarCounts: getEnvKeySourceReport(),
       },
     });
   });

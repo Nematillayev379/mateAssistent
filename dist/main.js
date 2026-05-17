@@ -63,10 +63,15 @@ async function bootstrap() {
         await initI18n();
         await refreshKeyPool();
         const { getActiveKeyStats } = await Promise.resolve().then(() => __importStar(require("./services/ai")));
+        const { getEnvKeySourceReport } = await Promise.resolve().then(() => __importStar(require("./config/config")));
         const keyStats = getActiveKeyStats();
-        logger_1.logger.info(`✅ Localization and AI KeyPool initialized (${keyStats.total} keys)`, keyStats.byProvider);
+        const envSources = getEnvKeySourceReport();
+        logger_1.logger.info(`✅ AI KeyPool: ${keyStats.total} ta kalit yuklandi`, {
+            byProvider: keyStats.byProvider,
+            envVars: envSources,
+        });
         if (keyStats.total === 0) {
-            logger_1.logger.warn('⚠️  AI KEY POOL BO\'SH! Render .env da GROQ_KEYS / GEMINI_KEYS (vergul yoki yangi qator) qo\'ying.');
+            logger_1.logger.warn('⚠️  AI KEY POOL BO\'SH! Render .env: GROQ_KEYS=key1,key2,key3 formatida tekshiring.');
         }
         // 1. Start Dashboard
         // B-31 Fix: Parse PORT as integer

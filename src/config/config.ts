@@ -68,12 +68,20 @@ export const isOwnerId = (id?: number | string | null): boolean => {
 export type AiKeyType = 'groq' | 'cerebras' | 'openrouter' | 'gemini' | 'openai' | 'google';
 export type AiKeyEntry = { key: string; type: AiKeyType };
 
-/** Parse comma, newline, or semicolon separated keys (Render Secret Files often use newlines). */
+/** Parse comma-separated keys (Render default) or newline/semicolon lists. */
 export function parseKeyList(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];
-  return raw
+  const cleaned = raw.replace(/^\uFEFF/, '').trim();
+  // Whole value wrapped in quotes: "key1,key2,key3"
+  const unwrapped =
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+      ? cleaned.slice(1, -1)
+      : cleaned;
+
+  return unwrapped
     .split(/[,;\n\r]+/)
-    .map((k) => k.trim().replace(/^["']|["']$/g, ''))
+    .map((k) => k.trim().replace(/^["']+|["']+$/g, ''))
     .filter((k) => k.length >= 8);
 }
 
@@ -88,8 +96,15 @@ function collectProviderKeys(
     found.push({ key: k, type });
   }
   for (const name of singleEnvNames) {
-    const v = process.env[name]?.trim();
-    if (v && v.length >= 8) found.push({ key: v.replace(/^["']|["']$/g, ''), type });
+    const v = process.env[name];
+    if (!v?.trim()) continue;
+    // Some users put comma-separated list in GROQ_API_KEY instead of GROQ_KEYS
+    if (v.includes(',') || v.includes('\n')) {
+      for (const k of parseKeyList(v)) found.push({ key: k, type });
+    } else {
+      const single = v.trim().replace(/^["']+|["']+$/g, '');
+      if (single.length >= 8) found.push({ key: single, type });
+    }
   }
   // GROQ_KEY_1, GEMINI_KEY_2, GROQ_01, etc.
   const prefixUpper = envPrefix.toUpperCase();
@@ -132,6 +147,26 @@ export function countKeysByProvider(pool: AiKeyEntry[]): Record<string, number> 
     counts[k.type] = (counts[k.type] || 0) + 1;
   }
   return counts;
+}
+
+/** How many keys were read from each Render env var (for logs / admin, no secrets). */
+export function getEnvKeySourceReport(): Record<string, number> {
+  const report: Record<string, number> = {};
+  const track = (name: string, raw: string | undefined) => {
+    const n = parseKeyList(raw).length;
+    if (n > 0) report[name] = n;
+  };
+
+  track('GROQ_KEYS', process.env.GROQ_KEYS);
+  track('GROQ_API_KEY', process.env.GROQ_API_KEY);
+  track('GEMINI_KEYS', process.env.GEMINI_KEYS);
+  track('GOOGLE_KEYS', process.env.GOOGLE_KEYS);
+  track('CEREBRAS_KEYS', process.env.CEREBRAS_KEYS);
+  track('OPENROUTER_KEYS', process.env.OPENROUTER_KEYS);
+  track('OPENAI_KEYS', process.env.OPENAI_KEYS);
+  track('OPENAI_API_KEY', process.env.OPENAI_API_KEY);
+
+  return report;
 }
 
 export const KEY_POOL: AiKeyEntry[] = buildKeyPoolFromEnv();
