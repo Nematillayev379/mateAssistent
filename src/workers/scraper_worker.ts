@@ -6,7 +6,7 @@ import { addAIJob, isRedisAvailable } from '../services/queue';
 import { getRedisOptions } from '../services/redis';
 import { getSmartAIResponse } from '../services/ai';
 import { safeSend } from '../services/telegram';
-import { logger } from '../utils/logger';
+import { logger, sanitizeLogInput } from '../utils/logger';
 import crypto from 'crypto';
 
 // BUG-139 Fix: Cache lowercased ad keywords once to avoid mapping on every article
@@ -21,23 +21,17 @@ if (!connectionOptions) {
     const { userId, sourceUrl, sourceName, lang } = job.data;
 
     try {
-      logger.info(`🔍 Job ${job.id}: Scraping ${sourceUrl} for user ${userId}`);
+      logger.info(`🔍 Job ${job.id}: Scraping ${sanitizeLogInput(sourceUrl)} for user ${userId}`);
       const articles: any[] = await ScraperService.fetchRSS(sourceUrl);
 
       for (const article of articles) {
-        const seen = await DBService.isSeen(userId, article.link);
-        if (seen) {
+        const isDuplicate = await DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
+        if (isDuplicate) {
           await DBService.incrementStat(userId, 'total_duplicates');
           continue;
         }
 
-        const titleSeen = await DBService.isSeenByTitle(userId, article.title);
-        if (titleSeen) {
-          await DBService.incrementStat(userId, 'total_duplicates');
-          continue;
-        }
-
-        logger.info(`🆕 New article found: ${article.title}`);
+        logger.info(`🆕 New article found: ${sanitizeLogInput(article.title)}`);
 
         const articleData = {
           title: article.title,
@@ -94,7 +88,7 @@ export async function processArticleInline(userId: number, article: any, sourceL
     // BUG-104 & BUG-139 Fix: Use pre-computed cached lowerAdKeywords
     const textToScan = `${article.title || ''} ${article.content || ''}`.toLowerCase();
     if (lowerAdKeywords.some(k => textToScan.includes(k))) {
-      logger.info(`🚫 Ad filtered: ${article.title}`);
+      logger.info(`🚫 Ad filtered: ${sanitizeLogInput(article.title)}`);
       return;
     }
 

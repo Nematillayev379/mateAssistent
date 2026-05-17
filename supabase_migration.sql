@@ -49,7 +49,9 @@ CREATE TABLE IF NOT EXISTS processed_news (
   user_id BIGINT NOT NULL,
   title TEXT,
   url TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, url),
+  UNIQUE (user_id, title)
 );
 CREATE INDEX IF NOT EXISTS idx_processed_news_user ON processed_news(user_id, created_at);
 

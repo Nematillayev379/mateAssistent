@@ -112,10 +112,11 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
       });
       
       if (!response.ok) {
-        throw Object.assign(new Error(`Gemini API error: ${response.statusText}`), { status: response.status });
+        const errorBody = await response.text().catch(() => '');
+        throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), { status: response.status });
       }
       
-      const data = await response.json() as any;
+      const data = await response.json().catch(() => ({})) as any;
       return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     } else if (currentKeyObj.type === "openai") {
       let client = openaiClients.get(currentKeyObj.key);
@@ -165,7 +166,7 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
   } catch (error) {
     const status = (error as any)?.status ?? (error as any)?.response?.status;
     if (status === 429 || status === 401 || status === 503 || status === 500) {
-      logger.warn(`[${currentKeyObj.type.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
+      logger.warn(`[${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
       return getSmartAIResponse(system, user, retryCount + 1);
     }
     throw error;
@@ -201,13 +202,10 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
       return response.ok;
     } else {
       let baseURL: string;
-      let model: string;
       if (type === "cerebras") {
         baseURL = "https://api.cerebras.ai/v1";
-        model = "llama-3.1-70b";
       } else if (type === "openrouter") {
         baseURL = "https://openrouter.ai/api/v1";
-        model = "google/gemini-2.0-flash-001";
       } else {
         throw new Error(`Unknown API key type: ${type}`);
       }
@@ -217,8 +215,7 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
       });
       return response.ok;
     }
-    return true;
-  } catch (e: any) {
+    } catch (e: any) {
     logger.error(`API Key validation failed (${type}): ${e.message}`);
     return false;
   }
@@ -310,7 +307,8 @@ export async function moderateContent(title: string, content: string): Promise<{
   Javobingiz FAQAT bir qatordan iborat bo'lsin: "SAFE" yoki "BLOCKED: <Kategoriya nomi>".`;
   
   try {
-    const response = await getSmartAIResponse(systemPrompt, `Sarlavha: ${title}\n\nMatn: ${content.slice(0, 1500)}`);
+    const safeContent = (content || '').slice(0, 1500);
+    const response = await getSmartAIResponse(systemPrompt, `Sarlavha: ${title}\n\nMatn: ${safeContent}`);
     const trimmed = response.trim();
     if (trimmed.toUpperCase().startsWith('SAFE')) {
       return {status: 'SAFE'};

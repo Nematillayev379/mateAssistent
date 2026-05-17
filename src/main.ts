@@ -8,10 +8,6 @@ import cron from "node-cron";
 import axios from 'axios';
 import dns from 'dns';
 
-// B-19 Fix: Add polling restart attempts tracking
-const MAX_RESTART_ATTEMPTS = 10;
-let pollingRestartAttempts = 0;
-
 // Fix for Render/Node18+ AggregateError (forces IPv4)
 if (dns.setDefaultResultOrder) {
   dns.setDefaultResultOrder('ipv4first');

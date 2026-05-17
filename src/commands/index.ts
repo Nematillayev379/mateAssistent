@@ -9,9 +9,6 @@ import { logger } from "../utils/logger";
 import { i18n } from "../services/i18n";
 import { CONFIG } from "../config/config";
 import { ScraperService } from '../services/scraper';
-import { addAIJob, isRedisAvailable } from '../services/queue';
-import { getRedisConnection } from '../services/redis';
-import { getSmartAIResponse } from '../services/ai';
 import { generateDashboardToken } from '../services/bot_instance';
 
 export const commands: BotCommand[] = [
@@ -58,7 +55,6 @@ export function registerCommands(bot: TelegramBot) {
     if (!text) return;
 
     // BUG-155 Fix: Sanitize logged text to avoid leaking secrets
-    const sanitizedText = text.length > 100 ? text.slice(0, 100) + '...' : text;
     logger.info(`📩 Incoming from ${chatId} (len=${text.length})`);
 
     // If it's a command, let onText handle it

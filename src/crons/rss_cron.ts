@@ -3,7 +3,7 @@ import { DBService } from '../services/database';
 import { isRedisAvailable, addScraperJob } from '../services/queue';
 import { ScraperService } from '../services/scraper';
 import { processArticleInline } from '../workers/scraper_worker';
-import { logger } from '../utils/logger';
+import { logger, sanitizeLogInput } from '../utils/logger';
 // BUG-097 Fix: Import bot properly
 import { bot } from '../services/bot_instance';
 
@@ -22,7 +22,9 @@ export function setupRSSCron() {
         if (!activeIds.has(id)) userLastRun.delete(id);
       }
       logger.info('🧹 Memory cleanup: userLastRun cache pruned');
-    } catch {}
+    } catch (err: any) {
+      logger.error(`❌ Memory cleanup cron failed: ${err.message}`);
+    }
   });
 
   cron.schedule('*/2 * * * *', async () => {
@@ -116,7 +118,7 @@ async function checkMonitoredChannels() {
       }
 
       if (latestPost && latestPost.id !== channel.last_post_id) {
-        logger.info(`📢 New post found on ${channel.platform} channel ${channel.name}`);
+        logger.info(`📢 New post found on ${sanitizeLogInput(channel.platform)} channel ${sanitizeLogInput(channel.name)}`);
         const user = await DBService.getUser(channel.user_id);
         if (user && user.target_channel) {
           const caption = `📢 <b>Yangi ${channel.platform} xabari!</b>\n\n${latestPost.title}\n\n🔗 <a href="${latestPost.url}">Ko'rish</a>`;
@@ -141,13 +143,10 @@ async function processDirectly(userId: number, source: any): Promise<void> {
 
     for (const article of articles) {
       try {
-        const seen = await DBService.isSeen(userId, article.link);
-        if (seen) continue;
+        const isDuplicate = await DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
+        if (isDuplicate) continue;
 
-        const titleSeen = await DBService.isSeenByTitle(userId, article.title);
-        if (titleSeen) continue;
-
-        logger.info(`🆕 [direct] New article: ${article.title}`);
+        logger.info(`🆕 [direct] New article: ${sanitizeLogInput(article.title)}`);
 
         const articleData = {
           title: article.title,
@@ -163,13 +162,13 @@ async function processDirectly(userId: number, source: any): Promise<void> {
         try {
           await processArticleInline(userId, articleData, lang);
         } catch (articleErr: any) {
-          logger.error(`❌ Error inline processing article ${article.link}: ${articleErr.message}`);
+          logger.error(`❌ Error inline processing article ${sanitizeLogInput(article.link)}: ${articleErr.message}`);
         }
       } catch (articleErr: any) {
-        logger.error(`❌ Error handling article ${article.link}: ${articleErr.message}`);
+        logger.error(`❌ Error handling article ${sanitizeLogInput(article.link)}: ${articleErr.message}`);
       }
     }
   } catch (err: any) {
-    logger.warn(`⚠️ Direct RSS process error for ${source.url}: ${err.message}`);
+    logger.warn(`⚠️ Direct RSS process error for ${sanitizeLogInput(source.url)}: ${err.message}`);
   }
-}
+  }

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { logger } from '../utils/logger';
+import { logger, sanitizeLogInput } from '../utils/logger';
 import { DBService } from './database';
 import { notify } from './bot_instance';
 
@@ -24,15 +24,16 @@ export const PriceTrackerService = {
         // Basic Uzum scraper logic (HTML structure might change)
         const priceText = $('[data-test-id="item__price"]').first().text() || $('.product-price').first().text();
         const titleText = $('h1.title').first().text() || $('h1').first().text();
-        const priceStr = priceText.split(/[-–]/)[0];
-        price = parseInt(priceStr.replace(/[^\d]/g, '')) || 0;
+        // BUG-095 Fix: More robust price extraction using regex to find the first large number
+        const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
+        price = priceMatch ? parseInt(priceMatch[0]) : 0;
         title = titleText.trim();
       } else if (url.includes('olx.uz')) {
         // Basic OLX scraper logic
         const priceText = $('[data-testid="ad-price"]').first().text();
         const titleText = $('[data-testid="ad-title"]').first().text();
-        const priceStr = priceText.split(/[-–]/)[0];
-        price = parseInt(priceStr.replace(/[^\d]/g, '')) || 0;
+        const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
+        price = priceMatch ? parseInt(priceMatch[0]) : 0;
         title = titleText.trim();
       }
 
@@ -41,7 +42,7 @@ export const PriceTrackerService = {
       }
       return null;
     } catch (e: any) {
-      logger.warn(`Price check failed for ${url}: ${e.message}`);
+      logger.warn(`Price check failed for ${sanitizeLogInput(url)}: ${e.message}`);
       return null;
     }
   },
@@ -78,8 +79,8 @@ export const PriceTrackerService = {
         if (i >= 5) return; // Limit to 5 results
         const title = $(elem).find('.product-title, [data-testid="product-title"]').text().trim();
         const priceText = $(elem).find('.product-price, [data-testid="product-price"]').text().trim();
-        const priceStr = priceText.split(/[-–]/)[0];
-        const price = parseInt(priceStr.replace(/[^\d]/g, '')) || 0;
+        const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
+        const price = priceMatch ? parseInt(priceMatch[0]) : 0;
         const link = $(elem).find('a').attr('href');
         
         if (title && price > 0 && link) {
@@ -117,8 +118,8 @@ export const PriceTrackerService = {
         if (i >= 5) return; // Limit to 5 results
         const title = $(elem).find('h6, [data-testid="ad-title"]').text().trim();
         const priceText = $(elem).find('[data-testid="ad-price"]').text().trim();
-        const priceStr = priceText.split(/[-–]/)[0];
-        const price = parseInt(priceStr.replace(/[^\d]/g, '')) || 0;
+        const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
+        const price = priceMatch ? parseInt(priceMatch[0]) : 0;
         const link = $(elem).find('a').attr('href');
         
         if (title && link && price > 0) {

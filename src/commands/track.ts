@@ -2,7 +2,6 @@ import TelegramBot from "node-telegram-bot-api";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { ScraperService } from "../services/scraper";
-import { logger } from "../utils/logger";
 
 export const trackCommand: BotCommand = {
   // BUG-091 Fix: Require leading slash to prevent overlap

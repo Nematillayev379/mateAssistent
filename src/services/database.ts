@@ -130,9 +130,12 @@ export const DBService = {
     return !!(data && data.length > 0);
   },
 
-  // BUG-013 Fix: Throw error on failure to prevent repeated processing of the same article
+  // BUG-013 Fix: Use upsert with onConflict to handle unique constraints gracefully
   async markSeen(userId: number, url: string, title: string) {
-    const { error } = await supabase.from('processed_news').insert({ user_id: userId, url, title });
+    const { error } = await supabase.from('processed_news').upsert(
+      { user_id: userId, url, title },
+      { onConflict: 'user_id, url' }
+    );
     if (error) {
       logger.error(`markSeen error: ${error.message}`);
       throw error;

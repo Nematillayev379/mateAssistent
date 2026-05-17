@@ -111,7 +111,9 @@ CREATE TABLE IF NOT EXISTS processed_news (
   title TEXT,
   url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  FOREIGN KEY (user_id) REFERENCES users(telegram_id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES users(telegram_id) ON DELETE CASCADE,
+  UNIQUE (user_id, url),
+  UNIQUE (user_id, title)
 );
 CREATE INDEX IF NOT EXISTS idx_processed_news_user ON processed_news(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_processed_news_title ON processed_news(title);

@@ -2,9 +2,8 @@ import TelegramBot from "node-telegram-bot-api";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { CONFIG, isOwnerId } from "../config/config";
-import { i18n } from "../services/i18n";
-import { logger } from "../utils/logger";
 import { generateDashboardToken } from "../services/bot_instance";
+import { logger } from "../utils/logger";
 
 export const startCommand: BotCommand = {
   pattern: /\/start\s*(.*)|\/boshlash\s*(.*)|\/начать\s*(.*)/i,
@@ -44,8 +43,6 @@ export const startCommand: BotCommand = {
       user.role = 'owner';
     }
     
-    const lang = user.language || 'uz';
-    // BUG-085 Fix: Default role to 'user' if null
     const role = user.role || 'user';
 
     // BUG-083 Fix: Check if user is approved

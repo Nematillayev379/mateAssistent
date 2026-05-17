@@ -1,7 +1,6 @@
 import TelegramBot from "node-telegram-bot-api";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
-import { logger } from "../utils/logger";
 
 export const statusCommand: BotCommand = {
   // BUG-091 Fix: Require leading slash

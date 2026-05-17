@@ -3,7 +3,7 @@ import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 import * as cheerio from "cheerio";
 import dns from 'dns';
-import { logger } from "../utils/logger";
+import { logger, sanitizeLogInput } from "../utils/logger";
 import { getSmartAIResponse } from "./ai";
 import { FinanceService } from "./finance";
 import { CONFIG } from "../config/config";
@@ -95,12 +95,12 @@ export const ScraperService = {
         }
       } catch (e) {
         // If URL parsing fails, keep original value
-        logger.warn(`URL conversion failed for ${url}: ${e}`);
+        logger.warn(`URL conversion failed for ${sanitizeLogInput(url)}: ${e}`);
       }
 
       return { title, content: paragraphs.join("\n\n"), imageUrl, audioUrl, videoUrl };
     } catch (e: any) {
-      logger.warn(`Maqolani o'qishda xato: ${url} - ${e.message}`);
+      logger.warn(`Maqolani o'qishda xato: ${sanitizeLogInput(url)} - ${e.message}`);
       return null;
     }
   },
@@ -194,7 +194,8 @@ export const ScraperService = {
 
       const entries = $("item").length ? $("item") : $("entry");
       
-      entries.each((_, el) => {
+      // BUG-055 Fix: Limit to 50 items to prevent memory/performance issues
+      entries.slice(0, 50).each((_, el) => {
         const title = $(el).find("title").text().trim();
         const link = this.extractLink(el, $);
         
@@ -221,7 +222,7 @@ export const ScraperService = {
 
       return items;
     } catch (e: any) {
-      logger.error(`RSS fetch error (${url}): ${e.message}`);
+      logger.error(`RSS fetch error (${sanitizeLogInput(url)}): ${e.message}`);
       return [];
     }
   },
@@ -264,7 +265,7 @@ export const ScraperService = {
           
           // BUG-050 Fix: Use endsWith to prevent evil-example.com matching example.com
           if (discoveredHost !== originalHost && !discoveredHost.endsWith('.' + originalHost) && !await this.isPublicExternalUrl(discovered)) {
-            logger.warn(`🚫 SSRF Protection: AI returned suspicious URL: ${discovered}`);
+            logger.warn(`🚫 SSRF Protection: AI returned suspicious URL: ${sanitizeLogInput(discovered)}`);
             return null;
           }
           return discovered;
@@ -273,7 +274,7 @@ export const ScraperService = {
         }
       }
     } catch (e: any) {
-      logger.warn(`discoverRSS failed for ${websiteUrl}: ${e.message}`);
+      logger.warn(`discoverRSS failed for ${sanitizeLogInput(websiteUrl)}: ${e.message}`);
     }
     return null;
   },
@@ -336,7 +337,9 @@ export const ScraperService = {
         let foundLd = false;
         $('script[type="application/ld+json"]').each((_, el) => {
           try {
-            const data = JSON.parse($(el).html() || "");
+            const html = $(el).html();
+            if (!html || html.trim() === '') return;
+            const data = JSON.parse(html);
             const checkProduct = (obj: any) => {
               if (obj && obj['@type'] === 'Product') {
                 if (obj.name) name = obj.name;
@@ -353,7 +356,7 @@ export const ScraperService = {
         });
 
         if (!foundLd || !priceText) {
-          logger.info(`Using AI fallback for price extraction on ${url}`);
+          logger.info(`Using AI fallback for price extraction on ${sanitizeLogInput(url)}`);
           $("script, style, nav, footer, iframe, noscript").remove();
           const bodyText = $("body").text().replace(/\s+/g, " ").slice(0, 3000);
           
@@ -390,7 +393,7 @@ export const ScraperService = {
 
       return { price, name, imageUrl };
     } catch (e: any) {
-      logger.error(`Price scrape failed for ${url}: ${e.message}`);
+      logger.error(`Price scrape failed for ${sanitizeLogInput(url)}: ${e.message}`);
       throw e;
     }
   },

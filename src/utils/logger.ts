@@ -40,6 +40,11 @@ if (!isEphemeralFs) {
   } catch (_) {}
 }
 
+/** CWE-117: Strip newlines/carriage-returns/tabs from external data before logging */
+export function sanitizeLogInput(value: unknown): string {
+  return String(value ?? '').replace(/[\r\n\t]/g, ' ').slice(0, 500);
+}
+
 export const logger = winston.createLogger({
   level: "info",
   format: logFormat,

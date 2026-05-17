@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { logger } from '../utils/logger';
+import { logger, sanitizeLogInput } from '../utils/logger';
 
 export const InstagramService = {
   /** Get latest post from username */
@@ -35,7 +35,7 @@ export const InstagramService = {
            }
         }
       } catch (e: any) {
-        logger.warn(`Instagram scrape failed for ${url}: ${e.message}`);
+        logger.warn(`Instagram scrape failed for ${sanitizeLogInput(url)}: ${e.message}`);
       }
     }
     return null;

@@ -13,6 +13,10 @@ const instanceId = crypto.randomUUID();
 let cachedBotUser: string | null = null;
 let lastBotUserFetch = 0;
 
+// B-19 Fix: Add polling error handler with restart attempts
+const MAX_RESTART_ATTEMPTS = 10;
+let pollingRestartAttempts = 0;
+
 export async function startBot() {
   logger.info(`🤖 Bot instance starting (ID: ${instanceId})`);
 
@@ -42,22 +46,15 @@ export async function startBot() {
       logger.error(`❌ setWebHook error: ${err.message}`);
       // Fallback to polling only if webhook fails
       await bot.deleteWebHook().catch(() => {});
-      bot.startPolling();
+      initPolling();
       logger.info(`🚀 Polling started (webhook failed, fallback)`);
     }
   } else {
     // No public URL — use polling
     await bot.deleteWebHook().catch(() => {});
-    bot.startPolling();
+    initPolling();
     logger.info(`🚀 Polling started (no PUBLIC_URL)`);
   }
-
-  // B-19 Fix: Add polling error handler with restart attempts
-  bot.on('polling_error', (error: any) => {
-    logger.error(`❌ Polling error: ${error.message}`);
-    // Increment restart attempts counter (accessed via module-level variable in main.ts)
-    // Note: This is a simplified implementation; in production, you'd want more sophisticated retry logic
-  });
 
   // Startup notification
   if (CONFIG.OWNER_ID) {
@@ -65,6 +62,36 @@ export async function startBot() {
       await notify(CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0</b> is live!`);
     } catch {}
   }
+}
+
+function initPolling() {
+  bot.startPolling();
+  
+  // B-19 Fix: Add polling error handler with restart attempts
+  bot.on('polling_error', (error: any) => {
+    logger.error(`❌ Polling error: ${error.message}`);
+    
+    if (error.message.includes('409 Conflict')) {
+      logger.warn('⚠️ Polling conflict (another instance?). Stopping polling to avoid spam.');
+      bot.stopPolling();
+      return;
+    }
+
+    pollingRestartAttempts++;
+    if (pollingRestartAttempts > MAX_RESTART_ATTEMPTS) {
+      logger.error(`🔥 Too many polling errors (${pollingRestartAttempts}). Giving up to prevent infinite loop.`);
+      bot.stopPolling();
+      return;
+    }
+
+    logger.info(`🔄 Attempting to recover polling (${pollingRestartAttempts}/${MAX_RESTART_ATTEMPTS})...`);
+    // Wait before continuing
+    setTimeout(() => {
+      if (!bot.isPolling()) {
+        bot.startPolling();
+      }
+    }, 5000);
+  });
 }
 
 /** 
@@ -120,9 +147,12 @@ export async function safeSend(user: any, article: any): Promise<void> {
     }
 
     // BUG-071 Fix: Normalize target channel format
-    let targetChannel = user.target_channel;
+    let targetChannel = String(user.target_channel);
     if (/^\d+$/.test(targetChannel)) {
       targetChannel = `-100${targetChannel}`;
+    } else if (!targetChannel.startsWith('@') && !targetChannel.startsWith('-')) {
+      // If it looks like a username but missing @
+      targetChannel = `@${targetChannel}`;
     }
 
     if (article.videoUrl && (await ScraperService.isValidMedia(article.videoUrl))) {

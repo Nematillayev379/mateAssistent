@@ -647,6 +647,25 @@
             }
         }
 
+        async function sendAIPostToChannel() {
+            const text = document.getElementById('ai-res-text').textContent;
+            const img = document.getElementById('ai-res-img');
+            const imageUrl = img.style.display === 'block' ? img.src : null;
+            if (!text) return;
+            const btn = document.getElementById('btn-send-ai');
+            btn.disabled = true;
+            try {
+                const res = await apiFetch('/api/ai/post-to-channel', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, 
+                    body: JSON.stringify({ text, imageUrl }) 
+                });
+                if (res.ok) alert('Post kanalga yuborildi!');
+                else alert('Xatolik yuz berdi');
+            } catch(e) { alert(e.message); }
+            finally { btn.disabled = false; }
+        }
+
         async function searchMusic() {
             const q = document.getElementById('music-q').value;
             if (!q) return;

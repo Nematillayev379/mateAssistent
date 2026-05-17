@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { promisify } from 'util';
-import { exec, execSync } from 'child_process';
+import { exec } from 'child_process';
 import { logger } from '../utils/logger';
 
 const execPromise = promisify(exec);

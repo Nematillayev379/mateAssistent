@@ -3,13 +3,13 @@ import rateLimit from 'express-rate-limit';
 import { logger } from '../utils/logger';
 import { DBService } from './database';
 import { CONFIG, isOwnerId } from '../config/config';
-import { bot, notify, generateDashboardToken } from './bot_instance';
+import { bot, generateDashboardToken } from './bot_instance';
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
 import { MusicService } from './music';
 import { PaymentService } from './payment';
-import { getSmartAIResponse, validateKey, refreshKeyPool } from './ai';
+import { getSmartAIResponse, validateKey } from './ai';
 import { ScraperService } from './scraper';
 import { FinanceService } from './finance';
 
@@ -139,6 +139,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   app.post('/api/auth/master', async (req, res) => {
     const { token } = req.body;
     if (token && CONFIG.DASHBOARD_SECRET && token === CONFIG.DASHBOARD_SECRET) {
+      if (CONFIG.OWNER_ID == null) {
+        return res.status(500).json({ error: 'Owner ID not configured' });
+      }
       const ownerId = CONFIG.OWNER_ID as number;
       let user = await DBService.getUser(ownerId);
       if (!user) {
@@ -327,6 +330,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   
   app.get('/api/music/download/:id', checkAuth, async (req: any, res: any) => {
     const videoId = req.params.id;
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+      return res.status(400).json({ error: 'Invalid video ID' });
+    }
     const userId = parseInt(req.authenticatedUserId);
     try {
       const { downloadYouTube } = await import('../services/youtube');
@@ -399,7 +405,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   app.post('/api/ai/post-to-channel', checkAuth, async (req: any, res: any) => {
-    const { text } = req.body;
+    const { text, imageUrl } = req.body;
     if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Invalid text' });
 
     const user = await DBService.getUser(parseInt(req.authenticatedUserId));
@@ -407,7 +413,11 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       return res.status(400).json({ error: 'No channel configured' });
     }
 
-    await bot.sendMessage(user.target_channel, text, { parse_mode: 'HTML' });
+    if (imageUrl) {
+      await bot.sendPhoto(user.target_channel, imageUrl, { caption: text, parse_mode: 'HTML' });
+    } else {
+      await bot.sendMessage(user.target_channel, text, { parse_mode: 'HTML' });
+    }
     res.json({ success: true });
   });
 
@@ -458,6 +468,13 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   // --- SUPPORT TICKETS ---
+  // BUG-FIX: /api/tickets/all must be registered BEFORE /api/tickets/:userId
+  // otherwise Express matches 'all' as a :userId param and this route is never reached.
+  app.get('/api/tickets/all', checkAdmin, async (req, res) => {
+    const tickets = await DBService.getTickets();
+    res.json(tickets);
+  });
+
   app.get('/api/tickets/:userId', checkAuth, async (req: any, res: any) => {
     const tickets = await DBService.getUserTickets(parseInt(req.authenticatedUserId));
     res.json(tickets);
@@ -560,11 +577,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     res.json({ success: true });
   });
 
-  app.get('/api/tickets/all', checkAdmin, async (req, res) => {
-    const tickets = await DBService.getTickets();
-    res.json(tickets);
-  });
-
   app.get('/api/admin/sources', checkAdmin, async (req, res) => {
     const sources = await DBService.getAllSources();
     res.json(sources);
@@ -579,9 +591,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   // BUG-061 Fix: Use DB prices instead of hardcoded
-  app.post('/api/premium/buy', checkAuth, async (req, res) => {
-    const { userId, method, plan } = req.body;
-    const uid = parseInt(userId);
+  app.post('/api/premium/buy', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId as string);
+    const { method, plan } = req.body;
     
     if (method === 'stars') {
       const starsPrice = parseInt(await DBService.getSetting('premium_stars_price') || '500');

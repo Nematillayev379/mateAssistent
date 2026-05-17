@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { logger } from '../utils/logger';
+import { logger, sanitizeLogInput } from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -21,7 +21,7 @@ export const DownloaderService = {
       const ytdlpPath = path.join(process.cwd(), ytdlpName);
       
       if (fs.existsSync(ytdlpPath)) {
-        logger.info(`Downloading YouTube video with yt-dlp: ${url}`);
+        logger.info(`Downloading YouTube video with yt-dlp: ${sanitizeLogInput(url)}`);
         // BUG-047 Fix: Use execFile to avoid hanging processes when shell ignores SIGTERM on timeout
         const { execFile } = await import('child_process');
         const execFilePromise = promisify(execFile);
@@ -137,7 +137,7 @@ export const DownloaderService = {
       const bestUrl = await Promise.any(instances.map(base => fetchFromInstance(base)));
       return bestUrl;
     } catch {
-      logger.warn(`All Cobalt instances failed for: ${url}`);
+      logger.warn(`All Cobalt instances failed for: ${sanitizeLogInput(url)}`);
       return null;
     }
   },

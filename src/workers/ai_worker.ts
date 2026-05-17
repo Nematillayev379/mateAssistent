@@ -3,7 +3,7 @@ import { getRedisOptions } from '../services/redis';
 import { CONFIG } from '../config/config';
 import { getSmartAIResponse, moderateContent, checkSemanticDuplicate, categorizeNews, getNiceEmoji } from '../services/ai';
 import { safeSend } from '../services/telegram';
-import { logger } from '../utils/logger';
+import { logger, sanitizeLogInput } from '../utils/logger';
 import { DBService } from '../services/database';
 
 const connectionOptions = getRedisOptions();
@@ -15,14 +15,13 @@ if (!connectionOptions) {
     const { userId, article, lang } = job.data;
 
     try {
-      logger.info(`🤖 Job ${job.id}: AI processing for ${article.title}`);
+      logger.info(`🤖 Job ${job.id}: AI processing for ${sanitizeLogInput(article.title)}`);
 
       // BUG-104 Fix: Use CONFIG.AD_KEYWORDS instead of process.env
       const adKeywords = CONFIG.AD_KEYWORDS.map(k => k.toLowerCase());
       const textToScan = `${article.title} ${article.content || ''}`.toLowerCase();
       if (adKeywords.some(k => textToScan.includes(k))) {
-        logger.info(`🚫 Ad filtered: ${article.title}`);
-        await DBService.markSeen(userId, article.url, article.title);
+        logger.info(`🚫 Ad filtered: ${sanitizeLogInput(article.title)}`);
         return;
       }
 
@@ -30,15 +29,13 @@ if (!connectionOptions) {
       const user = await DBService.getUser(userId);
       if (!user || !user.target_channel || !user.is_active) {
         logger.info(`Skip AI: User ${userId} inactive or no channel`);
-        await DBService.markSeen(userId, article.url, article.title);
         return;
       }
 
       // 1. Content Moderation
       const moderation = await moderateContent(article.title, article.content || '');
       if (moderation.status === 'BLOCKED') {
-        logger.warn(`🚫 Article blocked for user ${userId}: ${moderation.reason}`);
-        await DBService.markSeen(userId, article.url, article.title);
+        logger.warn(`🚫 Article blocked for user ${userId}: ${sanitizeLogInput(moderation.reason)}`);
         return;
       }
 
@@ -46,7 +43,6 @@ if (!connectionOptions) {
       const isSemanticDup = await checkSemanticDuplicate(userId, article.title, article.content || '');
       if (isSemanticDup) {
         await DBService.incrementStat(userId, 'total_duplicates');
-        await DBService.markSeen(userId, article.url, article.title);
         return;
       }
 
@@ -62,7 +58,6 @@ if (!connectionOptions) {
       // BUG-029 Fix: Skip processing instead of throwing error if summary is empty
       if (!summary || summary.length < 10) {
         logger.warn(`Skip AI: Summary generation failed or too short for user ${userId}`);
-        await DBService.markSeen(userId, article.url, article.title);
         return;
       }
 
@@ -78,9 +73,6 @@ if (!connectionOptions) {
         category: category 
       };
 
-      // BUG-028 Fix: Mark as seen BEFORE sending to prevent infinite loops if channel is invalid
-      await DBService.markSeen(userId, article.url, article.title);
-      
       await safeSend(user, enrichedArticle);
       logger.info(`✅ Post sent to channel ${user.target_channel} for user ${userId}`);
     } catch (error: any) {
@@ -88,7 +80,6 @@ if (!connectionOptions) {
       const isPermanent = error.message?.includes('400') || error.message?.includes('Bad Request');
       if (isPermanent) {
         logger.error(`❌ Permanent AI error for job ${job.id}: ${error.message}. Skipping.`);
-        await DBService.markSeen(userId, article.url, article.title);
         return;
       }
       

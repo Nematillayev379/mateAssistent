@@ -6,7 +6,6 @@ import { i18n } from '../services/i18n';
 
 export async function processDailyDigests() {
   const now = new Date();
-  const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
   try {
     const users = await DBService.getUsersWithDigest();
@@ -22,7 +21,9 @@ export async function processDailyDigests() {
       const targetTotal = targetH * 60 + targetM;
       const currentTotal = now.getHours() * 60 + now.getMinutes();
       
-      if (currentTotal >= targetTotal && user.digest_last_sent !== today) {
+      // BUG-033 Fix: Only send if within 60 minutes of target time to avoid late-night re-sends on restart
+      const timeDiff = currentTotal - targetTotal;
+      if (timeDiff >= 0 && timeDiff < 60 && user.digest_last_sent !== today) {
         logger.info(`✨ Sending daily digest to user ${user.telegram_id}`);
         // BUG-138 Fix: Always update digest_last_sent even if it fails, to avoid infinite retry loops
         await sendDigest(user);
