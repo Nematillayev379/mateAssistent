@@ -7,6 +7,7 @@ import { setupRSSCron } from "./crons/rss_cron";
 import cron from "node-cron";
 import axios from 'axios';
 import dns from 'dns';
+import { resolveYtDlpPath } from './utils/ytdlp';
 
 // Fix for Render/Node18+ AggregateError (forces IPv4)
 if (dns.setDefaultResultOrder) {
@@ -38,6 +39,18 @@ async function bootstrap() {
     });
     if (keyStats.total === 0) {
       logger.warn('⚠️  AI KEY POOL BO\'SH! Render .env: GROQ_KEYS=key1,key2,key3 formatida tekshiring.');
+    }
+
+    // BUG-XXX Fix: Verify yt-dlp binary at startup to surface Windows/permission issues early
+    try {
+      const ytDlpBinary = await resolveYtDlpPath();
+      if (ytDlpBinary) {
+        logger.info(`✅ yt-dlp topildi: ${ytDlpBinary}`);
+      } else {
+        logger.warn('⚠️  yt-dlp EXECUTABLE topilmadi! Musiqa va video yuklash Cobalt API orqali ishlaydi. yt-dlp.exe ni loyiha ildiziga qo\'shing.');
+      }
+    } catch (e: any) {
+      logger.warn(`⚠️  yt-dlp tekshirishda xatolik: ${e.message}`);
     }
 
     // 1. Start Dashboard

@@ -36,6 +36,12 @@
         .bg-glow {
             position: fixed; top: -150px; left: 50%; transform: translateX(-50%);
             width: 300px; height: 300px; background: var(--accent); filter: blur(150px); opacity: 0.15; z-index: -1;
+            animation: glow-pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% { opacity: 0.15; transform: translateX(-50%) scale(1); }
+            50% { opacity: 0.25; transform: translateX(-50%) scale(1.1); }
         }
 
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -44,7 +50,19 @@
         .user-pill { display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 8px 16px; border-radius: 30px; border: 1px solid var(--border); }
         .user-pill img, .user-pill i { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
 
-        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .card { 
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            border-radius: 20px; 
+            padding: 20px; 
+            margin-bottom: 16px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4); 
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        }
         .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
         .card-title i { color: var(--accent); }
 
@@ -89,6 +107,13 @@
         .admin-actions { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; margin-top: 8px; }
         .admin-actions .btn { width: auto; padding: 6px 10px; font-size: 0.72rem; }
         html[dir="rtl"] .item-row { flex-direction: row-reverse; }
+
+        /* Toast notifications */
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); padding: 12px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 500; z-index: 9999; animation: toastIn 0.3s ease; max-width: 320px; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+        .toast-success { background: #10b981; color: white; }
+        .toast-error { background: #ef4444; color: white; }
+        .toast-info { background: #3b82f6; color: white; }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
     </style>
 </head>
 <body>
@@ -158,13 +183,14 @@
                     <div class="card-title"><i class="fas fa-robot"></i> AI SMM Generator</div>
                     <div class="input-group"><textarea id="ai-prompt" rows="3" placeholder="Mavzu..."></textarea></div>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
-                        <input type="checkbox" id="ai-image" style="width: 18px; height: 18px;"> <label>Rasm generatsiya qilinsin</label>
+                        <input type="checkbox" id="ai-image" style="width: 18px; height: 18px;"> <label for="ai-image">Rasm generatsiya qilinsin</label>
                     </div>
                     <button class="btn btn-primary" id="btn-ai" onclick="generateAIPost()">Post yaratish</button>
                     <div id="ai-result" style="margin-top: 15px; display: none;">
                         <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
                             <img id="ai-res-img" style="width: 100%; border-radius: 8px; margin-bottom: 10px; display: none;">
                             <p id="ai-res-text" style="font-size: 0.9rem; white-space: pre-wrap;"></p>
+                            <button class="btn btn-ghost" style="margin-top: 10px; display: none;" id="ai-copy-btn" onclick="copyAIPostText()"><i class="fas fa-copy"></i> Post matnini nusxalash</button>
                             <button class="btn btn-primary" style="margin-top: 15px;" id="btn-send-ai" onclick="sendAIPostToChannel()">Kanalga yuborish</button>
                         </div>
                     </div>
@@ -173,9 +199,10 @@
                 <div class="card">
                     <div class="card-title"><i class="fas fa-tv"></i> Kuzatilayotgan Kanallar</div>
                     <div class="input-group">
-                        <select id="channel-platform" style="width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;">
+                        <select id="channel-platform" onchange="toggleTelegramOptions()" style="width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;">
                             <option value="youtube">YouTube</option>
                             <option value="instagram">Instagram</option>
+                            <option value="telegram">Telegram</option>
                         </select>
                     </div>
                     <div class="input-group">
@@ -223,8 +250,8 @@
                         <p style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 15px;">YouTube, Instagram yoki TikTok linkini bering.</p>
                         <div class="input-group"><input type="text" id="dl-url" placeholder="Link..."></div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <button class="btn btn-ghost" onclick="downloadMedia('video')"><i class="fas fa-video"></i> Video</button>
-                            <button class="btn btn-ghost" onclick="downloadMedia('audio')"><i class="fas fa-music"></i> Audio</button>
+                            <button class="btn btn-ghost" id="btn-dl-video" onclick="downloadMedia('video', this)"><i class="fas fa-video"></i> Video</button>
+                            <button class="btn btn-ghost" id="btn-dl-audio" onclick="downloadMedia('audio', this)"><i class="fas fa-music"></i> Audio</button>
                         </div>
                     </div>
                     <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
@@ -318,6 +345,7 @@
                         <div class="item-row" style="margin-bottom: 15px;">
                             <div>
                                 <h4>1 Oylik</h4>
+                                <p style="color: var(--gold); font-weight: bold;" id="premium-monthly-price">⭐ 500</p>
                                 <p style="color: var(--secondary);">Barcha imkoniyatlar</p>
                             </div>
                             <button class="btn btn-primary" style="width: auto; padding: 8px 16px;" onclick="buyPremium('monthly')">Sotib olish</button>
@@ -325,6 +353,7 @@
                         <div class="item-row">
                             <div>
                                 <h4>1 Yillik</h4>
+                                <p style="color: var(--gold); font-weight: bold;" id="premium-yearly-price">⭐ 5400</p>
                                 <p style="color: var(--secondary);">10% chegirma</p>
                             </div>
                             <button class="btn btn-primary" style="width: auto; padding: 8px 16px;" onclick="buyPremium('yearly')">Sotib olish</button>
@@ -479,6 +508,25 @@
     </div>
 
     <script>
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function showToast(msg, type) {
+            type = type || 'info';
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 3000);
+        }
+
         let userData = null;
         let token = localStorage.getItem('bot_token');
         let userId = localStorage.getItem('bot_user_id');
@@ -548,7 +596,7 @@
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
                 showPage('home');
-            } catch(e) { alert(e.message); localStorage.removeItem('bot_token'); }
+            } catch(e) { showToast(e.message, 'error'); localStorage.removeItem('bot_token'); }
         }
 
         function isAdminUser(u) {
@@ -567,7 +615,8 @@
             const container = document.getElementById('pay-methods-container');
             if (!container) return;
             try {
-                const res = await apiFetch('/api/payments/methods');
+                // BUG-4XX Fix: Pass x-user-id header so checkAuth can validate the token against the correct userId
+                const res = await apiFetch('/api/payments/methods', { headers: { 'x-bot-token': token, 'x-user-id': userId || '' } });
                 const methods = res.ok ? await res.json() : { stars: true, payme: false, click: false };
                 const defs = [
                     { id: 'stars', key: 'pay_stars', label: '⭐ Stars' },
@@ -602,16 +651,25 @@
                 block: `/api/admin/users/${telegramId}/block`,
                 unblock: `/api/admin/users/${telegramId}/unblock`,
                 premium: `/api/admin/users/${telegramId}/premium`,
+                revoke: `/api/admin/users/${telegramId}/premium`,
             };
             const url = routes[action];
             if (!url) return;
-            const body = action === 'premium' ? JSON.stringify({ days: 30 }) : undefined;
+            // BUG-3XX Fix: days=0 → revoke premium via existing revokePremium endpoint
+            const body = (action === 'premium' || action === 'revoke')
+              ? JSON.stringify({ days: action === 'revoke' ? 0 : 30 })
+              : undefined;
             const res = await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
             if (res.ok) {
-                alert(typeof t === 'function' ? t(action === 'premium' ? 'admin_premium_ok' : 'admin_action_ok') : 'OK');
+                showToast(
+                  typeof t === 'function'
+                    ? t('admin_premium_ok')
+                    : (action === 'revoke' ? 'Premium bekor qilindi' : 'OK'),
+                  'success'
+                );
                 fetchAdminUsers();
             } else {
-                alert(typeof t === 'function' ? t('common_error') : 'Error');
+                showToast(typeof t === 'function' ? t('common_error') : 'Error', 'error');
             }
         }
 
@@ -650,7 +708,8 @@
                         ${!approved ? `<button class="btn btn-ghost" onclick="adminUserAction(${u.telegram_id},'approve')">${t('admin_approve')}</button>` : ''}
                         ${approved ? `<button class="btn btn-ghost" onclick="adminUserAction(${u.telegram_id},'reject')">${t('admin_reject')}</button>` : ''}
                         ${active ? `<button class="btn btn-ghost" style="color:var(--danger)" onclick="adminUserAction(${u.telegram_id},'block')">${t('admin_block')}</button>` : `<button class="btn btn-ghost" style="color:var(--success)" onclick="adminUserAction(${u.telegram_id},'unblock')">${t('admin_unblock')}</button>`}
-                        <button class="btn btn-ghost" onclick="adminUserAction(${u.telegram_id},'premium')">${t('admin_premium_30')}</button>
+                        <button class="btn btn-ghost" onclick="adminUserAction(${u.telegram_id},'premium')">Premium (30 k)</button>
+                        ${u.is_premium ? `<button class="btn btn-ghost" style="color:var(--danger)" onclick="adminUserAction(${u.telegram_id},'revoke')">Bekor qilish</button>` : ''}
                         <button class="btn btn-ghost" onclick="changeUserRole(${u.telegram_id})">${t('admin_change_role')}</button>
                     </div>`;
                 list.appendChild(card);
@@ -680,6 +739,7 @@
             if (u.is_premium) document.getElementById('user-premium-badge').style.display = 'flex';
             if (isAdminUser(u)) {
                 document.getElementById('admin-card').style.display = 'block';
+
                 // Also show admin panel in navigation for easier access
                 const adminNav = document.getElementById('nav-admin');
                 if (!adminNav) {
@@ -688,7 +748,9 @@
                     adminNavItem.className = 'nav-item';
                     adminNavItem.id = 'nav-admin';
                     adminNavItem.innerHTML = '<i class="fas fa-shield-alt"></i><span>Admin</span>';
-                    adminNavItem.onclick = () => showPage('profile');
+                    // BUG-2XX Fix: Navigate to admin-users panel instead of profile page
+                    // so admin/owner sees their management tools, not the user profile
+                    adminNavItem.onclick = () => showPage('admin-users');
                     nav.appendChild(adminNavItem);
                 }
             }
@@ -772,12 +834,13 @@
         async function generateAIPost() {
             const prompt = document.getElementById('ai-prompt').value;
             if (!prompt) {
-                alert('Iltimos mavzu kiriting!');
+                showToast('Iltimos mavzu kiriting!', 'error');
                 return;
             }
             const btn = document.getElementById('btn-ai'); 
+            const originalInnerHTML = btn.innerHTML;
             btn.disabled = true; 
-            btn.textContent = 'Kutilmoqda...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kutilmoqda...';
             try {
                 const res = await apiFetch('/api/ai/smm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ prompt, withImage: document.getElementById('ai-image').checked }) });
                 if (!res.ok) {
@@ -790,6 +853,9 @@
                 }
                 document.getElementById('ai-result').style.display = 'block';
                 document.getElementById('ai-res-text').textContent = data.text;
+                // Add copy button
+                const copyBtn = document.getElementById('ai-copy-btn');
+                if (copyBtn) copyBtn.style.display = 'inline-block';
                 const img = document.getElementById('ai-res-img');
                 lastSmmImageBase64 = data.imageBase64 || null;
                 const imgSrc = data.imageBase64 || data.imageUrl;
@@ -808,12 +874,21 @@
                     img.style.display = 'none';
                 }
             } catch (error) {
-                alert('Xatolik: ' + error.message);
+                showToast('Xatolik: ' + error.message, 'error');
                 document.getElementById('ai-result').style.display = 'none';
             } finally { 
                 btn.disabled = false; 
-                btn.textContent = 'Post yaratish'; 
+                btn.innerHTML = originalInnerHTML; 
             }
+        }
+
+        function copyAIPostText() {
+            const text = document.getElementById('ai-res-text').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Post matni nusxalandi!', 'success');
+            }).catch(() => {
+                showToast('Nusxalash muvaffaqiyatsiz', 'error');
+            });
         }
 
         let lastSmmImageBase64 = null;
@@ -832,9 +907,9 @@
                     headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, 
                     body: JSON.stringify({ text, imageUrl, imageBase64 }) 
                 });
-                if (res.ok) alert('Post kanalga yuborildi!');
-                else alert('Xatolik yuz berdi');
-            } catch(e) { alert(e.message); }
+                if (res.ok) showToast('Post kanalga yuborildi!', 'success');
+                else showToast('Xatolik yuz berdi', 'error');
+            } catch(e) { showToast(e.message, 'error'); }
             finally { btn.disabled = false; }
         }
 
@@ -868,17 +943,18 @@
                 return;
             }
             data.forEach(m => {
-                list.innerHTML += `<div class="item-row"><div><h4>${m.title}</h4></div><button class="btn btn-primary" style="width:auto; padding:8px 12px;" onclick="downloadM('${m.videoId || extractYouTubeId(m.url)}', '${(m.title || 'music').replace(/'/g, '')}')"><i class="fas fa-download"></i></button></div>`;
+                const safeTitle = (m.title || 'music').replace(/'/g, '');
+                list.innerHTML += `<div class="item-row"><div><h4>${escapeHtml(m.title || '')}</h4></div><button class="btn btn-primary" style="width:auto; padding:8px 12px;" onclick="downloadM('${m.videoId || extractYouTubeId(m.url)}', '${safeTitle}', this)"><i class="fas fa-download"></i></button></div>`;
             });
         }
 
-        async function downloadM(videoId, title) {
+        async function downloadM(videoId, title, btnEl) {
             const id = extractYouTubeId(videoId);
             if (!id) {
-                alert('Video ID topilmadi');
+                showToast('Video ID topilmadi', 'error');
                 return;
             }
-            const btn = event?.target?.closest('button');
+            const btn = btnEl || event?.target?.closest('button');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
             try {
                 const res = await apiFetch(`/api/music/download/${id}?web=1`, { headers: { 'x-bot-token': token } });
@@ -889,18 +965,27 @@
                 const blob = await res.blob();
                 triggerBrowserDownload(blob, `${title || 'music'}.m4a`);
             } catch (e) {
-                alert('Xatolik: ' + e.message);
+                showToast('Xatolik: ' + e.message, 'error');
             } finally {
                 if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-download"></i>'; }
             }
         }
 
-        async function downloadMedia(type) {
+        async function downloadMedia(type, btnEl) {
             const url = document.getElementById('dl-url').value.trim();
             if (!url) {
-                alert('Iltimos havola kiriting');
+                showToast('Iltimos havola kiriting', 'error');
                 return;
             }
+            const videoBtn = document.getElementById('btn-dl-video');
+            const audioBtn = document.getElementById('btn-dl-audio');
+            const originalBtn = btnEl?.innerHTML;
+            
+            // Disable both buttons and show spinner
+            if (videoBtn) videoBtn.disabled = true;
+            if (audioBtn) audioBtn.disabled = true;
+            if (btnEl) btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yuklanmoqda...';
+            
             const ext = type === 'video' ? 'mp4' : 'm4a';
             try {
                 const res = await apiFetch('/api/media/download?web=1', {
@@ -915,7 +1000,12 @@
                 const blob = await res.blob();
                 triggerBrowserDownload(blob, `media_${Date.now()}.${ext}`);
             } catch (e) {
-                alert('Xatolik: ' + e.message);
+                showToast('Xatolik: ' + e.message, 'error');
+            } finally {
+                // Re-enable both buttons
+                if (videoBtn) videoBtn.disabled = false;
+                if (audioBtn) audioBtn.disabled = false;
+                if (btnEl) btnEl.innerHTML = originalBtn;
             }
         }
 
@@ -936,16 +1026,16 @@
             if (res.ok) {
                 userData.user.language = language;
                 if (window.WebAppI18n) WebAppI18n.setLang(language);
-                alert(typeof t === 'function' ? t('common_lang_changed') : 'Saved!');
+                showToast(typeof t === 'function' ? t('common_lang_changed') : 'Saved!', 'success');
             } else {
-                alert(typeof t === 'function' ? t('common_error') : 'Error');
+                showToast(typeof t === 'function' ? t('common_error') : 'Error', 'error');
             }
         }
 
         async function loadSystemStatus() {
             const res = await apiFetch('/api/admin/system');
             if (!res.ok) {
-                alert('Tizim statusini yuklab bo\'lmadi (admin huquqi kerak)');
+                showToast('Tizim statusini yuklab bo\'lmadi (admin huquqi kerak)', 'error');
                 return;
             }
             const data = await res.json();
@@ -959,12 +1049,17 @@
             document.querySelectorAll('[id^="subpage-"]').forEach(subpage => subpage.style.display = 'none');
             document.getElementById('page-' + p).style.display = 'block';
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            // BUG-5XX Fix: Highlight nav-admin when on any admin page (nav-admin-users does not exist as a static element)
+            const adminPages = ['admin-users', 'admin-sources', 'admin-broadcast', 'admin-settings', 'admin-tickets'];
+            if (adminPages.includes(p)) {
+                const adminNavItem = document.getElementById('nav-admin');
+                if (adminNavItem) { adminNavItem.classList.add('active'); return; }
+            }
             document.getElementById('nav-' + p)?.classList.add('active');
             if (p === 'services') {
                 const sm = document.getElementById('services-menu');
                 if (sm) sm.style.display = 'block';
             }
-            if (p === 'finance') loadFinance();
             if (p === 'trends') loadTrends(false);
             if (p === 'multichannel') loadOutputChannels();
             if (p === 'status') loadSystemStatus();
@@ -984,16 +1079,24 @@
                 // UI-3 Fix: Ensure services page is also visible to prevent black screen
                 document.getElementById('page-services').style.display = 'block';
             }
+            // Fix nav active state
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById('nav-services')?.classList.add('active');
             if (p === 'finance') loadFinance();
             window.scrollTo(0,0);
         }
 
         async function fetchExtendedSettings() {
-            const r = await apiFetch(`/api/settings/${userId}/extended`, { headers: { 'x-bot-token': token } });
-            const data = await r.json();
-            document.getElementById('set-keywords').value = data.keywords || '';
-            document.getElementById('set-digest').value = data.daily_digest ? 'true' : 'false';
-            document.getElementById('set-digest-time').value = data.digest_time || '20:00';
+            try {
+                const r = await apiFetch(`/api/settings/${userId}/extended`, { headers: { 'x-bot-token': token } });
+                if (!r.ok) throw new Error('Settings fetch failed: ' + r.status);
+                const data = await r.json();
+                document.getElementById('set-keywords').value = data.keywords || '';
+                document.getElementById('set-digest').value = data.daily_digest ? 'true' : 'false';
+                document.getElementById('set-digest-time').value = data.digest_time || '20:00';
+            } catch (e) {
+                console.error('fetchExtendedSettings error:', e);
+            }
         }
 
         async function fetchApiKeys() {
@@ -1041,7 +1144,7 @@
             const message = document.getElementById('ticket-message').value;
             if (!subject || !message) return;
             const res = await apiFetch(`/api/tickets/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ subject, message }) });
-            if (res.ok) { document.getElementById('ticket-subject').value = ''; document.getElementById('ticket-message').value = ''; fetchTickets(); alert('Ticket yuborildi!'); }
+            if (res.ok) { document.getElementById('ticket-subject').value = ''; document.getElementById('ticket-message').value = ''; fetchTickets(); showToast('Ticket yuborildi!', 'success'); }
         }
 
         async function fetchTrackedPrices() {
@@ -1059,7 +1162,7 @@
         async function trackPrice() {
             const url = document.getElementById('track-url').value;
             if (!url) return;
-            alert('Narx tekshirilmoqda...');
+            showToast('Narx tekshirilmoqda...', 'info');
             // This would need backend scraping support
             const res = await apiFetch(`/api/prices/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ url, name: 'Tovar', price: 0 }) });
             if (res.ok) { document.getElementById('track-url').value = ''; fetchTrackedPrices(); }
@@ -1080,6 +1183,8 @@
                     list.innerHTML += `<div class="item-row"><div><h4>${c.name}</h4><p>${c.platform}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteChannel(${c.id})">❌</button></div>`;
                 });
             }
+            // Set initial visibility state for telegram options
+            toggleTelegramOptions();
         }
 
 
@@ -1090,6 +1195,22 @@
             const opts = document.getElementById('telegram-options');
             if (hint) hint.style.display = show ? 'block' : 'none';
             if (opts) opts.style.display = show ? 'block' : 'none';
+        }
+
+        async function deleteChannel(id) {
+            if (!confirm('Kanalni o\'chirasizmi?')) return;
+            try {
+                const res = await apiFetch(`/api/channels/${userId}/${id}`, { method: 'DELETE', headers: { 'x-bot-token': token } });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast('Kanal o\'chirildi', 'success');
+                    fetchChannels();
+                } else {
+                    showToast(data.error || 'Xatolik', 'error');
+                }
+            } catch (e) {
+                showToast('Xatolik: ' + e.message, 'error');
+            }
         }
 
         async function addChannel() {
@@ -1108,7 +1229,7 @@
                 document.getElementById('channel-id').value = '';
                 document.getElementById('channel-name').value = '';
                 fetchChannels();
-            } else alert(data.error || 'Xatolik');
+            } else showToast(data.error || 'Xatolik', 'error');
         }
 
         async function loadTrends(refresh) {
@@ -1140,8 +1261,8 @@
             const imageUrl = document.getElementById('compose-image')?.value || null;
             const res = await apiFetch('/api/posts/publish', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, imageUrl }) });
             const data = await res.json();
-            if (res.ok) alert('Yuborildi: ' + data.sentTo + ' kanal');
-            else alert(data.error || 'Xatolik');
+            if (res.ok) showToast('Yuborildi: ' + data.sentTo + ' kanal', 'success');
+            else showToast(data.error || 'Xatolik', 'error');
         }
 
         async function generateVoiceNews() {
@@ -1154,7 +1275,7 @@
             }) });
             const data = await res.json();
             if (res.ok) { if (status) status.textContent = '✅ Ovoz yuborildi!'; }
-            else { if (status) status.textContent = data.error || 'Xatolik'; alert(data.error); }
+            else { if (status) status.textContent = data.error || 'Xatolik'; showToast(data.error, 'error'); }
         }
 
         async function loadOutputChannels() {
@@ -1171,7 +1292,7 @@
             const raw = document.getElementById('extra-channels')?.value || '';
             const channels = raw.split(',').map(s => s.trim()).filter(Boolean);
             const res = await apiFetch('/api/output-channels/' + userId, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ channels }) });
-            if (res.ok) { loadOutputChannels(); alert('Saqlandi!'); }
+            if (res.ok) { loadOutputChannels(); showToast('Saqlandi!', 'success'); }
         }
 
         
@@ -1188,7 +1309,7 @@
 
         function copyReferralLink() {
             const link = document.querySelector('#referral-info p')?.textContent;
-            if (link) { navigator.clipboard.writeText(link); alert('Havola nusxalandi!'); }
+            if (link) { navigator.clipboard.writeText(link); showToast('Havola nusxalandi!', 'success'); }
         }
 
         async function fetchPremiumStatus() {
@@ -1212,13 +1333,13 @@
             });
             const data = await res.json();
             if (!res.ok || !data.url) {
-                alert(data.error || 'To\'lovni boshlab bo\'lmadi');
+                showToast(data.error || 'To\'lovni boshlab bo\'lmadi', 'error');
                 return;
             }
             if (selectedPayMethod === 'stars' && tg?.openInvoice) {
                 tg.openInvoice(data.url, (status) => {
                     if (status === 'paid') {
-                        alert('Premium faollashtirildi!');
+                        showToast('Premium faollashtirildi!', 'success');
                         location.reload();
                     }
                 });
@@ -1240,7 +1361,7 @@
             setupAdminUserFilters();
             const r = await apiFetch('/api/admin/users');
             if (!r.ok) {
-                alert(typeof t === 'function' ? t('common_error') : 'Error');
+                showToast(typeof t === 'function' ? t('common_error') : 'Error', 'error');
                 return;
             }
             adminUsersCache = await r.json();
@@ -1265,7 +1386,7 @@
             if (!message) return;
             const res = await apiFetch('/api/admin/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ message }) });
             if (res.ok) {
-                alert('Broadcast yuborildi!');
+                showToast('Broadcast yuborildi!', 'success');
                 document.getElementById('broadcast-message').value = '';
             }
         }
@@ -1273,7 +1394,7 @@
         async function saveAdminSettings() {
             const starsPrice = document.getElementById('admin-stars-price').value;
             const res = await apiFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ premium_stars_price: starsPrice }) });
-            if (res.ok) alert('Sozlamalar saqlandi!');
+            if (res.ok) showToast('Sozlamalar saqlandi!', 'success');
         }
 
         async function changeUserRole(telegramId) {
@@ -1296,6 +1417,18 @@
         }
 
         function logout() { localStorage.clear(); location.reload(); }
+
+        // Add Enter key listener for music search
+        document.addEventListener('DOMContentLoaded', () => {
+            const musicInput = document.getElementById('music-q');
+            if (musicInput) {
+                musicInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        searchMusic();
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>
