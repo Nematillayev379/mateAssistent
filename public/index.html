@@ -440,7 +440,7 @@
                     <div id="admin-users-filters" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
                     <div id="admin-users-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('profile')" data-i18n="admin_back">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin-users')" data-i18n="admin_back">Orqaga</button>
             </section>
 
             <!-- 6. Admin Sources Page -->
@@ -449,7 +449,7 @@
                     <div class="card-title"><i class="fas fa-rss"></i> Barcha Manbalar</div>
                     <div id="admin-sources-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
             </section>
 
             <!-- 7. Admin Broadcast Page -->
@@ -461,7 +461,7 @@
                     </div>
                     <button class="btn btn-primary" onclick="sendBroadcast()">Barchaga yuborish</button>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
             </section>
 
             <!-- 8. Admin Settings Page -->
@@ -472,9 +472,17 @@
                         <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Premium Stars Narxi</label>
                         <input type="number" id="admin-stars-price" placeholder="500">
                     </div>
+                    <div class="input-group">
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Oylik Premium Narxi (UZS)</label>
+                        <input type="number" id="admin-monthly-price" placeholder="25000">
+                    </div>
+                    <div class="input-group">
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Yillik Premium Narxi (UZS)</label>
+                        <input type="number" id="admin-yearly-price" placeholder="250000">
+                    </div>
                     <button class="btn btn-primary" onclick="saveAdminSettings()">Saqlash</button>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
             </section>
 
             <!-- 9. Admin Tickets Page -->
@@ -483,7 +491,7 @@
                     <div class="card-title"><i class="fas fa-ticket-alt"></i> Support Ticketlar</div>
                     <div id="admin-tickets-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
             </section>
 
             <!-- 10. System Status Page -->
@@ -494,7 +502,7 @@
                     <div class="item-row"><span>Redis</span> <span id="sys-redis">--</span></div>
                     <div class="item-row"><span>Node</span> <span id="sys-node">--</span></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('profile')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
             </section>
         </div>
 
@@ -757,11 +765,7 @@ function renderUI() {
                      nav.appendChild(adminNavItem);
                  }
              } else {
-                 // Non-admin: hide profile tab, show only home/content/services/api
-                 const navProfile = document.getElementById('nav-profile');
-                 if (navProfile) navProfile.style.display = 'none';
-                 const navApi = document.getElementById('nav-api');
-                 if (navApi) navApi.style.display = 'none';
+                 // Non-admin: Profile and API tabs are visible for all users
              }
 
             document.getElementById('stat-posts').textContent = userData.stats?.total_posts || 0;
@@ -1006,7 +1010,13 @@ function renderUI() {
                     const err = await res.json().catch(() => ({}));
                     throw new Error(err.error || 'Yuklab olish muvaffaqiyatsiz');
                 }
+                const contentType = res.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'Server xatosi');
+                }
                 const blob = await res.blob();
+                if (blob.size < 1000) throw new Error('Fayl juda kichik — yuklash muvaffaqiyatsiz');
                 triggerBrowserDownload(blob, `media_${Date.now()}.${ext}`);
             } catch (e) {
                 showToast('Xatolik: ' + e.message, 'error');
@@ -1056,7 +1066,8 @@ function renderUI() {
         function showPage(p) {
             document.querySelectorAll('.page').forEach(page => page.style.display = 'none');
             document.querySelectorAll('[id^="subpage-"]').forEach(subpage => subpage.style.display = 'none');
-            document.getElementById('page-' + p).style.display = 'block';
+            const targetPage = document.getElementById('page-' + p);
+            if (targetPage) targetPage.style.display = 'block';
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             // BUG-5XX Fix: Highlight nav-admin when on any admin page (nav-admin-users does not exist as a static element)
             const adminPages = ['admin-users', 'admin-sources', 'admin-broadcast', 'admin-settings', 'admin-tickets'];
@@ -1080,13 +1091,14 @@ function renderUI() {
         }
 
         function showSubPage(p) {
-            document.querySelectorAll('.page').forEach(page => page.style.display = 'none');
+            const sm = document.getElementById('services-menu');
+            if (sm) sm.style.display = 'none';
             document.querySelectorAll('[id^="subpage-"]').forEach(subpage => subpage.style.display = 'none');
             const subpage = document.getElementById('subpage-' + p);
             if (subpage) {
                 subpage.style.display = 'block';
-                // UI-3 Fix: Ensure services page is also visible to prevent black screen
-                document.getElementById('page-services').style.display = 'block';
+                const sp = document.getElementById('page-services');
+                if (sp) sp.style.display = 'block';
             }
             // Fix nav active state
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
@@ -1402,7 +1414,9 @@ function renderUI() {
 
         async function saveAdminSettings() {
             const starsPrice = document.getElementById('admin-stars-price').value;
-            const res = await apiFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ premium_stars_price: starsPrice }) });
+            const monthlyPrice = document.getElementById('admin-monthly-price')?.value;
+            const yearlyPrice = document.getElementById('admin-yearly-price')?.value;
+            const res = await apiFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ premium_stars_price: starsPrice, price_monthly: monthlyPrice, price_yearly: yearlyPrice }) });
             if (res.ok) showToast('Sozlamalar saqlandi!', 'success');
         }
 

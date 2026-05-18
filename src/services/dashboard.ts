@@ -91,6 +91,16 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       return res.status(401).json({ error: 'Invalid token for this user' });
     }
     req.authenticatedUserId = userId;
+    
+    // Auto-sync owner role for webapp users
+    if (isOwnerId(parseInt(userId))) {
+        DBService.getUser(parseInt(userId)).then((user: any) => {
+            if (user && user.role !== 'owner') {
+                DBService.updateUserRole(parseInt(userId), 'owner');
+            }
+        }).catch(() => {});
+    }
+
     next();
   };
 
@@ -801,8 +811,17 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     res.json(users);
   });
 
-  app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req, res) => {
+  app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req: any, res: any) => {
     const { role } = req.body;
+    const callerIsOwner = isOwnerId(parseInt(req.authenticatedUserId));
+
+    if ((role === 'owner' || role === 'admin') && !callerIsOwner) {
+        return res.status(403).json({ error: 'Faqat Owner admin rolini berishi mumkin' });
+    }
+    if (role === 'owner') {
+        return res.status(403).json({ error: 'Owner rolini API orqali berish mumkin emas' });
+    }
+
     await DBService.updateUserRole(parseInt(req.params.telegramId), role);
     res.json({ success: true });
   });
@@ -813,9 +832,15 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   app.post('/api/admin/settings', checkAdmin, async (req, res) => {
-    const { premium_stars_price } = req.body;
+    const { premium_stars_price, price_monthly, price_yearly } = req.body;
     if (premium_stars_price) {
       await DBService.setSetting('premium_stars_price', premium_stars_price);
+    }
+    if (price_monthly) {
+      await DBService.setPrice('monthly', price_monthly);
+    }
+    if (price_yearly) {
+      await DBService.setPrice('yearly', price_yearly);
     }
     res.json({ success: true });
   });

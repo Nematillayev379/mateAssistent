@@ -46,7 +46,7 @@ export async function startBot() {
 
   // --- WEBHOOK SETUP FOR RENDER ---
   // BUG-067 Fix: Exclusively use webhook OR polling, not both
-  if (CONFIG.PUBLIC_URL) {
+  if (CONFIG.PUBLIC_URL && process.env.NODE_ENV !== 'development') {
     try {
       const webhookUrl = `${CONFIG.PUBLIC_URL}/api/bot/webhook`;
       await bot.setWebHook(webhookUrl);
