@@ -316,11 +316,25 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     res.json({ success: true });
   });
 
-  app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req, res) => {
+  app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req: any, res: any) => {
     const role = req.body.role;
     if (!['owner', 'admin', 'user', 'premium'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
+
+    const callerId = parseInt(req.authenticatedUserId);
+    const callerIsOwner = isOwnerId(callerId);
+
+    // Only the real owner can promote someone to admin or owner
+    if ((role === 'owner' || role === 'admin') && !callerIsOwner) {
+      return res.status(403).json({ error: 'Faqat Owner boshqalarni admin qila oladi' });
+    }
+
+    // Never allow assigning 'owner' role via API, it should only be defined via env
+    if (role === 'owner') {
+      return res.status(403).json({ error: 'Owner rolini API orqali berish taqiqlangan' });
+    }
+
     await DBService.updateUserRole(parseInt(req.params.telegramId), role);
     res.json({ success: true });
   });
@@ -832,46 +846,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const { language, target_channel, keywords, daily_digest, digest_time, schedule_times } = req.body;
     await DBService.updateUser(parseInt(req.authenticatedUserId), { language, target_channel, daily_digest, digest_time, schedule_times });
     if (keywords !== undefined) await DBService.setKeywords(parseInt(req.authenticatedUserId), keywords);
-    res.json({ success: true });
-  });
-
-  // --- ADMIN USER MANAGEMENT ---
-  app.get('/api/admin/users', checkAdmin, async (req, res) => {
-    const users = await DBService.getUsersForAdmin();
-    res.json(users);
-  });
-
-  app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req: any, res: any) => {
-    const { role } = req.body;
-    const callerIsOwner = isOwnerId(parseInt(req.authenticatedUserId));
-
-    if ((role === 'owner' || role === 'admin') && !callerIsOwner) {
-        return res.status(403).json({ error: 'Faqat Owner admin rolini berishi mumkin' });
-    }
-    if (role === 'owner') {
-        return res.status(403).json({ error: 'Owner rolini API orqali berish mumkin emas' });
-    }
-
-    await DBService.updateUserRole(parseInt(req.params.telegramId), role);
-    res.json({ success: true });
-  });
-
-  app.get('/api/admin/sources', checkAdmin, async (req, res) => {
-    const sources = await DBService.getAllSources();
-    res.json(sources);
-  });
-
-  app.post('/api/admin/settings', checkAdmin, async (req, res) => {
-    const { premium_stars_price, price_monthly, price_yearly } = req.body;
-    if (premium_stars_price) {
-      await DBService.setSetting('premium_stars_price', premium_stars_price);
-    }
-    if (price_monthly) {
-      await DBService.setPrice('monthly', price_monthly);
-    }
-    if (price_yearly) {
-      await DBService.setPrice('yearly', price_yearly);
-    }
     res.json({ success: true });
   });
 
