@@ -15,7 +15,8 @@ if (dns.setDefaultResultOrder) {
 }
 
 async function bootstrap() {
-  logger.info("🚀 Bootstrapping Newsroom Bot Ecosystem...");
+  logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${require('../package.json').version}`);
+  logger.info("🚀 Bootstrapping mateAssistent Bot Ecosystem...");
 
   // Deploy healthcheck — log which ENV vars are actually present
   logger.info("🔧 Deploy env check:", {

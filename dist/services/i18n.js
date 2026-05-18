@@ -10,7 +10,7 @@ const logger_1 = require("../utils/logger");
 exports.i18n = i18next_1.default;
 const resources = {
     uz: { translation: {
-            welcome: '🌐 <b>Newsroom Web3 Ecosystemga xush kelibsiz!</b>\n\nSiz bu yerda o\'z Telegram kanalingizni professional yangiliklar agregatoriga aylantirishingiz mumkin.',
+            welcome: '🌐 <b>mateAssistent Ecosystemga xush kelibsiz!</b>\n\nSiz bu yerda o\'z Telegram kanalingizni professional yangiliklar agregatoriga aylantirishingiz mumkin.',
             help: '📚 <b>Yordam bo\'limi:</b>\n1. Manbalarni qo\'shing\n2. Kanal ID ni sozlang\n3. Botni yoqing\n\nSavollar uchun: @admin',
             settings: '⚙️ <b>Sozlamalar</b>',
             status: '📊 <b>Statistika</b>',
@@ -29,7 +29,7 @@ const resources = {
             err_invalid_channel: "❌ Noto'g'ri kanal ID yoki bot u yerda admin emas!"
         } },
     ru: { translation: {
-            welcome: '🌐 <b>Добро пожаловать в Newsroom Web3 Ecosystem!</b>\n\nЗдесь вы можете превратить свой Telegram-канал в профессиональный новостной агрегатор.',
+            welcome: '🌐 <b>Добро пожаловать в mateAssistent Ecosystem!</b>\n\nЗдесь вы можете превратить свой Telegram-канал в профессиональный новостной агрегатор.',
             help: '📚 <b>Раздел помощи:</b>\n1. Добавьте источники\n2. Настройте ID канала\n3. Включите бота\n\nПо вопросам: @admin',
             settings: '⚙️ <b>Настройки</b>',
             status: '📊 <b>Статистика</b>',
@@ -42,7 +42,7 @@ const resources = {
             err_invalid_url: "❌ Неверная ссылка"
         } },
     en: { translation: {
-            welcome: '🌐 <b>Welcome to Newsroom Web3 Ecosystem!</b>\n\nTurn your Telegram channel into a professional news aggregator.',
+            welcome: '🌐 <b>Welcome to mateAssistent Ecosystem!</b>\n\nTurn your Telegram channel into a professional news aggregator.',
             help: '📚 <b>Help Section:</b>\n1. Add sources\n2. Setup channel ID\n3. Enable bot\n\nFor support: @admin',
             settings: '⚙️ <b>Settings</b>',
             status: '📊 <b>Statistics</b>',

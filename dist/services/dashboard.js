@@ -126,6 +126,14 @@ function startDashboardServer(port, _bot) {
             return res.status(401).json({ error: 'Invalid token for this user' });
         }
         req.authenticatedUserId = userId;
+        // Auto-sync owner role for webapp users
+        if ((0, config_1.isOwnerId)(parseInt(userId))) {
+            database_1.DBService.getUser(parseInt(userId)).then((user) => {
+                if (user && user.role !== 'owner') {
+                    database_1.DBService.updateUserRole(parseInt(userId), 'owner');
+                }
+            }).catch(() => { });
+        }
         next();
     };
     // WebApp InitData Verification
@@ -309,6 +317,45 @@ function startDashboardServer(port, _bot) {
         res.json({ success: true });
     });
     // --- ADMIN ENDPOINTS ---
+    app.get('/api/admin/users', checkAdmin, async (req, res) => {
+        const users = await database_1.DBService.getAllUsers();
+        // Add additional info like source counts for the dashboard
+        for (const u of users) {
+            u.sources = await database_1.DBService.getUserSources(u.telegram_id);
+        }
+        res.json(users);
+    });
+    app.get('/api/admin/sources', checkAdmin, async (req, res) => {
+        res.json(await database_1.DBService.getAllSources());
+    });
+    app.post('/api/admin/settings', checkAdmin, async (req, res) => {
+        const { premium_stars_price, price_monthly, price_yearly } = req.body;
+        if (premium_stars_price)
+            await database_1.DBService.setSetting('premium_stars_price', String(premium_stars_price));
+        if (price_monthly)
+            await database_1.DBService.setPrice('monthly', Number(price_monthly));
+        if (price_yearly)
+            await database_1.DBService.setPrice('yearly', Number(price_yearly));
+        res.json({ success: true });
+    });
+    app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req, res) => {
+        const role = req.body.role;
+        if (!['owner', 'admin', 'user', 'premium'].includes(role)) {
+            return res.status(400).json({ error: 'Invalid role' });
+        }
+        const callerId = parseInt(req.authenticatedUserId);
+        const callerIsOwner = (0, config_1.isOwnerId)(callerId);
+        // Only the real owner can promote someone to admin or owner
+        if ((role === 'owner' || role === 'admin') && !callerIsOwner) {
+            return res.status(403).json({ error: 'Faqat Owner boshqalarni admin qila oladi' });
+        }
+        // Never allow assigning 'owner' role via API, it should only be defined via env
+        if (role === 'owner') {
+            return res.status(403).json({ error: 'Owner rolini API orqali berish taqiqlangan' });
+        }
+        await database_1.DBService.updateUserRole(parseInt(req.params.telegramId), role);
+        res.json({ success: true });
+    });
     app.get('/api/admin/prices', checkAdmin, async (req, res) => res.json({
         monthly: await database_1.DBService.getPrice('monthly'),
         yearly: await database_1.DBService.getPrice('yearly'),
@@ -780,27 +827,6 @@ function startDashboardServer(port, _bot) {
             await database_1.DBService.setKeywords(parseInt(req.authenticatedUserId), keywords);
         res.json({ success: true });
     });
-    // --- ADMIN USER MANAGEMENT ---
-    app.get('/api/admin/users', checkAdmin, async (req, res) => {
-        const users = await database_1.DBService.getUsersForAdmin();
-        res.json(users);
-    });
-    app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req, res) => {
-        const { role } = req.body;
-        await database_1.DBService.updateUserRole(parseInt(req.params.telegramId), role);
-        res.json({ success: true });
-    });
-    app.get('/api/admin/sources', checkAdmin, async (req, res) => {
-        const sources = await database_1.DBService.getAllSources();
-        res.json(sources);
-    });
-    app.post('/api/admin/settings', checkAdmin, async (req, res) => {
-        const { premium_stars_price } = req.body;
-        if (premium_stars_price) {
-            await database_1.DBService.setSetting('premium_stars_price', premium_stars_price);
-        }
-        res.json({ success: true });
-    });
     // BUG-061 Fix: Use DB prices instead of hardcoded
     app.post('/api/premium/buy', checkAuth, async (req, res) => {
         const uid = parseInt(req.authenticatedUserId);
@@ -809,7 +835,7 @@ function startDashboardServer(port, _bot) {
         if (method === 'stars') {
             const starsPrice = parseInt(await database_1.DBService.getSetting('premium_stars_price') || '500');
             const price = isYearly ? starsPrice * 10 : starsPrice;
-            const title = isYearly ? 'Elite Premium (1 Year)' : 'Elite Premium (1 Month)';
+            const title = isYearly ? 'mateAssistent Premium (1 Year)' : 'mateAssistent Premium (1 Month)';
             const invoice = await bot_instance_1.bot.createInvoiceLink(title, 'Premium access for news automation', `premium_sub_${uid}${isYearly ? '_yearly' : ''}`, '', 'XTR', [{ label: 'Premium', amount: price }]);
             return res.json({ success: true, url: invoice, method: 'stars' });
         }

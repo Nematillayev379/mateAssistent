@@ -15,12 +15,12 @@ async function sendWelcomeMenu(
     owner: "👑 <b>Xush kelibsiz, Janob Owner!</b>\n\nTizim sizning nazoratingizda. Admin panel orqali foydalanuvchilarni boshqaring.",
     admin: "🛠 <b>Admin Panelga xush kelibsiz!</b>\n\nDashboard orqali botni boshqaring.",
     premium: "🚀 <b>Siz Premium foydalanuvchisiz!</b>\n\nBarcha cheklovlar olib tashlangan.",
-    user: "🗞 <b>Newsroom Botga xush kelibsiz!</b>\n\nYangiliklarni avtomatik kanalingizga joylab boring."
+    user: "🗞 <b>mateAssistent Botga xush kelibsiz!</b>\n\nYangiliklarni avtomatik kanalingizga joylab boring."
   }[role as 'owner' | 'admin' | 'premium' | 'user'] || "👋 Salom!";
 
   const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
   const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    [{ text: "🖥 Elite Dashboard", web_app: { url: dashboardUrl } }],
+    [{ text: "🖥 mateAssistent Dashboard", web_app: { url: dashboardUrl } }],
     [{ text: "⚙️ Sozlamalar", callback_data: 'cmd_settings' }, { text: "📊 Statistika", callback_data: 'cmd_stats' }],
     [{ text: "🎁 Referral Tizimi", callback_data: 'cmd_referral' }]
   ];

@@ -97,7 +97,7 @@ if (!connectionOptions) {
     }
   });
 
-  logger.info('👷 AI Worker started with Redis connection options (Full Elite Pipeline)');
+  logger.info('👷 AI Worker started with Redis connection options (Full mateAssistent Pipeline)');
 }
 
 export {};

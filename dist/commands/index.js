@@ -182,6 +182,7 @@ function registerCommands(bot) {
                 try {
                     await bot.sendMessage(u.telegram_id, text, { parse_mode: 'HTML' });
                     count++;
+                    await new Promise(resolve => setTimeout(resolve, 50));
                 }
                 catch { }
             }
@@ -292,7 +293,7 @@ function registerCommands(bot) {
                     await bot.sendMessage(chatId, "✅ Til saqlandi!\n\nEndi kanal nomini @belgisi bilan yuboring.\nMasalan: @kanalingiz", { parse_mode: 'HTML' });
                 }
                 else {
-                    const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}`;
+                    const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}&v=${Date.now()}`;
                     await bot.sendMessage(chatId, "✅ Til saqlandi! Dashboardga o'tish uchun quyidagi tugmani bosing:", {
                         parse_mode: 'HTML',
                         reply_markup: {
@@ -372,7 +373,7 @@ function registerCommands(bot) {
                 await bot.deleteMessage(chatId, query.message.message_id);
             }
             else if (data === 'cmd_settings') {
-                const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}`;
+                const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}&v=${Date.now()}`;
                 await bot.sendMessage(chatId, "⚙️ <b>Sozlamalar paneli</b>\n\nDashboard orqali barcha sozlamalarni o'zgartirishingiz mumkin.", {
                     parse_mode: 'HTML',
                     reply_markup: {

@@ -660,7 +660,7 @@ async function generateSmmImage(topic) {
     for (const imageUrl of urls) {
         try {
             const res = await fetch(imageUrl, {
-                headers: { 'User-Agent': 'Mozilla/5.0 NewsroomBot/1.0' },
+                headers: { 'User-Agent': 'Mozilla/5.0 mateAssistentBot/1.0' },
                 signal: AbortSignal.timeout(60000),
             });
             if (!res.ok)

@@ -6,7 +6,7 @@
   const RTL = ['ar', 'fa'];
 
   const en = {
-    app_title: 'Newsroom Elite Dashboard',
+    app_title: 'mateAssistent Dashboard',
     auth_checking: 'Verifying secure connection...',
     auth_error: 'Login error. Enter your key.',
     auth_welcome: 'Welcome to Admin Panel!',
@@ -127,7 +127,7 @@
 
   const uz = {
     ...en,
-    app_title: 'Newsroom Elite Dashboard',
+    app_title: 'mateAssistent Dashboard',
     auth_checking: 'Xavfsiz ulanish tekshirilmoqda...',
     auth_error: 'Kirishda xatolik. Kalitni yozing.',
     auth_welcome: 'Admin panelga xush kelibsiz!',

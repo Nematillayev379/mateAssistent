@@ -68,7 +68,7 @@ export async function startBot() {
   // Startup notification
   if (CONFIG.OWNER_ID) {
     try {
-      await notify(CONFIG.OWNER_ID, `🚀 <b>Newsroom Bot v11.0</b> is live!`);
+      await notify(CONFIG.OWNER_ID, `🚀 <b>mateAssistent Bot v11.0</b> is live!`);
     } catch {}
   }
 }
@@ -156,7 +156,7 @@ export async function safeSend(user: any, article: any): Promise<void> {
   // BUG-152 Fix: Escape HTML entities in title and content
   const safeTitle = escapeHtml(article.title || '');
   const safeContent = escapeHtml(article.content || '');
-  const safeSource = escapeHtml(article.source || 'Newsroom');
+  const safeSource = escapeHtml(article.source || 'mateAssistent');
   
   // BUG-140 Fix: Escape URL attribute safely for Telegram
   const safeUrl = escapeUrl(article.url || '');

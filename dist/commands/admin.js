@@ -50,16 +50,16 @@ exports.adminCommand = {
         // Default Admin View
         const allUsers = await database_1.DBService.getAllUsers();
         // BUG-090 Fix: Include token in dashboard URL
-        const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}`;
+        const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}&v=${Date.now()}`;
         const report = `🛡 <b>Admin Boshqaruv Paneli</b>\n\n` +
             `👥 Jami foydalanuvchilar: <b>${allUsers.length}</b>\n` +
             `🛠 Rolni o'zgartirish: <code>/promote [ID] [ROL]</code>\n\n` +
-            `Elite Dashboard orqali to'liq boshqarishingiz mumkin:`;
+            `mateAssistent Dashboard orqali to'liq boshqarishingiz mumkin:`;
         await bot.sendMessage(chatId, report, {
             parse_mode: 'HTML',
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "🖥 Elite Dashboard (Admin Mode)", web_app: { url: dashboardUrl } }],
+                    [{ text: "🖥 mateAssistent Dashboard (Admin Mode)", web_app: { url: dashboardUrl } }],
                     [{ text: "📢 Xabar yuborish (Broadcast)", callback_data: "adm_broadcast" }]
                 ]
             }

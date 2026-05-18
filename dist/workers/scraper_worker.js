@@ -157,7 +157,7 @@ async function processArticleInline(userId, article, sourceLang) {
             content: summary,
             emoji: emoji || '🔹',
             category: category,
-            source: article.source || 'Newsroom'
+            source: article.source || 'mateAssistent'
         };
         await (0, telegram_1.safeSend)(user, enrichedArticle);
         logger_1.logger.info(`✅ [inline] Post sent to channel ${user.target_channel} in ${fullLangName}`);

@@ -197,6 +197,14 @@ async function downloadYouTube(urlParam, typeParam) {
                     '--socket-timeout',
                     '30',
                 ];
+            let ffmpegPath = '';
+            try {
+                ffmpegPath = require('ffmpeg-static') || '';
+            }
+            catch (e) { }
+            if (ffmpegPath) {
+                args.push('--ffmpeg-location', ffmpegPath);
+            }
             let stderrOutput = '';
             await new Promise((resolve, reject) => {
                 const proc = spawn(ytdlpPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });

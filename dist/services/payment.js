@@ -3,7 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PaymentService = void 0;
 const logger_1 = require("../utils/logger");
 const database_1 = require("./database");
+const MemoryTransactions = {};
 exports.PaymentService = {
+    // ... (keep generate methods)
     async generatePaymeLink(userId, amount) {
         const merchantId = process.env.PAYME_MERCHANT_ID;
         if (!merchantId) {
@@ -52,21 +54,44 @@ exports.PaymentService = {
         }
         const hasValidUser = !Number.isNaN(parsedUserId) && parsedUserId > 0;
         const baseResult = { id: requestId, jsonrpc: '2.0' };
+        const txId = data.params?.id || '';
         switch (method) {
             case 'CheckPerformTransaction':
                 return { ...baseResult, result: { allow: true, details: {} } };
             case 'CreateTransaction':
-                return { ...baseResult, result: { transaction: { id: data.params?.id || 0, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: 0, state: 1 } } };
+                if (!MemoryTransactions[txId]) {
+                    MemoryTransactions[txId] = { state: 1, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: 0 };
+                }
+                return { ...baseResult, result: { transaction: { id: txId, create_time: MemoryTransactions[txId].create_time, perform_time: 0, cancel_time: 0, state: MemoryTransactions[txId].state } } };
             case 'PerformTransaction':
                 if (!hasValidUser)
                     return { error: { code: -31050, message: 'Invalid account' } };
-                await database_1.DBService.setPremium(parsedUserId, 30);
-                logger_1.logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
-                return { ...baseResult, result: { transaction: { id: data.params?.transaction?.id || 0, create_time: Math.floor(Date.now() / 1000), perform_time: Math.floor(Date.now() / 1000), cancel_time: 0, state: 2 } } };
+                if (MemoryTransactions[txId] && MemoryTransactions[txId].state === 1) {
+                    MemoryTransactions[txId].state = 2;
+                    MemoryTransactions[txId].perform_time = Math.floor(Date.now() / 1000);
+                    await database_1.DBService.setPremium(parsedUserId, 30);
+                    logger_1.logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
+                }
+                else if (!MemoryTransactions[txId]) {
+                    MemoryTransactions[txId] = { state: 2, create_time: Math.floor(Date.now() / 1000), perform_time: Math.floor(Date.now() / 1000), cancel_time: 0 };
+                    await database_1.DBService.setPremium(parsedUserId, 30);
+                    logger_1.logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
+                }
+                return { ...baseResult, result: { transaction: { id: txId, create_time: MemoryTransactions[txId].create_time, perform_time: MemoryTransactions[txId].perform_time, cancel_time: 0, state: 2 } } };
             case 'CheckTransaction':
-                return { ...baseResult, result: { transaction: { id: data.params?.transaction?.id || 0, state: 2, create_time: data.params?.transaction?.create_time || Math.floor(Date.now() / 1000), perform_time: data.params?.transaction?.perform_time || Math.floor(Date.now() / 1000), cancel_time: data.params?.transaction?.cancel_time || 0 } } };
+                if (!MemoryTransactions[txId]) {
+                    return { error: { code: -31003, message: 'Transaction not found' } };
+                }
+                return { ...baseResult, result: { transaction: { id: txId, state: MemoryTransactions[txId].state, create_time: MemoryTransactions[txId].create_time, perform_time: MemoryTransactions[txId].perform_time, cancel_time: MemoryTransactions[txId].cancel_time } } };
             case 'CancelTransaction':
-                return { ...baseResult, result: { transaction: { id: data.params?.transaction?.id || 0, create_time: data.params?.transaction?.create_time || Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: Math.floor(Date.now() / 1000), state: 3 } } };
+                if (MemoryTransactions[txId]) {
+                    MemoryTransactions[txId].state = MemoryTransactions[txId].state === 2 ? -2 : -1;
+                    MemoryTransactions[txId].cancel_time = Math.floor(Date.now() / 1000);
+                }
+                else {
+                    MemoryTransactions[txId] = { state: -1, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: Math.floor(Date.now() / 1000) };
+                }
+                return { ...baseResult, result: { transaction: { id: txId, create_time: MemoryTransactions[txId].create_time, perform_time: MemoryTransactions[txId].perform_time, cancel_time: MemoryTransactions[txId].cancel_time, state: MemoryTransactions[txId].state } } };
             default:
                 return { error: { code: -32601, message: 'Method not found' } };
         }

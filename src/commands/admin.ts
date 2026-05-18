@@ -62,13 +62,13 @@ export const adminCommand: BotCommand = {
     const report = `🛡 <b>Admin Boshqaruv Paneli</b>\n\n` +
                    `👥 Jami foydalanuvchilar: <b>${allUsers.length}</b>\n` +
                    `🛠 Rolni o'zgartirish: <code>/promote [ID] [ROL]</code>\n\n` +
-                   `Elite Dashboard orqali to'liq boshqarishingiz mumkin:`;
+                   `mateAssistent Dashboard orqali to'liq boshqarishingiz mumkin:`;
 
     await bot.sendMessage(chatId, report, { 
       parse_mode: 'HTML', 
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🖥 Elite Dashboard (Admin Mode)", web_app: { url: dashboardUrl } }],
+          [{ text: "🖥 mateAssistent Dashboard (Admin Mode)", web_app: { url: dashboardUrl } }],
           [{ text: "📢 Xabar yuborish (Broadcast)", callback_data: "adm_broadcast" }]
         ]
       }

@@ -51,7 +51,8 @@ if (dns_1.default.setDefaultResultOrder) {
     dns_1.default.setDefaultResultOrder('ipv4first');
 }
 async function bootstrap() {
-    logger_1.logger.info("🚀 Bootstrapping Newsroom Bot Ecosystem...");
+    logger_1.logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${require('../package.json').version}`);
+    logger_1.logger.info("🚀 Bootstrapping mateAssistent Bot Ecosystem...");
     // Deploy healthcheck — log which ENV vars are actually present
     logger_1.logger.info("🔧 Deploy env check:", {
         node_version: process.version,

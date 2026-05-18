@@ -858,7 +858,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     if (method === 'stars') {
       const starsPrice = parseInt(await DBService.getSetting('premium_stars_price') || '500');
       const price = isYearly ? starsPrice * 10 : starsPrice;
-      const title = isYearly ? 'Elite Premium (1 Year)' : 'Elite Premium (1 Month)';
+      const title = isYearly ? 'mateAssistent Premium (1 Year)' : 'mateAssistent Premium (1 Month)';
       const invoice = await bot.createInvoiceLink(
         title, 'Premium access for news automation', 
         `premium_sub_${uid}${isYearly ? '_yearly' : ''}`, 

@@ -129,7 +129,7 @@ export async function processArticleInline(userId: number, article: any, sourceL
       content: summary, 
       emoji: emoji || '🔹',
       category: category,
-      source: article.source || 'Newsroom'
+      source: article.source || 'mateAssistent'
     };
 
     await safeSend(user, enrichedArticle);

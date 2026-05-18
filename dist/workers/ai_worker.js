@@ -86,5 +86,5 @@ else {
             logger_1.logger.error(`AI worker error: ${err.message}`);
         }
     });
-    logger_1.logger.info('👷 AI Worker started with Redis connection options (Full Elite Pipeline)');
+    logger_1.logger.info('👷 AI Worker started with Redis connection options (Full mateAssistent Pipeline)');
 }
