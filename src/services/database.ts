@@ -14,6 +14,8 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// In-memory cache to prevent redundant Supabase queries for premium verification
+const premiumCache = new Map<number, { active: boolean; expiresAt: number }>();
 
 export const DBService = {
   // --- USERS ---
@@ -482,21 +484,32 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
 
   // BUG-126 Fix: Add in-memory cache for premium status
   async isPremiumActive(userId: number): Promise<boolean> {
+    const cached = premiumCache.get(userId);
+    const nowTime = Date.now();
+    if (cached && cached.expiresAt > nowTime) {
+      return cached.active;
+    }
+
     const user = await this.getUser(userId);
     if (!user) return false;
 
     const isPremiumFlag = Number(user.is_premium) === 1 || user.is_premium === true;
+    let active = isPremiumFlag;
 
     if (user.premium_until) {
       const expiryDate = new Date(user.premium_until);
-      if (expiryDate > new Date()) return true;
-      if (isPremiumFlag) {
-        await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
+      if (expiryDate > new Date()) {
+        active = true;
+      } else {
+        if (isPremiumFlag) {
+          await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
+        }
+        active = false;
       }
-      return false;
     }
 
-    return isPremiumFlag;
+    premiumCache.set(userId, { active, expiresAt: nowTime + 5 * 60 * 1000 }); // Cache for 5 minutes
+    return active;
   },
 
   // BUG-020 Fix: Now called from main.ts system crons
@@ -565,10 +578,12 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
     await supabase.from('users').update({ is_premium: 1, premium_until: expiresAt.toISOString() }).eq('telegram_id', telegramId);
+    premiumCache.set(telegramId, { active: true, expiresAt: Date.now() + 5 * 60 * 1000 });
   },
 
   async revokePremium(telegramId: number) {
     await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', telegramId);
+    premiumCache.set(telegramId, { active: false, expiresAt: Date.now() + 5 * 60 * 1000 });
   },
 
   async setPrice(type: string, price: number) {
@@ -693,6 +708,9 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
       logger.warn(`updateUserRole warning: ${error.message}`);
       return false;
     }
+    // Invalidate premium cache on role change
+    premiumCache.delete(telegramId);
+
     if (role === 'premium') {
       await this.setPremium(telegramId, 30);
     } else if (role === 'user') {

@@ -1,7 +1,26 @@
 import { logger } from '../utils/logger';
 import { DBService } from './database';
 
-const MemoryTransactions: Record<string, { state: number; create_time: number; perform_time: number; cancel_time: number }> = {};
+interface TxState {
+  state: number;
+  create_time: number;
+  perform_time: number;
+  cancel_time: number;
+}
+
+async function getTx(txId: string): Promise<TxState | null> {
+  try {
+    const raw = await DBService.getSetting(`pay_tx_${txId}`);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return null;
+}
+
+async function saveTx(txId: string, state: TxState) {
+  try {
+    await DBService.setSetting(`pay_tx_${txId}`, JSON.stringify(state));
+  } catch {}
+}
 
 export const PaymentService = {
   // ... (keep generate methods)
@@ -61,37 +80,50 @@ export const PaymentService = {
     switch (method) {
       case 'CheckPerformTransaction':
         return { ...baseResult, result: { allow: true, details: {} } };
-      case 'CreateTransaction':
-        if (!MemoryTransactions[txId]) {
-          MemoryTransactions[txId] = { state: 1, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: 0 };
+      case 'CreateTransaction': {
+        let tx = await getTx(txId);
+        if (!tx) {
+          tx = { state: 1, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: 0 };
+          await saveTx(txId, tx);
         }
-        return { ...baseResult, result: { transaction: { id: txId, create_time: MemoryTransactions[txId].create_time, perform_time: 0, cancel_time: 0, state: MemoryTransactions[txId].state } } };
-      case 'PerformTransaction':
+        return { ...baseResult, result: { transaction: { id: txId, create_time: tx.create_time, perform_time: 0, cancel_time: 0, state: tx.state } } };
+      }
+      case 'PerformTransaction': {
         if (!hasValidUser) return { error: { code: -31050, message: 'Invalid account' } };
-        if (MemoryTransactions[txId] && MemoryTransactions[txId].state === 1) {
-          MemoryTransactions[txId].state = 2;
-          MemoryTransactions[txId].perform_time = Math.floor(Date.now() / 1000);
+        let tx = await getTx(txId);
+        if (tx && tx.state === 1) {
+          tx.state = 2;
+          tx.perform_time = Math.floor(Date.now() / 1000);
+          await saveTx(txId, tx);
           await DBService.setPremium(parsedUserId, 30);
           logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
-        } else if (!MemoryTransactions[txId]) {
-          MemoryTransactions[txId] = { state: 2, create_time: Math.floor(Date.now() / 1000), perform_time: Math.floor(Date.now() / 1000), cancel_time: 0 };
+        } else if (!tx) {
+          tx = { state: 2, create_time: Math.floor(Date.now() / 1000), perform_time: Math.floor(Date.now() / 1000), cancel_time: 0 };
+          await saveTx(txId, tx);
           await DBService.setPremium(parsedUserId, 30);
           logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
         }
-        return { ...baseResult, result: { transaction: { id: txId, create_time: MemoryTransactions[txId].create_time, perform_time: MemoryTransactions[txId].perform_time, cancel_time: 0, state: 2 } } };
-      case 'CheckTransaction':
-        if (!MemoryTransactions[txId]) {
+        return { ...baseResult, result: { transaction: { id: txId, create_time: tx.create_time, perform_time: tx.perform_time, cancel_time: 0, state: 2 } } };
+      }
+      case 'CheckTransaction': {
+        const tx = await getTx(txId);
+        if (!tx) {
           return { error: { code: -31003, message: 'Transaction not found' } };
         }
-        return { ...baseResult, result: { transaction: { id: txId, state: MemoryTransactions[txId].state, create_time: MemoryTransactions[txId].create_time, perform_time: MemoryTransactions[txId].perform_time, cancel_time: MemoryTransactions[txId].cancel_time } } };
-      case 'CancelTransaction':
-        if (MemoryTransactions[txId]) {
-          MemoryTransactions[txId].state = MemoryTransactions[txId].state === 2 ? -2 : -1;
-          MemoryTransactions[txId].cancel_time = Math.floor(Date.now() / 1000);
+        return { ...baseResult, result: { transaction: { id: txId, state: tx.state, create_time: tx.create_time, perform_time: tx.perform_time, cancel_time: tx.cancel_time } } };
+      }
+      case 'CancelTransaction': {
+        let tx = await getTx(txId);
+        if (tx) {
+          tx.state = tx.state === 2 ? -2 : -1;
+          tx.cancel_time = Math.floor(Date.now() / 1000);
+          await saveTx(txId, tx);
         } else {
-          MemoryTransactions[txId] = { state: -1, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: Math.floor(Date.now() / 1000) };
+          tx = { state: -1, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: Math.floor(Date.now() / 1000) };
+          await saveTx(txId, tx);
         }
-        return { ...baseResult, result: { transaction: { id: txId, create_time: MemoryTransactions[txId].create_time, perform_time: MemoryTransactions[txId].perform_time, cancel_time: MemoryTransactions[txId].cancel_time, state: MemoryTransactions[txId].state } } };
+        return { ...baseResult, result: { transaction: { id: txId, create_time: tx.create_time, perform_time: tx.perform_time, cancel_time: tx.cancel_time, state: tx.state } } };
+      }
       default:
         return { error: { code: -32601, message: 'Method not found' } };
     }

@@ -30,6 +30,9 @@ async function withKeyMutex<T>(fn: () => Promise<T>): Promise<T> {
 const groqClients = new Map<string, Groq>();
 const openaiClients = new Map<string, OpenAI>();
 
+// Circuit Breaker for temporarily failed or rate-limited API keys
+const blockedKeys = new Map<string, number>();
+
 /** Bazadan va ENV dan kalitlarni yuklash */
 export async function refreshKeyPool() {
   await withKeyMutex(async () => {
@@ -80,9 +83,16 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
   let idx = 0;
   
   await withKeyMutex(async () => {
-    idx = globalKeyIndex % activeKeys.length;
-    currentKeyObj = activeKeys[idx];
-    globalKeyIndex = (globalKeyIndex + 1) % activeKeys.length;
+    const now = Date.now();
+    const availableKeys = activeKeys.filter(k => {
+      const blockedUntil = blockedKeys.get(k.key);
+      return !blockedUntil || blockedUntil < now;
+    });
+    const poolToUse = availableKeys.length > 0 ? availableKeys : activeKeys;
+
+    idx = globalKeyIndex % poolToUse.length;
+    currentKeyObj = poolToUse[idx];
+    globalKeyIndex = (globalKeyIndex + 1) % poolToUse.length;
   });
 
   try {
@@ -168,6 +178,9 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
   } catch (error) {
     const status = (error as any)?.status ?? (error as any)?.response?.status;
     if (status === 429 || status === 401 || status === 503 || status === 500) {
+      if (currentKeyObj?.key) {
+        blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
+      }
       logger.warn(`[${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
       return getSmartAIResponse(system, user, retryCount + 1);
     }
@@ -206,8 +219,6 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
       let baseURL: string;
       if (type === "cerebras") {
         baseURL = "https://api.cerebras.ai/v1";
-      } else if (type === "openrouter") {
-        baseURL = "https://openrouter.ai/api/v1";
       } else {
         throw new Error(`Unknown API key type: ${type}`);
       }
@@ -509,8 +520,15 @@ async function getSmartAIResponseWithKeys(
     await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
   }
 
-  const idx = retryCount % keys.length;
-  const currentKeyObj = keys[idx];
+  const now = Date.now();
+  const availableKeys = keys.filter(k => {
+    const blockedUntil = blockedKeys.get(k.key);
+    return !blockedUntil || blockedUntil < now;
+  });
+  const poolToUse = availableKeys.length > 0 ? availableKeys : keys;
+
+  const idx = retryCount % poolToUse.length;
+  const currentKeyObj = poolToUse[idx];
 
   try {
     const maxTokens = MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || CONFIG.MAX_TOKENS;
@@ -595,6 +613,9 @@ async function getSmartAIResponseWithKeys(
   } catch (error) {
     const status = (error as any)?.status ?? (error as any)?.response?.status;
     if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
+      if (currentKeyObj?.key) {
+        blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
+      }
       logger.warn(`[SMM ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato (${status}), keyingisi...`);
       return getSmartAIResponseWithKeys(keys, system, user, retryCount + 1);
     }
