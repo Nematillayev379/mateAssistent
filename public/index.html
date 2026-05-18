@@ -731,29 +731,38 @@
             });
         }
 
-        function renderUI() {
-            const u = userData.user || {};
-            const displayName = u.username || u.first_name || u.telegram_id || u.id || 'User';
-            const roleLabel = u.role === 'owner' ? ' 👑 Owner' : (u.role === 'admin' ? ' 🛡 Admin' : '');
-            document.getElementById('user-name').textContent = displayName + roleLabel;
-            if (u.is_premium) document.getElementById('user-premium-badge').style.display = 'flex';
-            if (isAdminUser(u)) {
-                document.getElementById('admin-card').style.display = 'block';
+function renderUI() {
+             const u = userData.user || {};
+             const displayName = u.username || u.first_name || u.telegram_id || u.id || 'User';
+             const roleLabel = u.role === 'owner' ? ' 👑 Owner' : (u.role === 'admin' ? ' 🛡 Admin' : '');
+             document.getElementById('user-name').textContent = displayName + roleLabel;
+             if (u.is_premium) document.getElementById('user-premium-badge').style.display = 'flex';
+             if (isAdminUser(u)) {
+                 document.getElementById('admin-card').style.display = 'block';
+                 // Owner only: show profile tab, navigation already set
+                 if (u.role === 'owner') {
+                     const navProfile = document.getElementById('nav-profile');
+                     if (navProfile) navProfile.style.display = 'flex';
+                 }
 
-                // Also show admin panel in navigation for easier access
-                const adminNav = document.getElementById('nav-admin');
-                if (!adminNav) {
-                    const nav = document.querySelector('.bottom-nav');
-                    const adminNavItem = document.createElement('div');
-                    adminNavItem.className = 'nav-item';
-                    adminNavItem.id = 'nav-admin';
-                    adminNavItem.innerHTML = '<i class="fas fa-shield-alt"></i><span>Admin</span>';
-                    // BUG-2XX Fix: Navigate to admin-users panel instead of profile page
-                    // so admin/owner sees their management tools, not the user profile
-                    adminNavItem.onclick = () => showPage('admin-users');
-                    nav.appendChild(adminNavItem);
-                }
-            }
+                 // Also show admin panel in navigation for easier access
+                 const adminNav = document.getElementById('nav-admin');
+                 if (!adminNav) {
+                     const nav = document.querySelector('.bottom-nav');
+                     const adminNavItem = document.createElement('div');
+                     adminNavItem.className = 'nav-item';
+                     adminNavItem.id = 'nav-admin';
+                     adminNavItem.innerHTML = '<i class="fas fa-shield-alt"></i><span>Admin</span>';
+                     adminNavItem.onclick = () => showPage('admin-users');
+                     nav.appendChild(adminNavItem);
+                 }
+             } else {
+                 // Non-admin: hide profile tab, show only home/content/services/api
+                 const navProfile = document.getElementById('nav-profile');
+                 if (navProfile) navProfile.style.display = 'none';
+                 const navApi = document.getElementById('nav-api');
+                 if (navApi) navApi.style.display = 'none';
+             }
 
             document.getElementById('stat-posts').textContent = userData.stats?.total_posts || 0;
             document.getElementById('stat-dupes').textContent = userData.stats?.total_duplicates || 0;

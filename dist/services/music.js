@@ -323,18 +323,20 @@ exports.MusicService = {
         return results;
     },
     /**
-     * Search YouTube and return video IDs + titles
-     * B-48 Fix: Improved parsing with better error handling and fallbacks
-     */
+        * Search YouTube and return video IDs + titles
+        * B-48 Fix: Improved parsing with better error handling and fallbacks
+        */
     async getYouTubeVideoIds(query, limit = 10) {
         const results = [];
+        // Strategy 1: Direct YouTube scraping with multiple user agents
         try {
             const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query + ' audio music')}&sp=EgIQAQ%253D%253D`;
             const res = await axios_1.default.get(searchUrl, {
                 timeout: 15000,
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept-Language': 'en-US,en;q=0.9'
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
                 }
             });
             const body = res.data;
@@ -343,14 +345,13 @@ exports.MusicService = {
             if (jsonMatch) {
                 try {
                     const data = JSON.parse(jsonMatch[1]);
-                    const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents;
+                    const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents;
                     if (contents) {
                         for (const item of contents) {
                             if (results.length >= limit)
                                 break;
                             const video = item.videoRenderer;
                             if (video?.videoId) {
-                                // B-48 Fix: Sanitize title and ensure it's not empty
                                 const title = video.title?.runs?.[0]?.text?.trim() || query;
                                 if (title) {
                                     results.push({
@@ -371,6 +372,7 @@ exports.MusicService = {
         catch (e) {
             logger_1.logger.warn(`YouTube search error: ${e.message}`);
         }
+        // Strategy 2: Fallback to yt-dlp for video IDs
         if (results.length === 0) {
             const ytdlpResults = await this.searchYouTubeIdsWithYtDlp(query, limit);
             results.push(...ytdlpResults);
