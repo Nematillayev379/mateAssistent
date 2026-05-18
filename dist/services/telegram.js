@@ -143,19 +143,19 @@ function initPolling() {
  * BUG-070 Fix: Validate audio URL
  * BUG-071 Fix: Handle target_channel format
  */
-/** Publish to primary + extra output channels */
 async function safeSendToChannels(user, channels, sendFn) {
-    for (const ch of channels) {
+    // BUG-005 Fix: Use Promise.allSettled to prevent one failure from stopping all sends
+    await Promise.allSettled(channels.map(async (ch) => {
         const normalized = normalizeChannelId(ch);
         if (!normalized)
-            continue;
+            return;
         try {
             await sendFn(normalized);
         }
         catch (e) {
             logger_1.logger.warn(`Multi-channel send failed ${normalized}: ${e.message}`);
         }
-    }
+    }));
 }
 function normalizeChannelId(channel) {
     let targetChannel = String(channel).trim();
@@ -210,13 +210,14 @@ async function safeSend(user, article) {
         }
         const targets = database_1.DBService.getUserOutputChannels(user);
         await safeSendToChannels(user, targets.length ? targets : [user.target_channel], async (targetChannel) => {
-            if (article.videoUrl && (await scraper_1.ScraperService.isValidMedia(article.videoUrl))) {
+            // BUG-003 Fix: Skip isValidMedia HEAD request - Telegram will reject invalid media
+            if (article.videoUrl && scraper_1.ScraperService.isMediaUrl(article.videoUrl)) {
                 await bot_instance_1.bot.sendVideo(targetChannel, article.videoUrl, { caption, parse_mode: "HTML" });
             }
-            else if (article.audioUrl && (await scraper_1.ScraperService.isValidMedia(article.audioUrl))) {
+            else if (article.audioUrl && scraper_1.ScraperService.isMediaUrl(article.audioUrl)) {
                 await bot_instance_1.bot.sendAudio(targetChannel, article.audioUrl, { caption, parse_mode: "HTML" });
             }
-            else if (article.imageUrl && (await scraper_1.ScraperService.isValidMedia(article.imageUrl))) {
+            else if (article.imageUrl && scraper_1.ScraperService.isMediaUrl(article.imageUrl)) {
                 await bot_instance_1.bot.sendPhoto(targetChannel, article.imageUrl, { caption, parse_mode: "HTML" });
             }
             else {

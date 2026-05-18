@@ -4,8 +4,7 @@ exports.trackCommand = void 0;
 const database_1 = require("../services/database");
 const scraper_1 = require("../services/scraper");
 exports.trackCommand = {
-    // BUG-091 Fix: Require leading slash to prevent overlap
-    pattern: /\/track\s*(.*)|\/kuzatish\s*(.*)|\/manba\s*(.*)/i,
+    pattern: /^\/track\s*(.*)|\/kuzatish\s*(.*)|\/manba\s*(.*)$/i,
     description: '🔔 Narx kuzatish',
     handler: async (bot, msg, match) => {
         const chatId = msg.chat.id;

@@ -291,7 +291,7 @@ exports.DBService = {
         const { data, error } = await supabase.from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
         if (error)
             logger_1.logger.error(`getRecentNewsTitles error: ${error.message}`);
-        return (data || []).map((r) => r.title).filter(Boolean);
+        return (data || []).map((r) => r?.title).filter(Boolean);
     },
     async saveTrendsSnapshot(topics, summary) {
         await supabase.from('trends_snapshots').insert({ topics, summary });
@@ -422,23 +422,26 @@ exports.DBService = {
         const needed = 10 - (active % 10);
         return { total, active, needed };
     },
-    // BUG-021 Fix: Collision check for referral code
+    // BUG-021 Fix: Collision check for referral code - fallback to unique suffix
     async ensureReferralCode(userId) {
         const user = await this.getUser(userId);
         if (user?.referral_code)
             return user.referral_code;
         let code;
         let attempts = 0;
+        const maxAttempts = 100;
         do {
             code = crypto_1.default.randomBytes(6).toString('hex').toUpperCase().slice(0, 8);
             const existing = await this.getUserByReferralCode(code);
             if (!existing)
                 break;
             attempts++;
-        } while (attempts < 10);
-        // BUG-015 Fix: Ensure code exists
-        if (attempts >= 10)
-            throw new Error("Referral code generation failed due to collisions");
+        } while (attempts < maxAttempts);
+        // BUG-015 Fix: Fallback to userId-based unique code instead of throwing
+        if (attempts >= maxAttempts) {
+            const fallbackCode = `${userId.toString(36).toUpperCase().slice(-4)}${code.slice(-4)}`;
+            code = fallbackCode;
+        }
         await supabase.from('users').update({ referral_code: code }).eq('telegram_id', userId);
         return code;
     },

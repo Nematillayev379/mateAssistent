@@ -25,10 +25,12 @@ services:
       - key: GEMINI_KEYS
         sync: false
       - key: DASHBOARD_SECRET
-        # REQUIRED: Set this manually in Render Dashboard → Environment
-        # Generate with: openssl rand -hex 32
-        # This is the master secret for your admin dashboard links
-        sync: false
+        # IMPORTANT: Paste your actual DASHBOARD_SECRET here before deploying
+        # Generate on your local machine:
+        #   Linux/Mac:  openssl rand -hex 32
+        #   Windows:    [Guid]::NewGuid().ToString('N')
+        # The value below is a placeholder — REPLACE IT with your own secret
+        value: "CHANGE_ME_DASHBOARD_SECRET_REPLACE_WITH_RANDOM_HEX_STRING"
       - key: TELEGRAM_CHANNEL_ID
         sync: false
       - key: REDIS_URL

@@ -159,6 +159,8 @@ async function downloadYouTube(urlParam, typeParam) {
         throw new Error('Invalid URL');
     const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
+    let ytdlpFailed = false;
+    // BUG-XXX Fix: Capture stderr from yt-dlp to diagnose binary/execution issues on Windows
     if (ytdlpPath) {
         try {
             const { spawn } = await Promise.resolve().then(() => __importStar(require('child_process')));
@@ -195,15 +197,23 @@ async function downloadYouTube(urlParam, typeParam) {
                     '--socket-timeout',
                     '30',
                 ];
+            let stderrOutput = '';
             await new Promise((resolve, reject) => {
-                const proc = spawn(ytdlpPath, args, { stdio: 'ignore' });
+                const proc = spawn(ytdlpPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+                proc.stderr.on('data', (d) => { stderrOutput += d.toString(); });
                 const timer = setTimeout(() => {
                     proc.kill('SIGKILL');
-                    reject(new Error('Download timeout'));
+                    reject(new Error('Download timeout (3 min)'));
                 }, 180000);
                 proc.on('close', (code) => {
                     clearTimeout(timer);
-                    code === 0 ? resolve() : reject(new Error(`yt-dlp exited with code ${code}`));
+                    if (code === 0)
+                        return resolve();
+                    // BUG-XXX Fix: Include stderr in error to help diagnose yt-dlp binary issues
+                    const errMsg = stderrOutput
+                        ? `yt-dlp exited with code ${code}: ${stderrOutput.slice(0, 200)}`
+                        : `yt-dlp exited with code ${code}`;
+                    reject(new Error(errMsg));
                 });
                 proc.on('error', (err) => {
                     clearTimeout(timer);
@@ -219,9 +229,12 @@ async function downloadYouTube(urlParam, typeParam) {
             }
         }
         catch (e) {
-            logger_1.logger.warn(`yt-dlp failed: ${e.message}`);
+            ytdlpFailed = true;
+            // BUG-XXX Fix: Log full error including stderr to aid debugging
+            logger_1.logger.warn(`yt-dlp strategy failed (${e.message.slice(0, 300)}). Trying Cobalt…`);
         }
     }
+    // Only attempt Cobalt as fallback if yt-dlp is absent or failed
     try {
         const { DownloaderService } = await Promise.resolve().then(() => __importStar(require('./downloader')));
         const cobaltUrl = await DownloaderService.getCobaltMedia(safeUrl, {
@@ -242,7 +255,8 @@ async function downloadYouTube(urlParam, typeParam) {
         }
     }
     catch (e) {
-        logger_1.logger.warn(`Cobalt fallback failed: ${e.message}`);
+        const reason = ytdlpFailed ? `yt-dlp ham ishlamadi (${e.message.slice(0, 100)})` : '';
+        logger_1.logger.warn(`Cobalt fallback failed: ${reason}`);
     }
-    throw new Error('Yuklash muvaffaqiyatsiz. yt-dlp yoki Cobalt ishlamadi.');
+    throw new Error('Yuklash muvaffaqiyatsiz. yt-dlp yoki Cobalt ishlamadi. Keyinroq urinib ko‘ring yoki buni muvofiq qiling.');
 }

@@ -45,6 +45,7 @@ const i18n_1 = require("../services/i18n");
 const config_1 = require("../config/config");
 const scraper_1 = require("../services/scraper");
 const bot_instance_1 = require("../services/bot_instance");
+const payment_1 = require("../services/payment");
 exports.commands = [
     start_1.startCommand,
     status_1.statusCommand,
@@ -393,13 +394,24 @@ function registerCommands(bot) {
                 await bot.sendMessage(chatId, `🎁 <b>Referral Tizimi</b>\n\n🔗 Sizning havolangiz:\n<code>${refLink}</code>\n\n👥 Jami: ${refStats.total}\n✅ Aktiv: ${refStats.active}\n⏳ Premiumgacha: ${refStats.needed} ta qoldi`, { parse_mode: 'HTML' });
             }
             else if (data === 'buy_premium') {
-                // BUG-077 Fix: Handle buy_premium callback
-                const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}`;
-                await bot.sendMessage(chatId, "💎 <b>Premium Rejalar</b>\n\nDashboard orqali premium sotib oling.", {
+                // BUG-157 Fix: Show prices directly in bot with Payme/Click options
+                const monthlyPrice = await database_1.DBService.getPrice('monthly');
+                const yearlyPrice = await database_1.DBService.getPrice('yearly');
+                const paymeLink = payment_1.PaymentService.generatePaymeLink(chatId, monthlyPrice);
+                const clickLink = payment_1.PaymentService.generateClickLink(chatId, monthlyPrice);
+                const text = `💎 <b>Premium Rejalar</b>\n\n` +
+                    `🗓 <b>Oylik</b>: ${monthlyPrice.toLocaleString()} UZS\n` +
+                    `📅 <b>Yillik</b>: ${yearlyPrice.toLocaleString()} UZS\n\n` +
+                    `💳 To'lov usulini tanlang:`;
+                const inline_keyboard = [
+                    [{ text: `💳 Payme (${monthlyPrice.toLocaleString()} UZS)`, url: paymeLink || 'https://payme.uz' }],
+                    [{ text: `💰 Click (${monthlyPrice.toLocaleString()} UZS)`, url: clickLink || 'https://click.uz' }],
+                    [{ text: "🖥 Dashboard orqali", callback_data: 'cmd_settings' }],
+                    [{ text: "🔙 Orqaga", callback_data: 'cmd_settings' }]
+                ];
+                await bot.sendMessage(chatId, text, {
                     parse_mode: 'HTML',
-                    reply_markup: {
-                        inline_keyboard: [[{ text: "🖥 Dashboard", web_app: { url: dashboardUrl } }]]
-                    }
+                    reply_markup: { inline_keyboard }
                 });
             }
             else if (data === 'cmd_admin') {

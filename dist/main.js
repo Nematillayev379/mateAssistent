@@ -45,6 +45,7 @@ const rss_cron_1 = require("./crons/rss_cron");
 const node_cron_1 = __importDefault(require("node-cron"));
 const axios_1 = __importDefault(require("axios"));
 const dns_1 = __importDefault(require("dns"));
+const ytdlp_1 = require("./utils/ytdlp");
 // Fix for Render/Node18+ AggregateError (forces IPv4)
 if (dns_1.default.setDefaultResultOrder) {
     dns_1.default.setDefaultResultOrder('ipv4first');
@@ -72,6 +73,19 @@ async function bootstrap() {
         });
         if (keyStats.total === 0) {
             logger_1.logger.warn('⚠️  AI KEY POOL BO\'SH! Render .env: GROQ_KEYS=key1,key2,key3 formatida tekshiring.');
+        }
+        // BUG-XXX Fix: Verify yt-dlp binary at startup to surface Windows/permission issues early
+        try {
+            const ytDlpBinary = await (0, ytdlp_1.resolveYtDlpPath)();
+            if (ytDlpBinary) {
+                logger_1.logger.info(`✅ yt-dlp topildi: ${ytDlpBinary}`);
+            }
+            else {
+                logger_1.logger.warn('⚠️  yt-dlp EXECUTABLE topilmadi! Musiqa va video yuklash Cobalt API orqali ishlaydi. yt-dlp.exe ni loyiha ildiziga qo\'shing.');
+            }
+        }
+        catch (e) {
+            logger_1.logger.warn(`⚠️  yt-dlp tekshirishda xatolik: ${e.message}`);
         }
         // 1. Start Dashboard
         // B-31 Fix: Parse PORT as integer

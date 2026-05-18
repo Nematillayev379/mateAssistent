@@ -776,7 +776,7 @@ function startDashboardServer(port, _bot) {
     app.post('/api/settings/:userId/extended', checkAuth, async (req, res) => {
         const { language, target_channel, keywords, daily_digest, digest_time, schedule_times } = req.body;
         await database_1.DBService.updateUser(parseInt(req.authenticatedUserId), { language, target_channel, daily_digest, digest_time, schedule_times });
-        if (keywords)
+        if (keywords !== undefined)
             await database_1.DBService.setKeywords(parseInt(req.authenticatedUserId), keywords);
         res.json({ success: true });
     });
