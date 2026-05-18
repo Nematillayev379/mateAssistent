@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import * as path from "path";
 import * as crypto from "crypto";
 
-dotenv.config();
+dotenv.config({ override: false }); // Kubernetes/Render env-vars win over local .env
 
 // BUG-001 Fix: Provider-based max token limits
 export const MAX_TOKENS_BY_PROVIDER: Record<string, number> = {

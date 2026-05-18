@@ -3,12 +3,12 @@ services:
     name: uzbekistan-news-bot-nematillayev
     env: node
     plan: free
-    buildCommand: npm install && chmod +x yt-dlp 2>/dev/null || true && npm run build
+    buildCommand: rm -rf dist && npm ci && npm run build
     startCommand: node dist/main.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: TELEGRAM_BOT_TOKEN
+      - key: TELEGRAM_TOKEN
         sync: false
       - key: OWNER_ID
         value: "8566566223"
@@ -30,11 +30,11 @@ services:
         #   Linux/Mac:  openssl rand -hex 32
         #   Windows:    [Guid]::NewGuid().ToString('N')
         # The value below is a placeholder — REPLACE IT with your own secret
-        value: "CHANGE_ME_DASHBOARD_SECRET_REPLACE_WITH_RANDOM_HEX_STRING"
+        sync: false
       - key: TELEGRAM_CHANNEL_ID
         sync: false
       - key: REDIS_URL
         value: ""
       - key: PUBLIC_URL
-        value: https://uzbekistan-news-bot-nematillayev.onrender.com
+        value: https://uzbekistan-news-bot.onrender.com
     region: oregon

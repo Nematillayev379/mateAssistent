@@ -40,7 +40,7 @@ exports.countKeysByProvider = countKeysByProvider;
 exports.getEnvKeySourceReport = getEnvKeySourceReport;
 const dotenv = __importStar(require("dotenv"));
 const path = __importStar(require("path"));
-dotenv.config();
+dotenv.config({ override: false }); // Kubernetes/Render env-vars win over local .env
 // BUG-001 Fix: Provider-based max token limits
 exports.MAX_TOKENS_BY_PROVIDER = {
     groq: 1500, // Groq models have smaller context limits

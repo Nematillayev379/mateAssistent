@@ -52,6 +52,24 @@ if (dns_1.default.setDefaultResultOrder) {
 }
 async function bootstrap() {
     logger_1.logger.info("🚀 Bootstrapping Newsroom Bot Ecosystem...");
+    // Deploy healthcheck — log which ENV vars are actually present
+    logger_1.logger.info("🔧 Deploy env check:", {
+        node_version: process.version,
+        cwd: process.cwd(),
+        NODE_ENV: process.env.NODE_ENV || "(unset)",
+        PORT: process.env.PORT || "(unset)",
+        TELEGRAM_TOKEN_set: !!process.env.TELEGRAM_TOKEN,
+        TELEGRAM_BOT_TOKEN_set: !!process.env.TELEGRAM_BOT_TOKEN,
+        OWNER_ID: process.env.OWNER_ID || "(unset)",
+        SUPABASE_URL: !!process.env.SUPABASE_URL,
+        PUBLIC_URL: process.env.PUBLIC_URL || "(unset)",
+        TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID || "(unset)",
+        GROQ_KEYS_count: (process.env.GROQ_KEYS?.split(',') ?? []).filter(Boolean).length,
+        GEMINI_KEYS_set: !!process.env.GEMINI_KEYS,
+        CEREBRAS_KEYS_set: !!process.env.CEREBRAS_KEYS,
+        OPENROUTER_KEYS_set: !!process.env.OPENROUTER_KEYS,
+        REDIS_URL_set: !!process.env.REDIS_URL,
+    });
     // B-08 Fix: Validate TELEGRAM_BOT_TOKEN on startup
     if (!config_1.CONFIG.TELEGRAM_TOKEN) {
         logger_1.logger.error('❌ TELEGRAM_BOT_TOKEN must be set in environment variables!');
