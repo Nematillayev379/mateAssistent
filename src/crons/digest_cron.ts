@@ -9,20 +9,21 @@ export async function processDailyDigests() {
 
   try {
     const users = await DBService.getUsersWithDigest();
-    // BUG-033 Fix: Use local timezone for 'today' date string to match now.getHours()
-    const offsetMs = now.getTimezoneOffset() * 60000;
-    const localNow = new Date(now.getTime() - offsetMs);
-    const today = localNow.toISOString().split('T')[0];
+    // BUG-033/BUG-H01 Fix: Use Uzbekistan Time (UTC+5) for 'today' and time comparisons
+    const uzbNow = new Date(now.getTime() + (5 * 60 * 60 * 1000));
+    const today = uzbNow.toISOString().split('T')[0];
 
     for (const user of users) {
       if (!user.digest_time) continue;
       
       const [targetH, targetM] = user.digest_time.split(':').map(Number);
       const targetTotal = targetH * 60 + targetM;
-      const currentTotal = now.getHours() * 60 + now.getMinutes();
+      const currentTotal = uzbNow.getUTCHours() * 60 + uzbNow.getUTCMinutes();
       
-      // BUG-033 Fix: Only send if within 60 minutes of target time to avoid late-night re-sends on restart
-      const timeDiff = currentTotal - targetTotal;
+      // BUG-033 Fix: Only send if within 60 minutes of target time
+      let timeDiff = currentTotal - targetTotal;
+      // Handle cross-midnight comparison
+      if (timeDiff < 0) timeDiff += 1440;
       if (timeDiff >= 0 && timeDiff < 60 && user.digest_last_sent !== today) {
         logger.info(`✨ Sending daily digest to user ${user.telegram_id}`);
         // BUG-138 Fix: Always update digest_last_sent even if it fails, to avoid infinite retry loops

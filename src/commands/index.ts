@@ -169,6 +169,7 @@ export function registerCommands(bot: TelegramBot) {
         try {
           await bot.sendMessage(u.telegram_id, text, { parse_mode: 'HTML' });
           count++;
+          await new Promise(resolve => setTimeout(resolve, 50));
         } catch {}
       }
       await bot.sendMessage(chatId, `✅ <b>Broadcast yakunlandi!</b>\n\nJami: ${count} ta foydalanuvchiga yuborildi.`, { parse_mode: 'HTML' });
