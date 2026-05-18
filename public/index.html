@@ -544,8 +544,8 @@
 
         function apiFetch(resource, options = {}) {
             const headers = {
-                ...(options.headers || {}),
-                'x-bot-token': token
+                'x-bot-token': token,
+                ...(options.headers || {})
             };
             if (userId) headers['x-user-id'] = userId;
             return fetch(resource, { ...options, headers });
