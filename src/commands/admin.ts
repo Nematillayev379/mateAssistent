@@ -57,7 +57,7 @@ export const adminCommand: BotCommand = {
     // Default Admin View
     const allUsers = await DBService.getAllUsers();
     // BUG-090 Fix: Include token in dashboard URL
-    const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}`;
+    const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
 
     const report = `🛡 <b>Admin Boshqaruv Paneli</b>\n\n` +
                    `👥 Jami foydalanuvchilar: <b>${allUsers.length}</b>\n` +

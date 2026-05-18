@@ -18,7 +18,7 @@ async function sendWelcomeMenu(
     user: "🗞 <b>Newsroom Botga xush kelibsiz!</b>\n\nYangiliklarni avtomatik kanalingizga joylab boring."
   }[role as 'owner' | 'admin' | 'premium' | 'user'] || "👋 Salom!";
 
-  const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}`;
+  const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
   const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [
     [{ text: "🖥 Elite Dashboard", web_app: { url: dashboardUrl } }],
     [{ text: "⚙️ Sozlamalar", callback_data: 'cmd_settings' }, { text: "📊 Statistika", callback_data: 'cmd_stats' }],
@@ -87,7 +87,7 @@ export const startCommand: BotCommand = {
     }
 
     const isStaff = isOwner || role === 'owner' || role === 'admin';
-    const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}`;
+    const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
 
     if (!user.target_channel) {
        if (!user.has_seen_lang) {

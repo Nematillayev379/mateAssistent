@@ -283,7 +283,7 @@ export function registerCommands(bot: TelegramBot) {
         if (!user?.target_channel) {
           await bot.sendMessage(chatId, "✅ Til saqlandi!\n\nEndi kanal nomini @belgisi bilan yuboring.\nMasalan: @kanalingiz", { parse_mode: 'HTML' });
         } else {
-          const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}`;
+          const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
           await bot.sendMessage(chatId, "✅ Til saqlandi! Dashboardga o'tish uchun quyidagi tugmani bosing:", {
             parse_mode: 'HTML',
             reply_markup: {
@@ -359,7 +359,7 @@ export function registerCommands(bot: TelegramBot) {
         userStates.delete(chatId);
         await bot.deleteMessage(chatId, query.message!.message_id);
       } else if (data === 'cmd_settings') {
-        const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}`;
+        const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
         await bot.sendMessage(chatId, "⚙️ <b>Sozlamalar paneli</b>\n\nDashboard orqali barcha sozlamalarni o'zgartirishingiz mumkin.", {
           parse_mode: 'HTML',
           reply_markup: {
