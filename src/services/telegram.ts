@@ -35,10 +35,11 @@ export async function startBot() {
   // Setup Bot Commands Menu
   try {
     await bot.setMyCommands([
-      { command: 'start', description: '🏠 Boshlash' },
-      { command: 'status', description: '📊 Statistika' },
-      { command: 'track',  description: '🔔 Narx kuzatish' },
-      { command: 'help',  description: '📚 Yordam' },
+      { command: 'start', description: '🏠 Boshlash / Main Menu' },
+      { command: 'status', description: '📊 Statistika / Stats' },
+      { command: 'setchannel', description: '📢 Kanalni sozlash / Change channel' },
+      { command: 'track',  description: '🔔 Narx kuzatish / Price tracking' },
+      { command: 'help',  description: 'ℹ️ Yordam / Help Guide' },
     ]);
   } catch (e: any) {
     logger.warn(`⚠️ setMyCommands error: ${e.message}`);

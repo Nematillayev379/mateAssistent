@@ -3,6 +3,8 @@ import { startCommand } from "./start";
 import { statusCommand } from "./status";
 import { trackCommand } from "./track";
 import { adminCommand } from "./admin";
+import { setChannelCommand } from "./setchannel";
+import { helpCommand } from "./help";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
@@ -17,6 +19,8 @@ export const commands: BotCommand[] = [
   statusCommand,
   trackCommand,
   adminCommand,
+  setChannelCommand,
+  helpCommand,
 ];
 
 // BUG-072 Fix: Proper type for userStates
@@ -91,26 +95,42 @@ export function registerCommands(bot: TelegramBot) {
     const user = await DBService.getUser(chatId);
     const lang = user?.language || 'uz';
 
-    // A. Onboarding: Capture Target Channel
-    if (!user?.target_channel && (text.startsWith('@') || text.startsWith('-100'))) {
-       try {
-         const chat = await bot.getChat(text);
-         const botInfo = await getBotInfo();
-         const member = await bot.getChatMember(chat.id, botInfo.id);
-         if (member.status === 'administrator' || member.status === 'creator') {
-            await DBService.updateUser(chatId, { target_channel: text });
-            
-            await DBService.checkAndMarkReferralActive(chatId);
-            
-            await bot.sendMessage(chatId, "✅ " + i18n.t('onboarding_success', { lng: lang }));
-            return;
-         } else {
-            await bot.sendMessage(chatId, "❌ Bot ushbu kanalda administrator emas! Iltimos, botni admin qilib qaytadan urinib ko'ring.");
-            return;
+    // A. Onboarding: Capture Target Channel with auto-normalization for usernames and links
+    if (!user?.target_channel) {
+       let targetText = text.trim();
+       
+       // Normalize t.me/mychannel links
+       if (targetText.includes("t.me/")) {
+         const parts = targetText.split("t.me/");
+         const handle = parts[parts.length - 1].split("/")[0].trim();
+         if (handle) targetText = "@" + handle;
+       }
+
+       // Normalize clean channel names without prefix (e.g. mychannel -> @mychannel)
+       if (!targetText.startsWith('@') && !targetText.startsWith('-100') && /^[a-zA-Z0-9_]{5,32}$/.test(targetText)) {
+         targetText = "@" + targetText;
+       }
+
+       if (targetText.startsWith('@') || targetText.startsWith('-100')) {
+         try {
+           const chat = await bot.getChat(targetText);
+           const botInfo = await getBotInfo();
+           const member = await bot.getChatMember(chat.id, botInfo.id);
+           if (member.status === 'administrator' || member.status === 'creator') {
+              await DBService.updateUser(chatId, { target_channel: targetText });
+              
+              await DBService.checkAndMarkReferralActive(chatId);
+              
+              await bot.sendMessage(chatId, "✅ " + i18n.t('onboarding_success', { lng: lang }));
+              return;
+           } else {
+              await bot.sendMessage(chatId, "❌ Bot ushbu kanalda administrator emas! Iltimos, botni admin qilib qaytadan urinib ko'ring.");
+              return;
+           }
+         } catch (e) {
+           await bot.sendMessage(chatId, i18n.t('err_invalid_channel', { lng: lang }));
+           return;
          }
-       } catch (e) {
-         await bot.sendMessage(chatId, i18n.t('err_invalid_channel', { lng: lang }));
-         return;
        }
     }
 
