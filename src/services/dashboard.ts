@@ -295,6 +295,36 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   // --- ADMIN ENDPOINTS ---
+  app.get('/api/admin/users', checkAdmin, async (req, res) => {
+    const users = await DBService.getAllUsers();
+    // Add additional info like source counts for the dashboard
+    for (const u of users) {
+      u.sources = await DBService.getUserSources(u.telegram_id);
+    }
+    res.json(users);
+  });
+
+  app.get('/api/admin/sources', checkAdmin, async (req, res) => {
+    res.json(await DBService.getAllSources());
+  });
+
+  app.post('/api/admin/settings', checkAdmin, async (req, res) => {
+    const { premium_stars_price, price_monthly, price_yearly } = req.body;
+    if (premium_stars_price) await DBService.setSetting('premium_stars_price', String(premium_stars_price));
+    if (price_monthly) await DBService.setPrice('monthly', Number(price_monthly));
+    if (price_yearly) await DBService.setPrice('yearly', Number(price_yearly));
+    res.json({ success: true });
+  });
+
+  app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req, res) => {
+    const role = req.body.role;
+    if (!['owner', 'admin', 'user', 'premium'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+    await DBService.updateUserRole(parseInt(req.params.telegramId), role);
+    res.json({ success: true });
+  });
+
   app.get('/api/admin/prices', checkAdmin, async (req, res) => res.json({
     monthly: await DBService.getPrice('monthly'),
     yearly: await DBService.getPrice('yearly'),

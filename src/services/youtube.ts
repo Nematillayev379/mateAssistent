@@ -166,6 +166,15 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
               '30',
             ];
 
+      let ffmpegPath = '';
+      try {
+        ffmpegPath = require('ffmpeg-static') || '';
+      } catch (e) {}
+
+      if (ffmpegPath) {
+        args.push('--ffmpeg-location', ffmpegPath);
+      }
+
       let stderrOutput = '';
       await new Promise<void>((resolve, reject) => {
         const proc = spawn(ytdlpPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
