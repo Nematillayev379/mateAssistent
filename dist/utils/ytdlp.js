@@ -12,6 +12,35 @@ const child_process_1 = require("child_process");
 const execPromise = (0, util_1.promisify)(child_process_1.exec);
 let cachedYtDlpPath = null;
 let ytDlpChecked = false;
+const https_1 = __importDefault(require("https"));
+function downloadFile(url, destination) {
+    return new Promise((resolve, reject) => {
+        const file = fs_1.default.createWriteStream(destination);
+        function performGet(currentUrl) {
+            https_1.default.get(currentUrl, (response) => {
+                if (response.statusCode === 302 || response.statusCode === 301) {
+                    performGet(response.headers.location);
+                }
+                else if (response.statusCode === 200) {
+                    response.pipe(file);
+                    file.on('finish', () => {
+                        file.close();
+                        resolve();
+                    });
+                }
+                else {
+                    reject(new Error(`Failed to download: ${response.statusCode}`));
+                }
+            }).on('error', (err) => {
+                file.close();
+                if (fs_1.default.existsSync(destination))
+                    fs_1.default.unlinkSync(destination);
+                reject(err);
+            });
+        }
+        performGet(url);
+    });
+}
 /** Resolve yt-dlp binary (Render/Linux, Docker, Windows, postinstall). */
 async function resolveYtDlpPath() {
     if (ytDlpChecked)
@@ -42,6 +71,27 @@ async function resolveYtDlpPath() {
         }
         catch {
             /* try next */
+        }
+    }
+    // Self-healing fallback: Download Python zipapp version if all else fails
+    if (!cachedYtDlpPath && process.platform !== 'win32') {
+        try {
+            const fallbackPath = path_1.default.join(process.cwd(), 'yt-dlp-python');
+            if (!fs_1.default.existsSync(fallbackPath)) {
+                await downloadFile('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp', fallbackPath);
+                fs_1.default.chmodSync(fallbackPath, '755');
+            }
+            try {
+                await execPromise(`python3 "${fallbackPath}" --version`, { timeout: 10000 });
+                cachedYtDlpPath = `python3 "${fallbackPath}"`;
+            }
+            catch {
+                await execPromise(`"${fallbackPath}" --version`, { timeout: 10000 });
+                cachedYtDlpPath = fallbackPath;
+            }
+        }
+        catch {
+            // Ignored
         }
     }
     ytDlpChecked = true;

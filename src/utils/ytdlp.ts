@@ -8,6 +8,34 @@ const execPromise = promisify(exec);
 let cachedYtDlpPath: string | null = null;
 let ytDlpChecked = false;
 
+import https from 'https';
+
+function downloadFile(url: string, destination: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(destination);
+    function performGet(currentUrl: string) {
+      https.get(currentUrl, (response) => {
+        if (response.statusCode === 302 || response.statusCode === 301) {
+          performGet(response.headers.location as string);
+        } else if (response.statusCode === 200) {
+          response.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            resolve();
+          });
+        } else {
+          reject(new Error(`Failed to download: ${response.statusCode}`));
+        }
+      }).on('error', (err) => {
+        file.close();
+        if (fs.existsSync(destination)) fs.unlinkSync(destination);
+        reject(err);
+      });
+    }
+    performGet(url);
+  });
+}
+
 /** Resolve yt-dlp binary (Render/Linux, Docker, Windows, postinstall). */
 export async function resolveYtDlpPath(): Promise<string | null> {
   if (ytDlpChecked) return cachedYtDlpPath;
@@ -37,6 +65,27 @@ export async function resolveYtDlpPath(): Promise<string | null> {
       }
     } catch {
       /* try next */
+    }
+  }
+
+  // Self-healing fallback: Download Python zipapp version if all else fails
+  if (!cachedYtDlpPath && process.platform !== 'win32') {
+    try {
+      const fallbackPath = path.join(process.cwd(), 'yt-dlp-python');
+      if (!fs.existsSync(fallbackPath)) {
+        await downloadFile('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp', fallbackPath);
+        fs.chmodSync(fallbackPath, '755');
+      }
+      
+      try {
+        await execPromise(`python3 "${fallbackPath}" --version`, { timeout: 10000 });
+        cachedYtDlpPath = `python3 "${fallbackPath}"`;
+      } catch {
+        await execPromise(`"${fallbackPath}" --version`, { timeout: 10000 });
+        cachedYtDlpPath = fallbackPath;
+      }
+    } catch {
+      // Ignored
     }
   }
 
