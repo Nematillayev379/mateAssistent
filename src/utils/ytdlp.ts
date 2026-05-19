@@ -26,6 +26,11 @@ export async function resolveYtDlpPath(): Promise<string | null> {
     try {
       const cmd = p.includes(' ') || p.includes('\\') ? `"${p}"` : p;
       if (p === 'yt-dlp' || fs.existsSync(p)) {
+        if (process.platform !== 'win32' && p !== 'yt-dlp') {
+          try {
+            fs.chmodSync(p, '755');
+          } catch {}
+        }
         await execPromise(`${cmd} --version`, { timeout: 8000 });
         cachedYtDlpPath = p;
         break;
