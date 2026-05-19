@@ -650,7 +650,18 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
       return true;
     }
     const isPremium = await this.isPremiumActive(userId);
-    if (isPremium) return true;
+    if (isPremium) {
+       if (limitType === 'sources') {
+         const sources = await this.getUserSources(userId);
+         return sources.length < 10;
+       }
+       if (limitType === 'channels') {
+         return true; // unlimited for premium
+       }
+       if (limitType === 'scheduled') {
+         return true; // unlimited for premium
+       }
+    }
 
     if (limitType === 'sources') {
       const sources = await this.getUserSources(userId);

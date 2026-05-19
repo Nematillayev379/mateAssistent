@@ -34,7 +34,13 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     next();
   });
   // B-20 Fix: Use process.cwd() instead of __dirname for tsx compatibility
-  app.use(express.static(path.join(process.cwd(), 'public')));
+  app.use(express.static(path.join(process.cwd(), 'public'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
+    }
+  }));
 
   // BUG-154 Fix: Rate limiting on API endpoints
   const apiLimiter = rateLimit({
@@ -51,7 +57,14 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   // Extra rate limit for AI endpoint
   const aiLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 10,
+    max: async (req: any) => {
+      const userId = req.headers['x-user-id'] || req.query.userId || req.query.user || req.body?.userId;
+      if (userId) {
+        const isPremium = await DBService.isPremiumActive(parseInt(userId as string));
+        return isPremium ? 30 : 10;
+      }
+      return 10;
+    },
     message: { error: 'AI request limit exceeded.' }
   });
 
@@ -256,9 +269,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const user = await DBService.getUser(uid);
     if (!user) return res.status(404).json({ error: 'Not found' });
     const sources = await DBService.getUserSources(uid);
-    // BUG-058 Fix: Include admin role in limit calculation
-    const limit = (user.role === 'owner' || user.role === 'admin') ? 999 : (user.is_premium ? 3 : 1) + Math.min(await DBService.getUserApiKeyCount(uid), 3);
-    if (sources.length >= limit) return res.status(403).json({ error: 'Limit reached' });
+    if (!(await DBService.checkUserLimit(uid, 'sources'))) return res.status(403).json({ error: 'Limit reached' });
     await DBService.addSource(uid, name, discovered, lang || 'uz');
     res.json({ success: true });
   });
@@ -850,6 +861,27 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   // BUG-061 Fix: Use DB prices instead of hardcoded
+  app.get('/api/premium-info', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId as string);
+    const priceMonthly = await DBService.getPrice('monthly');
+    const priceYearly = await DBService.getPrice('yearly');
+    const isActive = await DBService.isPremiumActive(uid);
+    let expiresAt = null;
+    if (isActive) {
+      const user = await DBService.getUser(uid);
+      expiresAt = user?.premium_until;
+    }
+    const benefits = [
+      '10 ta RSS manba',
+      'Cheksiz kanal monitoring',
+      'Cheksiz schedule post',
+      'AI prioritet (30/min)',
+      'Kunlik digest',
+      'Premium badge va oltin tema'
+    ];
+    res.json({ monthlyPrice: priceMonthly, yearlyPrice: priceYearly, isActive, expiresAt, benefits });
+  });
+
   app.post('/api/premium/buy', checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId as string);
     const { method, plan } = req.body;

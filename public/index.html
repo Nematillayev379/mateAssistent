@@ -775,6 +775,9 @@ function renderUI() {
             document.getElementById('set-channel').value = u.target_channel || '';
             document.getElementById('set-lang').value = u.language || 'uz';
 
+            const homeTarget = document.getElementById('home-target-channel');
+            if (homeTarget) homeTarget.textContent = u.target_channel || 'Sozlanmagan ⚠️';
+
             // UI-5 Fix: Display full user info - connected RSS and channel
             const userInfo = document.getElementById('user-info') || document.createElement('div');
             userInfo.id = 'user-info';
@@ -820,6 +823,26 @@ function renderUI() {
             const r = await apiFetch(`/api/sources/${userId}`, { headers: { 'x-bot-token': token } });
             const data = await r.json();
             document.getElementById('stat-sources').textContent = data.length || 0;
+            
+            // Home page sources
+            const homeSourcesList = document.getElementById('home-sources-list');
+            if (homeSourcesList) {
+                homeSourcesList.innerHTML = '';
+                if (Array.isArray(data) && data.length > 0) {
+                    data.slice(0, 3).forEach(s => {
+                        homeSourcesList.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:6px 10px; border-radius:6px; border:1px solid var(--border); margin-bottom: 6px;">
+                            <span>🟢 ${s.name}</span>
+                            <span style="font-size:0.75rem; color:var(--secondary);">${s.lang.toUpperCase()}</span>
+                        </div>`;
+                    });
+                    if (data.length > 3) {
+                        homeSourcesList.innerHTML += `<div style="text-align:center; font-size:0.75rem; color:var(--secondary); margin-top:4px;">va yana ${data.length - 3} ta manba...</div>`;
+                    }
+                } else {
+                    homeSourcesList.innerHTML = '<span style="color:var(--secondary); font-size:0.8rem;">Faol manbalar yo\'q.</span>';
+                }
+            }
+
             const list = document.getElementById('sources-list');
             list.innerHTML = '';
             if (Array.isArray(data)) {
