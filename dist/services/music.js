@@ -413,29 +413,7 @@ exports.MusicService = {
     cachedYtDlpPath: null,
     ytDlpChecked: false,
     async getYtDlpPathAsync() {
-        if (this.ytDlpChecked)
-            return this.cachedYtDlpPath;
-        const possiblePaths = [
-            path_1.default.join(process.cwd(), 'yt-dlp.exe'),
-            path_1.default.join(process.cwd(), 'yt-dlp'),
-            'yt-dlp',
-        ];
-        for (const p of possiblePaths) {
-            try {
-                if (p === 'yt-dlp') {
-                    await execPromise('yt-dlp --version');
-                    this.cachedYtDlpPath = 'yt-dlp';
-                    break;
-                }
-                if (fs_1.default.existsSync(p)) {
-                    this.cachedYtDlpPath = p;
-                    break;
-                }
-            }
-            catch { }
-        }
-        this.ytDlpChecked = true;
-        return this.cachedYtDlpPath;
+        return (0, ytdlp_1.resolveYtDlpPath)();
     },
     getYtDlpPath() {
         if (this.ytDlpChecked)

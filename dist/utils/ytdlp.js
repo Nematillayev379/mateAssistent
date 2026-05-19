@@ -19,6 +19,8 @@ async function resolveYtDlpPath() {
     const candidates = [
         '/usr/local/bin/yt-dlp',
         '/usr/bin/yt-dlp',
+        path_1.default.join(__dirname, '..', '..', 'yt-dlp'),
+        path_1.default.join(__dirname, '..', '..', 'yt-dlp.exe'),
         path_1.default.join(process.cwd(), 'yt-dlp'),
         path_1.default.join(process.cwd(), 'yt-dlp.exe'),
         'yt-dlp',

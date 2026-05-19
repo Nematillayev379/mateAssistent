@@ -44,6 +44,7 @@ const path_1 = __importDefault(require("path"));
 const os_1 = __importDefault(require("os"));
 const child_process_1 = require("child_process");
 const util_1 = require("util");
+const ytdlp_1 = require("../utils/ytdlp");
 const execPromise = (0, util_1.promisify)(child_process_1.exec);
 const TEMP_DIR = path_1.default.join(os_1.default.tmpdir(), 'newsbot_media');
 if (!fs_1.default.existsSync(TEMP_DIR))
@@ -54,9 +55,8 @@ exports.DownloaderService = {
         const filename = `yt_${Date.now()}.mp4`;
         const filePath = path_1.default.join(TEMP_DIR, filename);
         try {
-            const ytdlpName = os_1.default.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-            const ytdlpPath = path_1.default.join(process.cwd(), ytdlpName);
-            if (fs_1.default.existsSync(ytdlpPath)) {
+            const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
+            if (ytdlpPath) {
                 logger_1.logger.info(`Downloading YouTube video with yt-dlp: ${(0, logger_1.sanitizeLogInput)(url)}`);
                 // BUG-047 Fix: Use execFile to avoid hanging processes when shell ignores SIGTERM on timeout
                 const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
@@ -83,26 +83,11 @@ exports.DownloaderService = {
         const filePath = path_1.default.join(TEMP_DIR, filename);
         // Strategy 1: yt-dlp (Most reliable for downloading files)
         try {
-            const ytdlpName = os_1.default.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-            const ytdlpPath = path_1.default.join(process.cwd(), ytdlpName);
-            let ytdlpCmd = null;
-            if (fs_1.default.existsSync(ytdlpPath)) {
-                ytdlpCmd = `"${ytdlpPath}"`;
-            }
-            else {
-                // Check system PATH
-                try {
-                    const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
-                    const execFilePromise = (0, util_1.promisify)(execFile);
-                    await execFilePromise('yt-dlp', ['--version'], { timeout: 5000 });
-                    ytdlpCmd = 'yt-dlp';
-                }
-                catch { }
-            }
-            if (ytdlpCmd) {
+            const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
+            if (ytdlpPath) {
                 const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
                 const execFilePromise = (0, util_1.promisify)(execFile);
-                await execFilePromise(ytdlpCmd, [
+                await execFilePromise(ytdlpPath, [
                     '-f', 'best',
                     '-o', filePath,
                     url

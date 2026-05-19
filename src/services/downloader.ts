@@ -5,6 +5,7 @@ import path from 'path';
 import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { resolveYtDlpPath } from '../utils/ytdlp';
 
 const execPromise = promisify(exec);
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_media');
@@ -17,10 +18,9 @@ export const DownloaderService = {
     const filePath = path.join(TEMP_DIR, filename);
     
     try {
-      const ytdlpName = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-      const ytdlpPath = path.join(process.cwd(), ytdlpName);
+      const ytdlpPath = await resolveYtDlpPath();
       
-      if (fs.existsSync(ytdlpPath)) {
+      if (ytdlpPath) {
         logger.info(`Downloading YouTube video with yt-dlp: ${sanitizeLogInput(url)}`);
         // BUG-047 Fix: Use execFile to avoid hanging processes when shell ignores SIGTERM on timeout
         const { execFile } = await import('child_process');
@@ -48,26 +48,12 @@ export const DownloaderService = {
 
     // Strategy 1: yt-dlp (Most reliable for downloading files)
     try {
-      const ytdlpName = os.platform() === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
-      const ytdlpPath = path.join(process.cwd(), ytdlpName);
-      let ytdlpCmd: string | null = null;
+      const ytdlpPath = await resolveYtDlpPath();
 
-      if (fs.existsSync(ytdlpPath)) {
-        ytdlpCmd = `"${ytdlpPath}"`;
-      } else {
-        // Check system PATH
-        try {
-          const { execFile } = await import('child_process');
-          const execFilePromise = promisify(execFile);
-          await execFilePromise('yt-dlp', ['--version'], { timeout: 5000 });
-          ytdlpCmd = 'yt-dlp';
-        } catch {}
-      }
-
-      if (ytdlpCmd) {
+      if (ytdlpPath) {
         const { execFile } = await import('child_process');
         const execFilePromise = promisify(execFile);
-        await execFilePromise(ytdlpCmd, [
+        await execFilePromise(ytdlpPath, [
           '-f', 'best',
           '-o', filePath,
           url
