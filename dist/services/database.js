@@ -16,6 +16,8 @@ if (!supabaseUrl || !supabaseKey) {
     process.exit(1);
 }
 const supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseKey);
+// In-memory cache to prevent redundant Supabase queries for premium verification
+const premiumCache = new Map();
 exports.DBService = {
     // --- USERS ---
     async getUser(telegramId) {
@@ -76,6 +78,8 @@ exports.DBService = {
             logger_1.logger.error(`updateUser error: ${error.message}`);
             return false;
         }
+        // Invalidate premium cache on updates
+        premiumCache.delete(telegramId);
         return true;
     },
     // --- SOURCES ---
@@ -108,13 +112,10 @@ exports.DBService = {
     // --- NEWS DEDUPLICATION ---
     // BUG-012 Fix: Single optimized query for deduplication
     async isSeenOrSeenByTitle(userId, url, title) {
-        const { data, error } = await supabase.from('processed_news').select('id')
-            .eq('user_id', userId)
-            .or(`url.eq.${url},title.eq.${title}`)
-            .limit(1);
-        if (error)
-            logger_1.logger.error(`isSeenOrSeenByTitle error: ${error.message}`);
-        return !!(data && data.length > 0);
+        const seenUrl = await this.isSeen(userId, url);
+        if (seenUrl)
+            return true;
+        return this.isSeenByTitle(userId, title);
     },
     async isSeen(userId, url) {
         const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('url', url).limit(1);
@@ -447,20 +448,30 @@ exports.DBService = {
     },
     // BUG-126 Fix: Add in-memory cache for premium status
     async isPremiumActive(userId) {
+        const cached = premiumCache.get(userId);
+        const nowTime = Date.now();
+        if (cached && cached.expiresAt > nowTime) {
+            return cached.active;
+        }
         const user = await this.getUser(userId);
         if (!user)
             return false;
         const isPremiumFlag = Number(user.is_premium) === 1 || user.is_premium === true;
+        let active = isPremiumFlag;
         if (user.premium_until) {
             const expiryDate = new Date(user.premium_until);
-            if (expiryDate > new Date())
-                return true;
-            if (isPremiumFlag) {
-                await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
+            if (expiryDate > new Date()) {
+                active = true;
             }
-            return false;
+            else {
+                if (isPremiumFlag) {
+                    await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
+                }
+                active = false;
+            }
         }
-        return isPremiumFlag;
+        premiumCache.set(userId, { active, expiresAt: nowTime + 5 * 60 * 1000 }); // Cache for 5 minutes
+        return active;
     },
     // BUG-020 Fix: Now called from main.ts system crons
     async cleanupExpiredPremium() {
@@ -523,9 +534,11 @@ exports.DBService = {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + days);
         await supabase.from('users').update({ is_premium: 1, premium_until: expiresAt.toISOString() }).eq('telegram_id', telegramId);
+        premiumCache.set(telegramId, { active: true, expiresAt: Date.now() + 5 * 60 * 1000 });
     },
     async revokePremium(telegramId) {
         await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', telegramId);
+        premiumCache.set(telegramId, { active: false, expiresAt: Date.now() + 5 * 60 * 1000 });
     },
     async setPrice(type, price) {
         await this.setSetting(`price_${type}`, price.toString());
@@ -586,8 +599,18 @@ exports.DBService = {
             return true;
         }
         const isPremium = await this.isPremiumActive(userId);
-        if (isPremium)
-            return true;
+        if (isPremium) {
+            if (limitType === 'sources') {
+                const sources = await this.getUserSources(userId);
+                return sources.length < 10;
+            }
+            if (limitType === 'channels') {
+                return true; // unlimited for premium
+            }
+            if (limitType === 'scheduled') {
+                return true; // unlimited for premium
+            }
+        }
         if (limitType === 'sources') {
             const sources = await this.getUserSources(userId);
             const apiKeyCount = await this.getUserApiKeyCount(userId);
@@ -643,6 +666,8 @@ exports.DBService = {
             logger_1.logger.warn(`updateUserRole warning: ${error.message}`);
             return false;
         }
+        // Invalidate premium cache on role change
+        premiumCache.delete(telegramId);
         if (role === 'premium') {
             await this.setPremium(telegramId, 30);
         }

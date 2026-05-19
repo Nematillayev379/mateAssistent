@@ -83,6 +83,8 @@ async function withKeyMutex(fn) {
 // Client caching to save resources
 const groqClients = new Map();
 const openaiClients = new Map();
+// Circuit Breaker for temporarily failed or rate-limited API keys
+const blockedKeys = new Map();
 /** Bazadan va ENV dan kalitlarni yuklash */
 async function refreshKeyPool() {
     await withKeyMutex(async () => {
@@ -121,7 +123,7 @@ async function refreshKeyPool() {
 async function getSmartAIResponse(system, user, retryCount = 0) {
     if (activeKeys.length === 0)
         throw new Error("API kalitlar mavjud emas!");
-    const maxRetries = Math.max(Math.min(activeKeys.length, 30), 3);
+    const maxRetries = Math.min(activeKeys.length, 5);
     if (retryCount >= maxRetries)
         throw new Error("Barcha API kalitlar tugadi (limit yoki xato).");
     // BUG-003 Fix: Max delay 5 seconds to avoid Webhook timeout
@@ -132,9 +134,15 @@ async function getSmartAIResponse(system, user, retryCount = 0) {
     let currentKeyObj;
     let idx = 0;
     await withKeyMutex(async () => {
-        idx = globalKeyIndex % activeKeys.length;
-        currentKeyObj = activeKeys[idx];
-        globalKeyIndex = (globalKeyIndex + 1) % activeKeys.length;
+        const now = Date.now();
+        const availableKeys = activeKeys.filter(k => {
+            const blockedUntil = blockedKeys.get(k.key);
+            return !blockedUntil || blockedUntil < now;
+        });
+        const poolToUse = availableKeys.length > 0 ? availableKeys : activeKeys;
+        idx = globalKeyIndex % poolToUse.length;
+        currentKeyObj = poolToUse[idx];
+        globalKeyIndex = (globalKeyIndex + 1) % poolToUse.length;
     });
     try {
         // BUG-001 Fix: Use provider-specific max tokens
@@ -218,6 +226,9 @@ async function getSmartAIResponse(system, user, retryCount = 0) {
     catch (error) {
         const status = error?.status ?? error?.response?.status;
         if (status === 429 || status === 401 || status === 503 || status === 500) {
+            if (currentKeyObj?.key) {
+                blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
+            }
             logger_1.logger.warn(`[${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
             return getSmartAIResponse(system, user, retryCount + 1);
         }
@@ -258,9 +269,6 @@ async function validateKey(type, key) {
             let baseURL;
             if (type === "cerebras") {
                 baseURL = "https://api.cerebras.ai/v1";
-            }
-            else if (type === "openrouter") {
-                baseURL = "https://openrouter.ai/api/v1";
             }
             else {
                 throw new Error(`Unknown API key type: ${type}`);
@@ -420,9 +428,9 @@ async function getEmbedding(text, retryCount = 0) {
         });
         if (!response.ok) {
             if (response.status === 429) {
-                // BUG-009 Fix: Reset retry count after mutex wait to prevent exceeding limit
+                // BUG-009 Fix: Increment retry count to prevent infinite loop
                 return new Promise((resolve) => {
-                    setTimeout(() => resolve(getEmbedding(text, 0)), 1000);
+                    setTimeout(() => resolve(getEmbedding(text, retryCount + 1)), 1000);
                 });
             }
             return null;
@@ -525,14 +533,20 @@ function getKeysSortedForSmm() {
 async function getSmartAIResponseWithKeys(keys, system, user, retryCount = 0) {
     if (keys.length === 0)
         throw new Error('API kalitlar mavjud emas!');
-    const maxRetries = Math.max(Math.min(keys.length, 30), 3);
+    const maxRetries = Math.min(keys.length, 5);
     if (retryCount >= maxRetries)
         throw new Error('Barcha API kalitlar tugadi (limit yoki xato).');
     if (retryCount > 0) {
         await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
     }
-    const idx = retryCount % keys.length;
-    const currentKeyObj = keys[idx];
+    const now = Date.now();
+    const availableKeys = keys.filter(k => {
+        const blockedUntil = blockedKeys.get(k.key);
+        return !blockedUntil || blockedUntil < now;
+    });
+    const poolToUse = availableKeys.length > 0 ? availableKeys : keys;
+    const idx = retryCount % poolToUse.length;
+    const currentKeyObj = poolToUse[idx];
     try {
         const maxTokens = config_1.MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || config_1.CONFIG.MAX_TOKENS;
         if (currentKeyObj.type === 'groq') {
@@ -609,6 +623,9 @@ async function getSmartAIResponseWithKeys(keys, system, user, retryCount = 0) {
     catch (error) {
         const status = error?.status ?? error?.response?.status;
         if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
+            if (currentKeyObj?.key) {
+                blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
+            }
             logger_1.logger.warn(`[SMM ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato (${status}), keyingisi...`);
             return getSmartAIResponseWithKeys(keys, system, user, retryCount + 1);
         }

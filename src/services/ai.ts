@@ -70,7 +70,7 @@ export async function refreshKeyPool() {
 // BUG-032 Fix: Limit retries to Math.min(activeKeys.length, 10) and prevent infinite loop with 1 key
 export async function getSmartAIResponse(system: string, user: string, retryCount = 0): Promise<string> {
   if (activeKeys.length === 0) throw new Error("API kalitlar mavjud emas!");
-  const maxRetries = Math.max(Math.min(activeKeys.length, 30), 3);
+  const maxRetries = Math.min(activeKeys.length, 5);
   if (retryCount >= maxRetries) throw new Error("Barcha API kalitlar tugadi (limit yoki xato).");
   
   // BUG-003 Fix: Max delay 5 seconds to avoid Webhook timeout
@@ -393,9 +393,9 @@ export async function getEmbedding(text: string, retryCount = 0): Promise<number
 
     if (!response.ok) {
        if (response.status === 429) {
-          // BUG-009 Fix: Reset retry count after mutex wait to prevent exceeding limit
+          // BUG-009 Fix: Increment retry count to prevent infinite loop
           return new Promise((resolve) => {
-            setTimeout(() => resolve(getEmbedding(text, 0)), 1000);
+            setTimeout(() => resolve(getEmbedding(text, retryCount + 1)), 1000);
           });
        }
        return null;
@@ -513,7 +513,7 @@ async function getSmartAIResponseWithKeys(
   retryCount = 0
 ): Promise<string> {
   if (keys.length === 0) throw new Error('API kalitlar mavjud emas!');
-  const maxRetries = Math.max(Math.min(keys.length, 30), 3);
+  const maxRetries = Math.min(keys.length, 5);
   if (retryCount >= maxRetries) throw new Error('Barcha API kalitlar tugadi (limit yoki xato).');
 
   if (retryCount > 0) {

@@ -85,14 +85,7 @@ exports.CONFIG = {
     // IMPORTANT: Set DASHBOARD_SECRET in your .env file or Render Environment Variables.
     // This is your master password for the admin dashboard - keep it secret!
     // Generate one with: openssl rand -hex 32 (Linux/Mac) or generate a long random string
-    DASHBOARD_SECRET: (() => {
-        if (!process.env.DASHBOARD_SECRET) {
-            console.error('❌ DASHBOARD_SECRET environment variable is REQUIRED! Dashboard links will not persist across restarts.');
-            console.error('   Add DASHBOARD_SECRET=<your-secret> to your .env file');
-            throw new Error('DASHBOARD_SECRET is required - see errors above');
-        }
-        return process.env.DASHBOARD_SECRET;
-    })(),
+    DASHBOARD_SECRET: process.env.DASHBOARD_SECRET || "",
     REDIS_URL: process.env.REDIS_URL || ""
 };
 if (!process.env.OWNER_ID) {

@@ -63,19 +63,24 @@ export const YoutubeService = {
         const scriptText = $(script).text();
         if (scriptText.includes('ytInitialData')) {
           try {
-            const match = scriptText.match(/(?:var ytInitialData|window\["ytInitialData"\])\s*=\s*(\{[\s\S]+?\});/);
-            if (match) {
-              const data = JSON.parse(match[1]);
-              const videos =
-                data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
-                  ?.contents?.[0]?.itemSectionRenderer?.contents || [];
-              for (const item of videos) {
-                if (item.videoRenderer) {
-                  const video = item.videoRenderer;
-                  results.push({
-                    title: video.title?.runs?.[0]?.text || video.title?.simpleText || '',
-                    url: `https://www.youtube.com/watch?v=${video.videoId}`,
-                  });
+            const startIndex = scriptText.indexOf('ytInitialData');
+            if (startIndex !== -1) {
+              const jsonStart = scriptText.indexOf('{', startIndex);
+              const jsonEnd = scriptText.lastIndexOf('}');
+              if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                const jsonStr = scriptText.slice(jsonStart, jsonEnd + 1);
+                const data = JSON.parse(jsonStr);
+                const videos =
+                  data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
+                    ?.contents?.[0]?.itemSectionRenderer?.contents || [];
+                for (const item of videos) {
+                  if (item.videoRenderer) {
+                    const video = item.videoRenderer;
+                    results.push({
+                      title: video.title?.runs?.[0]?.text || video.title?.simpleText || '',
+                      url: `https://www.youtube.com/watch?v=${video.videoId}`,
+                    });
+                  }
                 }
               }
             }

@@ -59,9 +59,10 @@ async function processDailyDigests() {
                 timeDiff += 1440;
             if (timeDiff >= 0 && timeDiff < 60 && user.digest_last_sent !== today) {
                 logger_1.logger.info(`✨ Sending daily digest to user ${user.telegram_id}`);
-                // BUG-138 Fix: Always update digest_last_sent even if it fails, to avoid infinite retry loops
-                await sendDigest(user);
-                await database_1.DBService.updateUser(user.telegram_id, { digest_last_sent: today });
+                const success = await sendDigest(user);
+                if (success) {
+                    await database_1.DBService.updateUser(user.telegram_id, { digest_last_sent: today });
+                }
             }
         }
     }

@@ -76,6 +76,11 @@ async function bootstrap() {
         logger_1.logger.error('❌ TELEGRAM_BOT_TOKEN must be set in environment variables!');
         process.exit(1);
     }
+    // BUG-C3 Fix: Validate DASHBOARD_SECRET during bootstrap instead of early import throw
+    if (!config_1.CONFIG.DASHBOARD_SECRET) {
+        logger_1.logger.error('❌ DASHBOARD_SECRET environment variable is REQUIRED! Add DASHBOARD_SECRET to your environment variables.');
+        process.exit(1);
+    }
     try {
         // BUG-001 & #002: Critical Service Initialization
         const { initI18n } = await Promise.resolve().then(() => __importStar(require("./services/i18n")));

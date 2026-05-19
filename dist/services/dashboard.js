@@ -62,7 +62,19 @@ function startDashboardServer(port, _bot) {
     app.use(express_1.default.json());
     // B-21 Fix: Add CORS middleware manually
     app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', '*');
+        const origin = req.headers.origin;
+        if (origin) {
+            const allowedOrigins = [config_1.CONFIG.PUBLIC_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'];
+            if (allowedOrigins.some(o => o && origin.startsWith(o))) {
+                res.header('Access-Control-Allow-Origin', origin);
+            }
+            else {
+                res.header('Access-Control-Allow-Origin', '*');
+            }
+        }
+        else {
+            res.header('Access-Control-Allow-Origin', '*');
+        }
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-bot-token, x-user-id');
         if (req.method === 'OPTIONS') {
@@ -71,7 +83,13 @@ function startDashboardServer(port, _bot) {
         next();
     });
     // B-20 Fix: Use process.cwd() instead of __dirname for tsx compatibility
-    app.use(express_1.default.static(path_1.default.join(process.cwd(), 'public')));
+    app.use(express_1.default.static(path_1.default.join(process.cwd(), 'public'), {
+        setHeaders: (res, filePath) => {
+            if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            }
+        }
+    }));
     // BUG-154 Fix: Rate limiting on API endpoints
     const apiLimiter = (0, express_rate_limit_1.default)({
         windowMs: 60 * 1000, // 1 minute
@@ -86,7 +104,14 @@ function startDashboardServer(port, _bot) {
     // Extra rate limit for AI endpoint
     const aiLimiter = (0, express_rate_limit_1.default)({
         windowMs: 60 * 1000,
-        max: 10,
+        max: async (req) => {
+            const userId = req.headers['x-user-id'] || req.query.userId || req.query.user || req.body?.userId;
+            if (userId) {
+                const isPremium = await database_1.DBService.isPremiumActive(parseInt(userId));
+                return isPremium ? 30 : 10;
+            }
+            return 10;
+        },
         message: { error: 'AI request limit exceeded.' }
     });
     app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active' }));
@@ -108,11 +133,18 @@ function startDashboardServer(port, _bot) {
             req.body?.userId ||
             '');
     };
+    const timingSafeCompare = (str1, str2) => {
+        if (!str1 || !str2)
+            return false;
+        const h1 = crypto_1.default.createHmac('sha256', 'timing-safe-salt').update(str1).digest();
+        const h2 = crypto_1.default.createHmac('sha256', 'timing-safe-salt').update(str2).digest();
+        return crypto_1.default.timingSafeEqual(h1, h2);
+    };
     const checkAuth = (req, res, next) => {
         const token = req.headers['x-bot-token'] || req.query.token || (req.headers.authorization?.split(' ')[1] ?? '');
         if (!token)
             return res.status(401).json({ error: 'Unauthorized' });
-        if (token && config_1.CONFIG.DASHBOARD_SECRET && token === config_1.CONFIG.DASHBOARD_SECRET) {
+        if (token && config_1.CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, config_1.CONFIG.DASHBOARD_SECRET)) {
             if (config_1.CONFIG.OWNER_ID == null) {
                 return res.status(500).json({ error: 'Owner ID not configured' });
             }
@@ -187,7 +219,7 @@ function startDashboardServer(port, _bot) {
     });
     app.post('/api/auth/master', async (req, res) => {
         const { token } = req.body;
-        if (token && config_1.CONFIG.DASHBOARD_SECRET && token === config_1.CONFIG.DASHBOARD_SECRET) {
+        if (token && config_1.CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, config_1.CONFIG.DASHBOARD_SECRET)) {
             if (config_1.CONFIG.OWNER_ID == null) {
                 return res.status(500).json({ error: 'Owner ID not configured' });
             }
@@ -203,6 +235,8 @@ function startDashboardServer(port, _bot) {
             res.json({ token, userId: ownerId, role: user?.role || 'owner' });
         }
         else {
+            // BUG-H4: Add a 1.5s delay to prevent master brute-force attacks
+            await new Promise(resolve => setTimeout(resolve, 1500));
             res.status(401).json({ error: 'Invalid master token' });
         }
     });
@@ -210,7 +244,7 @@ function startDashboardServer(port, _bot) {
     const checkAdmin = async (req, res, next) => {
         const token = req.headers['x-bot-token'] || req.query.token || (req.headers.authorization?.split(' ')[1] ?? '');
         const adminId = extractUserId(req);
-        if (token && config_1.CONFIG.DASHBOARD_SECRET && token === config_1.CONFIG.DASHBOARD_SECRET) {
+        if (token && config_1.CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, config_1.CONFIG.DASHBOARD_SECRET)) {
             if (config_1.CONFIG.OWNER_ID == null) {
                 return res.status(500).json({ error: 'Owner ID not configured' });
             }
@@ -272,6 +306,18 @@ function startDashboardServer(port, _bot) {
     app.post('/api/sources/:userId', checkAuth, async (req, res) => {
         const uid = parseInt(req.authenticatedUserId);
         const { name, url, lang } = req.body;
+        // BUG-H2: SSRF Prevention URL Validation
+        if (!url || !url.startsWith('http'))
+            return res.status(400).json({ error: 'Invalid URL' });
+        try {
+            const u = new URL(url);
+            if (['localhost', '127.0.0.1'].includes(u.hostname) || u.hostname.startsWith('192.168.') || u.hostname.startsWith('10.')) {
+                throw new Error();
+            }
+        }
+        catch {
+            return res.status(400).json({ error: 'Private URLs not allowed' });
+        }
         const discovered = await scraper_1.ScraperService.discoverRSS(url);
         // BUG-024 Fix: Better error message for RSS discovery failure
         if (!discovered)
@@ -280,15 +326,18 @@ function startDashboardServer(port, _bot) {
         if (!user)
             return res.status(404).json({ error: 'Not found' });
         const sources = await database_1.DBService.getUserSources(uid);
-        // BUG-058 Fix: Include admin role in limit calculation
-        const limit = (user.role === 'owner' || user.role === 'admin') ? 999 : (user.is_premium ? 3 : 1) + Math.min(await database_1.DBService.getUserApiKeyCount(uid), 3);
-        if (sources.length >= limit)
+        if (!(await database_1.DBService.checkUserLimit(uid, 'sources')))
             return res.status(403).json({ error: 'Limit reached' });
         await database_1.DBService.addSource(uid, name, discovered, lang || 'uz');
         res.json({ success: true });
     });
     app.delete('/api/sources/:userId/:id', checkAuth, async (req, res) => {
-        await database_1.DBService.removeSource(parseInt(req.authenticatedUserId), parseInt(req.params.id));
+        // BUG-H3: IDOR Prevention Validation
+        const sourceId = parseInt(req.params.id);
+        if (!sourceId || sourceId <= 0 || isNaN(sourceId)) {
+            return res.status(400).json({ error: 'Invalid ID' });
+        }
+        await database_1.DBService.removeSource(parseInt(req.authenticatedUserId), sourceId);
         res.json({ success: true });
     });
     app.post('/api/settings/:userId/toggle', checkAuth, async (req, res) => {
@@ -828,6 +877,26 @@ function startDashboardServer(port, _bot) {
         res.json({ success: true });
     });
     // BUG-061 Fix: Use DB prices instead of hardcoded
+    app.get('/api/premium-info', checkAuth, async (req, res) => {
+        const uid = parseInt(req.authenticatedUserId);
+        const priceMonthly = await database_1.DBService.getPrice('monthly');
+        const priceYearly = await database_1.DBService.getPrice('yearly');
+        const isActive = await database_1.DBService.isPremiumActive(uid);
+        let expiresAt = null;
+        if (isActive) {
+            const user = await database_1.DBService.getUser(uid);
+            expiresAt = user?.premium_until;
+        }
+        const benefits = [
+            '10 ta RSS manba',
+            'Cheksiz kanal monitoring',
+            'Cheksiz schedule post',
+            'AI prioritet (30/min)',
+            'Kunlik digest',
+            'Premium badge va oltin tema'
+        ];
+        res.json({ monthlyPrice: priceMonthly, yearlyPrice: priceYearly, isActive, expiresAt, benefits });
+    });
     app.post('/api/premium/buy', checkAuth, async (req, res) => {
         const uid = parseInt(req.authenticatedUserId);
         const { method, plan } = req.body;

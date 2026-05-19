@@ -25,7 +25,17 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   app.use(express.json());
   // B-21 Fix: Add CORS middleware manually
   app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (origin) {
+      const allowedOrigins = [CONFIG.PUBLIC_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'];
+      if (allowedOrigins.some(o => o && origin.startsWith(o))) {
+        res.header('Access-Control-Allow-Origin', origin);
+      } else {
+        res.header('Access-Control-Allow-Origin', '*');
+      }
+    } else {
+      res.header('Access-Control-Allow-Origin', '*');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-bot-token, x-user-id');
     if (req.method === 'OPTIONS') {
@@ -85,11 +95,18 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     );
   };
 
+  const timingSafeCompare = (str1: string, str2: string): boolean => {
+    if (!str1 || !str2) return false;
+    const h1 = crypto.createHmac('sha256', 'timing-safe-salt').update(str1).digest();
+    const h2 = crypto.createHmac('sha256', 'timing-safe-salt').update(str2).digest();
+    return crypto.timingSafeEqual(h1, h2);
+  };
+
   const checkAuth = (req: any, res: any, next: any) => {
     const token = req.headers['x-bot-token'] || req.query.token || (req.headers.authorization?.split(' ')[1] ?? '');
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
-    if (token && CONFIG.DASHBOARD_SECRET && token === CONFIG.DASHBOARD_SECRET) {
+    if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {
       if (CONFIG.OWNER_ID == null) {
         return res.status(500).json({ error: 'Owner ID not configured' });
       }
@@ -171,7 +188,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
 
   app.post('/api/auth/master', async (req, res) => {
     const { token } = req.body;
-    if (token && CONFIG.DASHBOARD_SECRET && token === CONFIG.DASHBOARD_SECRET) {
+    if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {
       if (CONFIG.OWNER_ID == null) {
         return res.status(500).json({ error: 'Owner ID not configured' });
       }
@@ -186,6 +203,8 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       }
       res.json({ token, userId: ownerId, role: user?.role || 'owner' });
     } else {
+      // BUG-H4: Add a 1.5s delay to prevent master brute-force attacks
+      await new Promise(resolve => setTimeout(resolve, 1500));
       res.status(401).json({ error: 'Invalid master token' });
     }
   });
@@ -195,7 +214,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const token = req.headers['x-bot-token'] || req.query.token || (req.headers.authorization?.split(' ')[1] ?? '');
     const adminId = extractUserId(req);
     
-    if (token && CONFIG.DASHBOARD_SECRET && token === CONFIG.DASHBOARD_SECRET) {
+    if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {
       if (CONFIG.OWNER_ID == null) {
         return res.status(500).json({ error: 'Owner ID not configured' });
       }
@@ -262,6 +281,17 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const uid = parseInt(req.authenticatedUserId);
     const { name, url, lang } = req.body;
     
+    // BUG-H2: SSRF Prevention URL Validation
+    if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'Invalid URL' });
+    try {
+      const u = new URL(url);
+      if (['localhost', '127.0.0.1'].includes(u.hostname) || u.hostname.startsWith('192.168.') || u.hostname.startsWith('10.')) {
+        throw new Error();
+      }
+    } catch {
+      return res.status(400).json({ error: 'Private URLs not allowed' });
+    }
+
     const discovered = await ScraperService.discoverRSS(url);
     // BUG-024 Fix: Better error message for RSS discovery failure
     if (!discovered) return res.status(400).json({ error: 'URL yaroqli RSS/Atom formatida emas yoki server bloklagan.' });
@@ -275,7 +305,12 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   app.delete('/api/sources/:userId/:id', checkAuth, async (req: any, res: any) => {
-    await DBService.removeSource(parseInt(req.authenticatedUserId), parseInt(req.params.id));
+    // BUG-H3: IDOR Prevention Validation
+    const sourceId = parseInt(req.params.id);
+    if (!sourceId || sourceId <= 0 || isNaN(sourceId)) {
+      return res.status(400).json({ error: 'Invalid ID' });
+    }
+    await DBService.removeSource(parseInt(req.authenticatedUserId), sourceId);
     res.json({ success: true });
   });
 

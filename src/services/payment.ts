@@ -78,8 +78,14 @@ export const PaymentService = {
     const txId = data.params?.id || '';
 
     switch (method) {
-      case 'CheckPerformTransaction':
+      case 'CheckPerformTransaction': {
+        const amount = data.params?.amount;
+        const minAmount = 2500000; // 25,000 UZS in tiyin
+        if (!amount || amount < minAmount) {
+          return { error: { code: -31001, message: 'Incorrect amount' } };
+        }
         return { ...baseResult, result: { allow: true, details: {} } };
+      }
       case 'CreateTransaction': {
         let tx = await getTx(txId);
         if (!tx) {

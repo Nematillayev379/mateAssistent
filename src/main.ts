@@ -43,6 +43,12 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  // BUG-C3 Fix: Validate DASHBOARD_SECRET during bootstrap instead of early import throw
+  if (!CONFIG.DASHBOARD_SECRET) {
+    logger.error('❌ DASHBOARD_SECRET environment variable is REQUIRED! Add DASHBOARD_SECRET to your environment variables.');
+    process.exit(1);
+  }
+
   try {
     // BUG-001 & #002: Critical Service Initialization
     const { initI18n } = await import("./services/i18n");

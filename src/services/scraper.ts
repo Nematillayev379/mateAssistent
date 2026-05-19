@@ -263,9 +263,9 @@ export const ScraperService = {
           const originalHost = new URL(websiteUrl).hostname.replace('www.', '');
           const discoveredHost = new URL(discovered).hostname.replace('www.', '');
           
-          // BUG-050 Fix: Use endsWith to prevent evil-example.com matching example.com
-          if (discoveredHost !== originalHost && !discoveredHost.endsWith('.' + originalHost) && !await this.isPublicExternalUrl(discovered)) {
-            logger.warn(`🚫 SSRF Protection: AI returned suspicious URL: ${sanitizeLogInput(discovered)}`);
+          // BUG-H7 Fix: Require same domain or subdomain, completely blocking different domains
+          if (discoveredHost !== originalHost && !discoveredHost.endsWith('.' + originalHost)) {
+            logger.warn(`🚫 SSRF/Phishing Protection: AI returned different domain URL: ${sanitizeLogInput(discovered)}`);
             return null;
           }
           return discovered;

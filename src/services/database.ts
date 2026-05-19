@@ -81,6 +81,8 @@ export const DBService = {
       logger.error(`updateUser error: ${error.message}`);
       return false;
     }
+    // Invalidate premium cache on updates
+    premiumCache.delete(telegramId);
     return true;
   },
 
@@ -115,12 +117,9 @@ export const DBService = {
   // --- NEWS DEDUPLICATION ---
   // BUG-012 Fix: Single optimized query for deduplication
   async isSeenOrSeenByTitle(userId: number, url: string, title: string): Promise<boolean> {
-    const { data, error } = await supabase.from('processed_news').select('id')
-      .eq('user_id', userId)
-      .or(`url.eq.${url},title.eq.${title}`)
-      .limit(1);
-    if (error) logger.error(`isSeenOrSeenByTitle error: ${error.message}`);
-    return !!(data && data.length > 0);
+    const seenUrl = await this.isSeen(userId, url);
+    if (seenUrl) return true;
+    return this.isSeenByTitle(userId, title);
   },
 
   async isSeen(userId: number, url: string): Promise<boolean> {

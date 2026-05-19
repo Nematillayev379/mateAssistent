@@ -50,7 +50,8 @@ export function setupRSSCron() {
         }
 
         const nowMs = Date.now();
-        const nowObj = new Date();
+        // BUG-M2 Fix: Use Tashkent timezone instead of hosting server local time
+        const nowObj = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tashkent' }));
         
         const currentH = nowObj.getHours().toString().padStart(2, '0');
         const currentM = nowObj.getMinutes().toString().padStart(2, '0');
@@ -126,6 +127,13 @@ async function checkMonitoredChannels() {
             await bot.sendMessage(user.target_channel, caption, { parse_mode: 'HTML' });
           } catch (e: any) {
             logger.warn(`Failed to send monitored channel update: ${e.message}`);
+            // BUG-M3 Fix: Alert the user directly if the bot is not admin/allowed in their target channel
+            try {
+              const errMsg = `⚠️ <b>Kanalga post yuborib bo'lmadi!</b>\n\nBot <code>${user.target_channel}</code> kanalida administrator emas yoki xabar yuborish huquqi yo'q. Iltimos, botni kanalga admin qilib qo'shing.\n\nPost: ${latestPost.title}`;
+              await bot.sendMessage(channel.user_id, errMsg, { parse_mode: 'HTML' });
+            } catch (alertErr: any) {
+              logger.error(`Failed to alert user ${channel.user_id} about channel permissions: ${alertErr.message}`);
+            }
           }
         }
         await DBService.updateMonitoredChannel(channel.id, latestPost.id);
