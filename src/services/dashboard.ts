@@ -545,10 +545,10 @@ export function startDashboardServer(port: number | string, _bot?: any) {
           const { promisify } = require('util');
           const execPromise = promisify(exec);
           const cmd = ytdlpPath.includes(' ') || ytdlpPath.includes('\\') ? `"${ytdlpPath}"` : ytdlpPath;
-          const { stdout } = await execPromise(`${cmd} --version`, { timeout: 5000 });
+          const { stdout, stderr } = await execPromise(`${cmd} --version`, { timeout: 5000 });
           version = stdout.trim();
         } catch (e: any) {
-          execErr = e.message;
+          execErr = `${e.message}\nSTDOUT: ${e.stdout || ''}\nSTDERR: ${e.stderr || ''}`;
         }
       }
       res.json({
