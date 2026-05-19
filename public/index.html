@@ -287,11 +287,19 @@
                 <!-- Tracker Sub-page -->
                 <div id="subpage-tracker" style="display: none;">
                     <div class="card">
-                        <div class="card-title"><i class="fas fa-bell"></i> Narx Kuzatuv</div>
-                        <div class="input-group">
-                            <input type="text" id="track-url" placeholder="Uzum yoki OLX link">
+                        <div class="card-title"><i class="fas fa-search"></i> Eng arzon narxni qidirish</div>
+                        <div class="input-group" style="display: flex; gap: 8px;">
+                            <input type="text" id="search-product-query" placeholder="Mahsulot nomini yozing (masalan: iPhone 13)" onkeydown="if(event.key==='Enter') searchMarketplaceProducts()">
+                            <button class="btn btn-primary" id="btn-search-product" style="width: auto; padding: 12px 20px;" onclick="searchMarketplaceProducts()"><i class="fas fa-search"></i> Qidirish</button>
                         </div>
-                        <button class="btn btn-primary" onclick="trackPrice()">Kuzatishni boshlash</button>
+                        <div id="search-results-list" style="margin-top: 15px; display: none; max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: rgba(0,0,0,0.2);"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-bell"></i> Kuzatilayotgan tovarlar</div>
+                        <div class="input-group" style="display: flex; gap: 8px;">
+                            <input type="text" id="track-url" placeholder="Uzum yoki OLX havolasi">
+                            <button class="btn btn-ghost" style="width: auto; padding: 12px 20px;" onclick="trackPrice()">Qo'shish</button>
+                        </div>
                         <div id="tracked-list" style="margin-top: 20px;"></div>
                     </div>
                     <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
@@ -1269,8 +1277,80 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(p => {
-                    list.innerHTML += `<div class="item-row"><div><h4>${p.item_name}</h4><p>${p.last_price.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${p.id})">❌</button></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4><a href="${p.url}" target="_blank" style="color:white; text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.7rem; color:var(--secondary); margin-right:4px;"></i> ${p.item_name}</a></h4><p>${p.last_price.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${p.id})">❌</button></div>`;
                 });
+            }
+        }
+
+        async function searchMarketplaceProducts() {
+            const query = document.getElementById('search-product-query').value.trim();
+            if (!query) {
+                showToast('Qidirish uchun kalit so\'z yozing', 'error');
+                return;
+            }
+            const btn = document.getElementById('btn-search-product');
+            const originalBtn = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            const list = document.getElementById('search-results-list');
+            list.style.display = 'block';
+            list.innerHTML = '<div style="text-align:center; padding:10px; color:var(--secondary);"><i class="fas fa-spinner fa-spin"></i> Eng arzon narxlar qidirilmoqda...</div>';
+
+            try {
+                const res = await apiFetch(`/api/tracker/search?q=${encodeURIComponent(query)}`, { headers: { 'x-bot-token': token } });
+                if (!res.ok) throw new Error('Qidiruv muvaffaqiyatsiz');
+                const data = await res.json();
+                list.innerHTML = '';
+                if (Array.isArray(data) && data.length > 0) {
+                    data.forEach(p => {
+                        list.innerHTML += `
+                            <div class="item-row" style="margin-bottom: 6px; padding: 8px 12px; background: rgba(255,255,255,0.01);">
+                                <div style="flex: 1; min-width: 0; padding-right: 10px;">
+                                    <h4 style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                        <a href="${p.url}" target="_blank" style="color:var(--accent); text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.75rem;"></i> ${p.title}</a>
+                                    </h4>
+                                    <p style="font-size:0.75rem; color:var(--success); font-weight:600;">${p.price.toLocaleString()} UZS <span style="color:var(--secondary); font-weight:normal; font-size:0.65rem;">(${p.source})</span></p>
+                                </div>
+                                <button class="btn btn-primary" style="width:auto; padding:6px 12px; font-size:0.75rem;" onclick="trackSearchProduct('${p.url}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, this)"><i class="fas fa-bell"></i> Kuzatish</button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    list.innerHTML = '<div style="text-align:center; padding:10px; color:var(--secondary);">Hech qanday mahsulot topilmadi.</div>';
+                }
+            } catch (e) {
+                list.innerHTML = `<div style="text-align:center; padding:10px; color:var(--danger);">Xatolik: ${e.message}</div>`;
+                showToast('Xatolik: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalBtn;
+            }
+        }
+
+        async function trackSearchProduct(url, name, price, btnEl) {
+            const originalBtn = btnEl.innerHTML;
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                const res = await apiFetch(`/api/prices/${userId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-bot-token': token },
+                    body: JSON.stringify({ url, name, price })
+                });
+                if (res.ok) {
+                    btnEl.className = 'btn btn-ghost';
+                    btnEl.style.color = 'var(--success)';
+                    btnEl.innerHTML = '<i class="fas fa-check"></i> Kuzatilmoqda';
+                    fetchTrackedPrices();
+                    showToast('Tovar kuzatuvga qo\'shildi!', 'success');
+                } else {
+                    throw new Error('Kuzatishga qo\'shib bo\'lmadi');
+                }
+            } catch (e) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = originalBtn;
+                showToast('Xatolik: ' + e.message, 'error');
             }
         }
 
@@ -1278,7 +1358,6 @@ function renderUI() {
             const url = document.getElementById('track-url').value;
             if (!url) return;
             showToast('Narx tekshirilmoqda...', 'info');
-            // This would need backend scraping support
             const res = await apiFetch(`/api/prices/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ url, name: 'Tovar', price: 0 }) });
             if (res.ok) { document.getElementById('track-url').value = ''; fetchTrackedPrices(); }
         }

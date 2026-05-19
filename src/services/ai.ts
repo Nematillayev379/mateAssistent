@@ -118,7 +118,7 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: system }] },
+          systemInstruction: { parts: [{ text: system }] },
           contents: [{ parts: [{ text: user }] }]
         })
       });
@@ -554,7 +554,7 @@ async function getSmartAIResponseWithKeys(
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            system_instruction: { parts: [{ text: system }] },
+            systemInstruction: { parts: [{ text: system }] },
             contents: [{ parts: [{ text: user }] }],
           }),
           signal: AbortSignal.timeout(25000),

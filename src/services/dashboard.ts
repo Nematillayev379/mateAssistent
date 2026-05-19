@@ -692,6 +692,21 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     res.json({ success: true });
   });
 
+  app.get('/api/tracker/search', checkAuth, async (req: any, res: any) => {
+    const q = req.query.q;
+    if (!q || typeof q !== 'string' || q.trim() === '') {
+      return res.status(400).json({ error: 'Qidiruv so\'rovi kiritilmagan' });
+    }
+    try {
+      const { PriceTrackerService } = await import('./pricetracker');
+      const results = await PriceTrackerService.searchProducts(q.trim());
+      const sorted = results.sort((a, b) => a.price - b.price);
+      res.json(sorted);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // --- PRICE TRACKER ---
   app.get('/api/prices/:userId', checkAuth, async (req: any, res: any) => {
     const prices = await DBService.getTrackedPrices(parseInt(req.authenticatedUserId));
@@ -705,7 +720,21 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       return res.status(400).json({ error: 'Invalid price tracker payload' });
     }
     try {
-      await DBService.addTrackedPrice(parseInt(req.authenticatedUserId), url, name, parsedPrice);
+      let finalName = name;
+      let finalPrice = parsedPrice;
+
+      if (finalName === 'Tovar' || finalPrice === 0) {
+        try {
+          const { PriceTrackerService } = await import('./pricetracker');
+          const resolved = await PriceTrackerService.fetchPrice(url);
+          if (resolved) {
+            finalName = resolved.title;
+            finalPrice = resolved.price;
+          }
+        } catch {}
+      }
+
+      await DBService.addTrackedPrice(parseInt(req.authenticatedUserId), url, finalName, finalPrice);
       res.json({ success: true });
     } catch (e: any) {
       res.status(400).json({ error: e.message });

@@ -125,7 +125,10 @@ export const YoutubeService = {
 export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'audio'): Promise<string> {
   if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
-  const safeUrl = urlParam.replace(/"/g, '').trim();
+  let safeUrl = urlParam.replace(/"/g, '').trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(safeUrl)) {
+    safeUrl = `https://www.youtube.com/watch?v=${safeUrl}`;
+  }
   if (!safeUrl.startsWith('http')) throw new Error('Invalid URL');
 
   const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
