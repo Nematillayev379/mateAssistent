@@ -17,8 +17,39 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // In-memory cache to prevent redundant Supabase queries for premium verification
 const premiumCache = new Map<number, { active: boolean; expiresAt: number }>();
 const recentNewsLocks = new Map<string, number>();
+const userSendSlots = new Map<number, number>();
 
 export const DBService = {
+  isLikelyDuplicateTitle(titleA: string, titleB: string): boolean {
+    const a = this.normalizeNewsTitle(titleA);
+    const b = this.normalizeNewsTitle(titleB);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (a.length > 24 && b.includes(a)) return true;
+    if (b.length > 24 && a.includes(b)) return true;
+
+    const tokensA = [...new Set(a.split(' ').filter((token) => token.length > 2))];
+    const tokensB = new Set(b.split(' ').filter((token) => token.length > 2));
+    if (tokensA.length < 4 || tokensB.size < 4) return false;
+
+    const common = tokensA.filter((token) => tokensB.has(token)).length;
+    const overlap = common / Math.min(tokensA.length, tokensB.size);
+    return overlap >= 0.8;
+  },
+
+  tryReserveUserSendSlot(userId: number, intervalMinutes: number): boolean {
+    const now = Date.now();
+    const intervalMs = Math.max(intervalMinutes, 1) * 60 * 1000;
+    const lockedUntil = userSendSlots.get(userId) || 0;
+    if (lockedUntil > now) return false;
+    userSendSlots.set(userId, now + intervalMs);
+    return true;
+  },
+
+  releaseUserSendSlot(userId: number) {
+    userSendSlots.delete(userId);
+  },
+
   normalizeNewsUrl(url: string): string {
     try {
       const parsed = new URL(String(url || '').trim());
@@ -190,16 +221,15 @@ export const DBService = {
   },
 
   async isSeenByTitle(userId: number, title: string): Promise<boolean> {
-    const normalizedTitle = this.normalizeNewsTitle(title);
     const { data, error } = await supabase
       .from('processed_news')
       .select('title')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(40);
+      .limit(80);
     if (error) logger.error(`isSeenByTitle error: ${error.message}`);
     if (!data || data.length === 0) return false;
-    return data.some((row: any) => this.normalizeNewsTitle(row.title) === normalizedTitle);
+    return data.some((row: any) => this.isLikelyDuplicateTitle(row.title, title));
   },
 
   // BUG-013 Fix: Use upsert with onConflict to handle unique constraints gracefully

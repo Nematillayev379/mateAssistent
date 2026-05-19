@@ -180,6 +180,11 @@ async function checkMonitoredChannels() {
 async function processDirectly(userId, source) {
     try {
         const articles = await scraper_1.ScraperService.fetchRSS(source.url);
+        articles.sort((a, b) => {
+            const left = new Date(b?.pubDate || 0).getTime();
+            const right = new Date(a?.pubDate || 0).getTime();
+            return left - right;
+        });
         const lang = source.lang || 'uz';
         for (const article of articles) {
             try {

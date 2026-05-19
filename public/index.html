@@ -729,7 +729,7 @@
             const body = (action === 'premium' || action === 'revoke')
               ? JSON.stringify({ days: action === 'revoke' ? 0 : 30 })
               : undefined;
-            const res = await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+            const res = await apiFetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body });
             if (res.ok) {
                 showToast(
                   typeof t === 'function'
@@ -1631,7 +1631,7 @@ function renderUI() {
 
         async function fetchAdminUsers() {
             setupAdminUserFilters();
-            const r = await apiFetch('/api/admin/users');
+            const r = await apiFetch('/api/admin/users', { headers: { 'x-bot-token': token } });
             if (!r.ok) {
                 showToast(typeof t === 'function' ? t('common_error') : 'Error', 'error');
                 return;
@@ -1687,7 +1687,7 @@ function renderUI() {
         async function changeUserRole(telegramId) {
             const newRole = prompt(typeof t === 'function' ? t('admin_role_prompt') : 'New role (user, admin, premium):');
             if (!newRole) return;
-            const res = await apiFetch(`/api/admin/users/${telegramId}/role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role: newRole }) });
+            const res = await apiFetch(`/api/admin/users/${telegramId}/role`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ role: newRole }) });
             if (res.ok) fetchAdminUsers();
         }
 

@@ -147,6 +147,11 @@ async function checkMonitoredChannels() {
 async function processDirectly(userId: number, source: any): Promise<void> {
   try {
     const articles: any[] = await ScraperService.fetchRSS(source.url);
+    articles.sort((a: any, b: any) => {
+      const left = new Date(b?.pubDate || 0).getTime();
+      const right = new Date(a?.pubDate || 0).getTime();
+      return left - right;
+    });
     const lang = source.lang || 'uz';
 
     for (const article of articles) {
