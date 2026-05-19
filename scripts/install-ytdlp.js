@@ -103,11 +103,31 @@ async function installYtdlp() {
     }
     
     // Verify installation
+    let verified = false;
     try {
-      const version = execSync(`"${filePath}" --version`, { timeout: 30000, stdio: 'pipe' });
-      console.log(`✅ yt-dlp installed successfully! Version: ${version.toString().trim()}`);
+      const version = execSync(`"${filePath}" --version`, { timeout: 10000, stdio: 'pipe' });
+      console.log(`✅ yt-dlp verified! Version: ${version.toString().trim()}`);
+      verified = true;
     } catch (error) {
-      console.warn('⚠️  yt-dlp downloaded but verification failed:', error.message);
+      console.log('⚠️  Primary yt-dlp binary failed verification. trying alternative...');
+    }
+
+    if (!verified && platform === 'linux') {
+      const altUrl = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_musllinux';
+      console.log(`📥 Downloading musl (Alpine) build from: ${altUrl}`);
+      try {
+        await downloadFile(altUrl, filePath);
+        fs.chmodSync(filePath, '755');
+        const version = execSync(`"${filePath}" --version`, { timeout: 10000, stdio: 'pipe' });
+        console.log(`✅ musl yt-dlp verified successfully! Version: ${version.toString().trim()}`);
+        verified = true;
+      } catch (altError) {
+        console.error('❌ musl build also failed verification:', altError.message);
+      }
+    }
+
+    if (!verified) {
+      console.warn('⚠️  yt-dlp could not be verified but installation completed. Fallback to API remains active.');
     }
     
   } catch (error) {
