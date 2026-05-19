@@ -544,6 +544,17 @@ function startDashboardServer(port, _bot) {
             const size = fsExists && ytdlpPath ? fs_1.default.statSync(ytdlpPath).size : 0;
             let version = 'not found';
             let execErr = '';
+            let pythonVersion = 'not checked';
+            try {
+                const { exec } = require('child_process');
+                const { promisify } = require('util');
+                const execPromise = promisify(exec);
+                const { stdout } = await execPromise('python3 --version', { timeout: 3000 });
+                pythonVersion = stdout.trim();
+            }
+            catch (e) {
+                pythonVersion = `error: ${e.message}`;
+            }
             if (ytdlpPath) {
                 try {
                     const { exec } = require('child_process');
@@ -562,6 +573,7 @@ function startDashboardServer(port, _bot) {
                 fsExists,
                 size,
                 version,
+                pythonVersion,
                 execErr,
                 cwd: process.cwd(),
                 __dirname,
