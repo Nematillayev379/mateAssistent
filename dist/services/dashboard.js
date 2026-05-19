@@ -541,6 +541,7 @@ function startDashboardServer(port, _bot) {
             const { resolveYtDlpPath } = await Promise.resolve().then(() => __importStar(require('../utils/ytdlp')));
             const ytdlpPath = await resolveYtDlpPath();
             const fsExists = ytdlpPath ? fs_1.default.existsSync(ytdlpPath) : false;
+            const size = fsExists && ytdlpPath ? fs_1.default.statSync(ytdlpPath).size : 0;
             let version = 'not found';
             let execErr = '';
             if (ytdlpPath) {
@@ -559,6 +560,7 @@ function startDashboardServer(port, _bot) {
             res.json({
                 ytdlpPath,
                 fsExists,
+                size,
                 version,
                 execErr,
                 cwd: process.cwd(),

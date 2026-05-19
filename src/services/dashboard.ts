@@ -537,6 +537,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       const { resolveYtDlpPath } = await import('../utils/ytdlp');
       const ytdlpPath = await resolveYtDlpPath();
       const fsExists = ytdlpPath ? fs.existsSync(ytdlpPath) : false;
+      const size = fsExists && ytdlpPath ? fs.statSync(ytdlpPath).size : 0;
       let version = 'not found';
       let execErr = '';
       if (ytdlpPath) {
@@ -554,6 +555,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       res.json({
         ytdlpPath,
         fsExists,
+        size,
         version,
         execErr,
         cwd: process.cwd(),
