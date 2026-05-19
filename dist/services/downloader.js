@@ -116,12 +116,17 @@ exports.DownloaderService = {
     async getCobaltMedia(url, opts) {
         const audioOnly = !!opts?.audioOnly;
         const instances = [
-            'https://api.cobalt.tools',
-            'https://cobalt.api.timelessnesses.me',
-            'https://cobalt.canine.tools',
+            'https://cobalt.clxxped.lol',
             'https://cobalt.meowing.de',
+            'https://cobalt.canine.tools',
             'https://cobalt.kittycat.boo',
+            'https://cobalt.blackcat.sweeux.org',
+            'https://cobalt.mgytr.top',
             'https://dl.woof.monster',
+            'https://qwkuns.me',
+            'https://cobalt.liubquanti.click',
+            'https://cobalt.squair.xyz',
+            'https://cobalt.cjs.nz',
         ];
         const fetchFromInstance = async (base) => {
             try {

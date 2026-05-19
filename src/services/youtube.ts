@@ -172,7 +172,7 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
       } catch (e) {}
 
       if (ffmpegPath) {
-        args.push('--ffmpeg-location', ffmpegPath);
+        args.push('--ffmpeg-location', path.dirname(ffmpegPath));
       }
 
       let stderrOutput = '';

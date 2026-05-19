@@ -203,7 +203,7 @@ async function downloadYouTube(urlParam, typeParam) {
             }
             catch (e) { }
             if (ffmpegPath) {
-                args.push('--ffmpeg-location', ffmpegPath);
+                args.push('--ffmpeg-location', path_1.default.dirname(ffmpegPath));
             }
             let stderrOutput = '';
             await new Promise((resolve, reject) => {
