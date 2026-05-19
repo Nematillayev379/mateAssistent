@@ -354,6 +354,17 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     res.json(await DBService.getAllSources());
   });
 
+  app.get('/api/admin/settings', checkAdmin, async (req, res) => {
+    const starsPrice = await DBService.getSetting('premium_stars_price') || '500';
+    const monthlyPrice = await DBService.getPrice('monthly');
+    const yearlyPrice = await DBService.getPrice('yearly');
+    res.json({
+      premium_stars_price: starsPrice,
+      price_monthly: monthlyPrice,
+      price_yearly: yearlyPrice
+    });
+  });
+
   app.post('/api/admin/settings', checkAdmin, async (req, res) => {
     const { premium_stars_price, price_monthly, price_yearly } = req.body;
     if (premium_stars_price) await DBService.setSetting('premium_stars_price', String(premium_stars_price));

@@ -664,22 +664,24 @@
                 ];
                 container.innerHTML = '';
                 defs.forEach((d) => {
-                    if (!methods[d.id]) return;
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'btn btn-ghost pay-method-btn' + (selectedPayMethod === d.id ? ' active' : '');
                     btn.dataset.method = d.id;
                     btn.style.cssText = 'width:auto;padding:8px 12px;font-size:0.8rem;';
-                    btn.textContent = typeof t === 'function' ? t(d.key) : d.label;
+                    
+                    const isConfigured = methods[d.id];
+                    // Always show the button, but mark as Demo if not configured in environment variables
+                    btn.textContent = (typeof t === 'function' ? t(d.key) : d.label) + (!isConfigured ? ' (Demo)' : '');
                     btn.onclick = () => setPayMethod(d.id);
                     container.appendChild(btn);
                 });
-                if (!methods[selectedPayMethod]) {
-                    const first = defs.find(d => methods[d.id]);
-                    if (first) setPayMethod(first.id);
-                }
             } catch (_) {
-                container.innerHTML = '<button type="button" class="btn btn-ghost pay-method-btn active" data-method="stars" onclick="setPayMethod(\'stars\')">⭐ Stars</button>';
+                container.innerHTML = `
+                    <button type="button" class="btn btn-ghost pay-method-btn active" data-method="stars" onclick="setPayMethod('stars')">⭐ Stars</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="payme" onclick="setPayMethod('payme')">Payme (Demo)</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="click" onclick="setPayMethod('click')">Click (Demo)</button>
+                `;
             }
         }
 
@@ -1160,6 +1162,7 @@ function renderUI() {
             if (p === 'admin-users') fetchAdminUsers();
             if (p === 'admin-sources') fetchAdminSources();
             if (p === 'admin-tickets') fetchAdminTickets();
+            if (p === 'admin-settings') fetchAdminSettings();
             if (p === 'api') fetchApiKeys();
             window.scrollTo(0,0);
         }
@@ -1514,6 +1517,19 @@ function renderUI() {
             const yearlyPrice = document.getElementById('admin-yearly-price')?.value;
             const res = await apiFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ premium_stars_price: starsPrice, price_monthly: monthlyPrice, price_yearly: yearlyPrice }) });
             if (res.ok) showToast('Sozlamalar saqlandi!', 'success');
+        }
+
+        async function fetchAdminSettings() {
+            const res = await apiFetch('/api/admin/settings', { headers: { 'x-bot-token': token } });
+            if (res.ok) {
+                const data = await res.json();
+                const starsInput = document.getElementById('admin-stars-price');
+                const monthlyInput = document.getElementById('admin-monthly-price');
+                const yearlyInput = document.getElementById('admin-yearly-price');
+                if (starsInput) starsInput.value = data.premium_stars_price || '';
+                if (monthlyInput) monthlyInput.value = data.price_monthly || '';
+                if (yearlyInput) yearlyInput.value = data.price_yearly || '';
+            }
         }
 
         async function changeUserRole(telegramId) {
