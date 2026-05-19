@@ -142,8 +142,8 @@ exports.DownloaderService = {
                     videoQuality: '720',
                     filenameStyle: 'basic',
                     downloadMode: audioOnly ? 'audio' : 'auto',
-                    isAudioOnly: audioOnly,
                     audioFormat: 'mp3',
+                    audioBitrate: '128',
                 }, {
                     headers: {
                         Accept: 'application/json',
