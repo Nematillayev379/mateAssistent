@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_premium INTEGER DEFAULT 0,
   premium_until TIMESTAMPTZ,
   target_channel TEXT,
+  extra_channels TEXT,
   role TEXT DEFAULT 'user',
   has_seen_lang BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -74,6 +75,10 @@ EXCEPTION WHEN others THEN NULL;
 END $$;
 DO $$ BEGIN
   ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT DEFAULT '';
+EXCEPTION WHEN others THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS extra_channels TEXT;
 EXCEPTION WHEN others THEN NULL;
 END $$;
 
@@ -185,12 +190,26 @@ CREATE TABLE IF NOT EXISTS monitored_channels (
   platform TEXT DEFAULT 'youtube',
   last_post_id TEXT,
   last_check TIMESTAMPTZ,
+  forward_mode TEXT DEFAULT 'copy',
+  use_ai INTEGER DEFAULT 0,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_monitored_channels_user ON monitored_channels(user_id);
 DO $$ BEGIN
   ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS last_check TIMESTAMPTZ;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS forward_mode TEXT DEFAULT 'copy';
+EXCEPTION WHEN others THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS use_ai INTEGER DEFAULT 0;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1;
 EXCEPTION WHEN others THEN NULL;
 END $$;
 
@@ -230,7 +249,7 @@ CREATE TABLE IF NOT EXISTS scheduled_posts (
   id BIGSERIAL PRIMARY KEY,
   user_id BIGINT NOT NULL,
   type TEXT NOT NULL DEFAULT 'text',
-  content TEXT NOT NULL,
+  content JSONB NOT NULL,
   scheduled_at TIMESTAMPTZ NOT NULL,
   status TEXT DEFAULT 'pending',
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -238,6 +257,45 @@ CREATE TABLE IF NOT EXISTS scheduled_posts (
 );
 CREATE INDEX IF NOT EXISTS idx_scheduled_posts_user ON scheduled_posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_scheduled_posts_status ON scheduled_posts(status, scheduled_at);
+
+DO $$ BEGIN
+  ALTER TABLE scheduled_posts ALTER COLUMN content TYPE JSONB
+  USING CASE
+    WHEN content IS NULL THEN '{}'::jsonb
+    WHEN content::text ~ '^\s*[\{\[]' THEN content::jsonb
+    ELSE jsonb_build_object('text', content::text)
+  END;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS telegram_seen_messages (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  source_chat_id TEXT NOT NULL,
+  message_id BIGINT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, source_chat_id, message_id)
+);
+CREATE INDEX IF NOT EXISTS idx_telegram_seen_user ON telegram_seen_messages(user_id, source_chat_id);
+
+CREATE TABLE IF NOT EXISTS trends_snapshots (
+  id BIGSERIAL PRIMARY KEY,
+  topics JSONB NOT NULL,
+  summary TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS post_drafts (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(telegram_id) ON DELETE CASCADE,
+  title TEXT,
+  body TEXT NOT NULL,
+  image_url TEXT,
+  channels JSONB,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- =============================================
 -- RPC FUNKSIYALAR

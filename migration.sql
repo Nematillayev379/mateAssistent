@@ -27,6 +27,49 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS digest_time TEXT DEFAULT '08:0
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS schedule_times TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS extra_channels TEXT;
+
+CREATE TABLE IF NOT EXISTS public.monitored_channels (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES public.users(telegram_id) ON DELETE CASCADE,
+    platform TEXT DEFAULT 'youtube',
+    channel_id TEXT NOT NULL,
+    name TEXT DEFAULT '',
+    last_post_id TEXT,
+    last_check TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE public.monitored_channels ADD COLUMN IF NOT EXISTS forward_mode TEXT DEFAULT 'copy';
+ALTER TABLE public.monitored_channels ADD COLUMN IF NOT EXISTS use_ai INTEGER DEFAULT 0;
+ALTER TABLE public.monitored_channels ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1;
+
+CREATE TABLE IF NOT EXISTS public.telegram_seen_messages (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    source_chat_id TEXT NOT NULL,
+    message_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, source_chat_id, message_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.trends_snapshots (
+    id BIGSERIAL PRIMARY KEY,
+    topics JSONB NOT NULL,
+    summary TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.post_drafts (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT REFERENCES public.users(telegram_id) ON DELETE CASCADE,
+    title TEXT,
+    body TEXT NOT NULL,
+    image_url TEXT,
+    channels JSONB,
+    status TEXT DEFAULT 'draft',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 -- 4. Support Tickets (For Elite Support Panel)
 CREATE TABLE IF NOT EXISTS public.support_tickets (

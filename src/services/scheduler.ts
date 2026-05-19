@@ -23,13 +23,16 @@ export const SchedulerService = {
         const user = await DBService.getUser(post.user_id);
         if (!user || !user.target_channel) {
           logger.warn(`Skip post ${post.id}: user ${post.user_id} has no target channel`);
+          await DBService.updateScheduledPostStatus(post.id, 'failed').catch(() => {});
           continue;
         }
 
         // BUG-116 Fix: Ensure content is an object
         let content = post.content;
         if (typeof content === 'string') {
-          try { content = JSON.parse(content); } catch { logger.error(`Invalid JSON in post ${post.id}`); continue; }
+          try { content = JSON.parse(content); } catch {
+            content = { text: content };
+          }
         }
 
         const { safeSend } = await import('./telegram');

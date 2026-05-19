@@ -55,13 +55,14 @@ exports.DownloaderService = {
         const filename = `yt_${Date.now()}.mp4`;
         const filePath = path_1.default.join(TEMP_DIR, filename);
         try {
-            const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
-            if (ytdlpPath) {
+            const ytdlpCommand = await (0, ytdlp_1.resolveYtDlpCommand)();
+            if (ytdlpCommand) {
                 logger_1.logger.info(`Downloading YouTube video with yt-dlp: ${(0, logger_1.sanitizeLogInput)(url)}`);
                 // BUG-047 Fix: Use execFile to avoid hanging processes when shell ignores SIGTERM on timeout
                 const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
                 const execFilePromise = (0, util_1.promisify)(execFile);
-                await execFilePromise(ytdlpPath, [
+                await execFilePromise(ytdlpCommand.command, [
+                    ...ytdlpCommand.args,
                     '-f', 'best[ext=mp4][filesize<50M]/best[filesize<50M]/best',
                     '-o', filePath,
                     url
@@ -83,11 +84,12 @@ exports.DownloaderService = {
         const filePath = path_1.default.join(TEMP_DIR, filename);
         // Strategy 1: yt-dlp (Most reliable for downloading files)
         try {
-            const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
-            if (ytdlpPath) {
+            const ytdlpCommand = await (0, ytdlp_1.resolveYtDlpCommand)();
+            if (ytdlpCommand) {
                 const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
                 const execFilePromise = (0, util_1.promisify)(execFile);
-                await execFilePromise(ytdlpPath, [
+                await execFilePromise(ytdlpCommand.command, [
+                    ...ytdlpCommand.args,
                     '-f', 'best',
                     '-o', filePath,
                     url

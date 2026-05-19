@@ -106,8 +106,8 @@ exports.MusicService = {
     async searchWithYtDlp(artist, amount) {
         const results = [];
         // BUG-113 & BUG-054 Fix: Use cached path
-        const ytdlpPath = await this.getYtDlpPathAsync();
-        if (!ytdlpPath) {
+        const ytdlpCommand = await this.getYtDlpCommandAsync();
+        if (!ytdlpCommand) {
             logger_1.logger.warn('yt-dlp topilmadi, skip');
             return results;
         }
@@ -117,7 +117,8 @@ exports.MusicService = {
             const searchQuery = `${safeArtist} music audio`;
             const { spawn } = await Promise.resolve().then(() => __importStar(require('child_process')));
             const stdout = await new Promise((resolve, reject) => {
-                const proc = spawn(ytdlpPath, [
+                const proc = spawn(ytdlpCommand.command, [
+                    ...ytdlpCommand.args,
                     `ytsearch${amount * 2}:${searchQuery}`,
                     '--flat-playlist',
                     '--print', '%(id)s|||%(title)s',
@@ -142,7 +143,7 @@ exports.MusicService = {
                     // BUG-113 Fix: Use child_process.execFile to prevent shell injection and maxBuffer issues
                     const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
                     const execFilePromise = (0, util_1.promisify)(execFile);
-                    await execFilePromise(ytdlpPath, ['-f', 'bestaudio[ext=m4a]', '-o', filePath, `https://www.youtube.com/watch?v=${videoId}`, '--no-warnings', '--no-playlist', '--max-filesize', '49M'], { timeout: 60000, maxBuffer: 1024 * 1024 });
+                    await execFilePromise(ytdlpCommand.command, [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio/best', '-o', filePath, `https://www.youtube.com/watch?v=${videoId}`, '--no-warnings', '--no-playlist', '--max-filesize', '49M'], { timeout: 60000, maxBuffer: 1024 * 1024 });
                     if (fs_1.default.existsSync(filePath)) {
                         const stats = fs_1.default.statSync(filePath);
                         if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
@@ -301,17 +302,17 @@ exports.MusicService = {
     async searchWithYouTubeScrape(artist, amount) {
         const results = [];
         const videos = await this.getYouTubeVideoIds(artist, amount * 2);
-        const ytdlpPath = await this.getYtDlpPathAsync();
+        const ytdlpCommand = await this.getYtDlpCommandAsync();
         for (const video of videos) {
             if (results.length >= amount)
                 break;
-            if (ytdlpPath) {
+            if (ytdlpCommand) {
                 const filePath = path_1.default.join(TEMP_DIR, `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.m4a`);
                 try {
                     // BUG-113 Fix: execFile usage
                     const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
                     const execFilePromise = (0, util_1.promisify)(execFile);
-                    await execFilePromise(ytdlpPath, ['-f', 'bestaudio[ext=m4a]', '-o', filePath, video.url, '--no-warnings', '--no-playlist', '--max-filesize', '49M'], { timeout: 60000, maxBuffer: 1024 * 1024 });
+                    await execFilePromise(ytdlpCommand.command, [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio/best', '-o', filePath, video.url, '--no-warnings', '--no-playlist', '--max-filesize', '49M'], { timeout: 60000, maxBuffer: 1024 * 1024 });
                     if (fs_1.default.existsSync(filePath)) {
                         const stats = fs_1.default.statSync(filePath);
                         if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
@@ -396,14 +397,14 @@ exports.MusicService = {
     },
     async searchYouTubeIdsWithYtDlp(query, limit) {
         const results = [];
-        const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
-        if (!ytdlpPath)
+        const ytdlpCommand = await (0, ytdlp_1.resolveYtDlpCommand)();
+        if (!ytdlpCommand)
             return results;
         try {
             const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
             const { promisify } = await Promise.resolve().then(() => __importStar(require('util')));
             const execFilePromise = promisify(execFile);
-            const { stdout } = await execFilePromise(ytdlpPath, [`ytsearch${limit}:${query}`, '--print', '%(id)s|||%(title)s', '--flat-playlist', '--no-warnings'], { timeout: 90000, maxBuffer: 4 * 1024 * 1024 });
+            const { stdout } = await execFilePromise(ytdlpCommand.command, [...ytdlpCommand.args, `ytsearch${limit}:${query}`, '--print', '%(id)s|||%(title)s', '--flat-playlist', '--no-warnings'], { timeout: 90000, maxBuffer: 4 * 1024 * 1024 });
             for (const line of stdout.trim().split('\n')) {
                 if (results.length >= limit)
                     break;
@@ -424,15 +425,16 @@ exports.MusicService = {
         }
         return results;
     },
-    // BUG-054 Fix: Cached async yt-dlp path resolver
-    cachedYtDlpPath: null,
+    // BUG-054 Fix: Cached async yt-dlp resolver
+    cachedYtDlpCommand: null,
     ytDlpChecked: false,
-    async getYtDlpPathAsync() {
-        return (0, ytdlp_1.resolveYtDlpPath)();
+    async getYtDlpCommandAsync() {
+        return (0, ytdlp_1.resolveYtDlpCommand)();
     },
     getYtDlpPath() {
-        if (this.ytDlpChecked)
-            return this.cachedYtDlpPath;
+        if (this.ytDlpChecked && this.cachedYtDlpCommand) {
+            return [this.cachedYtDlpCommand.command, ...this.cachedYtDlpCommand.args].join(' ');
+        }
         // Fallback if called synchronously
         return null;
     },

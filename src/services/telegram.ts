@@ -50,7 +50,7 @@ export async function startBot() {
   if (CONFIG.PUBLIC_URL && process.env.NODE_ENV !== 'development') {
     try {
       const webhookUrl = `${CONFIG.PUBLIC_URL}/api/bot/webhook`;
-      await bot.setWebHook(webhookUrl);
+      await bot.setWebHook(webhookUrl, { secret_token: CONFIG.WEBHOOK_SECRET });
       logger.info(`🌐 Webhook set to: ${webhookUrl}`);
     } catch (err: any) {
       logger.error(`❌ setWebHook error: ${err.message}`);
@@ -114,17 +114,19 @@ export async function safeSendToChannels(
    user: any,
    channels: string[],
    sendFn: (normalizedChannel: string) => Promise<void>
-): Promise<void> {
+): Promise<number> {
    // BUG-005 Fix: Use Promise.allSettled to prevent one failure from stopping all sends
-   await Promise.allSettled(channels.map(async (ch) => {
+   const results = await Promise.allSettled(channels.map(async (ch) => {
      const normalized = normalizeChannelId(ch);
-     if (!normalized) return;
-     try {
-       await sendFn(normalized);
-     } catch (e: any) {
-       logger.warn(`Multi-channel send failed ${normalized}: ${e.message}`);
-     }
+     if (!normalized) throw new Error('Empty target channel');
+     await sendFn(normalized);
    }));
+   results.forEach((result, index) => {
+     if (result.status === 'rejected') {
+       logger.warn(`Multi-channel send failed ${channels[index]}: ${result.reason?.message || result.reason}`);
+     }
+   });
+   return results.filter((result) => result.status === 'fulfilled').length;
  }
 
 function normalizeChannelId(channel: string): string {
@@ -184,7 +186,7 @@ export async function safeSend(user: any, article: any): Promise<void> {
     }
 
 const targets = DBService.getUserOutputChannels(user);
-     await safeSendToChannels(user, targets.length ? targets : [user.target_channel], async (targetChannel) => {
+     const sent = await safeSendToChannels(user, targets.length ? targets : [user.target_channel], async (targetChannel) => {
        // BUG-003 Fix: Skip isValidMedia HEAD request - Telegram will reject invalid media
        if (article.videoUrl && ScraperService.isMediaUrl(article.videoUrl)) {
          await bot.sendVideo(targetChannel, article.videoUrl, { caption, parse_mode: "HTML" });
@@ -196,6 +198,7 @@ const targets = DBService.getUserOutputChannels(user);
          await bot.sendMessage(targetChannel, caption, { parse_mode: "HTML" });
        }
      });
+     if (sent === 0) throw new Error('All target channel sends failed');
 
     await DBService.incrementStat(user.telegram_id, 'total_posts');
   } catch (e: any) {

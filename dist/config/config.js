@@ -40,6 +40,7 @@ exports.countKeysByProvider = countKeysByProvider;
 exports.getEnvKeySourceReport = getEnvKeySourceReport;
 const dotenv = __importStar(require("dotenv"));
 const path = __importStar(require("path"));
+const crypto = __importStar(require("crypto"));
 dotenv.config({ override: false }); // Kubernetes/Render env-vars win over local .env
 // BUG-001 Fix: Provider-based max token limits
 exports.MAX_TOKENS_BY_PROVIDER = {
@@ -86,6 +87,10 @@ exports.CONFIG = {
     // This is your master password for the admin dashboard - keep it secret!
     // Generate one with: openssl rand -hex 32 (Linux/Mac) or generate a long random string
     DASHBOARD_SECRET: process.env.DASHBOARD_SECRET || "",
+    WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || crypto
+        .createHash('sha256')
+        .update(`${process.env.DASHBOARD_SECRET || process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN || 'mateassistent'}:webhook`)
+        .digest('hex'),
     REDIS_URL: process.env.REDIS_URL || ""
 };
 if (!process.env.OWNER_ID) {

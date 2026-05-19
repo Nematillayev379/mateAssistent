@@ -4,13 +4,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.resolveYtDlpPath = resolveYtDlpPath;
+exports.resolveYtDlpCommand = resolveYtDlpCommand;
 exports.findNewestFile = findNewestFile;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const util_1 = require("util");
 const child_process_1 = require("child_process");
 const execPromise = (0, util_1.promisify)(child_process_1.exec);
+const execFilePromise = (0, util_1.promisify)(child_process_1.execFile);
 let cachedYtDlpPath = null;
+let cachedYtDlpCommand = null;
 let ytDlpChecked = false;
 const https_1 = __importDefault(require("https"));
 function downloadFile(url, destination) {
@@ -43,8 +46,15 @@ function downloadFile(url, destination) {
 }
 /** Resolve yt-dlp binary (Render/Linux, Docker, Windows, postinstall). */
 async function resolveYtDlpPath() {
+    const command = await resolveYtDlpCommand();
+    if (!command)
+        return null;
+    return command.args.length ? [command.command, ...command.args].join(' ') : command.command;
+}
+/** Resolve yt-dlp as an executable plus base args for safe spawn/execFile usage. */
+async function resolveYtDlpCommand() {
     if (ytDlpChecked)
-        return cachedYtDlpPath;
+        return cachedYtDlpCommand;
     const candidates = [
         '/usr/local/bin/yt-dlp',
         '/usr/bin/yt-dlp',
@@ -56,7 +66,6 @@ async function resolveYtDlpPath() {
     ];
     for (const p of candidates) {
         try {
-            const cmd = p.includes(' ') || p.includes('\\') ? `"${p}"` : p;
             if (p === 'yt-dlp' || fs_1.default.existsSync(p)) {
                 if (process.platform !== 'win32' && p !== 'yt-dlp') {
                     try {
@@ -64,8 +73,9 @@ async function resolveYtDlpPath() {
                     }
                     catch { }
                 }
-                await execPromise(`${cmd} --version`, { timeout: 8000 });
+                await execFilePromise(p, ['--version'], { timeout: 8000 });
                 cachedYtDlpPath = p;
+                cachedYtDlpCommand = { command: p, args: [] };
                 break;
             }
         }
@@ -82,12 +92,14 @@ async function resolveYtDlpPath() {
                 fs_1.default.chmodSync(fallbackPath, '755');
             }
             try {
-                await execPromise(`python3 "${fallbackPath}" --version`, { timeout: 10000 });
-                cachedYtDlpPath = `python3 "${fallbackPath}"`;
+                await execFilePromise('python3', [fallbackPath, '--version'], { timeout: 10000 });
+                cachedYtDlpPath = fallbackPath;
+                cachedYtDlpCommand = { command: 'python3', args: [fallbackPath] };
             }
             catch {
-                await execPromise(`"${fallbackPath}" --version`, { timeout: 10000 });
+                await execFilePromise(fallbackPath, ['--version'], { timeout: 10000 });
                 cachedYtDlpPath = fallbackPath;
+                cachedYtDlpCommand = { command: fallbackPath, args: [] };
             }
         }
         catch {
@@ -95,7 +107,7 @@ async function resolveYtDlpPath() {
         }
     }
     ytDlpChecked = true;
-    return cachedYtDlpPath;
+    return cachedYtDlpCommand;
 }
 function findNewestFile(dir, prefix, ext) {
     if (!fs_1.default.existsSync(dir))

@@ -165,10 +165,9 @@ async function processDirectly(userId: number, source: any): Promise<void> {
           pubDate: article.pubDate,
         };
 
-        // BUG-117 Fix: Mark seen BEFORE inline processing to prevent parallel race conditions
-        await DBService.markSeen(userId, article.link, article.title);
         try {
           await processArticleInline(userId, articleData, lang);
+          await DBService.markSeen(userId, article.link, article.title);
         } catch (articleErr: any) {
           logger.error(`❌ Error inline processing article ${sanitizeLogInput(article.link)}: ${articleErr.message}`);
         }

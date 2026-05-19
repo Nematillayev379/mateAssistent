@@ -74,6 +74,9 @@ if (!connectionOptions) {
       };
 
       await safeSend(user, enrichedArticle);
+      if (article.url && article.title) {
+        await DBService.markSeen(userId, article.url, article.title);
+      }
       logger.info(`✅ Post sent to channel ${user.target_channel} for user ${userId}`);
     } catch (error: any) {
       // BUG-120 Fix: Do not retry if error is permanent (like 400 Bad Request from AI or UI block)

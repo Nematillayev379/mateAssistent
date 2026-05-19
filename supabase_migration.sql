@@ -19,7 +19,8 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1,
   ADD COLUMN IF NOT EXISTS is_approved INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS is_premium INTEGER DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS target_channel BIGINT;
+  ADD COLUMN IF NOT EXISTS target_channel TEXT,
+  ADD COLUMN IF NOT EXISTS extra_channels TEXT;
 
 -- 2. referrals jadvali
 CREATE TABLE IF NOT EXISTS referrals (
@@ -125,7 +126,8 @@ CREATE TABLE IF NOT EXISTS users (
   is_approved INTEGER DEFAULT 0,
   is_premium INTEGER DEFAULT 0,
   premium_until TIMESTAMPTZ,
-  target_channel BIGINT,
+  target_channel TEXT,
+  extra_channels TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   referral_code TEXT UNIQUE,
@@ -138,6 +140,38 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active, is_approved);
+
+ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS forward_mode TEXT DEFAULT 'copy';
+ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS use_ai INTEGER DEFAULT 0;
+ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS last_check TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS telegram_seen_messages (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  source_chat_id TEXT NOT NULL,
+  message_id BIGINT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, source_chat_id, message_id)
+);
+
+CREATE TABLE IF NOT EXISTS trends_snapshots (
+  id BIGSERIAL PRIMARY KEY,
+  topics JSONB NOT NULL,
+  summary TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS post_drafts (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(telegram_id) ON DELETE CASCADE,
+  title TEXT,
+  body TEXT NOT NULL,
+  image_url TEXT,
+  channels JSONB,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- 11. bot_settings jadvali (konfiguratsiyalar uchun)
 CREATE TABLE IF NOT EXISTS bot_settings (

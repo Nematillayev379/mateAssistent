@@ -1,11 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 
 const execPromise = promisify(exec);
+const execFilePromise = promisify(execFile);
 
 let cachedYtDlpPath: string | null = null;
+let cachedYtDlpCommand: { command: string; args: string[] } | null = null;
 let ytDlpChecked = false;
 
 import https from 'https';
@@ -38,7 +40,14 @@ function downloadFile(url: string, destination: string): Promise<void> {
 
 /** Resolve yt-dlp binary (Render/Linux, Docker, Windows, postinstall). */
 export async function resolveYtDlpPath(): Promise<string | null> {
-  if (ytDlpChecked) return cachedYtDlpPath;
+  const command = await resolveYtDlpCommand();
+  if (!command) return null;
+  return command.args.length ? [command.command, ...command.args].join(' ') : command.command;
+}
+
+/** Resolve yt-dlp as an executable plus base args for safe spawn/execFile usage. */
+export async function resolveYtDlpCommand(): Promise<{ command: string; args: string[] } | null> {
+  if (ytDlpChecked) return cachedYtDlpCommand;
 
   const candidates = [
     '/usr/local/bin/yt-dlp',
@@ -52,15 +61,15 @@ export async function resolveYtDlpPath(): Promise<string | null> {
 
   for (const p of candidates) {
     try {
-      const cmd = p.includes(' ') || p.includes('\\') ? `"${p}"` : p;
       if (p === 'yt-dlp' || fs.existsSync(p)) {
         if (process.platform !== 'win32' && p !== 'yt-dlp') {
           try {
             fs.chmodSync(p, '755');
           } catch {}
         }
-        await execPromise(`${cmd} --version`, { timeout: 8000 });
+        await execFilePromise(p, ['--version'], { timeout: 8000 });
         cachedYtDlpPath = p;
+        cachedYtDlpCommand = { command: p, args: [] };
         break;
       }
     } catch {
@@ -78,11 +87,13 @@ export async function resolveYtDlpPath(): Promise<string | null> {
       }
       
       try {
-        await execPromise(`python3 "${fallbackPath}" --version`, { timeout: 10000 });
-        cachedYtDlpPath = `python3 "${fallbackPath}"`;
-      } catch {
-        await execPromise(`"${fallbackPath}" --version`, { timeout: 10000 });
+        await execFilePromise('python3', [fallbackPath, '--version'], { timeout: 10000 });
         cachedYtDlpPath = fallbackPath;
+        cachedYtDlpCommand = { command: 'python3', args: [fallbackPath] };
+      } catch {
+        await execFilePromise(fallbackPath, ['--version'], { timeout: 10000 });
+        cachedYtDlpPath = fallbackPath;
+        cachedYtDlpCommand = { command: fallbackPath, args: [] };
       }
     } catch {
       // Ignored
@@ -90,7 +101,7 @@ export async function resolveYtDlpPath(): Promise<string | null> {
   }
 
   ytDlpChecked = true;
-  return cachedYtDlpPath;
+  return cachedYtDlpCommand;
 }
 
 export function findNewestFile(dir: string, prefix: string, ext?: string): string | null {

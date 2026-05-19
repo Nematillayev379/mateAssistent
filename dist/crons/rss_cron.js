@@ -195,10 +195,9 @@ async function processDirectly(userId, source) {
                     imageUrl: article.imageUrl || null,
                     pubDate: article.pubDate,
                 };
-                // BUG-117 Fix: Mark seen BEFORE inline processing to prevent parallel race conditions
-                await database_1.DBService.markSeen(userId, article.link, article.title);
                 try {
                     await (0, scraper_worker_1.processArticleInline)(userId, articleData, lang);
+                    await database_1.DBService.markSeen(userId, article.link, article.title);
                 }
                 catch (articleErr) {
                     logger_1.logger.error(`❌ Error inline processing article ${(0, logger_1.sanitizeLogInput)(article.link)}: ${articleErr.message}`);

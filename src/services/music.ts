@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { logger, sanitizeLogInput } from '../utils/logger';
-import { resolveYtDlpPath } from '../utils/ytdlp';
+import { resolveYtDlpCommand } from '../utils/ytdlp';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -74,8 +74,8 @@ export const MusicService = {
   async searchWithYtDlp(artist: string, amount: number): Promise<{ title: string, path: string }[]> {
     const results: { title: string, path: string }[] = [];
     // BUG-113 & BUG-054 Fix: Use cached path
-    const ytdlpPath = await this.getYtDlpPathAsync();
-    if (!ytdlpPath) {
+    const ytdlpCommand = await this.getYtDlpCommandAsync();
+    if (!ytdlpCommand) {
       logger.warn('yt-dlp topilmadi, skip');
       return results;
     }
@@ -87,7 +87,8 @@ export const MusicService = {
       
       const { spawn } = await import('child_process');
       const stdout = await new Promise<string>((resolve, reject) => {
-        const proc = spawn(ytdlpPath, [
+        const proc = spawn(ytdlpCommand.command, [
+          ...ytdlpCommand.args,
           `ytsearch${amount * 2}:${searchQuery}`,
           '--flat-playlist',
           '--print', '%(id)s|||%(title)s',
@@ -116,8 +117,8 @@ export const MusicService = {
           const { execFile } = await import('child_process');
           const execFilePromise = promisify(execFile);
           await execFilePromise(
-            ytdlpPath,
-            ['-f', 'bestaudio[ext=m4a]', '-o', filePath, `https://www.youtube.com/watch?v=${videoId}`, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
+            ytdlpCommand.command,
+            [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio/best', '-o', filePath, `https://www.youtube.com/watch?v=${videoId}`, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
             { timeout: 60000, maxBuffer: 1024 * 1024 }
           );
 
@@ -274,20 +275,20 @@ export const MusicService = {
   async searchWithYouTubeScrape(artist: string, amount: number): Promise<{ title: string, path: string }[]> {
     const results: { title: string, path: string }[] = [];
     const videos = await this.getYouTubeVideoIds(artist, amount * 2);
-    const ytdlpPath = await this.getYtDlpPathAsync();
+    const ytdlpCommand = await this.getYtDlpCommandAsync();
 
     for (const video of videos) {
       if (results.length >= amount) break;
       
-      if (ytdlpPath) {
+      if (ytdlpCommand) {
         const filePath = path.join(TEMP_DIR, `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.m4a`);
         try {
           // BUG-113 Fix: execFile usage
           const { execFile } = await import('child_process');
           const execFilePromise = promisify(execFile);
           await execFilePromise(
-            ytdlpPath,
-            ['-f', 'bestaudio[ext=m4a]', '-o', filePath, video.url, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
+            ytdlpCommand.command,
+            [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio/best', '-o', filePath, video.url, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
             { timeout: 60000, maxBuffer: 1024 * 1024 }
           );
           
@@ -372,16 +373,16 @@ export const MusicService = {
 
   async searchYouTubeIdsWithYtDlp(query: string, limit: number): Promise<{ title: string; url: string; videoId: string }[]> {
     const results: { title: string; url: string; videoId: string }[] = [];
-    const ytdlpPath = await resolveYtDlpPath();
-    if (!ytdlpPath) return results;
+    const ytdlpCommand = await resolveYtDlpCommand();
+    if (!ytdlpCommand) return results;
 
     try {
       const { execFile } = await import('child_process');
       const { promisify } = await import('util');
       const execFilePromise = promisify(execFile);
       const { stdout } = await execFilePromise(
-        ytdlpPath,
-        [`ytsearch${limit}:${query}`, '--print', '%(id)s|||%(title)s', '--flat-playlist', '--no-warnings'],
+        ytdlpCommand.command,
+        [...ytdlpCommand.args, `ytsearch${limit}:${query}`, '--print', '%(id)s|||%(title)s', '--flat-playlist', '--no-warnings'],
         { timeout: 90000, maxBuffer: 4 * 1024 * 1024 }
       );
 
@@ -404,15 +405,17 @@ export const MusicService = {
     return results;
   },
 
-  // BUG-054 Fix: Cached async yt-dlp path resolver
-  cachedYtDlpPath: null as string | null,
+  // BUG-054 Fix: Cached async yt-dlp resolver
+  cachedYtDlpCommand: null as { command: string; args: string[] } | null,
   ytDlpChecked: false,
-  async getYtDlpPathAsync(): Promise<string | null> {
-    return resolveYtDlpPath();
+  async getYtDlpCommandAsync(): Promise<{ command: string; args: string[] } | null> {
+    return resolveYtDlpCommand();
   },
 
   getYtDlpPath(): string | null {
-    if (this.ytDlpChecked) return this.cachedYtDlpPath;
+    if (this.ytDlpChecked && this.cachedYtDlpCommand) {
+      return [this.cachedYtDlpCommand.command, ...this.cachedYtDlpCommand.args].join(' ');
+    }
     // Fallback if called synchronously
     return null;
   },

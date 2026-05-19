@@ -50,15 +50,13 @@ if (!connectionOptions) {
             await aiQueue.add('process-ai', { userId, article: articleData, lang }, { 
               jobId: `ai_${userId}_${linkHash}` 
             });
-            await DBService.markSeen(userId, article.link, article.title);
           }
         } else {
-          // BUG-026 Fix: markSeen is called BEFORE processing to avoid infinite retry loops on failure
-          await DBService.markSeen(userId, article.link, article.title);
           try {
             await processArticleInline(userId, articleData, lang);
+            await DBService.markSeen(userId, article.link, article.title);
           } catch (e: any) {
-            logger.error(`Inline processing failed, but marked as seen to prevent loop: ${e.message}`);
+            logger.error(`Inline processing failed, article left unmarked for retry: ${e.message}`);
           }
         }
       }

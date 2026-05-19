@@ -114,12 +114,13 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
       return res.choices[0]?.message?.content ?? "";
     } else if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
       // BUG-034 Fix: Use gemini-2.0-flash (widely supported)
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: system }] },
-          contents: [{ parts: [{ text: user }] }]
+          contents: [{ parts: [{ text: user }] }],
+          generationConfig: { maxOutputTokens: maxTokens, temperature: CONFIG.TEMPERATURE }
         })
       });
       
@@ -177,7 +178,7 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
     }
   } catch (error) {
     const status = (error as any)?.status ?? (error as any)?.response?.status;
-    if (status === 429 || status === 401 || status === 503 || status === 500) {
+    if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
       if (currentKeyObj?.key) {
         blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
       }
@@ -549,13 +550,14 @@ async function getSmartAIResponseWithKeys(
 
     if (currentKeyObj.type === 'gemini' || currentKeyObj.type === 'google') {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: system }] },
             contents: [{ parts: [{ text: user }] }],
+            generationConfig: { maxOutputTokens: maxTokens, temperature: CONFIG.TEMPERATURE },
           }),
           signal: AbortSignal.timeout(25000),
         }

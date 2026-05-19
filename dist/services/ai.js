@@ -163,12 +163,13 @@ async function getSmartAIResponse(system, user, retryCount = 0) {
         }
         else if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
             // BUG-034 Fix: Use gemini-2.0-flash (widely supported)
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     systemInstruction: { parts: [{ text: system }] },
-                    contents: [{ parts: [{ text: user }] }]
+                    contents: [{ parts: [{ text: user }] }],
+                    generationConfig: { maxOutputTokens: maxTokens, temperature: config_1.CONFIG.TEMPERATURE }
                 })
             });
             if (!response.ok) {
@@ -225,7 +226,7 @@ async function getSmartAIResponse(system, user, retryCount = 0) {
     }
     catch (error) {
         const status = error?.status ?? error?.response?.status;
-        if (status === 429 || status === 401 || status === 503 || status === 500) {
+        if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
             if (currentKeyObj?.key) {
                 blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
             }
@@ -563,12 +564,13 @@ async function getSmartAIResponseWithKeys(keys, system, user, retryCount = 0) {
             return res.choices[0]?.message?.content ?? '';
         }
         if (currentKeyObj.type === 'gemini' || currentKeyObj.type === 'google') {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     systemInstruction: { parts: [{ text: system }] },
                     contents: [{ parts: [{ text: user }] }],
+                    generationConfig: { maxOutputTokens: maxTokens, temperature: config_1.CONFIG.TEMPERATURE },
                 }),
                 signal: AbortSignal.timeout(25000),
             });

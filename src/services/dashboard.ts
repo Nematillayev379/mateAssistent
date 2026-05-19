@@ -28,10 +28,8 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const origin = req.headers.origin;
     if (origin) {
       const allowedOrigins = [CONFIG.PUBLIC_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'];
-      if (allowedOrigins.some(o => o && origin.startsWith(o))) {
+      if (allowedOrigins.some(o => o && origin === o)) {
         res.header('Access-Control-Allow-Origin', origin);
-      } else {
-        res.header('Access-Control-Allow-Origin', '*');
       }
     } else {
       res.header('Access-Control-Allow-Origin', '*');
@@ -80,6 +78,8 @@ export function startDashboardServer(port: number | string, _bot?: any) {
 
   app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active' }));
   app.post('/api/bot/webhook', async (req, res) => {
+    const secret = req.headers['x-telegram-bot-api-secret-token'];
+    if (secret !== CONFIG.WEBHOOK_SECRET) return res.sendStatus(403);
     try { await bot.processUpdate(req.body); res.sendStatus(200); } catch (e: any) { res.sendStatus(500); }
   });
 
@@ -281,14 +281,8 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const uid = parseInt(req.authenticatedUserId);
     const { name, url, lang } = req.body;
     
-    // BUG-H2: SSRF Prevention URL Validation
-    if (!url || !url.startsWith('http')) return res.status(400).json({ error: 'Invalid URL' });
-    try {
-      const u = new URL(url);
-      if (['localhost', '127.0.0.1'].includes(u.hostname) || u.hostname.startsWith('192.168.') || u.hostname.startsWith('10.')) {
-        throw new Error();
-      }
-    } catch {
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) return res.status(400).json({ error: 'Invalid URL' });
+    if (!(await ScraperService.isPublicExternalUrl(url))) {
       return res.status(400).json({ error: 'Private URLs not allowed' });
     }
 
@@ -532,7 +526,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     });
   };
 
-  app.get('/api/debug/ytdlp', async (req: any, res: any) => {
+  app.get('/api/debug/ytdlp', checkAdmin, async (req: any, res: any) => {
     try {
       const { resolveYtDlpPath } = await import('../utils/ytdlp');
       const ytdlpPath = await resolveYtDlpPath();
@@ -675,21 +669,31 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const { text, imageUrl, imageBase64 } = req.body;
     if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Invalid text' });
 
-    const user = await DBService.getUser(parseInt(req.authenticatedUserId));
-    if (!user?.target_channel) {
-      return res.status(400).json({ error: 'No channel configured' });
-    }
+    try {
+      const user = await DBService.getUser(parseInt(req.authenticatedUserId));
+      if (!user?.target_channel) {
+        return res.status(400).json({ error: 'No channel configured' });
+      }
 
-    if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
-      const base64Data = imageBase64.split(',')[1];
-      const buffer = Buffer.from(base64Data, 'base64');
-      await bot.sendPhoto(user.target_channel, buffer, { caption: text });
-    } else if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
-      await bot.sendPhoto(user.target_channel, imageUrl, { caption: text });
-    } else {
-      await bot.sendMessage(user.target_channel, text);
+      const caption = text.slice(0, 1024);
+      const remainder = text.length > 1024 ? text.slice(1024) : '';
+
+      if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
+        const base64Data = imageBase64.split(',')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        await bot.sendPhoto(user.target_channel, buffer, { caption });
+      } else if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
+        await bot.sendPhoto(user.target_channel, imageUrl, { caption });
+      } else {
+        await bot.sendMessage(user.target_channel, text);
+      }
+
+      if (remainder) await bot.sendMessage(user.target_channel, remainder);
+      res.json({ success: true });
+    } catch (e: any) {
+      logger.error(`SMM post-to-channel error: ${e.message}`);
+      res.status(500).json({ error: e.message || 'Telegram send failed' });
     }
-    res.json({ success: true });
   });
 
   app.get('/api/tracker/search', checkAuth, async (req: any, res: any) => {

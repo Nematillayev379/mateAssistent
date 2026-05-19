@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { logger } from '../utils/logger';
-import { findNewestFile, resolveYtDlpPath } from '../utils/ytdlp';
+import { findNewestFile, resolveYtDlpCommand } from '../utils/ytdlp';
 
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_yt');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -98,15 +98,15 @@ export const YoutubeService = {
 
   async extractPlaylistLinks(url: string, limit: number = 20): Promise<{ title: string; url: string }[]> {
     try {
-      const ytdlpPath = await resolveYtDlpPath();
-      if (!ytdlpPath) throw new Error('yt-dlp not found');
+      const ytdlpCommand = await resolveYtDlpCommand();
+      if (!ytdlpCommand) throw new Error('yt-dlp not found');
 
       const { execFile } = await import('child_process');
       const { promisify } = await import('util');
       const execFilePromise = promisify(execFile);
       const { stdout } = await execFilePromise(
-        ytdlpPath,
-        ['--flat-playlist', '--print', '%(id)s|||%(title)s', '--playlist-end', String(limit), url.trim()],
+        ytdlpCommand.command,
+        [...ytdlpCommand.args, '--flat-playlist', '--print', '%(id)s|||%(title)s', '--playlist-end', String(limit), url.trim()],
         { timeout: 60000 }
       );
 
@@ -132,11 +132,11 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
   if (!safeUrl.startsWith('http')) throw new Error('Invalid URL');
 
   const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-  const ytdlpPath = await resolveYtDlpPath();
+  const ytdlpCommand = await resolveYtDlpCommand();
   let ytdlpFailed = false;
 
   // BUG-XXX Fix: Capture stderr from yt-dlp to diagnose binary/execution issues on Windows
-  if (ytdlpPath) {
+  if (ytdlpCommand) {
     try {
       const { spawn } = await import('child_process');
       const baseOut = path.join(TEMP_DIR, `yt_${stamp}`);
@@ -180,7 +180,7 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
 
       let stderrOutput = '';
       await new Promise<void>((resolve, reject) => {
-        const proc = spawn(ytdlpPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+        const proc = spawn(ytdlpCommand.command, [...ytdlpCommand.args, ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
         proc.stderr.on('data', (d: Buffer) => { stderrOutput += d.toString(); });
         const timer = setTimeout(() => {
           proc.kill('SIGKILL');

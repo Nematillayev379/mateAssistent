@@ -64,6 +64,9 @@ else {
                 category: category
             };
             await (0, telegram_1.safeSend)(user, enrichedArticle);
+            if (article.url && article.title) {
+                await database_1.DBService.markSeen(userId, article.url, article.title);
+            }
             logger_1.logger.info(`✅ Post sent to channel ${user.target_channel} for user ${userId}`);
         }
         catch (error) {

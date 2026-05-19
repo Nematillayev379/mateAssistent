@@ -131,7 +131,7 @@ exports.DBService = {
     },
     // BUG-013 Fix: Use upsert with onConflict to handle unique constraints gracefully
     async markSeen(userId, url, title) {
-        const { error } = await supabase.from('processed_news').upsert({ user_id: userId, url, title }, { onConflict: 'user_id, url' });
+        const { error } = await supabase.from('processed_news').upsert({ user_id: userId, url, title }, { onConflict: 'user_id,url' });
         if (error) {
             logger_1.logger.error(`markSeen error: ${error.message}`);
             throw error;

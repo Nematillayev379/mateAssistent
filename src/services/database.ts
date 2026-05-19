@@ -138,7 +138,7 @@ export const DBService = {
   async markSeen(userId: number, url: string, title: string) {
     const { error } = await supabase.from('processed_news').upsert(
       { user_id: userId, url, title },
-      { onConflict: 'user_id, url' }
+      { onConflict: 'user_id,url' }
     );
     if (error) {
       logger.error(`markSeen error: ${error.message}`);

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   referral_code TEXT UNIQUE,
   referral_count INTEGER DEFAULT 0,
   target_channel TEXT,
+  extra_channels TEXT,
   interval_minutes INTEGER DEFAULT 15,
   keywords TEXT,
   schedule_times TEXT,
@@ -66,6 +67,7 @@ CREATE TABLE IF NOT EXISTS processed_news (
 -- Create index for faster dedup lookups
 CREATE INDEX IF NOT EXISTS idx_processed_news_user_url ON processed_news(user_id, url);
 CREATE INDEX IF NOT EXISTS idx_processed_news_user_title ON processed_news(user_id, title);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_processed_news_user_url ON processed_news(user_id, url);
 
 -- Stats table
 CREATE TABLE IF NOT EXISTS stats (
@@ -115,7 +117,10 @@ CREATE TABLE IF NOT EXISTS monitored_channels (
   channel_id TEXT NOT NULL,
   name TEXT,
   last_post_id TEXT,
-  last_check TIMESTAMPTZ DEFAULT NOW()
+  last_check TIMESTAMPTZ DEFAULT NOW(),
+  forward_mode TEXT DEFAULT 'copy',
+  use_ai INTEGER DEFAULT 0,
+  is_active INTEGER DEFAULT 1
 );
 
 -- Settings/Prices
@@ -133,6 +138,36 @@ CREATE TABLE IF NOT EXISTS tracked_prices (
   item_name TEXT NOT NULL,
   last_price BIGINT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS telegram_seen_messages (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  user_id BIGINT NOT NULL,
+  source_chat_id TEXT NOT NULL,
+  message_id BIGINT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, source_chat_id, message_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_telegram_seen_user ON telegram_seen_messages(user_id, source_chat_id);
+
+CREATE TABLE IF NOT EXISTS trends_snapshots (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  topics JSONB NOT NULL,
+  summary TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS post_drafts (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  user_id BIGINT REFERENCES users(telegram_id) ON DELETE CASCADE,
+  title TEXT,
+  body TEXT NOT NULL,
+  image_url TEXT,
+  channels JSONB,
+  status TEXT DEFAULT 'draft',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ═══════════════════════════════════════════════════

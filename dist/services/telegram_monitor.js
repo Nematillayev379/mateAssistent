@@ -29,7 +29,7 @@ exports.TelegramMonitorService = {
         const chatKey = String(chatId);
         const usernameKey = chatUsername ? `@${chatUsername.toLowerCase()}` : null;
         return channels.filter((c) => {
-            if (c.platform !== 'telegram' || c.is_active === 0)
+            if (c.platform !== 'telegram' || c.is_active === 0 || c.is_active === false)
                 return false;
             const stored = normalizeTelegramChannelId(c.channel_id);
             if (stored === chatKey)
@@ -72,8 +72,9 @@ exports.TelegramMonitorService = {
                 const targets = database_1.DBService.getUserOutputChannels(user);
                 const forwardMode = sub.forward_mode || 'copy';
                 const useAi = sub.use_ai === 1;
+                let sent = 0;
                 if (forwardMode === 'copy' && !useAi) {
-                    await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
+                    sent = await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
                         await bot_instance_1.bot.copyMessage(target, sourceKey, msg.message_id);
                     });
                 }
@@ -93,16 +94,18 @@ exports.TelegramMonitorService = {
                         const file = await bot_instance_1.bot.getFile(photo.file_id);
                         article.imageUrl = `https://api.telegram.org/file/bot${config_1.CONFIG.TELEGRAM_TOKEN}/${file.file_path}`;
                     }
-                    await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
-                        const u = { ...user, target_channel: target };
+                    sent = await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
+                        const u = { ...user, target_channel: target, extra_channels: '' };
                         await (0, telegram_1.safeSend)(u, article);
                     });
                 }
                 else {
-                    await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
+                    sent = await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
                         await bot_instance_1.bot.forwardMessage(target, sourceKey, msg.message_id);
                     });
                 }
+                if (sent === 0)
+                    throw new Error('All Telegram monitor sends failed');
                 await this.markMessageSeen(sub.user_id, sourceKey, msg.message_id);
                 await database_1.DBService.incrementStat(sub.user_id, 'total_posts');
             }
