@@ -81,17 +81,24 @@ export const DownloaderService = {
   async getCobaltMedia(url: string, opts?: { audioOnly?: boolean }): Promise<string | null> {
     const audioOnly = !!opts?.audioOnly;
     const instances = [
-      'https://cobalt.clxxped.lol',
-      'https://cobalt.meowing.de',
-      'https://cobalt.canine.tools',
-      'https://cobalt.kittycat.boo',
-      'https://cobalt.blackcat.sweeux.org',
-      'https://cobalt.mgytr.top',
-      'https://dl.woof.monster',
-      'https://qwkuns.me',
-      'https://cobalt.liubquanti.click',
-      'https://cobalt.squair.xyz',
-      'https://cobalt.cjs.nz',
+      'https://cobaltapi.kittycat.boo',
+      'https://dog.kittycat.boo',
+      'https://fox.kittycat.boo',
+      'https://cobaltapi.squair.xyz',
+      'https://api.cobalt.blackcat.sweeux.org',
+      'https://api.dl.woof.monster',
+      'https://api.qwkuns.me',
+      'https://cobaltapi.cjs.nz',
+      'https://apicobalt.mgytr.top',
+      'https://api.cobalt.liubquanti.click',
+      'https://nuko-c.meowing.de',
+      'https://sunny.imput.net',
+      'https://nachos.imput.net',
+      'https://kityune.imput.net',
+      'https://blossom.imput.net',
+      'https://lime.clxxped.lol',
+      'https://melon.clxxped.lol',
+      'https://grapefruit.clxxped.lol',
     ];
 
     const fetchFromInstance = async (base: string) => {
@@ -108,6 +115,7 @@ export const DownloaderService = {
             Accept: 'application/json',
             'Content-Type': 'application/json',
             Origin: 'https://cobalt.tools',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
           timeout: 25000,
         });
@@ -126,7 +134,11 @@ export const DownloaderService = {
           filenamePattern: 'basic',
           isAudioOnly: audioOnly,
         }, {
-          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
           timeout: 20000,
         });
         if (res.data?.url) return res.data.url;

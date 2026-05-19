@@ -202,9 +202,24 @@ exports.MusicService = {
         // Get video URLs from YouTube search
         const videos = await this.getYouTubeVideoIds(artist, amount * 2);
         const cobaltInstances = [
-            'https://api.cobalt.tools',
-            'https://cobalt.canine.tools',
-            'https://cobalt.meowing.de',
+            'https://cobaltapi.kittycat.boo',
+            'https://dog.kittycat.boo',
+            'https://fox.kittycat.boo',
+            'https://cobaltapi.squair.xyz',
+            'https://api.cobalt.blackcat.sweeux.org',
+            'https://api.dl.woof.monster',
+            'https://api.qwkuns.me',
+            'https://cobaltapi.cjs.nz',
+            'https://apicobalt.mgytr.top',
+            'https://api.cobalt.liubquanti.click',
+            'https://nuko-c.meowing.de',
+            'https://sunny.imput.net',
+            'https://nachos.imput.net',
+            'https://kityune.imput.net',
+            'https://blossom.imput.net',
+            'https://lime.clxxped.lol',
+            'https://melon.clxxped.lol',
+            'https://grapefruit.clxxped.lol',
         ];
         for (const video of videos) {
             if (results.length >= amount)
