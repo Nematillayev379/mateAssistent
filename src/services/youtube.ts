@@ -141,12 +141,7 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
         typeParam === 'audio'
           ? [
               '-f',
-              'bestaudio/best',
-              '-x',
-              '--audio-format',
-              'm4a',
-              '--audio-quality',
-              '128K',
+              'bestaudio[ext=m4a]/bestaudio/best',
               '-o',
               `${baseOut}.%(ext)s`,
               safeUrl,

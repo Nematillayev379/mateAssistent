@@ -925,7 +925,17 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       'Kunlik digest',
       'Premium badge va oltin tema'
     ];
-    res.json({ monthlyPrice: priceMonthly, yearlyPrice: priceYearly, isActive, expiresAt, benefits });
+    const starsPrice = parseInt(await DBService.getSetting('premium_stars_price') || '500');
+    const starsYearlyPrice = starsPrice * 10;
+    res.json({ 
+      monthlyPrice: priceMonthly, 
+      yearlyPrice: priceYearly, 
+      starsPrice,
+      starsYearlyPrice,
+      isActive, 
+      expiresAt, 
+      benefits 
+    });
   });
 
   app.post('/api/premium/buy', checkAuth, async (req: any, res: any) => {

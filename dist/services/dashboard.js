@@ -905,7 +905,17 @@ function startDashboardServer(port, _bot) {
             'Kunlik digest',
             'Premium badge va oltin tema'
         ];
-        res.json({ monthlyPrice: priceMonthly, yearlyPrice: priceYearly, isActive, expiresAt, benefits });
+        const starsPrice = parseInt(await database_1.DBService.getSetting('premium_stars_price') || '500');
+        const starsYearlyPrice = starsPrice * 10;
+        res.json({
+            monthlyPrice: priceMonthly,
+            yearlyPrice: priceYearly,
+            starsPrice,
+            starsYearlyPrice,
+            isActive,
+            expiresAt,
+            benefits
+        });
     });
     app.post('/api/premium/buy', checkAuth, async (req, res) => {
         const uid = parseInt(req.authenticatedUserId);

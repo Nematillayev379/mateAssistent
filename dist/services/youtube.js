@@ -173,12 +173,7 @@ async function downloadYouTube(urlParam, typeParam) {
             const args = typeParam === 'audio'
                 ? [
                     '-f',
-                    'bestaudio/best',
-                    '-x',
-                    '--audio-format',
-                    'm4a',
-                    '--audio-quality',
-                    '128K',
+                    'bestaudio[ext=m4a]/bestaudio/best',
                     '-o',
                     `${baseOut}.%(ext)s`,
                     safeUrl,

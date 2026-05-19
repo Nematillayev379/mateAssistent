@@ -350,7 +350,7 @@
                         <div class="card-title" style="color: var(--gold);"><i class="fas fa-crown"></i> Premium ELITE</div>
                         <div id="premium-info" style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 15px; line-height: 1.6;">Yuklanmoqda...</div>
                     </div>
-                    <div class="card">
+                    <div class="card" id="premium-purchase-card">
                         <div class="card-title"><i class="fas fa-tag"></i> Reja tanlang</div>
                         <p data-i18n="premium_pay_method" style="font-size:0.8rem;color:var(--secondary);margin-bottom:8px;">To'lov usuli:</p>
                         <div id="pay-methods-container" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
@@ -570,6 +570,10 @@
         let token = localStorage.getItem('bot_token');
         let userId = localStorage.getItem('bot_user_id');
         let selectedPayMethod = 'stars';
+        let premiumMonthlyUZS = 25000;
+        let premiumYearlyUZS = 250000;
+        let premiumMonthlyStars = 500;
+        let premiumYearlyStars = 5000;
         let adminUsersCache = [];
         let adminUserFilter = 'all';
 
@@ -642,12 +646,25 @@
             return u && (u.role === 'owner' || u.role === 'admin' || u.is_owner);
         }
 
+        function updatePriceDisplay() {
+            const pm = document.getElementById('price-monthly');
+            const py = document.getElementById('price-yearly');
+            if (selectedPayMethod === 'stars') {
+                if (pm) pm.textContent = premiumMonthlyStars + ' Stars';
+                if (py) py.textContent = premiumYearlyStars + ' Stars';
+            } else {
+                if (pm) pm.textContent = premiumMonthlyUZS + ' UZS';
+                if (py) py.textContent = premiumYearlyUZS + ' UZS';
+            }
+        }
+
         function setPayMethod(method) {
             selectedPayMethod = method;
             document.querySelectorAll('.pay-method-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.method === method);
                 btn.style.borderColor = btn.dataset.method === method ? 'var(--accent)' : 'var(--border)';
             });
+            updatePriceDisplay();
         }
 
         async function loadPaymentMethods() {
@@ -1415,12 +1432,15 @@ function renderUI() {
             const u = userData.user;
             const status = document.getElementById('premium-status');
             const plans = document.getElementById('premium-plans');
+            const purchaseCard = document.getElementById('premium-purchase-card');
             if (u.is_premium) {
                 if (status) status.innerHTML = `<div style="color: var(--gold); font-weight: bold; margin-bottom: 10px;">✅ ${typeof t==='function'?t('premium_active'):'Premium faol'}</div>`;
                 if (plans) plans.style.display = 'none';
+                if (purchaseCard) purchaseCard.style.display = 'none';
             } else {
                 if (status) status.innerHTML = `<div style="color: var(--secondary); margin-bottom: 10px;">${typeof t==='function'?t('premium_inactive'):'Premium faol emas'}</div>`;
                 if (plans) plans.style.display = 'block';
+                if (purchaseCard) purchaseCard.style.display = 'block';
             }
             
             // Fetch detailed info for subpage
@@ -1437,10 +1457,11 @@ function renderUI() {
                         }
                         infoEl.innerHTML = text;
                     }
-                    const pm = document.getElementById('price-monthly');
-                    const py = document.getElementById('price-yearly');
-                    if (pm) pm.textContent = data.monthlyPrice + ' UZS';
-                    if (py) py.textContent = data.yearlyPrice + ' UZS';
+                    premiumMonthlyUZS = data.monthlyPrice || 25000;
+                    premiumYearlyUZS = data.yearlyPrice || 250000;
+                    premiumMonthlyStars = data.starsPrice || 500;
+                    premiumYearlyStars = data.starsYearlyPrice || 5000;
+                    updatePriceDisplay();
                 }
             } catch(e){}
         }
