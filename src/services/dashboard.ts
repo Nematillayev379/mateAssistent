@@ -532,6 +532,44 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     });
   };
 
+  app.get('/api/debug/ytdlp', async (req: any, res: any) => {
+    try {
+      const { resolveYtDlpPath } = await import('../utils/ytdlp');
+      const ytdlpPath = await resolveYtDlpPath();
+      const fsExists = ytdlpPath ? fs.existsSync(ytdlpPath) : false;
+      let version = 'not found';
+      let execErr = '';
+      if (ytdlpPath) {
+        try {
+          const { exec } = require('child_process');
+          const { promisify } = require('util');
+          const execPromise = promisify(exec);
+          const cmd = ytdlpPath.includes(' ') || ytdlpPath.includes('\\') ? `"${ytdlpPath}"` : ytdlpPath;
+          const { stdout } = await execPromise(`${cmd} --version`, { timeout: 5000 });
+          version = stdout.trim();
+        } catch (e: any) {
+          execErr = e.message;
+        }
+      }
+      res.json({
+        ytdlpPath,
+        fsExists,
+        version,
+        execErr,
+        cwd: process.cwd(),
+        __dirname,
+        candidates: [
+          path.join(__dirname, '..', '..', 'yt-dlp'),
+          path.join(__dirname, '..', '..', 'yt-dlp.exe'),
+          path.join(process.cwd(), 'yt-dlp'),
+          path.join(process.cwd(), 'yt-dlp.exe'),
+        ].map(p => ({ path: p, exists: fs.existsSync(p) }))
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get('/api/music/download/:id', checkAuth, async (req: any, res: any) => {
     const videoId = req.params.id;
     if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
