@@ -1432,16 +1432,13 @@ function renderUI() {
             const u = userData.user;
             const status = document.getElementById('premium-status');
             const plans = document.getElementById('premium-plans');
-            const purchaseCard = document.getElementById('premium-purchase-card');
             if (u.is_premium) {
                 if (status) status.innerHTML = `<div style="color: var(--gold); font-weight: bold; margin-bottom: 10px;">✅ ${typeof t==='function'?t('premium_active'):'Premium faol'}</div>`;
-                if (plans) plans.style.display = 'none';
-                if (purchaseCard) purchaseCard.style.display = 'none';
             } else {
                 if (status) status.innerHTML = `<div style="color: var(--secondary); margin-bottom: 10px;">${typeof t==='function'?t('premium_inactive'):'Premium faol emas'}</div>`;
-                if (plans) plans.style.display = 'block';
-                if (purchaseCard) purchaseCard.style.display = 'block';
             }
+            if (plans) plans.style.display = 'block';
+            if (purchaseCard) purchaseCard.style.display = 'block';
             
             // Fetch detailed info for subpage
             try {

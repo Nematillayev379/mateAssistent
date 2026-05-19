@@ -1,10 +1,8 @@
 services:
   - type: web
     name: uzbekistan-news-bot-nematillayev
-    env: node
+    env: docker
     plan: free
-    buildCommand: rm -rf dist && npm ci && npm run build
-    startCommand: node dist/main.js
     envVars:
       - key: NODE_ENV
         value: production
