@@ -25,6 +25,12 @@ if (!connectionOptions) {
       const articles: any[] = await ScraperService.fetchRSS(sourceUrl);
 
       for (const article of articles) {
+        const locked = DBService.acquireRecentNewsLock(userId, article.link, article.title);
+        if (!locked) {
+          await DBService.incrementStat(userId, 'total_duplicates');
+          continue;
+        }
+
         const isDuplicate = await DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
         if (isDuplicate) {
           await DBService.incrementStat(userId, 'total_duplicates');

@@ -337,6 +337,10 @@
                             <input type="text" id="set-keywords" placeholder="so'z1, so'z2, so'z3">
                         </div>
                         <div class="input-group">
+                            <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Post intervali (daqiqada)</label>
+                            <input type="number" id="set-interval" min="1" max="1440" step="1" value="15">
+                        </div>
+                        <div class="input-group">
                             <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Kunlik Digest</label>
                             <select id="set-digest">
                                 <option value="false">O'chirilgan</option>
@@ -797,6 +801,18 @@
             });
         }
 
+        const lazyLoaded = {
+            sources: false,
+            settings: false,
+            apiKeys: false,
+            tickets: false,
+            prices: false,
+            channels: false,
+            referral: false,
+            premium: false,
+            paymentMethods: false,
+        };
+
 function renderUI() {
              const u = userData.user || {};
              const displayName = u.username || u.first_name || u.telegram_id || u.id || 'User';
@@ -883,14 +899,6 @@ function renderUI() {
             } else sch.innerHTML = '<p style="color:var(--secondary); font-size:0.8rem">Navbatda postlar yo\'q.</p>';
 
             fetchSources();
-            fetchExtendedSettings();
-            fetchApiKeys();
-            fetchTickets();
-            fetchTrackedPrices();
-            fetchChannels();
-            fetchReferralInfo();
-            fetchPremiumStatus();
-            loadPaymentMethods();
             if (window.WebAppI18n) {
                 WebAppI18n.init(u.language || localStorage.getItem('webapp_lang') || 'uz');
                 WebAppI18n.apply();
@@ -1140,12 +1148,14 @@ function renderUI() {
             const language = document.getElementById('set-lang').value;
             const target_channel = document.getElementById('set-channel').value;
             const keywords = document.getElementById('set-keywords').value;
+            const interval_minutes = Math.max(1, Math.min(1440, parseInt(document.getElementById('set-interval').value || '15', 10) || 15));
             const daily_digest = document.getElementById('set-digest').value === 'true';
             const digest_time = document.getElementById('set-digest-time').value;
-            const res = await apiFetch(`/api/settings/${userId}/extended`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ language, target_channel, keywords, daily_digest, digest_time }) });
+            const res = await apiFetch(`/api/settings/${userId}/extended`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ language, target_channel, keywords, interval_minutes, daily_digest, digest_time }) });
             if (res.ok) {
                 userData.user.language = language;
                 userData.user.target_channel = target_channel;
+                userData.user.interval_minutes = interval_minutes;
                 if (window.WebAppI18n) WebAppI18n.setLang(language);
                 showToast(typeof t === 'function' ? t('common_lang_changed') : 'Saved!', 'success');
                 renderUI();
@@ -1191,7 +1201,30 @@ function renderUI() {
             if (p === 'admin-sources') fetchAdminSources();
             if (p === 'admin-tickets') fetchAdminTickets();
             if (p === 'admin-settings') fetchAdminSettings();
-            if (p === 'api') fetchApiKeys();
+            if (p === 'api' && !lazyLoaded.apiKeys) {
+                lazyLoaded.apiKeys = true;
+                fetchApiKeys();
+            }
+            if (p === 'content') {
+                if (!lazyLoaded.sources) {
+                    lazyLoaded.sources = true;
+                    fetchSources();
+                }
+                if (!lazyLoaded.channels) {
+                    lazyLoaded.channels = true;
+                    fetchChannels();
+                }
+            }
+            if (p === 'profile') {
+                if (!lazyLoaded.referral) {
+                    lazyLoaded.referral = true;
+                    fetchReferralInfo();
+                }
+                if (!lazyLoaded.tickets) {
+                    lazyLoaded.tickets = true;
+                    fetchTickets();
+                }
+            }
             window.scrollTo(0,0);
         }
 
@@ -1209,6 +1242,24 @@ function renderUI() {
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             document.getElementById('nav-services')?.classList.add('active');
             if (p === 'finance') loadFinance();
+            if (p === 'settings' && !lazyLoaded.settings) {
+                lazyLoaded.settings = true;
+                fetchExtendedSettings();
+            }
+            if (p === 'tracker' && !lazyLoaded.prices) {
+                lazyLoaded.prices = true;
+                fetchTrackedPrices();
+            }
+            if (p === 'premium') {
+                if (!lazyLoaded.premium) {
+                    lazyLoaded.premium = true;
+                    fetchPremiumStatus();
+                }
+                if (!lazyLoaded.paymentMethods) {
+                    lazyLoaded.paymentMethods = true;
+                    loadPaymentMethods();
+                }
+            }
             window.scrollTo(0,0);
         }
 
@@ -1218,6 +1269,7 @@ function renderUI() {
                 if (!r.ok) throw new Error('Settings fetch failed: ' + r.status);
                 const data = await r.json();
                 document.getElementById('set-keywords').value = data.keywords || '';
+                document.getElementById('set-interval').value = String(data.interval_minutes || 15);
                 document.getElementById('set-digest').value = data.daily_digest ? 'true' : 'false';
                 document.getElementById('set-digest-time').value = data.digest_time || '20:00';
             } catch (e) {

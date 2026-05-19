@@ -311,7 +311,7 @@ function registerCommands(bot) {
         try {
             if (data.startsWith('setlang_')) {
                 const newLang = data.split('_')[1];
-                const supported = ['uz', 'ru', 'en', 'tr'];
+                const supported = [...i18n_1.WEBAPP_LANGS];
                 const langCode = supported.includes(newLang) ? newLang : 'uz';
                 await database_1.DBService.updateUser(chatId, { language: langCode, has_seen_lang: true });
                 await bot.answerCallbackQuery(query.id, { text: "✅" });

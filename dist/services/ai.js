@@ -668,9 +668,21 @@ async function generateSmmPost(topic) {
 }
 async function generateSmmImage(topic) {
     const cleanTopic = topic.trim().slice(0, 200);
-    const imagePrompt = `Professional social media banner illustration, topic: ${cleanTopic}. ` +
-        'Modern vibrant design, cinematic lighting, Uzbek cultural elements if relevant, ' +
-        'high quality, 16:9, no text, no watermark, no letters';
+    let promptSubject = cleanTopic;
+    try {
+        if (activeKeys.length === 0)
+            await refreshKeyPool();
+        if (activeKeys.length > 0) {
+            const promptIdea = await getSmartAIResponseWithKeys(getKeysSortedForSmm(), 'Turn the user topic into one short literal visual prompt for an image model. Keep it factual, concrete, and tied to the topic. Output one line only, no quotes.', cleanTopic);
+            if (promptIdea && promptIdea.trim().length > 10) {
+                promptSubject = promptIdea.trim().replace(/^["'`]+|["'`]+$/g, '');
+            }
+        }
+    }
+    catch { }
+    const imagePrompt = `Editorial social media image strictly about: ${promptSubject}. ` +
+        `Main subject must clearly match this topic: ${cleanTopic}. ` +
+        'Single coherent scene, realistic or premium illustrative style, strong focal subject, 16:9 composition, high detail, no text, no letters, no watermark, no unrelated objects.';
     const seed = Date.now() % 1_000_000;
     const urls = [
         `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux`,

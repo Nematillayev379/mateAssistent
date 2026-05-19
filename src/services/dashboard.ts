@@ -999,13 +999,15 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       keywords: keywords.join(', '),
       daily_digest: u.daily_digest,
       digest_time: u.digest_time,
-      schedule_times: u.schedule_times
+      schedule_times: u.schedule_times,
+      interval_minutes: Math.max(Number(u.interval_minutes) || 15, 1)
     });
   });
 
   app.post('/api/settings/:userId/extended', checkAuth, async (req: any, res: any) => {
-    const { language, target_channel, keywords, daily_digest, digest_time, schedule_times } = req.body;
+    const { language, target_channel, keywords, daily_digest, digest_time, schedule_times, interval_minutes } = req.body;
     const userId = parseInt(req.authenticatedUserId);
+    const safeInterval = Math.max(Math.min(Number(interval_minutes) || 15, 1440), 1);
     if (typeof target_channel === 'string' && target_channel.trim()) {
       const normalized = DBService.normalizeTargetChannel(target_channel);
       if (!normalized.startsWith('@') && !normalized.startsWith('-100')) {
@@ -1022,7 +1024,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
         return res.status(400).json({ error: e.message || 'Channel verification failed' });
       }
     }
-    const ok = await DBService.updateUser(userId, { language, target_channel, daily_digest, digest_time, schedule_times });
+    const ok = await DBService.updateUser(userId, { language, target_channel, daily_digest, digest_time, schedule_times, interval_minutes: safeInterval });
     if (!ok) return res.status(500).json({ error: 'Settings update failed' });
     if (keywords !== undefined) await DBService.setKeywords(parseInt(req.authenticatedUserId), keywords);
     res.json({ success: true });

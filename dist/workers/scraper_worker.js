@@ -60,6 +60,11 @@ else {
             logger_1.logger.info(`🔍 Job ${job.id}: Scraping ${(0, logger_1.sanitizeLogInput)(sourceUrl)} for user ${userId}`);
             const articles = await scraper_1.ScraperService.fetchRSS(sourceUrl);
             for (const article of articles) {
+                const locked = database_1.DBService.acquireRecentNewsLock(userId, article.link, article.title);
+                if (!locked) {
+                    await database_1.DBService.incrementStat(userId, 'total_duplicates');
+                    continue;
+                }
                 const isDuplicate = await database_1.DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
                 if (isDuplicate) {
                     await database_1.DBService.incrementStat(userId, 'total_duplicates');

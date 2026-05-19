@@ -8,7 +8,7 @@ import { helpCommand } from "./help";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
-import { i18n } from "../services/i18n";
+import { i18n, WEBAPP_LANGS } from "../services/i18n";
 import { CONFIG } from "../config/config";
 import { ScraperService } from '../services/scraper';
 import { generateDashboardToken } from '../services/bot_instance';
@@ -304,7 +304,7 @@ export function registerCommands(bot: TelegramBot) {
     try {
       if (data.startsWith('setlang_')) {
         const newLang = data.split('_')[1];
-        const supported = ['uz', 'ru', 'en', 'tr'];
+        const supported = [...WEBAPP_LANGS] as string[];
         const langCode = supported.includes(newLang) ? newLang : 'uz';
 
         await DBService.updateUser(chatId, { language: langCode, has_seen_lang: true });

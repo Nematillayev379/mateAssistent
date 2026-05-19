@@ -151,6 +151,9 @@ async function processDirectly(userId: number, source: any): Promise<void> {
 
     for (const article of articles) {
       try {
+        const locked = DBService.acquireRecentNewsLock(userId, article.link, article.title);
+        if (!locked) continue;
+
         const isDuplicate = await DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
         if (isDuplicate) continue;
 

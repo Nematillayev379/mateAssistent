@@ -18,7 +18,49 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseKey);
 // In-memory cache to prevent redundant Supabase queries for premium verification
 const premiumCache = new Map();
+const recentNewsLocks = new Map();
 exports.DBService = {
+    normalizeNewsUrl(url) {
+        try {
+            const parsed = new URL(String(url || '').trim());
+            [
+                'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+                'fbclid', 'gclid', 'igshid', 'feature'
+            ].forEach((param) => parsed.searchParams.delete(param));
+            parsed.hash = '';
+            parsed.hostname = parsed.hostname.toLowerCase();
+            parsed.pathname = parsed.pathname.replace(/\/+$/, '');
+            return parsed.toString();
+        }
+        catch {
+            return String(url || '').trim();
+        }
+    },
+    normalizeNewsTitle(title) {
+        return String(title || '')
+            .toLowerCase()
+            .replace(/https?:\/\/\S+/g, ' ')
+            .replace(/\[[^\]]+\]|\([^)]+\)/g, ' ')
+            .replace(/\s+[|\-–—:]\s+.*$/g, ' ')
+            .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    },
+    acquireRecentNewsLock(userId, url, title, ttlMs = 30 * 60 * 1000) {
+        const now = Date.now();
+        for (const [key, expiry] of recentNewsLocks.entries()) {
+            if (expiry <= now)
+                recentNewsLocks.delete(key);
+        }
+        const normalizedUrl = this.normalizeNewsUrl(url);
+        const normalizedTitle = this.normalizeNewsTitle(title);
+        const lockKey = `${userId}:${normalizedUrl}:${normalizedTitle}`;
+        const existing = recentNewsLocks.get(lockKey);
+        if (existing && existing > now)
+            return false;
+        recentNewsLocks.set(lockKey, now + ttlMs);
+        return true;
+    },
     normalizeTargetChannel(value) {
         let channel = String(value || '').trim();
         if (!channel)
@@ -137,20 +179,30 @@ exports.DBService = {
         return this.isSeenByTitle(userId, title);
     },
     async isSeen(userId, url) {
-        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('url', url).limit(1);
+        const normalizedUrl = this.normalizeNewsUrl(url);
+        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('url', normalizedUrl).limit(1);
         if (error)
             logger_1.logger.error(`isSeen error: ${error.message}`);
         return !!(data && data.length > 0);
     },
     async isSeenByTitle(userId, title) {
-        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('title', title).limit(1);
+        const normalizedTitle = this.normalizeNewsTitle(title);
+        const { data, error } = await supabase
+            .from('processed_news')
+            .select('title')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(40);
         if (error)
             logger_1.logger.error(`isSeenByTitle error: ${error.message}`);
-        return !!(data && data.length > 0);
+        if (!data || data.length === 0)
+            return false;
+        return data.some((row) => this.normalizeNewsTitle(row.title) === normalizedTitle);
     },
     // BUG-013 Fix: Use upsert with onConflict to handle unique constraints gracefully
     async markSeen(userId, url, title) {
-        const { error } = await supabase.from('processed_news').upsert({ user_id: userId, url, title }, { onConflict: 'user_id,url' });
+        const normalizedUrl = this.normalizeNewsUrl(url);
+        const { error } = await supabase.from('processed_news').upsert({ user_id: userId, url: normalizedUrl, title }, { onConflict: 'user_id,url' });
         if (error) {
             logger_1.logger.error(`markSeen error: ${error.message}`);
             throw error;
