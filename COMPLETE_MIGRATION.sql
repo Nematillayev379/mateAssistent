@@ -81,6 +81,10 @@ DO $$ BEGIN
   ALTER TABLE users ADD COLUMN IF NOT EXISTS extra_channels TEXT;
 EXCEPTION WHEN others THEN NULL;
 END $$;
+DO $$ BEGIN
+  ALTER TABLE users ALTER COLUMN target_channel TYPE TEXT USING target_channel::text;
+EXCEPTION WHEN others THEN NULL;
+END $$;
 
 -- =============================================
 -- 2. STATS jadvali

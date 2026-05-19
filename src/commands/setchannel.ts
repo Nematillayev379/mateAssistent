@@ -58,7 +58,11 @@ export const setChannelCommand: BotCommand = {
       const member = await bot.getChatMember(chat.id, botInfo.id);
 
       if (member.status === 'administrator' || member.status === 'creator') {
-        await DBService.updateUser(chatId, { target_channel: rawParam });
+        const saved = await DBService.updateUser(chatId, { target_channel: rawParam });
+        if (!saved) {
+          await bot.editMessageText("❌ Kanalni bazaga saqlab bo'lmadi. SQL migratsiyani tekshiring.", { chat_id: chatId, message_id: waitMsg.message_id });
+          return;
+        }
         
         // Mark referral active if needed
         await DBService.checkAndMarkReferralActive(chatId);

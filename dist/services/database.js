@@ -19,6 +19,21 @@ const supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseKey);
 // In-memory cache to prevent redundant Supabase queries for premium verification
 const premiumCache = new Map();
 exports.DBService = {
+    normalizeTargetChannel(value) {
+        let channel = String(value || '').trim();
+        if (!channel)
+            return '';
+        if (channel.includes('t.me/')) {
+            const parts = channel.split('t.me/');
+            const handle = parts[parts.length - 1].split('/')[0].trim();
+            if (handle)
+                channel = `@${handle}`;
+        }
+        if (!channel.startsWith('@') && !channel.startsWith('-100') && /^[a-zA-Z0-9_]{5,32}$/.test(channel)) {
+            channel = `@${channel}`;
+        }
+        return channel;
+    },
     // --- USERS ---
     async getUser(telegramId) {
         const { data, error } = await supabase.from('users').select('*').eq('telegram_id', telegramId).single();
@@ -42,7 +57,7 @@ exports.DBService = {
             .eq('is_approved', 1);
         if (error)
             logger_1.logger.error(`getActiveUsers error: ${error.message}`);
-        return data || [];
+        return (data || []).filter((u) => typeof u.target_channel === 'string' && u.target_channel.trim() !== '');
     },
     // BUG-016 Fix: Handle null from getUser properly
     async upsertUser(telegramId, isOwner = 0, username, firstName) {
@@ -73,7 +88,11 @@ exports.DBService = {
     },
     // BUG-030 Fix: Return success boolean
     async updateUser(telegramId, updates) {
-        const { error } = await supabase.from('users').update(updates).eq('telegram_id', telegramId);
+        const safeUpdates = { ...updates };
+        if (typeof safeUpdates.target_channel === 'string') {
+            safeUpdates.target_channel = this.normalizeTargetChannel(safeUpdates.target_channel);
+        }
+        const { error } = await supabase.from('users').update(safeUpdates).eq('telegram_id', telegramId);
         if (error) {
             logger_1.logger.error(`updateUser error: ${error.message}`);
             return false;

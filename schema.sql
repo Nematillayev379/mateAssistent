@@ -170,6 +170,11 @@ CREATE TABLE IF NOT EXISTS post_drafts (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+DO $$ BEGIN
+  ALTER TABLE users ALTER COLUMN target_channel TYPE TEXT USING target_channel::text;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
 -- ═══════════════════════════════════════════════════
 -- SQL Functions (RPCs)
 -- ═══════════════════════════════════════════════════

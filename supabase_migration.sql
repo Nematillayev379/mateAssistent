@@ -141,6 +141,11 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active, is_approved);
 
+DO $$ BEGIN
+  ALTER TABLE users ALTER COLUMN target_channel TYPE TEXT USING target_channel::text;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
 ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS forward_mode TEXT DEFAULT 'copy';
 ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS use_ai INTEGER DEFAULT 0;
 ALTER TABLE monitored_channels ADD COLUMN IF NOT EXISTS last_check TIMESTAMPTZ;

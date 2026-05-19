@@ -18,6 +18,20 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const premiumCache = new Map<number, { active: boolean; expiresAt: number }>();
 
 export const DBService = {
+  normalizeTargetChannel(value: string): string {
+    let channel = String(value || '').trim();
+    if (!channel) return '';
+    if (channel.includes('t.me/')) {
+      const parts = channel.split('t.me/');
+      const handle = parts[parts.length - 1].split('/')[0].trim();
+      if (handle) channel = `@${handle}`;
+    }
+    if (!channel.startsWith('@') && !channel.startsWith('-100') && /^[a-zA-Z0-9_]{5,32}$/.test(channel)) {
+      channel = `@${channel}`;
+    }
+    return channel;
+  },
+
   // --- USERS ---
   async getUser(telegramId: number) {
     const { data, error } = await supabase.from('users').select('*').eq('telegram_id', telegramId).single();
@@ -41,7 +55,7 @@ export const DBService = {
       .eq('is_approved', 1);
 
     if (error) logger.error(`getActiveUsers error: ${error.message}`);
-    return data || [];
+    return (data || []).filter((u) => typeof u.target_channel === 'string' && u.target_channel.trim() !== '');
   },
 
   // BUG-016 Fix: Handle null from getUser properly
@@ -76,7 +90,11 @@ export const DBService = {
 
   // BUG-030 Fix: Return success boolean
   async updateUser(telegramId: number, updates: Record<string, any>): Promise<boolean> {
-    const { error } = await supabase.from('users').update(updates).eq('telegram_id', telegramId);
+    const safeUpdates = { ...updates };
+    if (typeof safeUpdates.target_channel === 'string') {
+      safeUpdates.target_channel = this.normalizeTargetChannel(safeUpdates.target_channel);
+    }
+    const { error } = await supabase.from('users').update(safeUpdates).eq('telegram_id', telegramId);
     if (error) {
       logger.error(`updateUser error: ${error.message}`);
       return false;

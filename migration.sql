@@ -28,6 +28,7 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS schedule_times TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMP WITH TIME ZONE;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS extra_channels TEXT;
+ALTER TABLE public.users ALTER COLUMN target_channel TYPE TEXT USING target_channel::text;
 
 CREATE TABLE IF NOT EXISTS public.monitored_channels (
     id BIGSERIAL PRIMARY KEY,

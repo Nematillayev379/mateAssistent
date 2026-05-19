@@ -28,6 +28,7 @@ interface UserStateEntry {
   type: string;
   url: string;
   mediaType?: string;
+  sendTarget?: 'chat' | 'channel';
   createdAt: number;
 }
 
@@ -117,7 +118,11 @@ export function registerCommands(bot: TelegramBot) {
            const botInfo = await getBotInfo();
            const member = await bot.getChatMember(chat.id, botInfo.id);
            if (member.status === 'administrator' || member.status === 'creator') {
-              await DBService.updateUser(chatId, { target_channel: targetText });
+              const saved = await DBService.updateUser(chatId, { target_channel: targetText });
+              if (!saved) {
+                await bot.sendMessage(chatId, "❌ Kanalni bazaga saqlab bo'lmadi. SQL migratsiyani tekshiring.");
+                return;
+              }
               
               await DBService.checkAndMarkReferralActive(chatId);
               
@@ -211,8 +216,12 @@ export function registerCommands(bot: TelegramBot) {
          inline_keyboard.push([{ text: "📥 Ommaviy yuklash (Bulk Download)", callback_data: `dl_playlist_all` }]);
        }
        inline_keyboard.push([
-         { text: "📹 Video (MP4)", callback_data: `dl_media_video` }, 
-         { text: "🎵 Audio (MP3)", callback_data: `dl_media_audio` }
+         { text: "📹 Video (Chat)", callback_data: `dl_media_video_chat` }, 
+         { text: "🎵 Audio (Chat)", callback_data: `dl_media_audio_chat` }
+       ]);
+       inline_keyboard.push([
+         { text: "📡 Video (Kanal)", callback_data: `dl_media_video_channel` },
+         { text: "🔊 Audio (Kanal)", callback_data: `dl_media_audio_channel` }
        ]);
        inline_keyboard.push([{ text: "📅 Rejalashtirish (Schedule)", callback_data: `schedule_media` }]);
        inline_keyboard.push([{ text: "❌ " + (i18n.t('cancel', { lng: lang }) || 'Cancel'), callback_data: `cancel_dl` }]);
@@ -314,7 +323,8 @@ export function registerCommands(bot: TelegramBot) {
         }
         return;
       } else if (data.startsWith('dl_media_')) {
-        const type = data === 'dl_media_video' ? 'video' : data === 'dl_media_audio' ? 'audio' : null;
+        const type = data.includes('_video_') ? 'video' : data.includes('_audio_') ? 'audio' : null;
+        const sendTarget: 'chat' | 'channel' = data.endsWith('_channel') ? 'channel' : 'chat';
         if (!type) {
           await bot.answerCallbackQuery(query.id, { text: "❌ Noto'g'ri format", show_alert: true });
           return;
@@ -332,13 +342,22 @@ export function registerCommands(bot: TelegramBot) {
           return;
         }
 
+        if (sendTarget === 'channel' && !user?.target_channel) {
+          await bot.answerCallbackQuery(query.id, { text: "❌ Avval target kanalni ulang", show_alert: true });
+          return;
+        }
+
         const waitMsg = await bot.sendMessage(chatId, `⏳ ${i18n.t('processing', { lng: lang })}...`);
         try {
           const { downloadYouTube } = await import('../services/youtube');
           const filePath = await downloadYouTube(url, type);
-          if (type === 'video') await bot.sendVideo(chatId, filePath);
-          else await bot.sendAudio(chatId, filePath);
+          const deliveryTarget = sendTarget === 'channel' ? user!.target_channel : chatId;
+          if (type === 'video') await bot.sendVideo(deliveryTarget, filePath);
+          else await bot.sendAudio(deliveryTarget, filePath);
           await bot.deleteMessage(chatId, waitMsg.message_id);
+          if (sendTarget === 'channel') {
+            await bot.sendMessage(chatId, "✅ Media kanalga yuborildi.");
+          }
           const fs = await import('fs');
           if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
           userStates.delete(chatId);

@@ -134,7 +134,11 @@ function registerCommands(bot) {
                     const botInfo = await getBotInfo();
                     const member = await bot.getChatMember(chat.id, botInfo.id);
                     if (member.status === 'administrator' || member.status === 'creator') {
-                        await database_1.DBService.updateUser(chatId, { target_channel: targetText });
+                        const saved = await database_1.DBService.updateUser(chatId, { target_channel: targetText });
+                        if (!saved) {
+                            await bot.sendMessage(chatId, "❌ Kanalni bazaga saqlab bo'lmadi. SQL migratsiyani tekshiring.");
+                            return;
+                        }
                         await database_1.DBService.checkAndMarkReferralActive(chatId);
                         await bot.sendMessage(chatId, "✅ " + i18n_1.i18n.t('onboarding_success', { lng: lang }));
                         return;
@@ -221,8 +225,12 @@ function registerCommands(bot) {
                 inline_keyboard.push([{ text: "📥 Ommaviy yuklash (Bulk Download)", callback_data: `dl_playlist_all` }]);
             }
             inline_keyboard.push([
-                { text: "📹 Video (MP4)", callback_data: `dl_media_video` },
-                { text: "🎵 Audio (MP3)", callback_data: `dl_media_audio` }
+                { text: "📹 Video (Chat)", callback_data: `dl_media_video_chat` },
+                { text: "🎵 Audio (Chat)", callback_data: `dl_media_audio_chat` }
+            ]);
+            inline_keyboard.push([
+                { text: "📡 Video (Kanal)", callback_data: `dl_media_video_channel` },
+                { text: "🔊 Audio (Kanal)", callback_data: `dl_media_audio_channel` }
             ]);
             inline_keyboard.push([{ text: "📅 Rejalashtirish (Schedule)", callback_data: `schedule_media` }]);
             inline_keyboard.push([{ text: "❌ " + (i18n_1.i18n.t('cancel', { lng: lang }) || 'Cancel'), callback_data: `cancel_dl` }]);
@@ -322,7 +330,8 @@ function registerCommands(bot) {
                 return;
             }
             else if (data.startsWith('dl_media_')) {
-                const type = data === 'dl_media_video' ? 'video' : data === 'dl_media_audio' ? 'audio' : null;
+                const type = data.includes('_video_') ? 'video' : data.includes('_audio_') ? 'audio' : null;
+                const sendTarget = data.endsWith('_channel') ? 'channel' : 'chat';
                 if (!type) {
                     await bot.answerCallbackQuery(query.id, { text: "❌ Noto'g'ri format", show_alert: true });
                     return;
@@ -336,15 +345,23 @@ function registerCommands(bot) {
                     await bot.answerCallbackQuery(query.id, { text: "🎵 SoundCloud faqat Audio (MP3) formatida ishlaydi", show_alert: true });
                     return;
                 }
+                if (sendTarget === 'channel' && !user?.target_channel) {
+                    await bot.answerCallbackQuery(query.id, { text: "❌ Avval target kanalni ulang", show_alert: true });
+                    return;
+                }
                 const waitMsg = await bot.sendMessage(chatId, `⏳ ${i18n_1.i18n.t('processing', { lng: lang })}...`);
                 try {
                     const { downloadYouTube } = await Promise.resolve().then(() => __importStar(require('../services/youtube')));
                     const filePath = await downloadYouTube(url, type);
+                    const deliveryTarget = sendTarget === 'channel' ? user.target_channel : chatId;
                     if (type === 'video')
-                        await bot.sendVideo(chatId, filePath);
+                        await bot.sendVideo(deliveryTarget, filePath);
                     else
-                        await bot.sendAudio(chatId, filePath);
+                        await bot.sendAudio(deliveryTarget, filePath);
                     await bot.deleteMessage(chatId, waitMsg.message_id);
+                    if (sendTarget === 'channel') {
+                        await bot.sendMessage(chatId, "✅ Media kanalga yuborildi.");
+                    }
                     const fs = await Promise.resolve().then(() => __importStar(require('fs')));
                     if (fs.existsSync(filePath))
                         fs.unlinkSync(filePath);

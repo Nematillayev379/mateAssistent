@@ -1145,10 +1145,13 @@ function renderUI() {
             const res = await apiFetch(`/api/settings/${userId}/extended`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ language, target_channel, keywords, daily_digest, digest_time }) });
             if (res.ok) {
                 userData.user.language = language;
+                userData.user.target_channel = target_channel;
                 if (window.WebAppI18n) WebAppI18n.setLang(language);
                 showToast(typeof t === 'function' ? t('common_lang_changed') : 'Saved!', 'success');
+                renderUI();
             } else {
-                showToast(typeof t === 'function' ? t('common_error') : 'Error', 'error');
+                const err = await res.json().catch(() => ({}));
+                showToast(err.error || (typeof t === 'function' ? t('common_error') : 'Error'), 'error');
             }
         }
 

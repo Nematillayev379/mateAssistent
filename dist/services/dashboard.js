@@ -355,7 +355,27 @@ function startDashboardServer(port, _bot) {
     });
     app.post('/api/settings/:userId', checkAuth, async (req, res) => {
         const { language, target_channel } = req.body;
-        await database_1.DBService.updateUser(parseInt(req.authenticatedUserId), { language, target_channel });
+        const userId = parseInt(req.authenticatedUserId);
+        if (typeof target_channel === 'string' && target_channel.trim()) {
+            const normalized = database_1.DBService.normalizeTargetChannel(target_channel);
+            if (!normalized.startsWith('@') && !normalized.startsWith('-100')) {
+                return res.status(400).json({ error: 'Invalid target channel format' });
+            }
+            try {
+                const chat = await bot_instance_1.bot.getChat(normalized);
+                const me = await bot_instance_1.bot.getMe();
+                const member = await bot_instance_1.bot.getChatMember(chat.id, me.id);
+                if (member.status !== 'administrator' && member.status !== 'creator') {
+                    return res.status(400).json({ error: 'Bot target kanalda admin emas' });
+                }
+            }
+            catch (e) {
+                return res.status(400).json({ error: e.message || 'Channel verification failed' });
+            }
+        }
+        const ok = await database_1.DBService.updateUser(userId, { language, target_channel });
+        if (!ok)
+            return res.status(500).json({ error: 'Settings update failed' });
         res.json({ success: true });
     });
     // --- ADMIN ENDPOINTS ---
@@ -965,7 +985,27 @@ function startDashboardServer(port, _bot) {
     });
     app.post('/api/settings/:userId/extended', checkAuth, async (req, res) => {
         const { language, target_channel, keywords, daily_digest, digest_time, schedule_times } = req.body;
-        await database_1.DBService.updateUser(parseInt(req.authenticatedUserId), { language, target_channel, daily_digest, digest_time, schedule_times });
+        const userId = parseInt(req.authenticatedUserId);
+        if (typeof target_channel === 'string' && target_channel.trim()) {
+            const normalized = database_1.DBService.normalizeTargetChannel(target_channel);
+            if (!normalized.startsWith('@') && !normalized.startsWith('-100')) {
+                return res.status(400).json({ error: 'Invalid target channel format' });
+            }
+            try {
+                const chat = await bot_instance_1.bot.getChat(normalized);
+                const me = await bot_instance_1.bot.getMe();
+                const member = await bot_instance_1.bot.getChatMember(chat.id, me.id);
+                if (member.status !== 'administrator' && member.status !== 'creator') {
+                    return res.status(400).json({ error: 'Bot target kanalda admin emas' });
+                }
+            }
+            catch (e) {
+                return res.status(400).json({ error: e.message || 'Channel verification failed' });
+            }
+        }
+        const ok = await database_1.DBService.updateUser(userId, { language, target_channel, daily_digest, digest_time, schedule_times });
+        if (!ok)
+            return res.status(500).json({ error: 'Settings update failed' });
         if (keywords !== undefined)
             await database_1.DBService.setKeywords(parseInt(req.authenticatedUserId), keywords);
         res.json({ success: true });
