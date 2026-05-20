@@ -221,20 +221,19 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
       audioOnly: typeParam === 'audio',
     });
     if (cobaltUrl) {
+      const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
+      const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
       try {
-        const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
-        const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
         const response = await axios.get(cobaltUrl, {
           responseType: 'arraybuffer',
-          timeout: 45000,
+          timeout: 60000,
           maxContentLength: 52 * 1024 * 1024,
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
         });
         fs.writeFileSync(filePath, Buffer.from(response.data));
-        if (fs.statSync(filePath).size > 0) return filePath;
+        if (fs.existsSync(filePath) && fs.statSync(filePath).size > 1024) return filePath;
       } catch (dlErr: any) {
-        logger.warn(`Failed to download cobaltUrl locally (${dlErr.message}). Returning Cobalt URL directly for Telegram to resolve.`);
-        return cobaltUrl;
+        logger.warn(`Failed to persist Cobalt media locally: ${dlErr.message}`);
       }
     }
   } catch (e: any) {

@@ -85,7 +85,7 @@
             transition: border-color 0.2s;
         }
         .stat-card:hover { border-color: rgba(56, 189, 248, 0.2); }
-        .stat-val { font-size: 1.65rem; font-weight: 700; background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-val { font-size: 1.65rem; font-weight: 700; background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .stat-lab { font-size: 0.78rem; color: var(--secondary); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
 
         .input-group { margin-bottom: 14px; }
@@ -126,15 +126,15 @@
             backdrop-filter: blur(20px); 
             border: 1px solid var(--border); 
             display: flex; 
-            padding: 8px 12px; 
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 8px 10px; 
             border-radius: 24px;
             z-index: 1000; 
             box-shadow: 0 15px 35px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1); 
-            overflow-x: auto;
-            scrollbar-width: none;
+            overflow: hidden;
             gap: 6px;
         }
-        .bottom-nav::-webkit-scrollbar { display: none; }
         .nav-item { 
             display: flex; 
             flex-direction: column; 
@@ -145,10 +145,11 @@
             font-size: 0.65rem; 
             cursor: pointer; 
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
-            padding: 8px 10px;
+            padding: 8px 6px;
             border-radius: 16px;
-            min-width: 62px;
-            flex-shrink: 0;
+            min-width: 58px;
+            flex: 1 1 calc(25% - 6px);
+            max-width: calc(25% - 6px);
             border: 1px solid transparent;
         }
         .nav-item i { font-size: 1.2rem; transition: transform 0.2s; }
@@ -186,6 +187,10 @@
         .toast-error { background: #ef4444; color: white; }
         .toast-info { background: #3b82f6; color: white; }
         @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @media (max-width: 420px) {
+            .nav-item span { font-size: 0.6rem; }
+            .nav-item i { font-size: 1.05rem; }
+        }
     </style>
 </head>
 <body>
@@ -582,12 +587,12 @@
                 <div class="card">
                     <div class="card-title"><i class="fas fa-user-shield"></i> Admin Panel</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <button class="btn btn-ghost" onclick="showPage('admin-users')"><i class="fas fa-users"></i> Foydalanuvchilar</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-sources')"><i class="fas fa-rss"></i> Manbalar</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-broadcast')"><i class="fas fa-bullhorn"></i> Broadcast</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-settings')"><i class="fas fa-cogs"></i> Sozlamalar</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-users')"><i class="fas fa-users"></i> <span data-i18n="admin_users">Foydalanuvchilar</span></button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-sources')"><i class="fas fa-rss"></i> <span data-i18n="admin_sources">Manbalar</span></button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-broadcast')"><i class="fas fa-bullhorn"></i> <span data-i18n="admin_broadcast">Broadcast</span></button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-settings')"><i class="fas fa-cogs"></i> <span data-i18n="admin_settings">Sozlamalar</span></button>
                         <button class="btn btn-ghost" onclick="showPage('status')"><i class="fas fa-server"></i> Tizim Statusi</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-tickets')"><i class="fas fa-ticket-alt"></i> Ticketlar</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-tickets')"><i class="fas fa-ticket-alt"></i> <span data-i18n="admin_tickets">Ticketlar</span></button>
                     </div>
                 </div>
             </section>
@@ -600,7 +605,7 @@
                     <div id="admin-users-filters" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
                     <div id="admin-users-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
             </section>
 
             <!-- 6. Admin Sources Page -->
@@ -609,7 +614,7 @@
                     <div class="card-title"><i class="fas fa-rss"></i> Barcha Manbalar</div>
                     <div id="admin-sources-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
             </section>
 
             <!-- 7. Admin Broadcast Page -->
@@ -621,7 +626,7 @@
                     </div>
                     <button class="btn btn-primary" onclick="sendBroadcast()">Barchaga yuborish</button>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
             </section>
 
             <!-- 8. Admin Settings Page -->
@@ -642,7 +647,7 @@
                     </div>
                     <button class="btn btn-primary" onclick="saveAdminSettings()">Saqlash</button>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
             </section>
 
             <!-- 9. Admin Tickets Page -->
@@ -651,7 +656,7 @@
                     <div class="card-title"><i class="fas fa-ticket-alt"></i> Support Ticketlar</div>
                     <div id="admin-tickets-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
             </section>
 
             <!-- 10. System Status Page -->
@@ -662,7 +667,7 @@
                     <div class="item-row"><span>Redis</span> <span id="sys-redis">--</span></div>
                     <div class="item-row"><span>Node</span> <span id="sys-node">--</span></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
             </section>
         </div>
 
@@ -697,6 +702,10 @@
             toast.textContent = msg;
             document.body.appendChild(toast);
             setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 3000);
+        }
+        function tt(key, fallback) {
+            if (typeof t === 'function') return t(key);
+            return fallback || key;
         }
 
         let userData = null;
@@ -994,20 +1003,20 @@ function renderUI() {
             if (walletState) walletState.textContent = u.is_premium ? 'Elite Member' : 'Creator';
 
             const homeTarget = document.getElementById('home-target-channel');
-            if (homeTarget) homeTarget.textContent = u.target_channel || 'Sozlanmagan ⚠️';
+            if (homeTarget) homeTarget.textContent = u.target_channel || (tt('not_set', 'Sozlanmagan') + ' ⚠️');
 
             // UI-5 Fix: Display full user info - connected RSS and channel
             const userInfo = document.getElementById('user-info') || document.createElement('div');
             userInfo.id = 'user-info';
             userInfo.style.cssText = 'background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;';
             userInfo.innerHTML = `
-                <div style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 8px;">Identity Snapshot</div>
-                <div class="item-row"><span>Telegram ID</span><span>${u.telegram_id || 'Noma\'lum'}</span></div>
-                <div class="item-row"><span>Username</span><span>${u.username || 'Noma\'lum'}</span></div>
-                <div class="item-row"><span>Target Channel</span><span>${u.target_channel || 'Not connected'}</span></div>
-                <div class="item-row"><span>Language</span><span>${u.language || 'uz'}</span></div>
-                <div class="item-row"><span>Role</span><span>${u.role || 'user'}</span></div>
-                <div class="item-row"><span>Premium</span><span>${u.is_premium ? 'Ha' : 'Yo\'q'}</span></div>
+                <div style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 8px;">${tt('home_user_info', 'Identity Snapshot')}</div>
+                <div class="item-row"><span>${tt('home_telegram_id', 'Telegram ID')}</span><span>${u.telegram_id || tt('unknown', 'Noma\'lum')}</span></div>
+                <div class="item-row"><span>${tt('home_username', 'Username')}</span><span>${u.username || tt('unknown', 'Noma\'lum')}</span></div>
+                <div class="item-row"><span>${tt('home_target', 'Target Channel')}</span><span>${u.target_channel || tt('not_set', 'Not connected')}</span></div>
+                <div class="item-row"><span>${tt('home_language', 'Language')}</span><span>${u.language || 'uz'}</span></div>
+                <div class="item-row"><span>${tt('home_role', 'Role')}</span><span>${u.role || tt('user_default', 'user')}</span></div>
+                <div class="item-row"><span>${tt('home_premium', 'Premium')}</span><span>${u.is_premium ? tt('yes', 'Ha') : tt('no', 'Yo\'q')}</span></div>
             `;
             const profileInfoContainer = document.getElementById('user-info-content');
             if (profileInfoContainer) {
@@ -1020,7 +1029,7 @@ function renderUI() {
                 userData.scheduled.slice(0, 3).forEach(p => {
                     sch.innerHTML += `<div class="item-row"><div><h4>${p.type.toUpperCase()}</h4><p>${new Date(p.scheduled_at).toLocaleTimeString()}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="cancelScheduled(${p.id})">❌</button></div>`;
                 });
-            } else sch.innerHTML = '<p style="color:var(--secondary); font-size:0.8rem">Navbatda postlar yo\'q.</p>';
+            } else sch.innerHTML = `<p style="color:var(--secondary); font-size:0.8rem">${tt('home_no_scheduled', 'Navbatda postlar yo\'q.')}</p>`;
 
             fetchSources();
             if (window.WebAppI18n) {
@@ -1049,7 +1058,7 @@ function renderUI() {
                         homeSourcesList.innerHTML += `<div style="text-align:center; font-size:0.75rem; color:var(--secondary); margin-top:4px;">va yana ${data.length - 3} ta manba...</div>`;
                     }
                 } else {
-                    homeSourcesList.innerHTML = '<span style="color:var(--secondary); font-size:0.8rem;">Faol manbalar yo\'q.</span>';
+                    homeSourcesList.innerHTML = `<span style="color:var(--secondary); font-size:0.8rem;">${tt('home_no_sources', "Faol manbalar yo'q.")}</span>`;
                 }
             }
 
@@ -1311,9 +1320,10 @@ function renderUI() {
             const adminPages = ['admin-users', 'admin-sources', 'admin-broadcast', 'admin-settings', 'admin-tickets'];
             if (adminPages.includes(p)) {
                 const adminNavItem = document.getElementById('nav-admin');
-                if (adminNavItem) { adminNavItem.classList.add('active'); return; }
+                if (adminNavItem) adminNavItem.classList.add('active');
+            } else {
+                document.getElementById('nav-' + p)?.classList.add('active');
             }
-            document.getElementById('nav-' + p)?.classList.add('active');
             if (p === 'overview') {
                 if (!lazyLoaded.sources) {
                     lazyLoaded.sources = true;
@@ -1668,14 +1678,23 @@ function renderUI() {
         async function generateVoiceNews() {
             const status = document.getElementById('voice-status');
             if (status) status.textContent = 'Generatsiya...';
-            const res = await apiFetch('/api/ai/voice-news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-                title: document.getElementById('voice-title')?.value,
-                text: document.getElementById('voice-text')?.value,
-                sendToChannel: document.getElementById('voice-to-channel')?.checked
-            }) });
-            const data = await res.json();
-            if (res.ok) { if (status) status.textContent = '✅ Ovoz yuborildi!'; }
-            else { if (status) status.textContent = data.error || 'Xatolik'; showToast(data.error, 'error'); }
+            try {
+                const res = await apiFetch('/api/ai/voice-news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                    title: document.getElementById('voice-title')?.value,
+                    text: document.getElementById('voice-text')?.value,
+                    sendToChannel: document.getElementById('voice-to-channel')?.checked
+                }) });
+                const data = await res.json();
+                if (res.ok) {
+                    if (status) status.textContent = '✅ Ovoz yuborildi!';
+                } else {
+                    if (status) status.textContent = data.error || 'Xatolik';
+                    showToast(data.error || 'Ovoz generatsiyasi xatosi', 'error');
+                }
+            } catch (e) {
+                if (status) status.textContent = 'Aloqa xatosi';
+                showToast('Aloqa xatosi: ' + (e.message || e), 'error');
+            }
         }
 
         async function loadOutputChannels() {

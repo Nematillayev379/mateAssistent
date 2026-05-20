@@ -696,7 +696,7 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
     if (activeKeys.length > 0) {
       const promptIdea = await getSmartAIResponseWithKeys(
         getKeysSortedForSmm(),
-        'Turn the user topic into one short literal visual prompt for an image model. Keep it factual, concrete, and tied to the topic. Output one line only, no quotes.',
+        'Rewrite the topic into one short visual prompt while preserving the exact subject. Do not change entities, country, person, brand, or event. Output one line only.',
         cleanTopic
       );
       if (promptIdea && promptIdea.trim().length > 10) {
@@ -708,7 +708,7 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
   const imagePrompt =
     `Editorial social media image strictly about: ${promptSubject}. ` +
     `Main subject must clearly match this topic: ${cleanTopic}. ` +
-    'Single coherent scene, realistic or premium illustrative style, strong focal subject, 16:9 composition, high detail, no text, no letters, no watermark, no unrelated objects.';
+    'Single coherent scene, realistic or premium illustrative style, strong focal subject, 16:9 composition, high detail, no text, no letters, no watermark, no unrelated objects, avoid generic stock scenes.';
 
   const seed = Date.now() % 1_000_000;
   const urls = [
@@ -799,6 +799,22 @@ export async function generateTTS(text: string): Promise<Buffer | null> {
         }
       } catch (err: any) {
         logger.warn(`EdgeTTS failed for chunk: ${err.message}`);
+        try {
+          const googleTTS = await import('google-tts-api');
+          const url = googleTTS.getAudioUrl(cleanChunk, { lang: 'uz', slow: false, host: 'https://translate.google.com' });
+          const resp = await axios.get(url, {
+            responseType: 'arraybuffer',
+            timeout: 15000,
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+          });
+          const fallbackBuf = Buffer.from(resp.data);
+          if (fallbackBuf.length > 100) {
+            buffers.push(fallbackBuf);
+            continue;
+          }
+        } catch (fallbackErr: any) {
+          logger.warn(`Google TTS fallback failed: ${fallbackErr.message}`);
+        }
         return null;
       }
       await new Promise((r) => setTimeout(r, 150));

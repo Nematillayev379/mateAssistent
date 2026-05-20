@@ -1093,14 +1093,14 @@ export function startDashboardServer(port: number | string, _bot?: any) {
 
     if (method === 'payme') {
       const amount = isYearly ? await DBService.getPrice('yearly') : await DBService.getPrice('monthly');
-      const link = await PaymentService.generatePaymeLink(uid, amount);
+      const link = await PaymentService.generatePaymeLink(uid, amount, isYearly ? 'yearly' : 'monthly');
       if (!link) return res.status(503).json({ error: 'Payme sozlanmagan (PAYME_MERCHANT_ID)' });
       return res.json({ success: true, url: link, method: 'payme' });
     }
 
     if (method === 'click') {
       const amount = isYearly ? await DBService.getPrice('yearly') : await DBService.getPrice('monthly');
-      const link = await PaymentService.generateClickLink(uid, amount);
+      const link = await PaymentService.generateClickLink(uid, amount, isYearly ? 'yearly' : 'monthly');
       if (!link) return res.status(503).json({ error: 'Click sozlanmagan (CLICK_SERVICE_ID)' });
       return res.json({ success: true, url: link, method: 'click' });
     }
@@ -1129,6 +1129,21 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     } catch (e: any) {
       logger.error(`Payme webhook failed: ${e.message}`);
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/payments/click', async (req, res) => {
+    try {
+      const result = await PaymentService.handleClickWebhook(req.body || {});
+      return res.status(200).json(result);
+    } catch (e: any) {
+      logger.error(`Click webhook failed: ${e.message}`);
+      return res.status(200).json({
+        error: -9,
+        error_note: 'Internal server error',
+        click_trans_id: req.body?.click_trans_id || 0,
+        merchant_trans_id: req.body?.merchant_trans_id || ''
+      });
     }
   });
 

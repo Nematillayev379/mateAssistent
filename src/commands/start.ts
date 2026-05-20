@@ -51,6 +51,7 @@ async function sendWelcomeMenu(
   const dashboardUrl = buildDashboardUrl(chatId);
   const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [
     [{ text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }],
+    [{ text: "🌐 Web3 App (Browser)", url: dashboardUrl }],
     [
       { text: i18n.t("menu_sources", { lng: lang }), callback_data: "cmd_sources" },
       { text: i18n.t("menu_studio", { lng: lang }), callback_data: "cmd_studio" },
