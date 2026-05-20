@@ -85,7 +85,7 @@ if (!connectionOptions) {
 export async function processArticleInline(userId: number, article: any, sourceLang: string): Promise<void> {
   try {
     const user = await DBService.getUser(userId);
-    if (!user || !user.target_channel || !user.is_active) return;
+    if (!user || !user.target_channel || user.is_active === 0) return;
 
     const intervalMinutes = Math.max(Number(user.interval_minutes) || 15, 1);
     if (!DBService.tryReserveUserSendSlot(userId, intervalMinutes)) {

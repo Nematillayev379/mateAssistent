@@ -123,7 +123,7 @@ export const DBService = {
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('is_active', 1)
+      .or('is_active.eq.1,is_active.is.null')
       .not('target_channel', 'is', null)
       .eq('is_approved', 1);
 
@@ -136,8 +136,11 @@ export const DBService = {
     const insertData: Record<string, any> = {
       telegram_id: telegramId,
       is_owner: isOwner,
+      is_active: 1,
       is_approved: 1, // BUG FIX: Allow normal users to enter without manual approval
       role: isOwner === 1 ? 'owner' : 'user',
+      interval_minutes: 15,
+      language: 'uz',
       username: username || null,
       first_name: firstName || null,
     };

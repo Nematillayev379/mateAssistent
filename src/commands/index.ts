@@ -151,20 +151,49 @@ export function registerCommands(bot: TelegramBot) {
     // Onboarding: RSS feed source URL connection step
     const sources = user?.target_channel ? await DBService.getUserSources(chatId) : [];
     if (user?.target_channel && sources.length === 0) {
-      const rssUrl = extractUrlFromText(text);
-      if (rssUrl) {
-        const ok = await DBService.addSource(chatId, "Primary RSS", rssUrl, lang);
-        if (!ok) {
-          await bot.sendMessage(chatId, i18n.t("err_invalid_url", { lng: lang }));
-          return;
+      const trimmed = text.trim();
+      let websiteInput = extractUrlFromText(trimmed);
+      if (!websiteInput) {
+        const compact = trimmed.replace(/\s+/g, "");
+        if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(compact)) {
+          websiteInput = `https://${compact}`;
+        } else if (/^[a-zA-Z0-9-]{2,}$/.test(compact)) {
+          websiteInput = `https://${compact}.uz`;
         }
-        await bot.sendMessage(chatId, i18n.t("quick_source_saved", { lng: lang }));
-        await sendNextOnboardingStep(bot, chatId);
-        return;
-      } else {
-        await bot.sendMessage(chatId, `${i18n.t("onboarding_rss_body", { lng: lang })}\n\nE.g.: <code>https://kun.uz/uz/news/rss</code>`, { parse_mode: "HTML" });
+      }
+
+      if (!websiteInput) {
+        await bot.sendMessage(chatId, `${i18n.t("onboarding_rss_body", { lng: lang })}\n\nWebsite yuboring (masalan: <code>kun.uz</code>) — bot RSS ni o'zi topadi.`, { parse_mode: "HTML" });
         return;
       }
+
+      if (!/^https?:\/\//i.test(websiteInput)) websiteInput = `https://${websiteInput}`;
+      const safeWebsite = websiteInput;
+      if (!(await ScraperService.isPublicExternalUrl(safeWebsite))) {
+        await bot.sendMessage(chatId, i18n.t("err_invalid_url", { lng: lang }));
+        return;
+      }
+
+      let rssUrl: string | null = null;
+      if (isLikelyRssUrl(safeWebsite)) {
+        rssUrl = safeWebsite;
+      } else {
+        rssUrl = await ScraperService.discoverRSS(safeWebsite);
+      }
+
+      if (!rssUrl) {
+        await bot.sendMessage(chatId, "Bu sayt uchun RSS topilmadi. Saytning to'liq URL manzilini yuboring (masalan: https://example.com).");
+        return;
+      }
+
+      const ok = await DBService.addSource(chatId, "Primary RSS", rssUrl, lang);
+      if (!ok) {
+        await bot.sendMessage(chatId, i18n.t("err_invalid_url", { lng: lang }));
+        return;
+      }
+      await bot.sendMessage(chatId, `${i18n.t("quick_source_saved", { lng: lang })}\n\nRSS: ${rssUrl}`);
+      await sendNextOnboardingStep(bot, chatId);
+      return;
     }
 
     // Onboarding: Posting interval cadence step

@@ -873,15 +873,22 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const caption = `🎙 <b>${title || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
     const targets = sendToChannel ? DBService.getUserOutputChannels(user) : [uid];
 
+    let sentCount = 0;
+    const failedTargets: string[] = [];
     for (const ch of targets) {
       try {
         const chatId = sendToChannel ? ch : uid;
         await bot.sendAudio(chatId, audio, { caption, parse_mode: 'HTML' });
+        sentCount++;
       } catch (e: any) {
         logger.warn(`Voice send failed ${ch}: ${e.message}`);
+        failedTargets.push(String(ch));
       }
     }
-    res.json({ success: true, script: script.slice(0, 800) });
+    if (sentCount === 0) {
+      return res.status(502).json({ error: 'Ovoz yuborilmadi. Bot kanalda admin emas yoki kanal ID noto‘g‘ri.' });
+    }
+    res.json({ success: true, sent: sentCount, failed: failedTargets.length, script: script.slice(0, 800) });
   });
 
   // --- VISUAL POST COMPOSER (multi-channel) ---
