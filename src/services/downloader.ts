@@ -104,6 +104,33 @@ export const DownloaderService = {
     ];
 
     const fetchFromInstance = async (base: string) => {
+      // 1. Try Cobalt v10 API parameters (POST to base URL)
+      try {
+        const res = await axios.post(`${base}/`, {
+          url,
+          vQuality: '720',
+          aFormat: 'mp3',
+          filenamePattern: 'basic',
+          isAudioOnly: audioOnly,
+        }, {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Origin: 'https://cobalt.tools',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          timeout: 15000,
+        });
+
+        if (res.data?.url) return res.data.url;
+        if (res.data?.status === 'stream' && res.data?.url) return res.data.url;
+        if (res.data?.status === 'redirect' && res.data?.url) return res.data.url;
+        if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
+          return res.data.picker[0].url;
+        }
+      } catch {}
+
+      // 2. Try Cobalt v7/v8 API parameters (POST to base URL)
       try {
         const res = await axios.post(`${base}/`, {
           url,
@@ -119,7 +146,7 @@ export const DownloaderService = {
             Origin: 'https://cobalt.tools',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
-          timeout: 25000,
+          timeout: 15000,
         });
 
         if (res.data?.url) return res.data.url;
@@ -128,8 +155,10 @@ export const DownloaderService = {
         if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
           return res.data.picker[0].url;
         }
-        throw new Error('No URL in response');
-      } catch {
+      } catch {}
+
+      // 3. Try /api/json endpoint (Some older instances)
+      try {
         const res = await axios.post(`${base}/api/json`, {
           url,
           vQuality: '720',
@@ -141,15 +170,16 @@ export const DownloaderService = {
             'Content-Type': 'application/json',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           },
-          timeout: 20000,
+          timeout: 15000,
         });
         if (res.data?.url) return res.data.url;
         if (res.data?.status === 'stream' && res.data?.url) return res.data.url;
         if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
           return res.data.picker[0].url;
         }
-        throw new Error('No URL in response');
-      }
+      } catch {}
+
+      throw new Error('All attempts failed on this instance');
     };
 
     try {
