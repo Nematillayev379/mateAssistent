@@ -3,103 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>mateAssistent Dashboard</title>
+    <title>mateAssistent Web3 Console</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="/js/i18n-client.js"></script>
     <style>
         :root {
-            --bg: #000000;
-            --surface: #0a0a0a;
-            --surface-hover: #171717;
-            --border: #262626;
-            --primary: #ffffff;
-            --secondary: #a3a3a3;
-            --accent: #3b82f6;
-            --danger: #ef4444;
-            --success: #10b981;
+            --bg: #03000a;
+            --surface: rgba(11, 16, 32, 0.6);
+            --surface-hover: rgba(17, 25, 51, 0.85);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(56, 189, 248, 0.3);
+            --primary: #f8fafc;
+            --secondary: #94a3b8;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --danger: #f87171;
+            --success: #34d399;
             --gold: #f59e0b;
+            --font-main: 'Inter', sans-serif;
+            --glow-color: rgba(139, 92, 246, 0.25);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-main);
             background-color: var(--bg);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.05) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.05) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(56, 189, 248, 0.02) 0px, transparent 50%);
             color: var(--primary);
-            padding-bottom: 90px;
+            padding-bottom: 110px;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
         }
 
         .bg-glow {
             position: fixed; top: -150px; left: 50%; transform: translateX(-50%);
-            width: 300px; height: 300px; background: var(--accent); filter: blur(150px); opacity: 0.15; z-index: -1;
-            animation: glow-pulse 4s ease-in-out infinite;
+            width: 500px; height: 500px; background: radial-gradient(circle, rgba(56,189,248,0.15) 0%, rgba(139,92,246,0.1) 50%, transparent 70%); filter: blur(100px); opacity: 0.3; z-index: -1;
+            animation: glow-pulse 6s ease-in-out infinite;
         }
 
         @keyframes glow-pulse {
-            0%, 100% { opacity: 0.15; transform: translateX(-50%) scale(1); }
-            50% { opacity: 0.25; transform: translateX(-50%) scale(1.1); }
+            0%, 100% { opacity: 0.2; transform: translateX(-50%) scale(1); }
+            50% { opacity: 0.35; transform: translateX(-50%) scale(1.15); }
         }
 
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 650px; margin: 0 auto; padding: 20px; }
 
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .user-pill { display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 8px 16px; border-radius: 30px; border: 1px solid var(--border); }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+        .user-pill { display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 8px 16px; border-radius: 30px; border: 1px solid var(--border); backdrop-filter: blur(10px); }
         .user-pill img, .user-pill i { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
 
         .card { 
             background: var(--surface); 
             border: 1px solid var(--border); 
-            border-radius: 20px; 
-            padding: 20px; 
-            margin-bottom: 16px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.4); 
-            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 16px; 
+            padding: 22px; 
+            margin-bottom: 20px; 
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            border-color: var(--border-hover);
+            box-shadow: 0 15px 35px rgba(56, 189, 248, 0.08), 0 5px 15px rgba(0, 0, 0, 0.5);
         }
-        .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
-        .card-title i { color: var(--accent); }
+        .card-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; letter-spacing: 0.5px; }
+        .card-title i { color: var(--accent); filter: drop-shadow(0 0 5px var(--accent)); }
 
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .stat-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border); padding: 16px; border-radius: 16px; }
-        .stat-val { font-size: 1.5rem; font-weight: 700; }
-        .stat-lab { font-size: 0.75rem; color: var(--secondary); margin-top: 4px; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .stat-card { 
+            background: rgba(255,255,255,0.02); 
+            border: 1px solid var(--border); 
+            padding: 18px; 
+            border-radius: 16px; 
+            transition: border-color 0.2s;
+        }
+        .stat-card:hover { border-color: rgba(56, 189, 248, 0.2); }
+        .stat-val { font-size: 1.65rem; font-weight: 700; background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stat-lab { font-size: 0.78rem; color: var(--secondary); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        .input-group { margin-bottom: 12px; }
+        .input-group { margin-bottom: 14px; }
+        .input-group label { display: block; font-size: 0.78rem; color: var(--secondary); margin-bottom: 6px; font-weight: 500; }
         .input-group input, .input-group textarea, .input-group select {
-            width: 100%; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
-            color: white; outline: none; font-family: inherit; transition: 0.2s;
+            width: 100%; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+            color: white; outline: none; font-family: inherit; transition: all 0.2s;
         }
-        .input-group input:focus { border-color: var(--accent); }
+        .input-group input:focus, .input-group textarea:focus, .input-group select:focus { 
+            border-color: var(--accent); 
+            background: rgba(255,255,255,0.05); 
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+        }
 
-        .btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
-        .btn-primary { background: var(--primary); color: var(--bg); }
-        .btn-primary:active { opacity: 0.8; transform: scale(0.98); }
-        .btn-ghost { background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border); }
+        .btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-primary { 
+            background: linear-gradient(135deg, #38bdf8 0%, #8b5cf6 100%); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.2);
+        }
+        .btn-primary:hover {
+            opacity: 0.95;
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
+            transform: translateY(-1px);
+        }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-ghost { background: rgba(255,255,255,0.04); color: white; border: 1px solid var(--border); }
+        .btn-ghost:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); }
 
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(10,10,10,0.85); backdrop-filter: blur(20px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 10px; z-index: 1000; overflow-x: auto; }
-        .nav-item { min-width: 60px; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--secondary); font-size: 0.7rem; cursor: pointer; transition: 0.2s; }
-        .nav-item i { font-size: 1.2rem; }
-        .nav-item.active { color: var(--accent); }
+        .bottom-nav { 
+            position: fixed; 
+            bottom: 16px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            width: calc(100% - 32px); 
+            max-width: 600px; 
+            background: rgba(11, 16, 32, 0.8); 
+            backdrop-filter: blur(20px); 
+            border: 1px solid var(--border); 
+            display: flex; 
+            padding: 8px 12px; 
+            border-radius: 24px;
+            z-index: 1000; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1); 
+            overflow-x: auto;
+            scrollbar-width: none;
+            gap: 6px;
+        }
+        .bottom-nav::-webkit-scrollbar { display: none; }
+        .nav-item { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            gap: 4px; 
+            color: var(--secondary); 
+            font-size: 0.65rem; 
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            padding: 8px 10px;
+            border-radius: 16px;
+            min-width: 62px;
+            flex-shrink: 0;
+            border: 1px solid transparent;
+        }
+        .nav-item i { font-size: 1.2rem; transition: transform 0.2s; }
+        .nav-item:hover i { transform: translateY(-2px); color: var(--accent); }
+        .nav-item.active { 
+            color: var(--accent); 
+            background: rgba(56, 189, 248, 0.08); 
+            border-color: rgba(56, 189, 248, 0.25);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.1);
+        }
 
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); margin-bottom: 8px; border: 1px solid var(--border); }
-        .item-info h4 { font-size: 0.9rem; margin-bottom: 2px; }
-        .item-info p { font-size: 0.75rem; color: var(--secondary); }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.01); margin-bottom: 10px; border: 1px solid var(--border); transition: border-color 0.2s; }
+        .item-row:hover { border-color: rgba(255,255,255,0.15); }
+        .item-info h4 { font-size: 0.92rem; margin-bottom: 3px; font-weight: 500; }
+        .item-info p { font-size: 0.78rem; color: var(--secondary); }
 
-        .page { display: none; animation: slideUp 0.3s ease; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .page { display: none; animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-        .badge-premium { color: var(--gold); font-size: 0.8rem; display: flex; align-items: center; gap: 4px; font-weight: bold; }
+        .badge-premium { color: var(--gold); font-size: 0.8rem; display: flex; align-items: center; gap: 4px; font-weight: bold; background: rgba(245, 158, 11, 0.1); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(245, 158, 11, 0.2); }
 
         #auth-screen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
-        .pay-method-btn.active { border-color: var(--accent) !important; background: rgba(59,130,246,0.15) !important; }
+        .pay-method-btn.active { border-color: var(--accent) !important; background: rgba(56, 189, 248, 0.15) !important; }
         .admin-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
         .admin-badge.pending { background: #f59e0b33; color: var(--gold); }
         .admin-badge.approved { background: #10b98133; color: var(--success); }
@@ -139,46 +211,53 @@
                 <div id="user-premium-badge" class="badge-premium" style="display: none;"><i class="fas fa-crown"></i> ELITE</div>
             </header>
 
-                        <!-- 1. Home Page -->
-            <section id="page-home" class="page">
+            <!-- 1. Overview Page -->
+            <section id="page-overview" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-chart-line"></i> Statistika</div>
+                    <div class="card-title"><i class="fas fa-sparkles"></i> <span data-i18n="nav_overview">Overview</span></div>
+                    <p style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 16px;">Web3 creator console for RSS automation, AI publishing, distribution and channel growth.</p>
                     <div class="stat-grid">
                         <div class="stat-card">
                             <div class="stat-val" id="stat-posts">0</div>
-                            <div class="stat-lab">Jami Postlar</div>
+                            <div class="stat-lab" data-i18n="home_posts">Jami Postlar</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-val" id="stat-dupes">0</div>
-                            <div class="stat-lab">Dublikatlar</div>
+                            <div class="stat-lab" data-i18n="home_dupes">Dublikatlar</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-val" id="stat-sources">0</div>
-                            <div class="stat-lab">Manbalar</div>
+                            <div class="stat-lab" data-i18n="home_sources">Manbalar</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-val" id="stat-refs">0</div>
-                            <div class="stat-lab">Referrallar</div>
+                            <div class="stat-lab" data-i18n="home_refs">Referrallar</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-rss"></i> Bot Asosiy Xizmatlari</div>
-                    <button class="btn btn-primary" style="margin-bottom: 10px;" onclick="showPage('content')"><i class="fas fa-plus"></i> Yangi RSS/Kanal qo'shish</button>
-                    <button class="btn btn-ghost" style="margin-bottom: 10px;" onclick="showPage('content'); setTimeout(() => document.getElementById('ai-prompt').focus(), 100);"><i class="fas fa-robot"></i> AI Post Yaratish</button>
+                    <div class="card-title"><i class="fas fa-diagram-project"></i> Identity Snapshot</div>
+                    <div id="home-identity-info">
+                        <div class="item-row"><span>Target Channel</span><span id="home-target-channel">Not connected ⚠️</span></div>
+                    </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-clock"></i> Navbatdagi Postlar</div>
+                    <div class="card-title"><i class="fas fa-rss"></i> Active Sources (Preview)</div>
+                    <div id="home-sources-list"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-clock"></i> <span data-i18n="home_scheduled">Next Scheduled Posts</span></div>
                     <div id="scheduled-list"></div>
                 </div>
             </section>
 
-            <!-- 2. Content Page (RSS + AI + Channels) -->
-            <section id="page-content" class="page">
+            <!-- 2. Sources Page -->
+            <section id="page-sources" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-rss"></i> RSS Manbalar</div>
+                    <div class="card-title"><i class="fas fa-rss"></i> RSS Sources</div>
                     <div class="input-group"><input type="text" id="src-name" placeholder="Nomi"></div>
                     <div class="input-group"><input type="text" id="src-url" placeholder="RSS URL"></div>
                     <button class="btn btn-primary" onclick="saveSource()">Manba qo'shish</button>
@@ -186,7 +265,28 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-robot"></i> AI SMM Generator</div>
+                    <div class="card-title"><i class="fas fa-search"></i> Eng arzon narxni qidirish</div>
+                    <div class="input-group" style="display: flex; gap: 8px;">
+                        <input type="text" id="search-product-query" placeholder="Mahsulot nomini yozing (masalan: iPhone 13)" onkeydown="if(event.key==='Enter') searchMarketplaceProducts()">
+                        <button class="btn btn-primary" id="btn-search-product" style="width: auto; padding: 12px 20px;" onclick="searchMarketplaceProducts()"><i class="fas fa-search"></i> Qidirish</button>
+                    </div>
+                    <div id="search-results-list" style="margin-top: 15px; display: none; max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: rgba(0,0,0,0.2);"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-bell"></i> Kuzatilayotgan tovarlar (Tracker)</div>
+                    <div class="input-group" style="display: flex; gap: 8px;">
+                        <input type="text" id="track-url" placeholder="Uzum yoki OLX havolasi">
+                        <button class="btn btn-ghost" style="width: auto; padding: 12px 20px;" onclick="trackPrice()">Qo'shish</button>
+                    </div>
+                    <div id="tracked-list" style="margin-top: 20px;"></div>
+                </div>
+            </section>
+
+            <!-- 3. Studio Page -->
+            <section id="page-studio" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-robot"></i> AI SMM Studio</div>
                     <div class="input-group"><textarea id="ai-prompt" rows="3" placeholder="Mavzu..."></textarea></div>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
                         <input type="checkbox" id="ai-image" style="width: 18px; height: 18px;"> <label for="ai-image">Rasm generatsiya qilinsin</label>
@@ -203,23 +303,72 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-tv"></i> Kuzatilayotgan Kanallar</div>
+                    <div class="card-title"><i class="fas fa-microphone"></i> Voice News Generator</div>
                     <div class="input-group">
-                        <select id="channel-platform" onchange="toggleTelegramOptions()" style="width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;">
+                        <label>Sarlavha</label>
+                        <input type="text" id="voice-title" placeholder="Yangilik sarlavhasi...">
+                    </div>
+                    <div class="input-group">
+                        <label>Matn</label>
+                        <textarea id="voice-text" rows="4" placeholder="Yangilik matni..."></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
+                        <input type="checkbox" id="voice-to-channel" style="width: 18px; height: 18px;" checked> 
+                        <label for="voice-to-channel">Kanalga yuborish</label>
+                    </div>
+                    <button class="btn btn-primary" onclick="generateVoiceNews()">Audio yaratish & yuborish</button>
+                    <p id="voice-status" style="margin-top: 10px; font-size: 0.85rem; color: var(--secondary);"></p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-music"></i> Musiqa Yuklovchi</div>
+                    <div style="display: flex; gap: 10px;" class="input-group">
+                        <input type="text" id="music-q" placeholder="Artist yoki qo'shiq...">
+                        <button class="btn btn-primary" style="width: 60px;" onclick="searchMusic()"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div id="music-list" style="margin-top: 15px;"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-download"></i> Video Yuklovchi</div>
+                    <p style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 15px;">YouTube, Instagram yoki TikTok linkini bering.</p>
+                    <div class="input-group"><input type="text" id="dl-url" placeholder="Link..."></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn btn-ghost" id="btn-dl-video" onclick="downloadMedia('video', this)"><i class="fas fa-video"></i> Video</button>
+                        <button class="btn btn-ghost" id="btn-dl-audio" onclick="downloadMedia('audio', this)"><i class="fas fa-music"></i> Audio</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Distribution Page -->
+            <section id="page-distribution" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-location-arrow"></i> Target Channel Output</div>
+                    <div class="input-group">
+                        <label>Main Target Channel</label>
+                        <input type="text" id="set-channel" placeholder="@kanalingiz yoki -100...">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">Kanalni saqlash</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-tower-broadcast"></i> Extra Channels / Multichannel</div>
+                    <div class="input-group">
+                        <select id="channel-platform" onchange="toggleTelegramOptions()" style="width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:white;">
                             <option value="youtube">YouTube</option>
                             <option value="instagram">Instagram</option>
                             <option value="telegram">Telegram</option>
                         </select>
                     </div>
                     <div class="input-group">
-                        <div id="telegram-source-hint" style="font-size:0.75rem;color:var(--gold);margin-bottom:10px;padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;border:1px solid var(--gold);">⚠️ Botni <b>manba kanalga admin</b> qiling (@kanal yoki -100...)</div>
-                    <div id="telegram-options" style="margin-bottom:12px;">
-                        <select id="channel-forward-mode" style="width:100%;padding:12px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:white;margin-bottom:8px;">
-                            <option value="copy">Copy</option><option value="forward">Forward</option>
-                        </select>
-                        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;"><input type="checkbox" id="channel-use-ai"> AI qayta yozish</label>
-                    </div>
-                    <input type="text" id="channel-id" placeholder="@kanal yoki -100...">
+                        <div id="telegram-source-hint" style="font-size:0.75rem;color:var(--gold);margin-bottom:10px;padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;border:1px solid var(--gold); display:none;">⚠️ Botni <b>manba kanalga admin</b> qiling (@kanal yoki -100...)</div>
+                        <div id="telegram-options" style="margin-bottom:12px; display:none;">
+                            <select id="channel-forward-mode" style="width:100%;padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:white;margin-bottom:8px;">
+                                <option value="copy">Copy</option><option value="forward">Forward</option>
+                            </select>
+                            <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;"><input type="checkbox" id="channel-use-ai"> AI qayta yozish</label>
+                        </div>
+                        <input type="text" id="channel-id" placeholder="@kanal yoki -100...">
                     </div>
                     <div class="input-group">
                         <input type="text" id="channel-name" placeholder="Kanal nomi">
@@ -227,226 +376,119 @@
                     <button class="btn btn-primary" onclick="addChannel()">Kanal qo'shish</button>
                     <div id="channels-list" style="margin-top: 20px;"></div>
                 </div>
-            </section>
-
-            <!-- 3. Services Page (contains Media, Finance, Tracker) -->
-            <section id="page-services" class="page">
-                <div class="card">
-                    <div class="card-title"><i class="fas fa-th-large"></i> Xizmatlar</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <button class="btn btn-ghost" onclick="showSubPage('media')"><i class="fas fa-play-circle"></i> Media</button>
-                        <button class="btn btn-ghost" onclick="showSubPage('finance')"><i class="fas fa-chart-bar"></i> Moliya</button>
-                        <button class="btn btn-ghost" onclick="showSubPage('tracker')"><i class="fas fa-bell"></i> Tracker</button>
-                        <button class="btn btn-ghost" onclick="showSubPage('settings')"><i class="fas fa-cog"></i> Sozlamalar</button>
-                        <button class="btn btn-ghost" style="color: var(--gold); border-color: var(--gold);" onclick="showSubPage('premium')"><i class="fas fa-crown"></i> Premium</button>
-                    </div>
-                </div>
-
-                <!-- Media Sub-page -->
-                <div id="subpage-media" style="display: none;">
-                    <div class="card">
-                        <div class="card-title"><i class="fas fa-music"></i> Musiqa Qidirish</div>
-                        <div style="display: flex; gap: 10px;" class="input-group">
-                            <input type="text" id="music-q" placeholder="Artist yoki qo'shiq...">
-                            <button class="btn btn-primary" style="width: 60px;" onclick="searchMusic()"><i class="fas fa-search"></i></button>
-                        </div>
-                        <div id="music-list" style="margin-top: 15px;"></div>
-                    </div>
-
-                    <div class="card">
-                        <div class="card-title"><i class="fas fa-download"></i> Video Yuklovchi</div>
-                        <p style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 15px;">YouTube, Instagram yoki TikTok linkini bering.</p>
-                        <div class="input-group"><input type="text" id="dl-url" placeholder="Link..."></div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <button class="btn btn-ghost" id="btn-dl-video" onclick="downloadMedia('video', this)"><i class="fas fa-video"></i> Video</button>
-                            <button class="btn btn-ghost" id="btn-dl-audio" onclick="downloadMedia('audio', this)"><i class="fas fa-music"></i> Audio</button>
-                        </div>
-                    </div>
-                    <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
-                </div>
-
-                <!-- Finance Sub-page -->
-                <div id="subpage-finance" style="display: none;">
-                    <div class="card">
-                        <div class="card-title"><i class="fas fa-coins"></i> Bozor Holati</div>
-                        <div id="finance-list">
-                            <div class="item-row">
-                                <div class="item-info"><h4>Bitcoin (BTC)</h4><p>Global kriptovalyuta</p></div>
-                                <div class="stat-val" style="font-size: 1.1rem;" id="f-btc">---</div>
-                            </div>
-                            <div class="item-row">
-                                <div class="item-info"><h4>AQSh Dollari (USD)</h4><p>MB kursi</p></div>
-                                <div class="stat-val" style="font-size: 1.1rem;" id="f-usd">---</div>
-                            </div>
-                        </div>
-                        <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadFinance()">Yangilash</button>
-                    </div>
-                    <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
-                </div>
-
-                <!-- Tracker Sub-page -->
-                <div id="subpage-tracker" style="display: none;">
-                    <div class="card">
-                        <div class="card-title"><i class="fas fa-search"></i> Eng arzon narxni qidirish</div>
-                        <div class="input-group" style="display: flex; gap: 8px;">
-                            <input type="text" id="search-product-query" placeholder="Mahsulot nomini yozing (masalan: iPhone 13)" onkeydown="if(event.key==='Enter') searchMarketplaceProducts()">
-                            <button class="btn btn-primary" id="btn-search-product" style="width: auto; padding: 12px 20px;" onclick="searchMarketplaceProducts()"><i class="fas fa-search"></i> Qidirish</button>
-                        </div>
-                        <div id="search-results-list" style="margin-top: 15px; display: none; max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: rgba(0,0,0,0.2);"></div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title"><i class="fas fa-bell"></i> Kuzatilayotgan tovarlar</div>
-                        <div class="input-group" style="display: flex; gap: 8px;">
-                            <input type="text" id="track-url" placeholder="Uzum yoki OLX havolasi">
-                            <button class="btn btn-ghost" style="width: auto; padding: 12px 20px;" onclick="trackPrice()">Qo'shish</button>
-                        </div>
-                        <div id="tracked-list" style="margin-top: 20px;"></div>
-                    </div>
-                    <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
-                </div>
-                            <!-- Settings Sub-page -->
-                <div id="subpage-settings" style="display: none;">
-                    <div class="card">
-                        <div class="card-title"><i class="fas fa-cog"></i> Sozlamalar</div>
-                        <div class="input-group">
-                            <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Til (Language)</label>
-                            <select id="set-lang">
-                                <option value="uz">O'zbek tili</option>
-                                <option value="ru">Русский язык</option>
-                                <option value="en">English</option>
-                                <option value="tr">Türkçe</option>
-                                <option value="de">Deutsch</option>
-                                <option value="fr">Français</option>
-                                <option value="es">Español</option>
-                                <option value="it">Italiano</option>
-                                <option value="pt">Português</option>
-                                <option value="ar">العربية</option>
-                                <option value="hi">हिन्दी</option>
-                                <option value="zh">中文</option>
-                                <option value="ja">日本語</option>
-                                <option value="ko">한국어</option>
-                                <option value="fa">فارسی</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Kanal (Target Channel)</label>
-                            <input type="text" id="set-channel" placeholder="@kanalingiz yoki -100...">
-                        </div>
-                        <div class="input-group">
-                            <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Kalit so'zlar (Keywords)</label>
-                            <input type="text" id="set-keywords" placeholder="so'z1, so'z2, so'z3">
-                        </div>
-                        <div class="input-group">
-                            <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Post intervali (daqiqada)</label>
-                            <input type="number" id="set-interval" min="1" max="1440" step="1" value="15">
-                        </div>
-                        <div class="input-group">
-                            <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Kunlik Digest</label>
-                            <select id="set-digest">
-                                <option value="false">O'chirilgan</option>
-                                <option value="true">Yoqilgan</option>
-                            </select>
-                        </div>
-                        <div class="input-group">
-                            <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Digest Vaqti</label>
-                            <input type="time" id="set-digest-time" value="20:00">
-                        </div>
-                        <button class="btn btn-primary" onclick="saveSettings()">Saqlash</button>
-                    </div>
-                    <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
-                </div>
-
-                <!-- Premium Sub-page -->
-                <div id="subpage-premium" style="display: none;">
-                    <div class="card premium-intro" style="border: 1px solid var(--gold); background: rgba(245, 158, 11, 0.05);">
-                        <div class="card-title" style="color: var(--gold);"><i class="fas fa-crown"></i> Premium ELITE</div>
-                        <div id="premium-info" style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 15px; line-height: 1.6;">Yuklanmoqda...</div>
-                    </div>
-                    <div class="card" id="premium-purchase-card">
-                        <div class="card-title"><i class="fas fa-tag"></i> Reja tanlang</div>
-                        <p data-i18n="premium_pay_method" style="font-size:0.8rem;color:var(--secondary);margin-bottom:8px;">To'lov usuli:</p>
-                        <div id="pay-methods-container" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
-                        <div id="premium-plans" style="margin-top: 8px;">
-                            <div class="item-row" style="margin-bottom: 15px;">
-                                <div>
-                                    <h4>1 Oylik</h4>
-                                    <p style="color: var(--gold); font-weight: bold;" id="price-monthly">--- UZS</p>
-                                    <p style="color: var(--secondary);">Barcha imkoniyatlar</p>
-                                </div>
-                                <button class="btn btn-primary" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('monthly')">Sotib olish</button>
-                            </div>
-                            <div class="item-row">
-                                <div>
-                                    <h4>1 Yillik</h4>
-                                    <p style="color: var(--gold); font-weight: bold;" id="price-yearly">--- UZS</p>
-                                    <p style="color: var(--secondary);">10% chegirma</p>
-                                </div>
-                                <button class="btn btn-primary" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('yearly')">Sotib olish</button>
-                            </div>
-                        </div>
-                    </div>
-                    <button class="btn btn-ghost" onclick="showPage('services')">Orqaga</button>
-                </div>
-            </section>
-            <!-- 5. Profile & Settings Page -->
-            <section id="page-profile" class="page">
-                <div class="card" id="user-info-card">
-                    <div class="card-title"><i class="fas fa-id-card"></i> Foydalanuvchi Ma'lumotlari</div>
-                    <div id="user-info-content"></div>
-                </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-crown"></i> Premium Holati</div>
-                    <div id="premium-status">Yuklanmoqda...</div>
-                    <button class="btn btn-primary" style="margin-top: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--gold); color: var(--gold);" onclick="showPage('services'); showSubPage('premium');">
-                        Premium sotib olish / Uzaytirish
-                    </button>
-                </div>
-
-                <div class="card">
-                    <div class="card-title"><i class="fas fa-gift"></i> Referral Tizimi</div>
-                    <div id="referral-info"></div>
-                    <button class="btn btn-ghost" style="margin-top: 15px;" onclick="copyReferralLink()">Havolani nusxalash</button>
-                </div>
-
-                <div class="card">
-                    <div class="card-title"><i class="fas fa-headset"></i> Support</div>
+                    <div class="card-title"><i class="fas fa-share-nodes"></i> Monitored Output Channels</div>
                     <div class="input-group">
-                        <input type="text" id="ticket-subject" placeholder="Mavzu">
+                        <label>Boshqa yo'naltiriladigan kanallar (vergul bilan)</label>
+                        <input type="text" id="extra-channels" placeholder="@chan1, @chan2">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveExtraChannels()" style="margin-bottom: 15px;">Kanallarni saqlash</button>
+                    <div id="output-channels-list"></div>
+                </div>
+            </section>
+
+            <!-- 5. Automation Page -->
+            <section id="page-automation" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-bolt"></i> Posting Cadence & Automation</div>
+                    <div class="input-group">
+                        <label>Post intervali (daqiqada)</label>
+                        <input type="number" id="set-interval" min="1" max="1440" step="1" value="15">
                     </div>
                     <div class="input-group">
-                        <textarea id="ticket-message" rows="3" placeholder="Xabaringiz..."></textarea>
+                        <label>Kalit so'zlar filtri (Keywords)</label>
+                        <input type="text" id="set-keywords" placeholder="so'z1, so'z2, so'z3">
                     </div>
-                    <button class="btn btn-primary" onclick="createTicket()">Yuborish</button>
-                    <div id="tickets-list" style="margin-top: 15px;"></div>
+                    <div class="input-group">
+                        <label>Kunlik Digest</label>
+                        <select id="set-digest">
+                            <option value="false">O'chirilgan</option>
+                            <option value="true">Yoqilgan</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Digest Vaqti</label>
+                        <input type="time" id="set-digest-time" value="20:00">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">Avtomatlashtirishni saqlash</button>
                 </div>
             </section>
 
-                            <!-- Admin Page -->
-            <section id="page-admin" class="page">
+            <!-- 6. Analytics Page -->
+            <section id="page-analytics" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-user-shield"></i> Admin Panel</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <button class="btn btn-ghost" onclick="showPage('admin-users')"><i class="fas fa-users"></i> Foydalanuvchilar</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-sources')"><i class="fas fa-rss"></i> Manbalar</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-broadcast')"><i class="fas fa-bullhorn"></i> Broadcast</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-settings')"><i class="fas fa-cogs"></i> Sozlamalar</button>
-                        <button class="btn btn-ghost" onclick="showPage('status')"><i class="fas fa-server"></i> Tizim Statusi</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-tickets')"><i class="fas fa-ticket-alt"></i> Ticketlar</button>
+                    <div class="card-title"><i class="fas fa-coins"></i> Moliyaviy Bozorlar</div>
+                    <div id="finance-list">
+                        <div class="item-row">
+                            <div class="item-info"><h4>Bitcoin (BTC)</h4><p>Global Kripto narxi</p></div>
+                            <div class="stat-val" style="font-size: 1.1rem;" id="f-btc">---</div>
+                        </div>
+                        <div class="item-row">
+                            <div class="item-info"><h4>AQSh Dollari (USD)</h4><p>Markaziy Bank kursi</p></div>
+                            <div class="stat-val" style="font-size: 1.1rem;" id="f-usd">---</div>
+                        </div>
                     </div>
+                    <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadFinance()">Yangilash</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-fire"></i> Google Trends</div>
+                    <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6; margin-bottom: 15px;">
+                        <p id="trends-summary">Yuklanmoqda...</p>
+                    </div>
+                    <div id="trends-list"></div>
+                    <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadTrends(true)">Yangilash (Google Trends)</button>
                 </div>
             </section>
-            
-            <!-- 4. API Page -->
-            <section id="page-api" class="page">
+
+            <!-- 7. Wallet Page -->
+            <section id="page-wallet" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-key"></i> API Kalitlari</div>
-                    <div style="background: rgba(59, 130, 246, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--accent);">
+                    <div class="card-title"><i class="fas fa-wallet"></i> Web3 Membership Wallet</div>
+                    <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6;">
+                        <p style="margin-bottom: 12px;">Premium va VIP darajadagi foydalanuvchilar uchun portal.</p>
+                        <div class="item-row"><span>Membership Status</span><span id="wallet-membership-state" style="color:var(--gold); font-weight:bold;">Creator</span></div>
+                        <div class="item-row"><span>Wallet connection</span><span>Integratsiya kutilmoqda</span></div>
+                    </div>
+                </div>
+
+                <div class="card premium-intro" style="border: 1px solid var(--gold); background: rgba(245, 158, 11, 0.05);">
+                    <div class="card-title" style="color: var(--gold);"><i class="fas fa-crown"></i> Upgrade to Premium ELITE</div>
+                    <div id="premium-info" style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 15px; line-height: 1.6;">Yuklanmoqda...</div>
+                </div>
+
+                <div class="card" id="premium-purchase-card">
+                    <div class="card-title"><i class="fas fa-tag"></i> Reja tanlang</div>
+                    <p data-i18n="premium_pay_method" style="font-size:0.8rem;color:var(--secondary);margin-bottom:8px;">To'lov usuli:</p>
+                    <div id="pay-methods-container" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
+                    <div id="premium-plans" style="margin-top: 8px;">
+                        <div class="item-row" style="margin-bottom: 15px;">
+                            <div>
+                                <h4>1 Oylik</h4>
+                                <p style="color: var(--gold); font-weight: bold;" id="price-monthly">--- UZS</p>
+                                <p style="color: var(--secondary);">Barcha imkoniyatlar</p>
+                            </div>
+                            <button class="btn btn-primary" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('monthly')">Sotib olish</button>
+                        </div>
+                        <div class="item-row">
+                            <div>
+                                <h4>1 Yillik</h4>
+                                <p style="color: var(--gold); font-weight: bold;" id="price-yearly">--- UZS</p>
+                                <p style="color: var(--secondary);">10% chegirma</p>
+                            </div>
+                            <button class="btn btn-primary" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('yearly')">Sotib olish</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-key"></i> Custom API Keys</div>
+                    <div style="background: rgba(56, 189, 248, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--accent);">
                         <h4 style="color: var(--accent); margin-bottom: 10px;">🎁 API Kalit Qo'shish Bonuslari:</h4>
                         <ul style="font-size: 0.85rem; color: var(--secondary); margin-left: 20px;">
                             <li>Har bir API kalit uchun +1 RSS manba limiti</li>
                             <li>AI xizmatlaridan tezroq foydalanish</li>
-                            <li>Yuqori sifatli yangiliklar tarjimalari</li>
                             <li>3 ta kalitgacha maksimal limit</li>
                         </ul>
                     </div>
@@ -465,17 +507,92 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-info-circle"></i> API Kalitlarni Qanday Olish</div>
+                    <div class="card-title"><i class="fas fa-info-circle"></i> API Kalitlarni Olish</div>
                     <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6;">
-                        <p style="margin-bottom: 10px;"><strong>Groq:</strong> console.groq.com saytida bepul kalit oling</p>
-                        <p style="margin-bottom: 10px;"><strong>Cerebras:</strong> cloud.cerebras.ai saytida ro'yxatdan o'ting</p>
-                        <p style="margin-bottom: 10px;"><strong>OpenRouter:</strong> openrouter.ai saytida API kalit oling</p>
+                        <p style="margin-bottom: 10px;"><strong>Groq:</strong> console.groq.com saytida API kalit oling</p>
                         <p style="margin-bottom: 10px;"><strong>Google Gemini:</strong> makersuite.google.com saytida API kalit oling</p>
-                        <p><strong>OpenAI:</strong> platform.openai.com saytida API kalit oling</p>
                     </div>
                 </div>
             </section>
 
+            <!-- 8. Settings Page -->
+            <section id="page-settings" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-language"></i> Language Selection</div>
+                    <div class="input-group">
+                        <select id="set-lang">
+                            <option value="uz">O'zbek tili</option>
+                            <option value="ru">Русский язык</option>
+                            <option value="en">English</option>
+                            <option value="tr">Türkçe</option>
+                            <option value="de">Deutsch</option>
+                            <option value="fr">Français</option>
+                            <option value="es">Español</option>
+                            <option value="it">Italiano</option>
+                            <option value="pt">Português</option>
+                            <option value="ar">العربية</option>
+                            <option value="hi">हिन्दी</option>
+                            <option value="zh">中文</option>
+                            <option value="ja">日本語</option>
+                            <option value="ko">한국어</option>
+                            <option value="fa">فارسی</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">Tilni saqlash</button>
+                </div>
+
+                <div class="card" id="user-info-card">
+                    <div class="card-title"><i class="fas fa-id-card"></i> Creator Profile Snapshot</div>
+                    <div id="user-info-content"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-crown"></i> Premium status</div>
+                    <div id="premium-status">Yuklanmoqda...</div>
+                    <button class="btn btn-primary" style="margin-top: 15px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--gold); color: var(--gold);" onclick="showPage('wallet')">
+                        Premium / Hamyon sahifasiga o'tish
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-gift"></i> Referral System</div>
+                    <div id="referral-info"></div>
+                    <button class="btn btn-ghost" style="margin-top: 15px;" onclick="copyReferralLink()">Havolani nusxalash</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-headset"></i> Support Tickets</div>
+                    <div class="input-group">
+                        <input type="text" id="ticket-subject" placeholder="Mavzu">
+                    </div>
+                    <div class="input-group">
+                        <textarea id="ticket-message" rows="3" placeholder="Xabaringiz..."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="createTicket()">Yuborish</button>
+                    <div id="tickets-list" style="margin-top: 15px;"></div>
+                </div>
+
+                <div class="card" style="border: 1px solid rgba(239, 68, 68, 0.2);">
+                    <button class="btn btn-ghost" style="color:var(--danger); border-color:var(--danger);" onclick="logout()">Chiqish (Logout)</button>
+                </div>
+            </section>
+
+            <!-- 9. Admin Page (Hub) -->
+            <section id="page-admin" class="page">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-user-shield"></i> Admin Panel</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn btn-ghost" onclick="showPage('admin-users')"><i class="fas fa-users"></i> Foydalanuvchilar</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-sources')"><i class="fas fa-rss"></i> Manbalar</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-broadcast')"><i class="fas fa-bullhorn"></i> Broadcast</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-settings')"><i class="fas fa-cogs"></i> Sozlamalar</button>
+                        <button class="btn btn-ghost" onclick="showPage('status')"><i class="fas fa-server"></i> Tizim Statusi</button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-tickets')"><i class="fas fa-ticket-alt"></i> Ticketlar</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Admin Subpages -->
             <!-- 5. Admin Users Page -->
             <section id="page-admin-users" class="page">
                 <div class="card">
@@ -483,7 +600,7 @@
                     <div id="admin-users-filters" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
                     <div id="admin-users-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
             </section>
 
             <!-- 6. Admin Sources Page -->
@@ -492,7 +609,7 @@
                     <div class="card-title"><i class="fas fa-rss"></i> Barcha Manbalar</div>
                     <div id="admin-sources-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
             </section>
 
             <!-- 7. Admin Broadcast Page -->
@@ -504,7 +621,7 @@
                     </div>
                     <button class="btn btn-primary" onclick="sendBroadcast()">Barchaga yuborish</button>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
             </section>
 
             <!-- 8. Admin Settings Page -->
@@ -525,7 +642,7 @@
                     </div>
                     <button class="btn btn-primary" onclick="saveAdminSettings()">Saqlash</button>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
             </section>
 
             <!-- 9. Admin Tickets Page -->
@@ -534,7 +651,7 @@
                     <div class="card-title"><i class="fas fa-ticket-alt"></i> Support Ticketlar</div>
                     <div id="admin-tickets-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
             </section>
 
             <!-- 10. System Status Page -->
@@ -545,16 +662,20 @@
                     <div class="item-row"><span>Redis</span> <span id="sys-redis">--</span></div>
                     <div class="item-row"><span>Node</span> <span id="sys-node">--</span></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin-users')">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')">Orqaga</button>
             </section>
         </div>
 
         <nav class="bottom-nav">
-            <div class="nav-item active" id="nav-home" onclick="showPage('home')"><i class="fas fa-home"></i><span data-i18n="nav_home">Asosiy</span></div>
-            <div class="nav-item" id="nav-content" onclick="showPage('content')"><i class="fas fa-file-alt"></i><span data-i18n="nav_content">Kontent</span></div>
-            <div class="nav-item" id="nav-services" onclick="showPage('services')"><i class="fas fa-th-large"></i><span data-i18n="nav_services">Xizmatlar</span></div>
-            <div class="nav-item" id="nav-api" onclick="showPage('api')"><i class="fas fa-key"></i><span data-i18n="nav_api">API</span></div>
-            <div class="nav-item" id="nav-profile" onclick="showPage('profile')"><i class="fas fa-user-circle"></i><span data-i18n="nav_profile">Profil</span></div>
+            <div class="nav-item active" id="nav-overview" onclick="showPage('overview')"><i class="fas fa-house-signal"></i><span data-i18n="nav_overview">Overview</span></div>
+            <div class="nav-item" id="nav-sources" onclick="showPage('sources')"><i class="fas fa-rss"></i><span data-i18n="nav_sources">Sources</span></div>
+            <div class="nav-item" id="nav-studio" onclick="showPage('studio')"><i class="fas fa-wand-magic-sparkles"></i><span data-i18n="nav_studio">Studio</span></div>
+            <div class="nav-item" id="nav-distribution" onclick="showPage('distribution')"><i class="fas fa-tower-broadcast"></i><span data-i18n="nav_distribution">Distribution</span></div>
+            <div class="nav-item" id="nav-automation" onclick="showPage('automation')"><i class="fas fa-bolt"></i><span data-i18n="nav_automation">Automation</span></div>
+            <div class="nav-item" id="nav-analytics" onclick="showPage('analytics')"><i class="fas fa-chart-line"></i><span data-i18n="nav_analytics">Analytics</span></div>
+            <div class="nav-item" id="nav-wallet" onclick="showPage('wallet')"><i class="fas fa-wallet"></i><span data-i18n="nav_wallet">Wallet</span></div>
+            <div class="nav-item" id="nav-settings" onclick="showPage('settings')"><i class="fas fa-cog"></i><span data-i18n="nav_settings">Settings</span></div>
+            <div class="nav-item" id="nav-admin" style="display: none;" onclick="showPage('admin')"><i class="fas fa-shield-alt"></i><span data-i18n="nav_admin">Admin</span></div>
         </nav>
     </div>
 
@@ -650,7 +771,7 @@
                 renderUI();
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
-                showPage('home');
+                showPage('overview');
             } catch(e) { showToast(e.message, 'error'); localStorage.removeItem('bot_token'); }
         }
 
@@ -829,14 +950,14 @@ function renderUI() {
                  const adminCard = document.getElementById('admin-card');
                  if (adminCard) adminCard.style.display = 'block';
 
-                 // Owner: hide profile tab, use admin tab instead
-                 const navProfile = document.getElementById('nav-profile');
+                 // Owner: hide settings tab, use admin tab instead
+                 const navSettings = document.getElementById('nav-settings');
                  const adminNav = document.getElementById('nav-admin');
 
                  if (u.role === 'owner') {
-                     if (navProfile) navProfile.style.display = 'none';
+                     if (navSettings) navSettings.style.display = 'none';
                  } else {
-                     if (navProfile) navProfile.style.display = 'flex';
+                     if (navSettings) navSettings.style.display = 'flex';
                  }
 
                  // Also show admin panel in navigation for easier access
@@ -856,8 +977,8 @@ function renderUI() {
              } else {
                  const adminCard = document.getElementById('admin-card');
                  if (adminCard) adminCard.style.display = 'none';
-                 const navProfile = document.getElementById('nav-profile');
-                 if (navProfile) navProfile.style.display = 'flex';
+                 const navSettings = document.getElementById('nav-settings');
+                 if (navSettings) navSettings.style.display = 'flex';
                  const adminNav = document.getElementById('nav-admin');
                  if (adminNav) adminNav.style.display = 'none';
              }
@@ -868,6 +989,9 @@ function renderUI() {
             
             document.getElementById('set-channel').value = u.target_channel || '';
             document.getElementById('set-lang').value = u.language || 'uz';
+            document.getElementById('set-interval').value = String(u.interval_minutes || 15);
+            const walletState = document.getElementById('wallet-membership-state');
+            if (walletState) walletState.textContent = u.is_premium ? 'Elite Member' : 'Creator';
 
             const homeTarget = document.getElementById('home-target-channel');
             if (homeTarget) homeTarget.textContent = u.target_channel || 'Sozlanmagan ⚠️';
@@ -877,12 +1001,12 @@ function renderUI() {
             userInfo.id = 'user-info';
             userInfo.style.cssText = 'background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;';
             userInfo.innerHTML = `
-                <div style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 8px;">Foydalanuvchi Ma'lumotlari</div>
+                <div style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 8px;">Identity Snapshot</div>
                 <div class="item-row"><span>Telegram ID</span><span>${u.telegram_id || 'Noma\'lum'}</span></div>
                 <div class="item-row"><span>Username</span><span>${u.username || 'Noma\'lum'}</span></div>
-                <div class="item-row"><span>Target Kanal</span><span>${u.target_channel || 'Sozlanmagan'}</span></div>
-                <div class="item-row"><span>Til</span><span>${u.language || 'uz'}</span></div>
-                <div class="item-row"><span>Rol</span><span>${u.role || 'user'}</span></div>
+                <div class="item-row"><span>Target Channel</span><span>${u.target_channel || 'Not connected'}</span></div>
+                <div class="item-row"><span>Language</span><span>${u.language || 'uz'}</span></div>
+                <div class="item-row"><span>Role</span><span>${u.role || 'user'}</span></div>
                 <div class="item-row"><span>Premium</span><span>${u.is_premium ? 'Ha' : 'Yo\'q'}</span></div>
             `;
             const profileInfoContainer = document.getElementById('user-info-content');
@@ -1190,32 +1314,54 @@ function renderUI() {
                 if (adminNavItem) { adminNavItem.classList.add('active'); return; }
             }
             document.getElementById('nav-' + p)?.classList.add('active');
-            if (p === 'services') {
-                const sm = document.getElementById('services-menu');
-                if (sm) sm.style.display = 'block';
-            }
-            if (p === 'trends') loadTrends(false);
-            if (p === 'multichannel') loadOutputChannels();
-            if (p === 'status') loadSystemStatus();
-            if (p === 'admin-users') fetchAdminUsers();
-            if (p === 'admin-sources') fetchAdminSources();
-            if (p === 'admin-tickets') fetchAdminTickets();
-            if (p === 'admin-settings') fetchAdminSettings();
-            if (p === 'api' && !lazyLoaded.apiKeys) {
-                lazyLoaded.apiKeys = true;
-                fetchApiKeys();
-            }
-            if (p === 'content') {
+            if (p === 'overview') {
                 if (!lazyLoaded.sources) {
                     lazyLoaded.sources = true;
                     fetchSources();
                 }
+            }
+            if (p === 'sources') {
+                if (!lazyLoaded.sources) {
+                    lazyLoaded.sources = true;
+                    fetchSources();
+                }
+                if (!lazyLoaded.prices) {
+                    lazyLoaded.prices = true;
+                    fetchTrackedPrices();
+                }
+            }
+            if (p === 'distribution') {
                 if (!lazyLoaded.channels) {
                     lazyLoaded.channels = true;
                     fetchChannels();
                 }
+                loadOutputChannels();
             }
-            if (p === 'profile') {
+            if (p === 'automation') {
+                if (!lazyLoaded.settings) {
+                    lazyLoaded.settings = true;
+                    fetchExtendedSettings();
+                }
+            }
+            if (p === 'analytics') {
+                loadTrends(false);
+                loadFinance();
+            }
+            if (p === 'wallet') {
+                if (!lazyLoaded.apiKeys) {
+                    lazyLoaded.apiKeys = true;
+                    fetchApiKeys();
+                }
+                if (!lazyLoaded.premium) {
+                    lazyLoaded.premium = true;
+                    fetchPremiumStatus();
+                }
+                if (!lazyLoaded.paymentMethods) {
+                    lazyLoaded.paymentMethods = true;
+                    loadPaymentMethods();
+                }
+            }
+            if (p === 'settings') {
                 if (!lazyLoaded.referral) {
                     lazyLoaded.referral = true;
                     fetchReferralInfo();
@@ -1225,6 +1371,11 @@ function renderUI() {
                     fetchTickets();
                 }
             }
+            if (p === 'status') loadSystemStatus();
+            if (p === 'admin-users') fetchAdminUsers();
+            if (p === 'admin-sources') fetchAdminSources();
+            if (p === 'admin-tickets') fetchAdminTickets();
+            if (p === 'admin-settings') fetchAdminSettings();
             window.scrollTo(0,0);
         }
 

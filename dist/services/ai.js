@@ -640,7 +640,7 @@ function getActiveKeyStats() {
         byProvider: (0, config_1.countKeysByProvider)(activeKeys),
     };
 }
-async function generateSmmPost(topic) {
+async function generateSmmPost(topic, lang = "uz") {
     if (activeKeys.length === 0) {
         await refreshKeyPool();
     }
@@ -648,8 +648,25 @@ async function generateSmmPost(topic) {
         throw new Error("AI kalitlari topilmadi. Render .env da GROQ_KEYS yoki GEMINI_KEYS (vergul yoki yangi qator bilan) tekshiring.");
     }
     const cleanTopic = topic.trim();
-    const systemPrompt = "Siz O'zbekistondagi mashhur Telegram kanallar uchun SMM post yozuvchisisiz.\n" +
-        "FAQAT o'zbek tilida yozing.\n" +
+    const languagePromptMap = {
+        uz: "FAQAT o'zbek tilida yozing.",
+        ru: "Пишите только на русском языке.",
+        en: "Write only in English.",
+        tr: "Yalnızca Türkçe yazın.",
+        de: "Schreiben Sie nur auf Deutsch.",
+        fr: "Écrivez uniquement en français.",
+        es: "Escriba solo en español.",
+        it: "Scrivi solo in italiano.",
+        pt: "Escreva apenas em português.",
+        ar: "اكتب بالعربية فقط.",
+        hi: "केवल हिन्दी में लिखें।",
+        zh: "仅使用中文写作。",
+        ja: "日本語のみで書いてください。",
+        ko: "한국어로만 작성하세요.",
+        fa: "فقط به فارسی بنویسید.",
+    };
+    const systemPrompt = "Siz mashhur Telegram kanallari uchun SMM post yozuvchisisiz.\n" +
+        `${languagePromptMap[lang] || languagePromptMap.uz}\n` +
         "Foydalanuvchi bergan MAVZU — postning yagona mavzusi; boshqa mavzuga o'tmang.\n" +
         "Format: qiziqarli sarlavha (1 qator), keyin 3-4 qisqa paragraph, oxirida CTA.\n" +
         "80-140 so'z, tegishli emojilar (4-8 ta).\n" +

@@ -666,7 +666,8 @@ function startDashboardServer(port, _bot) {
         const topic = prompt.trim();
         const wantImage = withImage === true || withImage === 'true';
         try {
-            const text = await (0, ai_1.generateSmmPost)(topic);
+            const user = await database_1.DBService.getUser(parseInt(req.authenticatedUserId));
+            const text = await (0, ai_1.generateSmmPost)(topic, user?.language || 'uz');
             let imageUrl = null;
             let imageBase64 = null;
             if (wantImage) {

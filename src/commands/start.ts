@@ -37,6 +37,10 @@ function getLanguageKeyboard(): TelegramBot.InlineKeyboardButton[][] {
   return rows;
 }
 
+function buildDashboardUrl(chatId: number): string {
+  return `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
+}
+
 async function sendWelcomeMenu(
   bot: TelegramBot,
   chatId: number,
@@ -44,36 +48,99 @@ async function sendWelcomeMenu(
   role: string
 ): Promise<void> {
   const lang = user.language || "uz";
-  const welcomeMsg: string = {
-    owner: `👑 <b>${i18n.t("welcome_owner", { lng: lang })}</b>`,
-    admin: `🛡 <b>${i18n.t("welcome_admin", { lng: lang })}</b>`,
-    premium: `🚀 <b>${i18n.t("welcome_premium", { lng: lang })}</b>`,
-    user: `🗞 <b>${i18n.t("welcome_user", { lng: lang })}</b>`,
-  }[role as "owner" | "admin" | "premium" | "user"] || "👋";
-
-  const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
+  const dashboardUrl = buildDashboardUrl(chatId);
   const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    [{ text: `🖥 ${i18n.t("menu_dashboard", { lng: lang })}`, web_app: { url: dashboardUrl } }],
+    [{ text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }],
     [
-      { text: `⚙️ ${i18n.t("menu_settings", { lng: lang })}`, callback_data: "cmd_settings" },
-      { text: `📊 ${i18n.t("menu_stats", { lng: lang })}`, callback_data: "cmd_stats" },
+      { text: i18n.t("menu_sources", { lng: lang }), callback_data: "cmd_sources" },
+      { text: i18n.t("menu_studio", { lng: lang }), callback_data: "cmd_studio" },
     ],
-    [{ text: `🎁 ${i18n.t("menu_referral", { lng: lang })}`, callback_data: "cmd_referral" }],
+    [
+      { text: i18n.t("menu_channel", { lng: lang }), callback_data: "cmd_channel" },
+      { text: i18n.t("menu_automation", { lng: lang }), callback_data: "cmd_automation" },
+    ],
+    [
+      { text: i18n.t("menu_analytics", { lng: lang }), callback_data: "cmd_stats" },
+      { text: i18n.t("menu_settings", { lng: lang }), callback_data: "cmd_settings" },
+    ],
+    [{ text: i18n.t("menu_help", { lng: lang }), callback_data: "cmd_help" }],
   ];
 
   if (role === "owner" || role === "admin") {
-    inline_keyboard.unshift([{ text: `🛡 ${i18n.t("menu_admin", { lng: lang })}`, callback_data: "cmd_admin" }]);
+    inline_keyboard.unshift([{ text: i18n.t("menu_admin", { lng: lang }), callback_data: "cmd_admin" }]);
   }
 
   if (role === "user" && !user.is_premium) {
-    inline_keyboard.push([{ text: `💎 ${i18n.t("menu_buy_premium", { lng: lang })}`, callback_data: "buy_premium" }]);
+    inline_keyboard.push([{ text: i18n.t("menu_buy_premium", { lng: lang }), callback_data: "buy_premium" }]);
   }
 
+  await bot.sendMessage(chatId, i18n.t("onboarding_menu_ready", { lng: lang }), {
+    reply_markup: { inline_keyboard },
+  });
+}
+
+async function sendLanguageStep(bot: TelegramBot, chatId: number): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `${welcomeMsg}\n\n<i>${i18n.t("bot_settings_panel", { lng: lang })}</i>`,
-    { parse_mode: "HTML", reply_markup: { inline_keyboard } }
+    `${i18n.t("intro_title", { lng: "en" })}\n\n${i18n.t("intro_body", { lng: "en" })}\n\n${i18n.t("bot_choose_language", { lng: "en" })}`,
+    { reply_markup: { inline_keyboard: getLanguageKeyboard() } }
   );
+}
+
+async function sendChannelStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
+  await bot.sendMessage(
+    chatId,
+    `${i18n.t("onboarding_channel_title", { lng: lang })}\n\n${i18n.t("onboarding_channel_body", { lng: lang })}`
+  );
+}
+
+async function sendSourceStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
+  await bot.sendMessage(
+    chatId,
+    `${i18n.t("onboarding_rss_title", { lng: lang })}\n\n${i18n.t("onboarding_rss_body", { lng: lang })}`
+  );
+}
+
+async function sendIntervalStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
+  await bot.sendMessage(
+    chatId,
+    `${i18n.t("onboarding_interval_title", { lng: lang })}\n\n${i18n.t("onboarding_interval_body", { lng: lang })}`
+  );
+}
+
+export async function sendNextOnboardingStep(
+  bot: TelegramBot,
+  chatId: number,
+  userOverride?: any
+): Promise<"language" | "channel" | "source" | "interval" | "menu"> {
+  const user = userOverride || (await DBService.getUser(chatId));
+  if (!user) return "language";
+
+  const lang = user.language || "uz";
+  const sources = await DBService.getUserSources(chatId);
+
+  if (!user.has_seen_lang) {
+    await sendLanguageStep(bot, chatId);
+    return "language";
+  }
+
+  if (!user.target_channel) {
+    await sendChannelStep(bot, chatId, lang);
+    return "channel";
+  }
+
+  if (!sources.length) {
+    await sendSourceStep(bot, chatId, lang);
+    return "source";
+  }
+
+  if (!user.interval_minutes || Number(user.interval_minutes) < 1) {
+    await sendIntervalStep(bot, chatId, lang);
+    return "interval";
+  }
+
+  await sendWelcomeMenu(bot, chatId, user, user.role || "user");
+  return "menu";
 }
 
 export const startCommand: BotCommand = {
@@ -94,7 +161,7 @@ export const startCommand: BotCommand = {
           if (created) {
             logger.info(`New referral: ${chatId} invited by ${referrer.telegram_id}`);
             try {
-              await bot.sendMessage(referrer.telegram_id, "🎁 <b>Yangi referral!</b> Sizga bonus berildi.", { parse_mode: "HTML" });
+              await bot.sendMessage(referrer.telegram_id, "New referral joined from your link.");
             } catch (e: any) {
               logger.warn(`Could not notify referrer ${referrer.telegram_id}: ${e.message}`);
             }
@@ -111,53 +178,14 @@ export const startCommand: BotCommand = {
       user.role = "owner";
     }
 
-    const role = user.role || "user";
-
-    if (!user.is_approved && !isOwner && role !== "admin" && role !== "owner") {
+    if (!user.is_approved && !isOwner && user.role !== "admin" && user.role !== "owner") {
       await bot.sendMessage(
         chatId,
-        "⏳ <b>Sizning profilingiz hali tasdiqlanmagan.</b>\n\nAdminlar tasdiqlaganidan so'ng botdan foydalanishingiz mumkin.",
-        { parse_mode: "HTML" }
+        "Your profile is waiting for approval. An admin can unlock access soon."
       );
       return;
     }
 
-    const isStaff = isOwner || role === "owner" || role === "admin";
-    const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
-
-    if (!user.target_channel) {
-      if (!user.has_seen_lang) {
-        const inline_keyboard = getLanguageKeyboard();
-        if (isStaff) {
-          inline_keyboard.push([
-            { text: "🛡 Admin Panel", callback_data: "cmd_admin" },
-            { text: "🖥 Dashboard", web_app: { url: dashboardUrl } },
-          ]);
-        }
-        await bot.sendMessage(
-          chatId,
-          `🌍 <b>${i18n.t("bot_choose_language", { lng: "en" })}</b>\n\n<i>${i18n.t("bot_choose_language", { lng: "uz" })}</i>`,
-          { parse_mode: "HTML", reply_markup: { inline_keyboard } }
-        );
-        await DBService.updateUser(chatId, { has_seen_lang: true });
-        if (isStaff) {
-          await sendWelcomeMenu(bot, chatId, user, role);
-        }
-        return;
-      }
-
-      const lang = user.language || "uz";
-      await bot.sendMessage(
-        chatId,
-        `🗞 <b>${i18n.t("bot_last_step", { lng: lang })}</b>\n\n${i18n.t("bot_send_channel_example", { lng: lang })}\n\n<i>${i18n.t("bot_channel_hint", { lng: lang })}</i>`,
-        { parse_mode: "HTML" }
-      );
-      if (isStaff) {
-        await sendWelcomeMenu(bot, chatId, user, role);
-      }
-      return;
-    }
-
-    await sendWelcomeMenu(bot, chatId, user, role);
+    await sendNextOnboardingStep(bot, chatId, user);
   },
 };

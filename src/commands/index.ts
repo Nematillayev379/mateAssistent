@@ -1,10 +1,10 @@
 import TelegramBot from "node-telegram-bot-api";
-import { startCommand } from "./start";
-import { statusCommand } from "./status";
-import { trackCommand } from "./track";
+import { helpCommand } from "./help";
 import { adminCommand } from "./admin";
 import { setChannelCommand } from "./setchannel";
-import { helpCommand } from "./help";
+import { statusCommand } from "./status";
+import { trackCommand } from "./track";
+import { sendNextOnboardingStep, startCommand } from "./start";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
@@ -34,6 +34,14 @@ interface UserStateEntry {
 function extractUrlFromText(text: string): string | null {
   const match = text.match(/(https?:\/\/[^\s]+)/);
   return match ? match[0] : null;
+}
+
+function isLikelyRssUrl(url: string): boolean {
+  return /rss|feed|xml|atom/i.test(url);
+}
+
+function buildDashboardUrl(chatId: number): string {
+  return `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
 }
 
 function resolveMediaUrl(query: TelegramBot.CallbackQuery, userStates: Map<number, UserStateEntry>, chatId: number): string | null {
@@ -87,6 +95,7 @@ export function registerCommands(bot: TelegramBot) {
 
     const user = await DBService.getUser(chatId);
     const lang = user?.language || "uz";
+    const state = userStates.get(chatId);
 
     if (!user?.target_channel) {
       let targetText = text.trim();
@@ -95,27 +104,29 @@ export function registerCommands(bot: TelegramBot) {
         const handle = parts[parts.length - 1].split("/")[0].trim();
         if (handle) targetText = `@${handle}`;
       }
-
       if (!targetText.startsWith("@") && !targetText.startsWith("-100") && /^[a-zA-Z0-9_]{5,32}$/.test(targetText)) {
         targetText = `@${targetText}`;
       }
 
       if (targetText.startsWith("@") || targetText.startsWith("-100")) {
         try {
-          const chat = await bot.getChat(targetText);
+          const channelChat = await bot.getChat(targetText);
           const botInfo = await getBotInfo();
-          const member = await bot.getChatMember(chat.id, botInfo.id);
-          if (member.status === "administrator" || member.status === "creator") {
-            const saved = await DBService.updateUser(chatId, { target_channel: targetText });
-            if (!saved) {
-              await bot.sendMessage(chatId, `❌ ${i18n.t("bot_channel_save_failed", { lng: lang })}`);
-              return;
-            }
-            await DBService.checkAndMarkReferralActive(chatId);
-            await bot.sendMessage(chatId, `✅ ${i18n.t("onboarding_success", { lng: lang })}`);
+          const member = await bot.getChatMember(channelChat.id, botInfo.id);
+          if (member.status !== "administrator" && member.status !== "creator") {
+            await bot.sendMessage(chatId, i18n.t("bot_channel_not_admin", { lng: lang }));
             return;
           }
-          await bot.sendMessage(chatId, `❌ ${i18n.t("bot_channel_not_admin", { lng: lang })}`);
+
+          const saved = await DBService.updateUser(chatId, { target_channel: targetText });
+          if (!saved) {
+            await bot.sendMessage(chatId, i18n.t("bot_channel_save_failed", { lng: lang }));
+            return;
+          }
+
+          await DBService.checkAndMarkReferralActive(chatId);
+          await bot.sendMessage(chatId, i18n.t("onboarding_success", { lng: lang }));
+          await sendNextOnboardingStep(bot, chatId);
           return;
         } catch {
           await bot.sendMessage(chatId, i18n.t("err_invalid_channel", { lng: lang }));
@@ -124,13 +135,42 @@ export function registerCommands(bot: TelegramBot) {
       }
     }
 
-    const state = userStates.get(chatId);
+    const sources = user?.target_channel ? await DBService.getUserSources(chatId) : [];
+    if (user?.target_channel && sources.length === 0) {
+      const rssUrl = extractUrlFromText(text);
+      if (rssUrl && isLikelyRssUrl(rssUrl)) {
+        const ok = await DBService.addSource(chatId, "Primary RSS", rssUrl, lang);
+        if (!ok) {
+          await bot.sendMessage(chatId, i18n.t("err_invalid_url", { lng: lang }));
+          return;
+        }
+        userStates.set(chatId, { type: "onboarding_interval", url: rssUrl, createdAt: Date.now() });
+        await bot.sendMessage(chatId, i18n.t("quick_source_saved", { lng: lang }));
+        await sendNextOnboardingStep(bot, chatId);
+        return;
+      }
+    }
+
+    if (state?.type === "onboarding_interval") {
+      const minutes = Number(text.trim());
+      if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+        await bot.sendMessage(chatId, i18n.t("quick_invalid_interval", { lng: lang }));
+        return;
+      }
+      await DBService.updateUser(chatId, { interval_minutes: minutes });
+      userStates.delete(chatId);
+      await bot.sendMessage(chatId, i18n.t("quick_interval_saved", { lng: lang }));
+      await sendNextOnboardingStep(bot, chatId);
+      return;
+    }
+
     if (state?.type === "schedule_time") {
-      if (msg.text && /^\d{1,2}:\d{2}$/.test(msg.text)) {
-        const [h, m] = msg.text.split(":").map(Number);
+      if (/^\d{1,2}:\d{2}$/.test(text)) {
+        const [h, m] = text.split(":").map(Number);
         if (h < 0 || h > 23 || m < 0 || m > 59) {
           userStates.delete(chatId);
-          return bot.sendMessage(chatId, `❌ ${i18n.t("bot_invalid_time", { lng: lang })}`);
+          await bot.sendMessage(chatId, i18n.t("bot_invalid_time", { lng: lang }));
+          return;
         }
 
         const now = new Date();
@@ -145,31 +185,23 @@ export function registerCommands(bot: TelegramBot) {
 
         await DBService.addScheduledPost(chatId, mediaType as any, { url: state.url, caption }, scheduledDate.toISOString());
         userStates.delete(chatId);
-
-        const formattedDate = scheduledDate.toLocaleString("uz-UZ", {
-          timeZone: "Asia/Tashkent",
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        await bot.sendMessage(chatId, `✅ <b>${i18n.t("bot_schedule_saved", { lng: lang })}</b>\n\nSana: ${formattedDate}`, { parse_mode: "HTML" });
+        await bot.sendMessage(chatId, `${i18n.t("bot_schedule_saved", { lng: lang })}\n${scheduledDate.toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent" })}`);
         return;
       }
 
       userStates.delete(chatId);
-      return bot.sendMessage(chatId, `❌ ${i18n.t("bot_schedule_bad_format", { lng: lang })}`);
+      await bot.sendMessage(chatId, i18n.t("bot_schedule_bad_format", { lng: lang }));
+      return;
     }
 
-    if (state?.type === "admin_broadcast" && text) {
+    if (state?.type === "admin_broadcast") {
       if (user?.role !== "owner" && user?.role !== "admin") {
         userStates.delete(chatId);
         return;
       }
       const users = await DBService.getAllUsers();
       let count = 0;
-      await bot.sendMessage(chatId, `${users.length} ta foydalanuvchiga yuborilmoqda...`);
+      await bot.sendMessage(chatId, `${users.length} users in queue...`);
       for (const targetUser of users) {
         try {
           await bot.sendMessage(targetUser.telegram_id, text, { parse_mode: "HTML" });
@@ -177,7 +209,7 @@ export function registerCommands(bot: TelegramBot) {
           await new Promise((resolve) => setTimeout(resolve, 50));
         } catch {}
       }
-      await bot.sendMessage(chatId, `<b>Broadcast yakunlandi!</b>\n\nJami: ${count} ta foydalanuvchiga yuborildi.`, { parse_mode: "HTML" });
+      await bot.sendMessage(chatId, `Broadcast complete: ${count}`);
       userStates.delete(chatId);
       return;
     }
@@ -189,9 +221,7 @@ export function registerCommands(bot: TelegramBot) {
       }
 
       const isPlaylist = text.includes("playlist") || text.includes("list=") || text.includes("/sets/");
-      const prompt = `<b>${i18n.t("media_detected", { lng: lang })}</b>\n\n${isPlaylist ? "<b>Playlist aniqlandi!</b>\n\n" : ""}${i18n.t("download_ask", { lng: lang })}`;
-      const inlineKeyboard: any[][] = [];
-
+      const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
       if (isPlaylist) {
         inlineKeyboard.push([{ text: "Bulk Download", callback_data: "dl_playlist_all" }]);
       }
@@ -200,14 +230,13 @@ export function registerCommands(bot: TelegramBot) {
         { text: "Audio (Chat)", callback_data: "dl_media_audio_chat" },
       ]);
       inlineKeyboard.push([
-        { text: "Video (Kanal)", callback_data: "dl_media_video_channel" },
-        { text: "Audio (Kanal)", callback_data: "dl_media_audio_channel" },
+        { text: "Video (Channel)", callback_data: "dl_media_video_channel" },
+        { text: "Audio (Channel)", callback_data: "dl_media_audio_channel" },
       ]);
       inlineKeyboard.push([{ text: "Schedule", callback_data: "schedule_media" }]);
       inlineKeyboard.push([{ text: i18n.t("cancel", { lng: lang }), callback_data: "cancel_dl" }]);
 
-      await bot.sendMessage(chatId, prompt, {
-        parse_mode: "HTML",
+      await bot.sendMessage(chatId, `${i18n.t("media_detected", { lng: lang })}\n\n${i18n.t("download_ask", { lng: lang })}`, {
         reply_markup: { inline_keyboard: inlineKeyboard },
         reply_to_message_id: msg.message_id,
       });
@@ -257,7 +286,8 @@ export function registerCommands(bot: TelegramBot) {
 
         const days = isYearly ? 365 : 30;
         await DBService.setPremium(userId, days);
-        await bot.sendMessage(chatId, `<b>${i18n.t("bot_premium_activated", { lng: "uz" })}</b>\n\nBarcha imkoniyatlardan foydalanishingiz mumkin.`, { parse_mode: "HTML" });
+        const paidUser = await DBService.getUser(chatId);
+        await bot.sendMessage(chatId, i18n.t("bot_premium_activated", { lng: paidUser?.language || "uz" }));
       }
     } catch (e: any) {
       logger.error(`successful_payment error: ${e.message}`);
@@ -275,16 +305,11 @@ export function registerCommands(bot: TelegramBot) {
     try {
       if (data.startsWith("setlang_")) {
         const newLang = data.split("_")[1];
-        const supported = [...WEBAPP_LANGS] as string[];
-        const langCode = supported.includes(newLang) ? newLang : "uz";
+        const langCode = (WEBAPP_LANGS as readonly string[]).includes(newLang) ? newLang : "uz";
         await DBService.updateUser(chatId, { language: langCode, has_seen_lang: true });
         await bot.answerCallbackQuery(query.id, { text: "OK" });
-
-        if (!user?.target_channel) {
-          await bot.sendMessage(chatId, `✅ ${i18n.t("bot_lang_saved", { lng: langCode })}\n\n${i18n.t("bot_send_channel_example", { lng: langCode })}`, { parse_mode: "HTML" });
-        } else if (query.message) {
-          await startCommand.handler(bot, query.message as TelegramBot.Message, null);
-        }
+        await bot.sendMessage(chatId, i18n.t("bot_lang_saved", { lng: langCode }));
+        await sendNextOnboardingStep(bot, chatId, { ...user, language: langCode, has_seen_lang: true });
         return;
       }
 
@@ -298,12 +323,7 @@ export function registerCommands(bot: TelegramBot) {
 
         const url = resolveMediaUrl(query, userStates, chatId);
         if (!url) {
-          await bot.answerCallbackQuery(query.id, { text: "Havola topilmadi", show_alert: true });
-          return;
-        }
-
-        if (url.includes("soundcloud.com") && type === "video") {
-          await bot.answerCallbackQuery(query.id, { text: "SoundCloud faqat audio formatida ishlaydi", show_alert: true });
+          await bot.answerCallbackQuery(query.id, { text: "Link not found", show_alert: true });
           return;
         }
 
@@ -321,7 +341,7 @@ export function registerCommands(bot: TelegramBot) {
           else await bot.sendAudio(deliveryTarget, filePath);
           await bot.deleteMessage(chatId, waitMsg.message_id);
           if (sendTarget === "channel") {
-            await bot.sendMessage(chatId, `✅ ${i18n.t("bot_media_sent_channel", { lng: lang })}`);
+            await bot.sendMessage(chatId, i18n.t("bot_media_sent_channel", { lng: lang }));
           }
           const fs = await import("fs");
           if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -335,23 +355,23 @@ export function registerCommands(bot: TelegramBot) {
       if (data === "dl_playlist_all") {
         const url = resolveMediaUrl(query, userStates, chatId);
         if (!url) {
-          await bot.answerCallbackQuery(query.id, { text: "Playlist havolasi topilmadi", show_alert: true });
+          await bot.answerCallbackQuery(query.id, { text: "Playlist link not found", show_alert: true });
           return;
         }
 
-        const waitMsg = await bot.sendMessage(chatId, "Playlist yuklanmoqda...");
+        const waitMsg = await bot.sendMessage(chatId, "Playlist loading...");
         try {
           const { YoutubeService } = await import("../services/youtube");
           const links = await YoutubeService.extractPlaylistLinks(url, 10);
           if (links.length === 0) {
-            await bot.editMessageText("Playlist dan videolar topilmadi.", { chat_id: chatId, message_id: waitMsg.message_id });
+            await bot.editMessageText("No videos found in the playlist.", { chat_id: chatId, message_id: waitMsg.message_id });
             return;
           }
-          let text = `<b>Playlist (${links.length} ta):</b>\n\n`;
+          let text = `Playlist (${links.length})\n\n`;
           links.forEach((link, index) => {
-            text += `${index + 1}. <a href="${link.url}">${link.title}</a>\n`;
+            text += `${index + 1}. ${link.title}\n${link.url}\n\n`;
           });
-          await bot.editMessageText(text, { chat_id: chatId, message_id: waitMsg.message_id, parse_mode: "HTML", disable_web_page_preview: true });
+          await bot.editMessageText(text, { chat_id: chatId, message_id: waitMsg.message_id, disable_web_page_preview: true });
         } catch (err: any) {
           await bot.editMessageText(`Error: ${err.message}`, { chat_id: chatId, message_id: waitMsg.message_id });
         }
@@ -360,13 +380,19 @@ export function registerCommands(bot: TelegramBot) {
 
       if (data === "schedule_media") {
         const canSchedule = await DBService.checkUserLimit(chatId, "scheduled");
-        if (!canSchedule) return bot.sendMessage(chatId, "<b>Limitga yetdingiz!</b>", { parse_mode: "HTML" });
+        if (!canSchedule) {
+          await bot.sendMessage(chatId, "Scheduling limit reached.");
+          return;
+        }
 
         const url = resolveMediaUrl(query, userStates, chatId);
-        if (!url) return bot.sendMessage(chatId, "Link topilmadi.");
+        if (!url) {
+          await bot.sendMessage(chatId, "Link not found.");
+          return;
+        }
 
         userStates.set(chatId, { type: "schedule_time", url, mediaType: "video", createdAt: Date.now() });
-        await bot.sendMessage(chatId, `<b>${i18n.t("bot_schedule_prompt", { lng: lang })}</b>`, { parse_mode: "HTML" });
+        await bot.sendMessage(chatId, i18n.t("bot_schedule_prompt", { lng: lang }));
         return;
       }
 
@@ -377,17 +403,18 @@ export function registerCommands(bot: TelegramBot) {
       }
 
       if (data === "cmd_settings") {
-        const dashboardUrl = `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
-        await bot.sendMessage(chatId, `<b>${i18n.t("settings", { lng: lang })}</b>\n\n${i18n.t("bot_settings_panel", { lng: lang })}`, {
-          parse_mode: "HTML",
-          reply_markup: { inline_keyboard: [[{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }]] },
+        await bot.sendMessage(chatId, i18n.t("bot_settings_panel", { lng: lang }), {
+          reply_markup: { inline_keyboard: [[{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }]] },
         });
         return;
       }
 
-      if (data === "cmd_stats") {
+      if (data === "cmd_stats" || data === "cmd_analytics") {
         const stats = await DBService.getStats(chatId);
-        await bot.sendMessage(chatId, `<b>${i18n.t("bot_stats_title", { lng: lang })}</b>\n\nPostlar: ${stats.total_posts || 0}\nDublikatlar: ${stats.total_duplicates || 0}`, { parse_mode: "HTML" });
+        await bot.sendMessage(
+          chatId,
+          `${i18n.t("bot_stats_title", { lng: lang })}\n\nPosts: ${stats.total_posts || 0}\nDuplicates: ${stats.total_duplicates || 0}`
+        );
         return;
       }
 
@@ -396,24 +423,24 @@ export function registerCommands(bot: TelegramBot) {
         const refStats = await DBService.getReferralStats(chatId);
         const botMe = await getBotInfo();
         const refLink = `https://t.me/${botMe.username}?start=ref_${code}`;
-        await bot.sendMessage(chatId, `<b>${i18n.t("bot_referral_title", { lng: lang })}</b>\n\n<code>${refLink}</code>\n\nJami: ${refStats.total}\nAktiv: ${refStats.active}\nPremiumgacha: ${refStats.needed} ta qoldi`, { parse_mode: "HTML" });
+        await bot.sendMessage(chatId, `${i18n.t("bot_referral_title", { lng: lang })}\n\n${refLink}\n\nTotal: ${refStats.total}\nActive: ${refStats.active}\nLeft for premium: ${refStats.needed}`);
         return;
       }
 
       if (data === "buy_premium") {
         const monthlyPrice = await DBService.getPrice("monthly");
         const yearlyPrice = await DBService.getPrice("yearly");
-        const paymeLink = PaymentService.generatePaymeLink(chatId, monthlyPrice);
-        const clickLink = PaymentService.generateClickLink(chatId, monthlyPrice);
+        const paymeLink = await PaymentService.generatePaymeLink(chatId, monthlyPrice);
+        const clickLink = await PaymentService.generateClickLink(chatId, monthlyPrice);
 
-        const text = `<b>${i18n.t("bot_premium_title", { lng: lang })}</b>\n\nOylik: ${monthlyPrice.toLocaleString()} UZS\nYillik: ${yearlyPrice.toLocaleString()} UZS\n\nTo'lov usulini tanlang:`;
-        const inlineKeyboard: any[][] = [
+        const text = `${i18n.t("bot_premium_title", { lng: lang })}\n\nMonthly: ${monthlyPrice.toLocaleString()} UZS\nYearly: ${yearlyPrice.toLocaleString()} UZS`;
+        const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [
           [{ text: `Payme (${monthlyPrice.toLocaleString()} UZS)`, url: paymeLink || "https://payme.uz" }],
           [{ text: `Click (${monthlyPrice.toLocaleString()} UZS)`, url: clickLink || "https://click.uz" }],
-          [{ text: "Dashboard orqali", callback_data: "cmd_settings" }],
+          [{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }],
         ];
 
-        await bot.sendMessage(chatId, text, { parse_mode: "HTML", reply_markup: { inline_keyboard: inlineKeyboard } });
+        await bot.sendMessage(chatId, text, { reply_markup: { inline_keyboard: inlineKeyboard } });
         return;
       }
 
@@ -428,7 +455,19 @@ export function registerCommands(bot: TelegramBot) {
 
       if (data === "adm_broadcast") {
         userStates.set(chatId, { type: "admin_broadcast", url: "", createdAt: Date.now() });
-        await bot.sendMessage(chatId, `<b>${i18n.t("bot_broadcast_prompt", { lng: lang })}</b>`, { parse_mode: "HTML" });
+        await bot.sendMessage(chatId, i18n.t("bot_broadcast_prompt", { lng: lang }));
+        return;
+      }
+
+      if (data === "cmd_sources" || data === "cmd_studio" || data === "cmd_channel" || data === "cmd_automation") {
+        await bot.sendMessage(chatId, i18n.t("bot_open_dashboard", { lng: lang }), {
+          reply_markup: { inline_keyboard: [[{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }]] },
+        });
+        return;
+      }
+
+      if (data === "cmd_help") {
+        await helpCommand.handler(bot, query.message as TelegramBot.Message, null);
         return;
       }
 

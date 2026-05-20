@@ -35,12 +35,12 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.commands = void 0;
 exports.registerCommands = registerCommands;
-const start_1 = require("./start");
-const status_1 = require("./status");
-const track_1 = require("./track");
+const help_1 = require("./help");
 const admin_1 = require("./admin");
 const setchannel_1 = require("./setchannel");
-const help_1 = require("./help");
+const status_1 = require("./status");
+const track_1 = require("./track");
+const start_1 = require("./start");
 const database_1 = require("../services/database");
 const logger_1 = require("../utils/logger");
 const i18n_1 = require("../services/i18n");
@@ -59,6 +59,12 @@ exports.commands = [
 function extractUrlFromText(text) {
     const match = text.match(/(https?:\/\/[^\s]+)/);
     return match ? match[0] : null;
+}
+function isLikelyRssUrl(url) {
+    return /rss|feed|xml|atom/i.test(url);
+}
+function buildDashboardUrl(chatId) {
+    return `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}&v=${Date.now()}`;
 }
 function resolveMediaUrl(query, userStates, chatId) {
     const pending = userStates.get(chatId);
@@ -107,6 +113,7 @@ function registerCommands(bot) {
             return;
         const user = await database_1.DBService.getUser(chatId);
         const lang = user?.language || "uz";
+        const state = userStates.get(chatId);
         if (!user?.target_channel) {
             let targetText = text.trim();
             if (targetText.includes("t.me/")) {
@@ -120,20 +127,21 @@ function registerCommands(bot) {
             }
             if (targetText.startsWith("@") || targetText.startsWith("-100")) {
                 try {
-                    const chat = await bot.getChat(targetText);
+                    const channelChat = await bot.getChat(targetText);
                     const botInfo = await getBotInfo();
-                    const member = await bot.getChatMember(chat.id, botInfo.id);
-                    if (member.status === "administrator" || member.status === "creator") {
-                        const saved = await database_1.DBService.updateUser(chatId, { target_channel: targetText });
-                        if (!saved) {
-                            await bot.sendMessage(chatId, `❌ ${i18n_1.i18n.t("bot_channel_save_failed", { lng: lang })}`);
-                            return;
-                        }
-                        await database_1.DBService.checkAndMarkReferralActive(chatId);
-                        await bot.sendMessage(chatId, `✅ ${i18n_1.i18n.t("onboarding_success", { lng: lang })}`);
+                    const member = await bot.getChatMember(channelChat.id, botInfo.id);
+                    if (member.status !== "administrator" && member.status !== "creator") {
+                        await bot.sendMessage(chatId, i18n_1.i18n.t("bot_channel_not_admin", { lng: lang }));
                         return;
                     }
-                    await bot.sendMessage(chatId, `❌ ${i18n_1.i18n.t("bot_channel_not_admin", { lng: lang })}`);
+                    const saved = await database_1.DBService.updateUser(chatId, { target_channel: targetText });
+                    if (!saved) {
+                        await bot.sendMessage(chatId, i18n_1.i18n.t("bot_channel_save_failed", { lng: lang }));
+                        return;
+                    }
+                    await database_1.DBService.checkAndMarkReferralActive(chatId);
+                    await bot.sendMessage(chatId, i18n_1.i18n.t("onboarding_success", { lng: lang }));
+                    await (0, start_1.sendNextOnboardingStep)(bot, chatId);
                     return;
                 }
                 catch {
@@ -142,13 +150,40 @@ function registerCommands(bot) {
                 }
             }
         }
-        const state = userStates.get(chatId);
+        const sources = user?.target_channel ? await database_1.DBService.getUserSources(chatId) : [];
+        if (user?.target_channel && sources.length === 0) {
+            const rssUrl = extractUrlFromText(text);
+            if (rssUrl && isLikelyRssUrl(rssUrl)) {
+                const ok = await database_1.DBService.addSource(chatId, "Primary RSS", rssUrl, lang);
+                if (!ok) {
+                    await bot.sendMessage(chatId, i18n_1.i18n.t("err_invalid_url", { lng: lang }));
+                    return;
+                }
+                userStates.set(chatId, { type: "onboarding_interval", url: rssUrl, createdAt: Date.now() });
+                await bot.sendMessage(chatId, i18n_1.i18n.t("quick_source_saved", { lng: lang }));
+                await (0, start_1.sendNextOnboardingStep)(bot, chatId);
+                return;
+            }
+        }
+        if (state?.type === "onboarding_interval") {
+            const minutes = Number(text.trim());
+            if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+                await bot.sendMessage(chatId, i18n_1.i18n.t("quick_invalid_interval", { lng: lang }));
+                return;
+            }
+            await database_1.DBService.updateUser(chatId, { interval_minutes: minutes });
+            userStates.delete(chatId);
+            await bot.sendMessage(chatId, i18n_1.i18n.t("quick_interval_saved", { lng: lang }));
+            await (0, start_1.sendNextOnboardingStep)(bot, chatId);
+            return;
+        }
         if (state?.type === "schedule_time") {
-            if (msg.text && /^\d{1,2}:\d{2}$/.test(msg.text)) {
-                const [h, m] = msg.text.split(":").map(Number);
+            if (/^\d{1,2}:\d{2}$/.test(text)) {
+                const [h, m] = text.split(":").map(Number);
                 if (h < 0 || h > 23 || m < 0 || m > 59) {
                     userStates.delete(chatId);
-                    return bot.sendMessage(chatId, `❌ ${i18n_1.i18n.t("bot_invalid_time", { lng: lang })}`);
+                    await bot.sendMessage(chatId, i18n_1.i18n.t("bot_invalid_time", { lng: lang }));
+                    return;
                 }
                 const now = new Date();
                 const scheduledDate = new Date();
@@ -161,28 +196,21 @@ function registerCommands(bot) {
                 const caption = article?.title ? `<b>${esc(article.title)}</b>\n\n${esc((article.content || "").slice(0, 400))}` : "Scheduled Post";
                 await database_1.DBService.addScheduledPost(chatId, mediaType, { url: state.url, caption }, scheduledDate.toISOString());
                 userStates.delete(chatId);
-                const formattedDate = scheduledDate.toLocaleString("uz-UZ", {
-                    timeZone: "Asia/Tashkent",
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                });
-                await bot.sendMessage(chatId, `✅ <b>${i18n_1.i18n.t("bot_schedule_saved", { lng: lang })}</b>\n\nSana: ${formattedDate}`, { parse_mode: "HTML" });
+                await bot.sendMessage(chatId, `${i18n_1.i18n.t("bot_schedule_saved", { lng: lang })}\n${scheduledDate.toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent" })}`);
                 return;
             }
             userStates.delete(chatId);
-            return bot.sendMessage(chatId, `❌ ${i18n_1.i18n.t("bot_schedule_bad_format", { lng: lang })}`);
+            await bot.sendMessage(chatId, i18n_1.i18n.t("bot_schedule_bad_format", { lng: lang }));
+            return;
         }
-        if (state?.type === "admin_broadcast" && text) {
+        if (state?.type === "admin_broadcast") {
             if (user?.role !== "owner" && user?.role !== "admin") {
                 userStates.delete(chatId);
                 return;
             }
             const users = await database_1.DBService.getAllUsers();
             let count = 0;
-            await bot.sendMessage(chatId, `${users.length} ta foydalanuvchiga yuborilmoqda...`);
+            await bot.sendMessage(chatId, `${users.length} users in queue...`);
             for (const targetUser of users) {
                 try {
                     await bot.sendMessage(targetUser.telegram_id, text, { parse_mode: "HTML" });
@@ -191,7 +219,7 @@ function registerCommands(bot) {
                 }
                 catch { }
             }
-            await bot.sendMessage(chatId, `<b>Broadcast yakunlandi!</b>\n\nJami: ${count} ta foydalanuvchiga yuborildi.`, { parse_mode: "HTML" });
+            await bot.sendMessage(chatId, `Broadcast complete: ${count}`);
             userStates.delete(chatId);
             return;
         }
@@ -201,7 +229,6 @@ function registerCommands(bot) {
                 userStates.set(chatId, { type: "media_download", url: mediaUrl, createdAt: Date.now() });
             }
             const isPlaylist = text.includes("playlist") || text.includes("list=") || text.includes("/sets/");
-            const prompt = `<b>${i18n_1.i18n.t("media_detected", { lng: lang })}</b>\n\n${isPlaylist ? "<b>Playlist aniqlandi!</b>\n\n" : ""}${i18n_1.i18n.t("download_ask", { lng: lang })}`;
             const inlineKeyboard = [];
             if (isPlaylist) {
                 inlineKeyboard.push([{ text: "Bulk Download", callback_data: "dl_playlist_all" }]);
@@ -211,13 +238,12 @@ function registerCommands(bot) {
                 { text: "Audio (Chat)", callback_data: "dl_media_audio_chat" },
             ]);
             inlineKeyboard.push([
-                { text: "Video (Kanal)", callback_data: "dl_media_video_channel" },
-                { text: "Audio (Kanal)", callback_data: "dl_media_audio_channel" },
+                { text: "Video (Channel)", callback_data: "dl_media_video_channel" },
+                { text: "Audio (Channel)", callback_data: "dl_media_audio_channel" },
             ]);
             inlineKeyboard.push([{ text: "Schedule", callback_data: "schedule_media" }]);
             inlineKeyboard.push([{ text: i18n_1.i18n.t("cancel", { lng: lang }), callback_data: "cancel_dl" }]);
-            await bot.sendMessage(chatId, prompt, {
-                parse_mode: "HTML",
+            await bot.sendMessage(chatId, `${i18n_1.i18n.t("media_detected", { lng: lang })}\n\n${i18n_1.i18n.t("download_ask", { lng: lang })}`, {
                 reply_markup: { inline_keyboard: inlineKeyboard },
                 reply_to_message_id: msg.message_id,
             });
@@ -267,7 +293,8 @@ function registerCommands(bot) {
                     userId = chatId;
                 const days = isYearly ? 365 : 30;
                 await database_1.DBService.setPremium(userId, days);
-                await bot.sendMessage(chatId, `<b>${i18n_1.i18n.t("bot_premium_activated", { lng: "uz" })}</b>\n\nBarcha imkoniyatlardan foydalanishingiz mumkin.`, { parse_mode: "HTML" });
+                const paidUser = await database_1.DBService.getUser(chatId);
+                await bot.sendMessage(chatId, i18n_1.i18n.t("bot_premium_activated", { lng: paidUser?.language || "uz" }));
             }
         }
         catch (e) {
@@ -284,16 +311,11 @@ function registerCommands(bot) {
         try {
             if (data.startsWith("setlang_")) {
                 const newLang = data.split("_")[1];
-                const supported = [...i18n_1.WEBAPP_LANGS];
-                const langCode = supported.includes(newLang) ? newLang : "uz";
+                const langCode = i18n_1.WEBAPP_LANGS.includes(newLang) ? newLang : "uz";
                 await database_1.DBService.updateUser(chatId, { language: langCode, has_seen_lang: true });
                 await bot.answerCallbackQuery(query.id, { text: "OK" });
-                if (!user?.target_channel) {
-                    await bot.sendMessage(chatId, `✅ ${i18n_1.i18n.t("bot_lang_saved", { lng: langCode })}\n\n${i18n_1.i18n.t("bot_send_channel_example", { lng: langCode })}`, { parse_mode: "HTML" });
-                }
-                else if (query.message) {
-                    await start_1.startCommand.handler(bot, query.message, null);
-                }
+                await bot.sendMessage(chatId, i18n_1.i18n.t("bot_lang_saved", { lng: langCode }));
+                await (0, start_1.sendNextOnboardingStep)(bot, chatId, { ...user, language: langCode, has_seen_lang: true });
                 return;
             }
             if (data.startsWith("dl_media_")) {
@@ -305,11 +327,7 @@ function registerCommands(bot) {
                 }
                 const url = resolveMediaUrl(query, userStates, chatId);
                 if (!url) {
-                    await bot.answerCallbackQuery(query.id, { text: "Havola topilmadi", show_alert: true });
-                    return;
-                }
-                if (url.includes("soundcloud.com") && type === "video") {
-                    await bot.answerCallbackQuery(query.id, { text: "SoundCloud faqat audio formatida ishlaydi", show_alert: true });
+                    await bot.answerCallbackQuery(query.id, { text: "Link not found", show_alert: true });
                     return;
                 }
                 if (sendTarget === "channel" && !user?.target_channel) {
@@ -327,7 +345,7 @@ function registerCommands(bot) {
                         await bot.sendAudio(deliveryTarget, filePath);
                     await bot.deleteMessage(chatId, waitMsg.message_id);
                     if (sendTarget === "channel") {
-                        await bot.sendMessage(chatId, `✅ ${i18n_1.i18n.t("bot_media_sent_channel", { lng: lang })}`);
+                        await bot.sendMessage(chatId, i18n_1.i18n.t("bot_media_sent_channel", { lng: lang }));
                     }
                     const fs = await Promise.resolve().then(() => __importStar(require("fs")));
                     if (fs.existsSync(filePath))
@@ -342,22 +360,22 @@ function registerCommands(bot) {
             if (data === "dl_playlist_all") {
                 const url = resolveMediaUrl(query, userStates, chatId);
                 if (!url) {
-                    await bot.answerCallbackQuery(query.id, { text: "Playlist havolasi topilmadi", show_alert: true });
+                    await bot.answerCallbackQuery(query.id, { text: "Playlist link not found", show_alert: true });
                     return;
                 }
-                const waitMsg = await bot.sendMessage(chatId, "Playlist yuklanmoqda...");
+                const waitMsg = await bot.sendMessage(chatId, "Playlist loading...");
                 try {
                     const { YoutubeService } = await Promise.resolve().then(() => __importStar(require("../services/youtube")));
                     const links = await YoutubeService.extractPlaylistLinks(url, 10);
                     if (links.length === 0) {
-                        await bot.editMessageText("Playlist dan videolar topilmadi.", { chat_id: chatId, message_id: waitMsg.message_id });
+                        await bot.editMessageText("No videos found in the playlist.", { chat_id: chatId, message_id: waitMsg.message_id });
                         return;
                     }
-                    let text = `<b>Playlist (${links.length} ta):</b>\n\n`;
+                    let text = `Playlist (${links.length})\n\n`;
                     links.forEach((link, index) => {
-                        text += `${index + 1}. <a href="${link.url}">${link.title}</a>\n`;
+                        text += `${index + 1}. ${link.title}\n${link.url}\n\n`;
                     });
-                    await bot.editMessageText(text, { chat_id: chatId, message_id: waitMsg.message_id, parse_mode: "HTML", disable_web_page_preview: true });
+                    await bot.editMessageText(text, { chat_id: chatId, message_id: waitMsg.message_id, disable_web_page_preview: true });
                 }
                 catch (err) {
                     await bot.editMessageText(`Error: ${err.message}`, { chat_id: chatId, message_id: waitMsg.message_id });
@@ -366,13 +384,17 @@ function registerCommands(bot) {
             }
             if (data === "schedule_media") {
                 const canSchedule = await database_1.DBService.checkUserLimit(chatId, "scheduled");
-                if (!canSchedule)
-                    return bot.sendMessage(chatId, "<b>Limitga yetdingiz!</b>", { parse_mode: "HTML" });
+                if (!canSchedule) {
+                    await bot.sendMessage(chatId, "Scheduling limit reached.");
+                    return;
+                }
                 const url = resolveMediaUrl(query, userStates, chatId);
-                if (!url)
-                    return bot.sendMessage(chatId, "Link topilmadi.");
+                if (!url) {
+                    await bot.sendMessage(chatId, "Link not found.");
+                    return;
+                }
                 userStates.set(chatId, { type: "schedule_time", url, mediaType: "video", createdAt: Date.now() });
-                await bot.sendMessage(chatId, `<b>${i18n_1.i18n.t("bot_schedule_prompt", { lng: lang })}</b>`, { parse_mode: "HTML" });
+                await bot.sendMessage(chatId, i18n_1.i18n.t("bot_schedule_prompt", { lng: lang }));
                 return;
             }
             if (data === "cancel_dl") {
@@ -381,16 +403,14 @@ function registerCommands(bot) {
                 return;
             }
             if (data === "cmd_settings") {
-                const dashboardUrl = `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}&v=${Date.now()}`;
-                await bot.sendMessage(chatId, `<b>${i18n_1.i18n.t("settings", { lng: lang })}</b>\n\n${i18n_1.i18n.t("bot_settings_panel", { lng: lang })}`, {
-                    parse_mode: "HTML",
-                    reply_markup: { inline_keyboard: [[{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }]] },
+                await bot.sendMessage(chatId, i18n_1.i18n.t("bot_settings_panel", { lng: lang }), {
+                    reply_markup: { inline_keyboard: [[{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }]] },
                 });
                 return;
             }
-            if (data === "cmd_stats") {
+            if (data === "cmd_stats" || data === "cmd_analytics") {
                 const stats = await database_1.DBService.getStats(chatId);
-                await bot.sendMessage(chatId, `<b>${i18n_1.i18n.t("bot_stats_title", { lng: lang })}</b>\n\nPostlar: ${stats.total_posts || 0}\nDublikatlar: ${stats.total_duplicates || 0}`, { parse_mode: "HTML" });
+                await bot.sendMessage(chatId, `${i18n_1.i18n.t("bot_stats_title", { lng: lang })}\n\nPosts: ${stats.total_posts || 0}\nDuplicates: ${stats.total_duplicates || 0}`);
                 return;
             }
             if (data === "cmd_referral") {
@@ -398,21 +418,21 @@ function registerCommands(bot) {
                 const refStats = await database_1.DBService.getReferralStats(chatId);
                 const botMe = await getBotInfo();
                 const refLink = `https://t.me/${botMe.username}?start=ref_${code}`;
-                await bot.sendMessage(chatId, `<b>${i18n_1.i18n.t("bot_referral_title", { lng: lang })}</b>\n\n<code>${refLink}</code>\n\nJami: ${refStats.total}\nAktiv: ${refStats.active}\nPremiumgacha: ${refStats.needed} ta qoldi`, { parse_mode: "HTML" });
+                await bot.sendMessage(chatId, `${i18n_1.i18n.t("bot_referral_title", { lng: lang })}\n\n${refLink}\n\nTotal: ${refStats.total}\nActive: ${refStats.active}\nLeft for premium: ${refStats.needed}`);
                 return;
             }
             if (data === "buy_premium") {
                 const monthlyPrice = await database_1.DBService.getPrice("monthly");
                 const yearlyPrice = await database_1.DBService.getPrice("yearly");
-                const paymeLink = payment_1.PaymentService.generatePaymeLink(chatId, monthlyPrice);
-                const clickLink = payment_1.PaymentService.generateClickLink(chatId, monthlyPrice);
-                const text = `<b>${i18n_1.i18n.t("bot_premium_title", { lng: lang })}</b>\n\nOylik: ${monthlyPrice.toLocaleString()} UZS\nYillik: ${yearlyPrice.toLocaleString()} UZS\n\nTo'lov usulini tanlang:`;
+                const paymeLink = await payment_1.PaymentService.generatePaymeLink(chatId, monthlyPrice);
+                const clickLink = await payment_1.PaymentService.generateClickLink(chatId, monthlyPrice);
+                const text = `${i18n_1.i18n.t("bot_premium_title", { lng: lang })}\n\nMonthly: ${monthlyPrice.toLocaleString()} UZS\nYearly: ${yearlyPrice.toLocaleString()} UZS`;
                 const inlineKeyboard = [
                     [{ text: `Payme (${monthlyPrice.toLocaleString()} UZS)`, url: paymeLink || "https://payme.uz" }],
                     [{ text: `Click (${monthlyPrice.toLocaleString()} UZS)`, url: clickLink || "https://click.uz" }],
-                    [{ text: "Dashboard orqali", callback_data: "cmd_settings" }],
+                    [{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }],
                 ];
-                await bot.sendMessage(chatId, text, { parse_mode: "HTML", reply_markup: { inline_keyboard: inlineKeyboard } });
+                await bot.sendMessage(chatId, text, { reply_markup: { inline_keyboard: inlineKeyboard } });
                 return;
             }
             if (data === "cmd_admin") {
@@ -426,7 +446,17 @@ function registerCommands(bot) {
             }
             if (data === "adm_broadcast") {
                 userStates.set(chatId, { type: "admin_broadcast", url: "", createdAt: Date.now() });
-                await bot.sendMessage(chatId, `<b>${i18n_1.i18n.t("bot_broadcast_prompt", { lng: lang })}</b>`, { parse_mode: "HTML" });
+                await bot.sendMessage(chatId, i18n_1.i18n.t("bot_broadcast_prompt", { lng: lang }));
+                return;
+            }
+            if (data === "cmd_sources" || data === "cmd_studio" || data === "cmd_channel" || data === "cmd_automation") {
+                await bot.sendMessage(chatId, i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), {
+                    reply_markup: { inline_keyboard: [[{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }]] },
+                });
+                return;
+            }
+            if (data === "cmd_help") {
+                await help_1.helpCommand.handler(bot, query.message, null);
                 return;
             }
             await bot.answerCallbackQuery(query.id).catch(() => { });
