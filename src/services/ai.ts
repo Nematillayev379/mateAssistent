@@ -792,20 +792,48 @@ export async function generateTTS(text: string): Promise<Buffer | null> {
     }
 
     const buffers: Buffer[] = [];
+    const domains = [
+      'translate.google.co.uz',
+      'translate.google.cn',
+      'translate.google.com',
+      'translate.google.co.uk',
+      'translate.google.com.hk'
+    ];
+
     for (const chunk of chunks) {
       const cleanChunk = chunk.trim();
       if (!cleanChunk) continue;
 
-      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanChunk)}&tl=uz&client=tw-ob`;
-      const response = await axios.get(url, {
-        responseType: 'arraybuffer',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': 'https://translate.google.com/',
-        },
-        timeout: 15000,
-      });
-      buffers.push(Buffer.from(response.data));
+      let chunkBuffer: Buffer | null = null;
+      let lastError: any = null;
+
+      for (const domain of domains) {
+        try {
+          const url = `https://${domain}/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanChunk)}&tl=uz&client=tw-ob`;
+          const response = await axios.get(url, {
+            responseType: 'arraybuffer',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': `https://${domain}/`,
+            },
+            timeout: 10000,
+          });
+          if (response.data && response.data.byteLength > 100) {
+            chunkBuffer = Buffer.from(response.data);
+            break;
+          }
+        } catch (err: any) {
+          lastError = err;
+          logger.warn(`TTS Domain ${domain} failed for chunk: ${err.message}`);
+        }
+      }
+
+      if (chunkBuffer) {
+        buffers.push(chunkBuffer);
+      } else {
+        logger.error(`All TTS domains failed. Last error: ${lastError?.message}`);
+        return null;
+      }
       await new Promise((r) => setTimeout(r, 150));
     }
 

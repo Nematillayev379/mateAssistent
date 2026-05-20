@@ -48,11 +48,13 @@ exports.PriceTrackerService = {
         try {
             const { data } = await axios_1.default.get(url, {
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                 },
                 timeout: 10000
             });
             const $ = cheerio.load(data);
+            $('style').remove();
+            $('script').remove();
             let price = 0;
             let title = "";
             if (url.includes('uzum.uz')) {
@@ -66,8 +68,8 @@ exports.PriceTrackerService = {
             }
             else if (url.includes('olx.uz')) {
                 // Basic OLX scraper logic
-                const priceText = $('[data-testid="ad-price"]').first().text();
-                const titleText = $('[data-testid="ad-title"]').first().text();
+                const priceText = $('[data-testid="ad-price-container"]').text() || $('[data-testid="ad-price"]').first().text();
+                const titleText = $('[data-testid="offer_title"]').text() || $('[data-testid="ad-title"]').first().text();
                 const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
                 price = priceMatch ? parseInt(priceMatch[0]) : 0;
                 title = titleText.trim();
@@ -105,6 +107,8 @@ exports.PriceTrackerService = {
                 timeout: 10000
             });
             const $ = cheerio.load(data);
+            $('style').remove();
+            $('script').remove();
             const results = [];
             // Extract product cards
             $('.product-card, [data-testid="product-card"]').each((i, elem) => {
@@ -136,17 +140,19 @@ exports.PriceTrackerService = {
             const searchUrl = `https://www.olx.uz/list/q_${encodeURIComponent(query)}/`;
             const { data } = await axios_1.default.get(searchUrl, {
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                 },
                 timeout: 10000
             });
             const $ = cheerio.load(data);
+            $('style').remove();
+            $('script').remove();
             const results = [];
             // Extract ad cards
-            $('[data-cy="l-card"], .offer-wrapper').each((i, elem) => {
+            $('[data-cy="l-card"]').each((i, elem) => {
                 if (i >= 5)
                     return; // Limit to 5 results
-                const title = $(elem).find('h6, [data-testid="ad-title"]').text().trim();
+                const title = $(elem).find('h4, h6, [data-testid="ad-title"]').first().text().trim();
                 const priceText = $(elem).find('[data-testid="ad-price"]').text().trim();
                 const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
                 const price = priceMatch ? parseInt(priceMatch[0]) : 0;
