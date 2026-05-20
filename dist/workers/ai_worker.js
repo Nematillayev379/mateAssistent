@@ -42,7 +42,7 @@ else {
                 logger_1.logger.info(`Skip AI send for user ${userId}: interval cooldown active`);
                 return;
             }
-            const userLang = lang || "uz";
+            const userLang = user?.language || lang || "uz";
             const langMap = { uz: "O'zbek", ru: "Russian", en: "English", tr: "Turkish" };
             const fullLangName = langMap[userLang] || userLang;
             const systemPrompt = `Summarize this news in ${fullLangName}. Max 100 words, engaging, no source links. Use professional tone. Response MUST be in ${fullLangName}.`;

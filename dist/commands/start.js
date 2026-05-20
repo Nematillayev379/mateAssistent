@@ -68,7 +68,20 @@ async function sendWelcomeMenu(bot, chatId, user, role) {
     });
 }
 async function sendLanguageStep(bot, chatId) {
-    await bot.sendMessage(chatId, `${i18n_1.i18n.t("intro_title", { lng: "en" })}\n\n${i18n_1.i18n.t("intro_body", { lng: "en" })}\n\n${i18n_1.i18n.t("bot_choose_language", { lng: "en" })}`, { reply_markup: { inline_keyboard: getLanguageKeyboard() } });
+    const premiumIntro = `🤖 <b>mateAssistent Creator Console</b>\n` +
+        `<i>The Ultimate Web3 Automator for Telegram Creators</i>\n\n` +
+        `⚡️ <b>Core Automation Features:</b>\n` +
+        `• 📡 <b>RSS Feed Aggregator:</b> Auto-publish from website feeds.\n` +
+        `• 🧠 <b>Smart AI Post Engine:</b> Auto-translate, summarize, and add emojis.\n` +
+        `• 🎨 <b>AI Image Studio:</b> Create stunning high-res matching illustrations.\n` +
+        `• 📥 <b>Universal Downloader:</b> Fetch social videos/audio in high quality.\n` +
+        `• 📅 <b>Scheduler & Cadence:</b> Smart queuing and customized interval times.\n` +
+        `• 📊 <b>Real-time Analytics:</b> Track click rates, duplicates, and top categories.\n\n` +
+        `🌐 <b>Choose your language to start / Tilni tanlang / Выберите язык:</b>`;
+    await bot.sendMessage(chatId, premiumIntro, {
+        parse_mode: "HTML",
+        reply_markup: { inline_keyboard: getLanguageKeyboard() }
+    });
 }
 async function sendChannelStep(bot, chatId, lang) {
     await bot.sendMessage(chatId, `${i18n_1.i18n.t("onboarding_channel_title", { lng: lang })}\n\n${i18n_1.i18n.t("onboarding_channel_body", { lng: lang })}`);

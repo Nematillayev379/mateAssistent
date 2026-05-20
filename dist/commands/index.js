@@ -116,7 +116,14 @@ function registerCommands(bot) {
         const user = await database_1.DBService.getUser(chatId);
         const lang = user?.language || "uz";
         const state = userStates.get(chatId);
-        if (!user?.target_channel) {
+        // Onboarding: Language step fallback
+        if (user && !user.has_seen_lang) {
+            const { sendLanguageStep } = await Promise.resolve().then(() => __importStar(require("./start")));
+            await sendLanguageStep(bot, chatId);
+            return;
+        }
+        // Onboarding: Channel connection step
+        if (user && !user.target_channel) {
             let targetText = text.trim();
             if (targetText.includes("t.me/")) {
                 const parts = targetText.split("t.me/");
@@ -151,30 +158,38 @@ function registerCommands(bot) {
                     return;
                 }
             }
+            else {
+                await bot.sendMessage(chatId, i18n_1.i18n.t("bot_send_channel_example", { lng: lang }));
+                return;
+            }
         }
+        // Onboarding: RSS feed source URL connection step
         const sources = user?.target_channel ? await database_1.DBService.getUserSources(chatId) : [];
         if (user?.target_channel && sources.length === 0) {
             const rssUrl = extractUrlFromText(text);
-            if (rssUrl && isLikelyRssUrl(rssUrl)) {
+            if (rssUrl) {
                 const ok = await database_1.DBService.addSource(chatId, "Primary RSS", rssUrl, lang);
                 if (!ok) {
                     await bot.sendMessage(chatId, i18n_1.i18n.t("err_invalid_url", { lng: lang }));
                     return;
                 }
-                userStates.set(chatId, { type: "onboarding_interval", url: rssUrl, createdAt: Date.now() });
                 await bot.sendMessage(chatId, i18n_1.i18n.t("quick_source_saved", { lng: lang }));
                 await (0, start_1.sendNextOnboardingStep)(bot, chatId);
                 return;
             }
+            else {
+                await bot.sendMessage(chatId, `${i18n_1.i18n.t("onboarding_rss_body", { lng: lang })}\n\nE.g.: <code>https://kun.uz/uz/news/rss</code>`, { parse_mode: "HTML" });
+                return;
+            }
         }
-        if (state?.type === "onboarding_interval") {
+        // Onboarding: Posting interval cadence step
+        if (user?.target_channel && sources.length > 0 && (!user.interval_minutes || Number(user.interval_minutes) < 1)) {
             const minutes = Number(text.trim());
             if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
                 await bot.sendMessage(chatId, i18n_1.i18n.t("quick_invalid_interval", { lng: lang }));
                 return;
             }
             await database_1.DBService.updateUser(chatId, { interval_minutes: minutes });
-            userStates.delete(chatId);
             await bot.sendMessage(chatId, i18n_1.i18n.t("quick_interval_saved", { lng: lang }));
             await (0, start_1.sendNextOnboardingStep)(bot, chatId);
             return;
@@ -315,6 +330,18 @@ function registerCommands(bot) {
                 const newLang = data.split("_")[1];
                 const langCode = i18n_1.WEBAPP_LANGS.includes(newLang) ? newLang : "uz";
                 await database_1.DBService.updateUser(chatId, { language: langCode, has_seen_lang: true });
+                try {
+                    await bot.setMyCommands([
+                        { command: "start", description: `${i18n_1.i18n.t("menu_dashboard", { lng: langCode })} / Boshlash` },
+                        { command: "status", description: `${i18n_1.i18n.t("menu_stats", { lng: langCode })} / Statistika` },
+                        { command: "setchannel", description: `${i18n_1.i18n.t("menu_channel", { lng: langCode })} / Kanal sozlash` },
+                        { command: "track", description: `${i18n_1.i18n.t("menu_referral", { lng: langCode })} / Narx kuzatish` },
+                        { command: "help", description: `${i18n_1.i18n.t("menu_help", { lng: langCode })} / Yordam` },
+                    ], { scope: { type: "chat", chat_id: chatId } });
+                }
+                catch (e) {
+                    logger_1.logger.warn(`setMyCommands error on setlang: ${e.message}`);
+                }
                 await bot.answerCallbackQuery(query.id, { text: "OK" });
                 await bot.sendMessage(chatId, i18n_1.i18n.t("bot_lang_saved", { lng: langCode }));
                 await (0, start_1.sendNextOnboardingStep)(bot, chatId, { ...user, language: langCode, has_seen_lang: true });

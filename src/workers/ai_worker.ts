@@ -50,7 +50,7 @@ if (!connectionOptions) {
           return;
         }
 
-        const userLang = lang || "uz";
+        const userLang = user?.language || lang || "uz";
         const langMap: Record<string, string> = { uz: "O'zbek", ru: "Russian", en: "English", tr: "Turkish" };
         const fullLangName = langMap[userLang] || userLang;
 

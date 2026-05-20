@@ -1,6 +1,6 @@
 import { OpenAI } from "openai";
 import Groq from "groq-sdk";
-import * as googleTTS from "google-tts-api";
+import { EdgeTTS } from "@andresaya/edge-tts";
 import crypto from 'crypto';
 import axios from 'axios';
 import { buildKeyPoolFromEnv, countKeysByProvider, CONFIG, MAX_TOKENS_BY_PROVIDER } from "../config/config";
@@ -764,74 +764,41 @@ export async function generateTTS(text: string): Promise<Buffer | null> {
     const safeText = text.slice(0, 800);
     const chunks: string[] = [];
     let remaining = safeText;
-
     while (remaining.length > 0) {
       if (remaining.length <= 180) {
         chunks.push(remaining);
         break;
       }
-
       let splitIdx = -1;
       const sub = remaining.slice(0, 180);
       const punctuations = ['.', '?', '!', ';', ',', ' '];
       for (const char of punctuations) {
         const lastIdx = sub.lastIndexOf(char);
-        if (lastIdx > splitIdx) {
-          splitIdx = lastIdx;
-        }
+        if (lastIdx > splitIdx) splitIdx = lastIdx;
       }
-
-      if (splitIdx === -1) {
-        splitIdx = 180;
-      } else {
-        splitIdx += 1;
-      }
-
+      if (splitIdx === -1) splitIdx = 180;
+      else splitIdx += 1;
       chunks.push(remaining.slice(0, splitIdx));
       remaining = remaining.slice(splitIdx);
     }
 
     const buffers: Buffer[] = [];
-    const domains = [
-      'translate.google.co.uz',
-      'translate.google.cn',
-      'translate.google.com',
-      'translate.google.co.uk',
-      'translate.google.com.hk'
-    ];
-
     for (const chunk of chunks) {
       const cleanChunk = chunk.trim();
       if (!cleanChunk) continue;
-
-      let chunkBuffer: Buffer | null = null;
-      let lastError: any = null;
-
-      for (const domain of domains) {
-        try {
-          const url = `https://${domain}/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanChunk)}&tl=uz&client=tw-ob`;
-          const response = await axios.get(url, {
-            responseType: 'arraybuffer',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': `https://${domain}/`,
-            },
-            timeout: 10000,
-          });
-          if (response.data && response.data.byteLength > 100) {
-            chunkBuffer = Buffer.from(response.data);
-            break;
-          }
-        } catch (err: any) {
-          lastError = err;
-          logger.warn(`TTS Domain ${domain} failed for chunk: ${err.message}`);
+      try {
+        const tts = new EdgeTTS();
+        await tts.synthesize(cleanChunk, 'uz-UZ-MadinaNeural', {
+          outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+        });
+        const buf = await tts.toBuffer();
+        if (buf && buf.length > 100) {
+          buffers.push(buf);
+        } else {
+          throw new Error('Empty TTS buffer');
         }
-      }
-
-      if (chunkBuffer) {
-        buffers.push(chunkBuffer);
-      } else {
-        logger.error(`All TTS domains failed. Last error: ${lastError?.message}`);
+      } catch (err: any) {
+        logger.warn(`EdgeTTS failed for chunk: ${err.message}`);
         return null;
       }
       await new Promise((r) => setTimeout(r, 150));
