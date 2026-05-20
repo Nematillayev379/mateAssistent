@@ -674,14 +674,11 @@ function startDashboardServer(port, _bot) {
         const wantImage = withImage === true || withImage === 'true';
         try {
             const user = await database_1.DBService.getUser(parseInt(req.authenticatedUserId));
-            const text = await (0, ai_1.generateSmmPost)(topic, user?.language || 'uz');
-            let imageUrl = null;
-            let imageBase64 = null;
-            if (wantImage) {
-                const img = await (0, ai_1.generateSmmImage)(topic);
-                imageUrl = img.imageUrl;
-                imageBase64 = img.imageBase64;
-            }
+            const textPromise = (0, ai_1.generateSmmPost)(topic, user?.language || 'uz');
+            const imagePromise = wantImage ? (0, ai_1.generateSmmImage)(topic) : Promise.resolve(null);
+            const [text, img] = await Promise.all([textPromise, imagePromise]);
+            let imageUrl = img?.imageUrl || null;
+            let imageBase64 = img?.imageBase64 || null;
             res.json({ text, imageUrl, imageBase64 });
         }
         catch (e) {
@@ -698,7 +695,7 @@ function startDashboardServer(port, _bot) {
             if (!user?.target_channel) {
                 return res.status(400).json({ error: 'No channel configured' });
             }
-            const caption = text.slice(0, 1024);
+            const caption = `AI Voice News: <b></b>\n\n`;
             const remainder = text.length > 1024 ? text.slice(1024) : '';
             if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
                 const base64Data = imageBase64.split(',')[1];
@@ -854,22 +851,34 @@ function startDashboardServer(port, _bot) {
         const user = await database_1.DBService.getUser(uid);
         if (!user)
             return res.status(404).json({ error: 'Not found' });
-        const script = text || await (0, ai_2.generateAudioSummary)(title || 'Yangilik', title || '');
+        const cleanTitle = typeof title === 'string' ? title.trim() : '';
+        const cleanText = typeof text === 'string' ? text.trim() : '';
+        if (!cleanTitle && !cleanText) {
+            return res.status(400).json({ error: 'Sarlavha yoki matn kiriting' });
+        }
+        const script = cleanText || await (0, ai_2.generateAudioSummary)(cleanTitle || 'Yangilik', cleanTitle || '');
         const audio = await (0, ai_2.generateTTS)(script);
         if (!audio)
             return res.status(500).json({ error: 'Ovoz generatsiyasi muvaffaqiyatsiz' });
-        const caption = `🎙 <b>${title || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
+        const caption = `AI Voice News: <b>${cleanTitle || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
         const targets = sendToChannel ? database_1.DBService.getUserOutputChannels(user) : [uid];
+        let sentCount = 0;
+        const failedTargets = [];
         for (const ch of targets) {
             try {
                 const chatId = sendToChannel ? ch : uid;
-                await bot_instance_1.bot.sendAudio(chatId, audio, { caption, parse_mode: 'HTML' });
+                await bot_instance_1.bot.sendAudio(chatId, audio, { caption, parse_mode: 'HTML' }, { filename: 'voice-news-file.mp3', contentType: 'audio/mpeg' });
+                sentCount++;
             }
             catch (e) {
                 logger_1.logger.warn(`Voice send failed ${ch}: ${e.message}`);
+                failedTargets.push(String(ch));
             }
         }
-        res.json({ success: true, script: script.slice(0, 800) });
+        if (sentCount === 0) {
+            return res.status(502).json({ error: 'Ovoz yuborilmadi. Bot kanalda admin emas yoki kanal ID noto\'g\'ri.' });
+        }
+        res.json({ success: true, sent: sentCount, failed: failedTargets.length, script: script.slice(0, 800) });
     });
     // --- VISUAL POST COMPOSER (multi-channel) ---
     app.post('/api/posts/publish', checkAuth, async (req, res) => {
@@ -1064,14 +1073,14 @@ function startDashboardServer(port, _bot) {
         }
         if (method === 'payme') {
             const amount = isYearly ? await database_1.DBService.getPrice('yearly') : await database_1.DBService.getPrice('monthly');
-            const link = await payment_1.PaymentService.generatePaymeLink(uid, amount);
+            const link = await payment_1.PaymentService.generatePaymeLink(uid, amount, isYearly ? 'yearly' : 'monthly');
             if (!link)
                 return res.status(503).json({ error: 'Payme sozlanmagan (PAYME_MERCHANT_ID)' });
             return res.json({ success: true, url: link, method: 'payme' });
         }
         if (method === 'click') {
             const amount = isYearly ? await database_1.DBService.getPrice('yearly') : await database_1.DBService.getPrice('monthly');
-            const link = await payment_1.PaymentService.generateClickLink(uid, amount);
+            const link = await payment_1.PaymentService.generateClickLink(uid, amount, isYearly ? 'yearly' : 'monthly');
             if (!link)
                 return res.status(503).json({ error: 'Click sozlanmagan (CLICK_SERVICE_ID)' });
             return res.json({ success: true, url: link, method: 'click' });
@@ -1099,6 +1108,21 @@ function startDashboardServer(port, _bot) {
         catch (e) {
             logger_1.logger.error(`Payme webhook failed: ${e.message}`);
             res.status(500).json({ error: e.message });
+        }
+    });
+    app.post('/api/payments/click', async (req, res) => {
+        try {
+            const result = await payment_1.PaymentService.handleClickWebhook(req.body || {});
+            return res.status(200).json(result);
+        }
+        catch (e) {
+            logger_1.logger.error(`Click webhook failed: ${e.message}`);
+            return res.status(200).json({
+                error: -9,
+                error_note: 'Internal server error',
+                click_trans_id: req.body?.click_trans_id || 0,
+                merchant_trans_id: req.body?.merchant_trans_id || ''
+            });
         }
     });
     // BUG-065 Fix: Error handling for sendFile

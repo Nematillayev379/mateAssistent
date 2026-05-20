@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -652,48 +685,39 @@ async function generateSmmPost(topic, lang = "uz") {
 }
 async function generateSmmImage(topic) {
     const cleanTopic = topic.trim().slice(0, 200);
-    let promptSubject = cleanTopic;
-    try {
-        if (activeKeys.length === 0)
-            await refreshKeyPool();
-        if (activeKeys.length > 0) {
-            const promptIdea = await getSmartAIResponseWithKeys(getKeysSortedForSmm(), 'Turn the user topic into one short literal visual prompt for an image model. Keep it factual, concrete, and tied to the topic. Output one line only, no quotes.', cleanTopic);
-            if (promptIdea && promptIdea.trim().length > 10) {
-                promptSubject = promptIdea.trim().replace(/^["'`]+|["'`]+$/g, '');
-            }
-        }
-    }
-    catch { }
-    const imagePrompt = `Editorial social media image strictly about: ${promptSubject}. ` +
+    const imagePrompt = `Editorial social media image strictly about: ${cleanTopic}. ` +
         `Main subject must clearly match this topic: ${cleanTopic}. ` +
-        'Single coherent scene, realistic or premium illustrative style, strong focal subject, 16:9 composition, high detail, no text, no letters, no watermark, no unrelated objects.';
+        'Single coherent scene, realistic or premium illustrative style, strong focal subject, 16:9 composition, high detail, no text, no letters, no watermark, no unrelated objects, avoid generic stock scenes.';
     const seed = Date.now() % 1_000_000;
     const urls = [
         `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux`,
         `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1024&height=576&nologo=true&seed=${seed + 1}`,
     ];
-    for (const imageUrl of urls) {
+    const tryFetchImage = async (imageUrl) => {
         try {
             const res = await fetch(imageUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0 mateAssistentBot/1.0' },
-                signal: AbortSignal.timeout(60000),
+                signal: AbortSignal.timeout(20000),
             });
             if (!res.ok)
-                continue;
+                return null;
             const contentType = (res.headers.get('content-type') || '').toLowerCase();
-            // BUG-158 Fix: Ensure response is actual image, not HTML error page
             if (!contentType.startsWith('image/'))
-                continue;
+                return null;
             const buf = Buffer.from(await res.arrayBuffer());
             if (buf.length < 2000)
-                continue;
-            const imageBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
-            return { imageUrl, imageBase64 };
+                return null;
+            return { imageUrl, imageBase64: `data:image/jpeg;base64,${buf.toString('base64')}` };
         }
         catch (e) {
             logger_1.logger.warn(`SMM image fetch failed: ${e.message}`);
+            return null;
         }
-    }
+    };
+    const settled = await Promise.all(urls.map((imageUrl) => tryFetchImage(imageUrl)));
+    const firstOk = settled.find(Boolean);
+    if (firstOk)
+        return firstOk;
     return { imageUrl: urls[0], imageBase64: null };
 }
 async function generateAudioSummary(title, content) {
@@ -712,56 +736,34 @@ async function generateSummary(title, content) {
 // B-30 Fix: Increase TTS text limit to 500-800 chars for better summaries
 async function generateTTS(text) {
     try {
-        const safeText = text.slice(0, 800);
-        const chunks = [];
-        let remaining = safeText;
-        while (remaining.length > 0) {
-            if (remaining.length <= 180) {
-                chunks.push(remaining);
-                break;
-            }
-            let splitIdx = -1;
-            const sub = remaining.slice(0, 180);
-            const punctuations = ['.', '?', '!', ';', ',', ' '];
-            for (const char of punctuations) {
-                const lastIdx = sub.lastIndexOf(char);
-                if (lastIdx > splitIdx)
-                    splitIdx = lastIdx;
-            }
-            if (splitIdx === -1)
-                splitIdx = 180;
-            else
-                splitIdx += 1;
-            chunks.push(remaining.slice(0, splitIdx));
-            remaining = remaining.slice(splitIdx);
-        }
-        const buffers = [];
-        for (const chunk of chunks) {
-            const cleanChunk = chunk.trim();
-            if (!cleanChunk)
-                continue;
-            try {
-                const tts = new edge_tts_1.EdgeTTS();
-                await tts.synthesize(cleanChunk, 'uz-UZ-MadinaNeural', {
-                    outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
-                });
-                const buf = await tts.toBuffer();
-                if (buf && buf.length > 100) {
-                    buffers.push(buf);
-                }
-                else {
-                    throw new Error('Empty TTS buffer');
-                }
-            }
-            catch (err) {
-                logger_1.logger.warn(`EdgeTTS failed for chunk: ${err.message}`);
-                return null;
-            }
-            await new Promise((r) => setTimeout(r, 150));
-        }
-        if (buffers.length === 0)
+        const safeText = text.slice(0, 800).trim();
+        if (!safeText)
             return null;
-        return Buffer.concat(buffers);
+        try {
+            const googleTTS = await Promise.resolve().then(() => __importStar(require('google-tts-api')));
+            if (typeof googleTTS.getAllAudioBase64 === 'function') {
+                const allAudio = await googleTTS.getAllAudioBase64(safeText, {
+                    lang: 'uz',
+                    slow: false,
+                    host: 'https://translate.google.com',
+                    timeout: 15000,
+                });
+                const buffers = allAudio
+                    .map((a) => Buffer.from(a.base64, 'base64'))
+                    .filter((buf) => buf.length > 100);
+                if (buffers.length)
+                    return Buffer.concat(buffers);
+            }
+        }
+        catch (googleErr) {
+            logger_1.logger.warn(`Google TTS primary failed: ${googleErr.message}`);
+        }
+        const tts = new edge_tts_1.EdgeTTS();
+        await tts.synthesize(safeText, 'uz-UZ-MadinaNeural', {
+            outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+        });
+        const buf = await tts.toBuffer();
+        return buf && buf.length > 100 ? buf : null;
     }
     catch (e) {
         logger_1.logger.error(`TTS Error: ${e.message}`);

@@ -9,20 +9,20 @@ import { logger } from "../utils/logger";
 function getLanguageKeyboard(): TelegramBot.InlineKeyboardButton[][] {
   const labels: Record<string, string> = {
     uz: "O'zbek",
-    ru: "Русский",
+    ru: "Russian",
     en: "English",
-    tr: "Türkçe",
+    tr: "Turkish",
     de: "Deutsch",
-    fr: "Français",
-    es: "Español",
+    fr: "French",
+    es: "Spanish",
     it: "Italiano",
-    pt: "Português",
-    ar: "العربية",
-    hi: "हिन्दी",
-    zh: "中文",
-    ja: "日本語",
-    ko: "한국어",
-    fa: "فارسی",
+    pt: "Portuguese",
+    ar: "Arabic",
+    hi: "Hindi",
+    zh: "Chinese",
+    ja: "Japanese",
+    ko: "Korean",
+    fa: "Persian",
   };
 
   const rows: TelegramBot.InlineKeyboardButton[][] = [];
@@ -201,3 +201,4 @@ export const startCommand: BotCommand = {
     await sendNextOnboardingStep(bot, chatId, user);
   },
 };
+

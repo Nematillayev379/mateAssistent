@@ -678,15 +678,12 @@ export function startDashboardServer(port: number | string, _bot?: any) {
 
     try {
       const user = await DBService.getUser(parseInt(req.authenticatedUserId));
-      const text = await generateSmmPost(topic, user?.language || 'uz');
+      const textPromise = generateSmmPost(topic, user?.language || 'uz');
+      const imagePromise = wantImage ? generateSmmImage(topic) : Promise.resolve(null);
+      const [text, img] = await Promise.all([textPromise, imagePromise]);
 
-      let imageUrl: string | null = null;
-      let imageBase64: string | null = null;
-      if (wantImage) {
-        const img = await generateSmmImage(topic);
-        imageUrl = img.imageUrl;
-        imageBase64 = img.imageBase64;
-      }
+      let imageUrl: string | null = img?.imageUrl || null;
+      let imageBase64: string | null = img?.imageBase64 || null;
 
       res.json({ text, imageUrl, imageBase64 });
     } catch (e: any) {
@@ -705,7 +702,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
         return res.status(400).json({ error: 'No channel configured' });
       }
 
-      const caption = text.slice(0, 1024);
+      const caption = `AI Voice News: <b></b>\n\n`;
       const remainder = text.length > 1024 ? text.slice(1024) : '';
 
       if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
@@ -866,11 +863,16 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     const user = await DBService.getUser(uid);
     if (!user) return res.status(404).json({ error: 'Not found' });
 
-    const script = text || await generateAudioSummary(title || 'Yangilik', title || '');
+    const cleanTitle = typeof title === 'string' ? title.trim() : '';
+    const cleanText = typeof text === 'string' ? text.trim() : '';
+    if (!cleanTitle && !cleanText) {
+      return res.status(400).json({ error: 'Sarlavha yoki matn kiriting' });
+    }
+    const script = cleanText || await generateAudioSummary(cleanTitle || 'Yangilik', cleanTitle || '');
     const audio = await generateTTS(script);
     if (!audio) return res.status(500).json({ error: 'Ovoz generatsiyasi muvaffaqiyatsiz' });
 
-    const caption = `🎙 <b>${title || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
+    const caption = `AI Voice News: <b>${cleanTitle || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
     const targets = sendToChannel ? DBService.getUserOutputChannels(user) : [uid];
 
     let sentCount = 0;
@@ -878,7 +880,12 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     for (const ch of targets) {
       try {
         const chatId = sendToChannel ? ch : uid;
-        await bot.sendAudio(chatId, audio, { caption, parse_mode: 'HTML' });
+        await bot.sendAudio(
+          chatId,
+          audio as any,
+          { caption, parse_mode: 'HTML' },
+          { filename: 'voice-news-file.mp3', contentType: 'audio/mpeg' } as any
+        );
         sentCount++;
       } catch (e: any) {
         logger.warn(`Voice send failed ${ch}: ${e.message}`);
@@ -886,7 +893,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       }
     }
     if (sentCount === 0) {
-      return res.status(502).json({ error: 'Ovoz yuborilmadi. Bot kanalda admin emas yoki kanal ID noto‘g‘ri.' });
+      return res.status(502).json({ error: 'Ovoz yuborilmadi. Bot kanalda admin emas yoki kanal ID noto\'g\'ri.' });
     }
     res.json({ success: true, sent: sentCount, failed: failedTargets.length, script: script.slice(0, 800) });
   });
@@ -1175,3 +1182,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   app.listen(port, () => logger.info(`🖥 Dashboard on ${port}`));
   return app;
 }
+
+
+
+

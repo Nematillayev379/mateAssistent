@@ -94,6 +94,16 @@
             width: 100%; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
             color: white; outline: none; font-family: inherit; transition: all 0.2s;
         }
+        .input-group textarea {
+            resize: none;
+            min-height: 96px;
+            max-width: 100%;
+        }
+        .input-group select,
+        .input-group select option {
+            background: #0b1020;
+            color: #f8fafc;
+        }
         .input-group input:focus, .input-group textarea:focus, .input-group select:focus { 
             border-color: var(--accent); 
             background: rgba(255,255,255,0.05); 
@@ -526,21 +536,21 @@
                     <div class="card-title"><i class="fas fa-language"></i> Language Selection</div>
                     <div class="input-group">
                         <select id="set-lang">
-                            <option value="uz">O'zbek tili</option>
-                            <option value="ru">Русский язык</option>
+                            <option value="uz">O'zbek</option>
+                            <option value="ru">Russian</option>
                             <option value="en">English</option>
-                            <option value="tr">Türkçe</option>
+                            <option value="tr">Turkish</option>
                             <option value="de">Deutsch</option>
-                            <option value="fr">Français</option>
-                            <option value="es">Español</option>
+                            <option value="fr">French</option>
+                            <option value="es">Spanish</option>
                             <option value="it">Italiano</option>
-                            <option value="pt">Português</option>
-                            <option value="ar">العربية</option>
-                            <option value="hi">हिन्दी</option>
-                            <option value="zh">中文</option>
-                            <option value="ja">日本語</option>
-                            <option value="ko">한국어</option>
-                            <option value="fa">فارسی</option>
+                            <option value="pt">Portuguese</option>
+                            <option value="ar">Arabic</option>
+                            <option value="hi">Hindi</option>
+                            <option value="zh">Chinese</option>
+                            <option value="ja">Japanese</option>
+                            <option value="ko">Korean</option>
+                            <option value="fa">Persian</option>
                         </select>
                     </div>
                     <button class="btn btn-primary" onclick="saveSettings()">Tilni saqlash</button>
@@ -1095,7 +1105,9 @@ function renderUI() {
             const btn = document.getElementById('btn-ai'); 
             const originalInnerHTML = btn.innerHTML;
             btn.disabled = true; 
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Kutilmoqda...';
+            btn.innerHTML = document.getElementById('ai-image').checked
+                ? '<i class="fas fa-spinner fa-spin"></i> Matn va rasm tayyorlanmoqda...'
+                : '<i class="fas fa-spinner fa-spin"></i> Matn tayyorlanmoqda...';
             try {
                 const res = await apiFetch('/api/ai/smm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ prompt, withImage: document.getElementById('ai-image').checked }) });
                 if (!res.ok) {
@@ -1292,6 +1304,9 @@ function renderUI() {
                 if (window.WebAppI18n) WebAppI18n.setLang(language);
                 showToast(typeof t === 'function' ? t('common_lang_changed') : 'Saved!', 'success');
                 renderUI();
+                if (tg?.HapticFeedback?.notificationOccurred) {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
             } else {
                 const err = await res.json().catch(() => ({}));
                 showToast(err.error || (typeof t === 'function' ? t('common_error') : 'Error'), 'error');
@@ -1677,16 +1692,24 @@ function renderUI() {
 
         async function generateVoiceNews() {
             const status = document.getElementById('voice-status');
+            const title = document.getElementById('voice-title')?.value?.trim() || '';
+            const text = document.getElementById('voice-text')?.value?.trim() || '';
+            if (!title && !text) {
+                showToast('Sarlavha yoki matn kiriting', 'error');
+                if (status) status.textContent = 'Sarlavha yoki matn kiriting';
+                return;
+            }
             if (status) status.textContent = 'Generatsiya...';
             try {
                 const res = await apiFetch('/api/ai/voice-news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-                    title: document.getElementById('voice-title')?.value,
-                    text: document.getElementById('voice-text')?.value,
+                    title,
+                    text,
                     sendToChannel: document.getElementById('voice-to-channel')?.checked
                 }) });
                 const data = await res.json();
                 if (res.ok) {
-                    if (status) status.textContent = '✅ Ovoz yuborildi!';
+                    if (status) status.textContent = 'Audio yuborildi';
+                    showToast('Audio yuborildi', 'success');
                 } else {
                     if (status) status.textContent = data.error || 'Xatolik';
                     showToast(data.error || 'Ovoz generatsiyasi xatosi', 'error');
@@ -1889,3 +1912,5 @@ function renderUI() {
     </script>
 </body>
 </html>
+
+

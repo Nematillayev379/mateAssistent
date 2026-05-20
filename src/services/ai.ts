@@ -690,23 +690,8 @@ export type SmmImageResult = { imageUrl: string; imageBase64: string | null };
 
 export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
   const cleanTopic = topic.trim().slice(0, 200);
-  let promptSubject = cleanTopic;
-  try {
-    if (activeKeys.length === 0) await refreshKeyPool();
-    if (activeKeys.length > 0) {
-      const promptIdea = await getSmartAIResponseWithKeys(
-        getKeysSortedForSmm(),
-        'Rewrite the topic into one short visual prompt while preserving the exact subject. Do not change entities, country, person, brand, or event. Output one line only.',
-        cleanTopic
-      );
-      if (promptIdea && promptIdea.trim().length > 10) {
-        promptSubject = promptIdea.trim().replace(/^["'`]+|["'`]+$/g, '');
-      }
-    }
-  } catch {}
-
   const imagePrompt =
-    `Editorial social media image strictly about: ${promptSubject}. ` +
+    `Editorial social media image strictly about: ${cleanTopic}. ` +
     `Main subject must clearly match this topic: ${cleanTopic}. ` +
     'Single coherent scene, realistic or premium illustrative style, strong focal subject, 16:9 composition, high detail, no text, no letters, no watermark, no unrelated objects, avoid generic stock scenes.';
 
@@ -716,24 +701,27 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
     `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1024&height=576&nologo=true&seed=${seed + 1}`,
   ];
 
-  for (const imageUrl of urls) {
+  const tryFetchImage = async (imageUrl: string): Promise<SmmImageResult | null> => {
     try {
       const res = await fetch(imageUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 mateAssistentBot/1.0' },
-        signal: AbortSignal.timeout(60000),
+        signal: AbortSignal.timeout(20000),
       });
-      if (!res.ok) continue;
+      if (!res.ok) return null;
       const contentType = (res.headers.get('content-type') || '').toLowerCase();
-      // BUG-158 Fix: Ensure response is actual image, not HTML error page
-      if (!contentType.startsWith('image/')) continue;
+      if (!contentType.startsWith('image/')) return null;
       const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length < 2000) continue;
-      const imageBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
-      return { imageUrl, imageBase64 };
+      if (buf.length < 2000) return null;
+      return { imageUrl, imageBase64: `data:image/jpeg;base64,${buf.toString('base64')}` };
     } catch (e: any) {
       logger.warn(`SMM image fetch failed: ${e.message}`);
+      return null;
     }
-  }
+  };
+
+  const settled = await Promise.all(urls.map((imageUrl) => tryFetchImage(imageUrl)));
+  const firstOk = settled.find(Boolean);
+  if (firstOk) return firstOk;
 
   return { imageUrl: urls[0], imageBase64: null };
 }
@@ -761,67 +749,33 @@ export async function generateSummary(title: string, content: string): Promise<s
 // B-30 Fix: Increase TTS text limit to 500-800 chars for better summaries
 export async function generateTTS(text: string): Promise<Buffer | null> {
   try {
-    const safeText = text.slice(0, 800);
-    const chunks: string[] = [];
-    let remaining = safeText;
-    while (remaining.length > 0) {
-      if (remaining.length <= 180) {
-        chunks.push(remaining);
-        break;
-      }
-      let splitIdx = -1;
-      const sub = remaining.slice(0, 180);
-      const punctuations = ['.', '?', '!', ';', ',', ' '];
-      for (const char of punctuations) {
-        const lastIdx = sub.lastIndexOf(char);
-        if (lastIdx > splitIdx) splitIdx = lastIdx;
-      }
-      if (splitIdx === -1) splitIdx = 180;
-      else splitIdx += 1;
-      chunks.push(remaining.slice(0, splitIdx));
-      remaining = remaining.slice(splitIdx);
-    }
+    const safeText = text.slice(0, 800).trim();
+    if (!safeText) return null;
 
-    const buffers: Buffer[] = [];
-    for (const chunk of chunks) {
-      const cleanChunk = chunk.trim();
-      if (!cleanChunk) continue;
-      try {
-        const tts = new EdgeTTS();
-        await tts.synthesize(cleanChunk, 'uz-UZ-MadinaNeural', {
-          outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+    try {
+      const googleTTS = await import('google-tts-api');
+      if (typeof googleTTS.getAllAudioBase64 === 'function') {
+        const allAudio = await googleTTS.getAllAudioBase64(safeText, {
+          lang: 'uz',
+          slow: false,
+          host: 'https://translate.google.com',
+          timeout: 15000,
         });
-        const buf = await tts.toBuffer();
-        if (buf && buf.length > 100) {
-          buffers.push(buf);
-        } else {
-          throw new Error('Empty TTS buffer');
-        }
-      } catch (err: any) {
-        logger.warn(`EdgeTTS failed for chunk: ${err.message}`);
-        try {
-          const googleTTS = await import('google-tts-api');
-          const url = googleTTS.getAudioUrl(cleanChunk, { lang: 'uz', slow: false, host: 'https://translate.google.com' });
-          const resp = await axios.get(url, {
-            responseType: 'arraybuffer',
-            timeout: 15000,
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-          });
-          const fallbackBuf = Buffer.from(resp.data);
-          if (fallbackBuf.length > 100) {
-            buffers.push(fallbackBuf);
-            continue;
-          }
-        } catch (fallbackErr: any) {
-          logger.warn(`Google TTS fallback failed: ${fallbackErr.message}`);
-        }
-        return null;
+        const buffers = allAudio
+          .map((a: any) => Buffer.from(a.base64, 'base64'))
+          .filter((buf: Buffer) => buf.length > 100);
+        if (buffers.length) return Buffer.concat(buffers);
       }
-      await new Promise((r) => setTimeout(r, 150));
+    } catch (googleErr: any) {
+      logger.warn(`Google TTS primary failed: ${googleErr.message}`);
     }
 
-    if (buffers.length === 0) return null;
-    return Buffer.concat(buffers);
+    const tts = new EdgeTTS();
+    await tts.synthesize(safeText, 'uz-UZ-MadinaNeural', {
+      outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+    });
+    const buf = await tts.toBuffer();
+    return buf && buf.length > 100 ? buf : null;
   } catch (e: any) {
     logger.error(`TTS Error: ${e.message}`);
     return null;

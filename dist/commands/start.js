@@ -11,20 +11,20 @@ const logger_1 = require("../utils/logger");
 function getLanguageKeyboard() {
     const labels = {
         uz: "O'zbek",
-        ru: "Русский",
+        ru: "Russian",
         en: "English",
-        tr: "Türkçe",
+        tr: "Turkish",
         de: "Deutsch",
-        fr: "Français",
-        es: "Español",
+        fr: "French",
+        es: "Spanish",
         it: "Italiano",
-        pt: "Português",
-        ar: "العربية",
-        hi: "हिन्दी",
-        zh: "中文",
-        ja: "日本語",
-        ko: "한국어",
-        fa: "فارسی",
+        pt: "Portuguese",
+        ar: "Arabic",
+        hi: "Hindi",
+        zh: "Chinese",
+        ja: "Japanese",
+        ko: "Korean",
+        fa: "Persian",
     };
     const rows = [];
     for (let i = 0; i < i18n_1.WEBAPP_LANGS.length; i += 2) {
@@ -43,6 +43,7 @@ async function sendWelcomeMenu(bot, chatId, user, role) {
     const dashboardUrl = buildDashboardUrl(chatId);
     const inline_keyboard = [
         [{ text: i18n_1.i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }],
+        [{ text: "🌐 Web3 App (Browser)", url: dashboardUrl }],
         [
             { text: i18n_1.i18n.t("menu_sources", { lng: lang }), callback_data: "cmd_sources" },
             { text: i18n_1.i18n.t("menu_studio", { lng: lang }), callback_data: "cmd_studio" },

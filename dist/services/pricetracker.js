@@ -43,6 +43,28 @@ const logger_1 = require("../utils/logger");
 const database_1 = require("./database");
 const bot_instance_1 = require("./bot_instance");
 let isPriceCheckRunning = false;
+function cleanPriceText(input) {
+    const normalized = String(input || '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    const match = normalized.match(/(\d[\d\s.,]{2,})/);
+    if (!match)
+        return 0;
+    const digits = match[1].replace(/[^\d]/g, '');
+    const value = parseInt(digits, 10);
+    return Number.isFinite(value) ? value : 0;
+}
+function absoluteUrl(base, maybeRelative) {
+    if (!maybeRelative)
+        return null;
+    try {
+        return new URL(maybeRelative, base).toString();
+    }
+    catch {
+        return null;
+    }
+}
 exports.PriceTrackerService = {
     async fetchPrice(url) {
         try {
@@ -56,22 +78,33 @@ exports.PriceTrackerService = {
             $('style').remove();
             $('script').remove();
             let price = 0;
-            let title = "";
+            let title = '';
             if (url.includes('uzum.uz')) {
-                // Basic Uzum scraper logic (HTML structure might change)
-                const priceText = $('[data-test-id="item__price"]').first().text() || $('.product-price').first().text();
-                const titleText = $('h1.title').first().text() || $('h1').first().text();
-                // BUG-095 Fix: More robust price extraction using regex to find the first large number
-                const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
-                price = priceMatch ? parseInt(priceMatch[0]) : 0;
+                const priceText = $('[data-test-id="item__price"]').first().text() ||
+                    $('[data-testid="product-price"]').first().text() ||
+                    $('[class*="price"]').first().text() ||
+                    $('meta[property="product:price:amount"]').attr('content') ||
+                    $('meta[itemprop="price"]').attr('content') ||
+                    '';
+                const titleText = $('h1.title').first().text() ||
+                    $('h1[data-testid="product-title"]').first().text() ||
+                    $('meta[property="og:title"]').attr('content') ||
+                    $('h1').first().text();
+                price = cleanPriceText(priceText);
                 title = titleText.trim();
             }
             else if (url.includes('olx.uz')) {
-                // Basic OLX scraper logic
-                const priceText = $('[data-testid="ad-price-container"]').text() || $('[data-testid="ad-price"]').first().text();
-                const titleText = $('[data-testid="offer_title"]').text() || $('[data-testid="ad-title"]').first().text();
-                const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
-                price = priceMatch ? parseInt(priceMatch[0]) : 0;
+                const priceText = $('[data-testid="ad-price-container"]').text() ||
+                    $('[data-testid="ad-price"]').first().text() ||
+                    $('meta[property="product:price:amount"]').attr('content') ||
+                    $('meta[itemprop="price"]').attr('content') ||
+                    $('h3').first().text() ||
+                    '';
+                const titleText = $('[data-testid="offer_title"]').text() ||
+                    $('[data-testid="ad-title"]').first().text() ||
+                    $('meta[property="og:title"]').attr('content') ||
+                    $('h1').first().text();
+                price = cleanPriceText(priceText);
                 title = titleText.trim();
             }
             if (price > 0 && title) {
@@ -86,90 +119,59 @@ exports.PriceTrackerService = {
     },
     async searchProducts(query) {
         try {
-            // Search on Uzum.uz
-            const uzumResults = await this.searchUzum(query);
-            // Search on OLX.uz
-            const olxResults = await this.searchOLX(query);
-            return [...uzumResults, ...olxResults];
+            const [uzumResults, olxResults] = await Promise.all([
+                this.searchViaDuckDuckGo('uzum.uz', query, 'Uzum'),
+                this.searchViaDuckDuckGo('olx.uz', query, 'OLX'),
+            ]);
+            const unique = new Map();
+            for (const item of [...uzumResults, ...olxResults]) {
+                if (!item.url || !item.price)
+                    continue;
+                if (!unique.has(item.url))
+                    unique.set(item.url, item);
+            }
+            return Array.from(unique.values());
         }
         catch (e) {
             logger_1.logger.error(`Price search failed: ${e.message}`);
             return [];
         }
     },
-    async searchUzum(query) {
+    async searchViaDuckDuckGo(site, query, source) {
         try {
-            const searchUrl = `https://uzum.uz/search?query=${encodeURIComponent(query)}`;
+            const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${site} ${query}`)}`;
             const { data } = await axios_1.default.get(searchUrl, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 },
-                timeout: 10000
+                timeout: 12000
             });
             const $ = cheerio.load(data);
-            $('style').remove();
-            $('script').remove();
-            const results = [];
-            // Extract product cards
-            $('.product-card, [data-testid="product-card"]').each((i, elem) => {
-                if (i >= 5)
-                    return; // Limit to 5 results
-                const title = $(elem).find('.product-title, [data-testid="product-title"]').text().trim();
-                const priceText = $(elem).find('.product-price, [data-testid="product-price"]').text().trim();
-                const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
-                const price = priceMatch ? parseInt(priceMatch[0]) : 0;
-                const link = $(elem).find('a').attr('href');
-                if (title && price > 0 && link) {
-                    results.push({
-                        title,
-                        price,
-                        url: link.startsWith('http') ? link : `https://uzum.uz${link}`,
-                        source: 'Uzum'
-                    });
-                }
-            });
-            return results;
+            const links = $('.result .result__a, .web-result .result__a')
+                .toArray()
+                .map((elem) => {
+                const href = $(elem).attr('href');
+                const url = absoluteUrl('https://html.duckduckgo.com', href);
+                const title = $(elem).text().trim();
+                return { url, title };
+            })
+                .filter((item) => item.url && item.url.includes(site))
+                .slice(0, 5);
+            const resolved = await Promise.all(links.map(async (item) => {
+                const priced = await this.fetchPrice(item.url);
+                if (!priced)
+                    return null;
+                return {
+                    title: priced.title || item.title,
+                    price: priced.price,
+                    url: item.url,
+                    source,
+                };
+            }));
+            return resolved.filter((item) => !!item);
         }
         catch (e) {
-            logger_1.logger.warn(`Uzum search failed: ${e.message}`);
-            return [];
-        }
-    },
-    async searchOLX(query) {
-        try {
-            const searchUrl = `https://www.olx.uz/list/q_${encodeURIComponent(query)}/`;
-            const { data } = await axios_1.default.get(searchUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                },
-                timeout: 10000
-            });
-            const $ = cheerio.load(data);
-            $('style').remove();
-            $('script').remove();
-            const results = [];
-            // Extract ad cards
-            $('[data-cy="l-card"]').each((i, elem) => {
-                if (i >= 5)
-                    return; // Limit to 5 results
-                const title = $(elem).find('h4, h6, [data-testid="ad-title"]').first().text().trim();
-                const priceText = $(elem).find('[data-testid="ad-price"]').text().trim();
-                const priceMatch = priceText.replace(/\s/g, '').match(/\d+/);
-                const price = priceMatch ? parseInt(priceMatch[0]) : 0;
-                const link = $(elem).find('a').attr('href');
-                if (title && link && price > 0) {
-                    results.push({
-                        title,
-                        price,
-                        url: link.startsWith('http') ? link : `https://www.olx.uz${link}`,
-                        source: 'OLX'
-                    });
-                }
-            });
-            return results;
-        }
-        catch (e) {
-            logger_1.logger.warn(`OLX search failed: ${e.message}`);
+            logger_1.logger.warn(`${source} DDG search failed: ${e.message}`);
             return [];
         }
     },
@@ -181,37 +183,34 @@ exports.PriceTrackerService = {
             const items = await database_1.DBService.getAllTrackedPrices();
             if (!items || items.length === 0)
                 return;
-            logger_1.logger.info(`🔍 Narxlar tekshirilmoqda (${items.length} ta mahsulot)...`);
+            logger_1.logger.info(`Narxlar tekshirilmoqda (${items.length} ta mahsulot)...`);
             for (const item of items) {
                 const result = await this.fetchPrice(item.url);
                 if (result) {
                     if (result.price < item.price) {
-                        // Narx tushgan!
                         const diff = item.price - result.price;
                         try {
-                            await (0, bot_instance_1.notify)(item.user_id, `📉 <b>Narx Tushdi!</b>\n\n` +
-                                `📦 <b>${result.title}</b>\n\n` +
-                                `💰 Eski narx: ${item.price.toLocaleString()} UZS\n` +
-                                `🔥 Yangi narx: <b>${result.price.toLocaleString()} UZS</b>\n\n` +
-                                `🔽 Farq: -${diff.toLocaleString()} UZS\n\n` +
-                                `🔗 <a href="${item.url}">Sotib olish</a>`, { parse_mode: 'HTML' });
+                            await (0, bot_instance_1.notify)(item.user_id, `Narx tushdi!\n\n` +
+                                `${result.title}\n\n` +
+                                `Eski narx: ${item.price.toLocaleString()} UZS\n` +
+                                `Yangi narx: ${result.price.toLocaleString()} UZS\n\n` +
+                                `Farq: -${diff.toLocaleString()} UZS\n\n` +
+                                `${item.url}`, { parse_mode: 'HTML' });
                         }
                         catch { }
                     }
                     else if (result.price > item.price && item.price > 0) {
-                        // Narx oshgan!
                         const diff = result.price - item.price;
                         try {
-                            await (0, bot_instance_1.notify)(item.user_id, `📈 <b>Narx Oshdi!</b>\n\n` +
-                                `📦 <b>${result.title}</b>\n\n` +
-                                `💰 Eski narx: ${item.price.toLocaleString()} UZS\n` +
-                                `⚠️ Yangi narx: <b>${result.price.toLocaleString()} UZS</b>\n\n` +
-                                `🔼 Farq: +${diff.toLocaleString()} UZS\n\n` +
-                                `🔗 <a href="${item.url}">Ko'rish</a>`, { parse_mode: 'HTML' });
+                            await (0, bot_instance_1.notify)(item.user_id, `Narx oshdi!\n\n` +
+                                `${result.title}\n\n` +
+                                `Eski narx: ${item.price.toLocaleString()} UZS\n` +
+                                `Yangi narx: ${result.price.toLocaleString()} UZS\n\n` +
+                                `Farq: +${diff.toLocaleString()} UZS\n\n` +
+                                `${item.url}`, { parse_mode: 'HTML' });
                         }
                         catch { }
                     }
-                    // Always update to current price to avoid spam
                     if (result.price !== item.price) {
                         await database_1.DBService.updatePrice(item.id, result.price);
                     }
