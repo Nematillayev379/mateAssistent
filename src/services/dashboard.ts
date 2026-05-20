@@ -131,12 +131,28 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     try {
       const initData = new URLSearchParams(telegramInitData);
       const hash = initData.get('hash');
-      if (!hash) return null;
+      if (!hash) {
+        logger.warn('Telegram auth failed: hash is missing');
+        return null;
+      }
 
       const authDate = initData.get('auth_date');
-      if (!authDate) return null;
+      if (!authDate) {
+        logger.warn('Telegram auth failed: auth_date is missing');
+        return null;
+      }
       const authTs = parseInt(authDate, 10);
-      if (isNaN(authTs) || Math.abs(Date.now() / 1000 - authTs) > 3600) return null;
+      if (isNaN(authTs)) {
+        logger.warn(`Telegram auth failed: auth_date "${authDate}" is not a number`);
+        return null;
+      }
+      
+      const timeDiff = Math.abs(Date.now() / 1000 - authTs);
+      // Relax window to 30 days to handle cached client data and drifted system clocks
+      if (timeDiff > 86400 * 30) {
+        logger.warn(`Telegram auth failed: auth_date age ${timeDiff}s exceeds 30 days limit`);
+        return null;
+      }
 
       initData.delete('hash');
       const keys = Array.from(initData.keys()).sort();
@@ -148,9 +164,12 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       if (calculatedHash === hash) {
         const userStr = initData.get('user');
         return userStr ? JSON.parse(userStr) : null;
+      } else {
+        logger.warn(`Telegram auth failed: hash mismatch. Calculated: ${calculatedHash}, received: ${hash}`);
+        return null;
       }
-      return null;
-    } catch (e) {
+    } catch (e: any) {
+      logger.error(`Telegram auth exception: ${e.message}`);
       return null;
     }
   };

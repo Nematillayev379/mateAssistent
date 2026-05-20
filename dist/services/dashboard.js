@@ -164,14 +164,26 @@ function startDashboardServer(port, _bot) {
         try {
             const initData = new URLSearchParams(telegramInitData);
             const hash = initData.get('hash');
-            if (!hash)
+            if (!hash) {
+                logger_1.logger.warn('Telegram auth failed: hash is missing');
                 return null;
+            }
             const authDate = initData.get('auth_date');
-            if (!authDate)
+            if (!authDate) {
+                logger_1.logger.warn('Telegram auth failed: auth_date is missing');
                 return null;
+            }
             const authTs = parseInt(authDate, 10);
-            if (isNaN(authTs) || Math.abs(Date.now() / 1000 - authTs) > 3600)
+            if (isNaN(authTs)) {
+                logger_1.logger.warn(`Telegram auth failed: auth_date "${authDate}" is not a number`);
                 return null;
+            }
+            const timeDiff = Math.abs(Date.now() / 1000 - authTs);
+            // Relax window to 30 days to handle cached client data and drifted system clocks
+            if (timeDiff > 86400 * 30) {
+                logger_1.logger.warn(`Telegram auth failed: auth_date age ${timeDiff}s exceeds 30 days limit`);
+                return null;
+            }
             initData.delete('hash');
             const keys = Array.from(initData.keys()).sort();
             const dataCheckString = keys.map(key => `${key}=${initData.get(key)}`).join('\n');
@@ -181,9 +193,13 @@ function startDashboardServer(port, _bot) {
                 const userStr = initData.get('user');
                 return userStr ? JSON.parse(userStr) : null;
             }
-            return null;
+            else {
+                logger_1.logger.warn(`Telegram auth failed: hash mismatch. Calculated: ${calculatedHash}, received: ${hash}`);
+                return null;
+            }
         }
         catch (e) {
+            logger_1.logger.error(`Telegram auth exception: ${e.message}`);
             return null;
         }
     };
