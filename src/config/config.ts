@@ -55,7 +55,9 @@ export const CONFIG = {
     .createHash('sha256')
     .update(`${process.env.DASHBOARD_SECRET || process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN || 'mateassistent'}:webhook`)
     .digest('hex'),
-  REDIS_URL: process.env.REDIS_URL || ""
+  DEFAULT_REDIS_URL: process.env.DEFAULT_REDIS_URL || "redis://127.0.0.1:6379",
+  REDIS_URL: process.env.REDIS_URL || "",
+  API_KEY_SOURCES: ['groq', 'cerebras', 'openrouter', 'gemini', 'openai', 'google'] as const
 };
 
 if (!process.env.OWNER_ID) {

@@ -27,8 +27,7 @@ exports.aiQueue = redisOptions ? new bullmq_1.Queue('ai-queue', {
     }
 }) : null;
 function isRedisAvailable() {
-    const connection = (0, redis_1.getRedisConnection)();
-    return !!connection && connection.status === 'ready';
+    return !!redisOptions;
 }
 // BUG-111 Fix: Added logging for silent fails
 async function addScraperJob(data) {

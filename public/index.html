@@ -189,6 +189,55 @@
         .admin-badge.blocked { background: #ef444433; color: var(--danger); }
         .admin-actions { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; margin-top: 8px; }
         .admin-actions .btn { width: auto; padding: 6px 10px; font-size: 0.72rem; }
+        .top-actions { display: flex; align-items: center; gap: 10px; }
+        .lang-switch {
+            min-width: 86px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            color: var(--primary);
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(56,189,248,0.24);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(56,189,248,0.08);
+            outline: none;
+        }
+        .lang-switch option { background: #0b1020; color: #f8fafc; }
+        .glass-guide {
+            background: linear-gradient(135deg, rgba(56,189,248,0.13), rgba(245,158,11,0.08));
+            border: 1px solid rgba(56,189,248,0.26);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+            padding: 15px;
+            border-radius: 14px;
+            margin-bottom: 18px;
+        }
+        .key-accordion {
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
+            background: rgba(255,255,255,0.035);
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+        }
+        .key-accordion:hover { transform: translateY(-1px); border-color: rgba(56,189,248,0.28); background: rgba(255,255,255,0.055); }
+        .key-accordion summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .key-accordion summary::-webkit-details-marker { display: none; }
+        .key-panel { padding: 0 14px 14px; color: var(--secondary); font-size: 0.82rem; animation: slideUp 0.22s ease; }
+        .cheapest-hero {
+            padding: 14px;
+            border-radius: 14px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(52,211,153,0.35);
+            background: linear-gradient(135deg, rgba(52,211,153,0.13), rgba(56,189,248,0.08));
+            box-shadow: 0 18px 45px rgba(52,211,153,0.08);
+        }
+        .mini-status { margin-top: 10px; font-size: 0.78rem; color: var(--secondary); min-height: 18px; }
         html[dir="rtl"] .item-row { flex-direction: row-reverse; }
 
         /* Toast notifications */
@@ -223,7 +272,16 @@
                     <div class="avatar" style="background: var(--accent)"><i class="fas fa-user"></i></div>
                     <div style="font-size: 0.85rem; font-weight: 600;" id="user-name">Foydalanuvchi</div>
                 </div>
-                <div id="user-premium-badge" class="badge-premium" style="display: none;"><i class="fas fa-crown"></i> ELITE</div>
+                <div class="top-actions">
+                    <select id="quick-lang" class="lang-switch" onchange="changeQuickLanguage(this.value)" aria-label="Language">
+                        <option value="uz">UZ</option>
+                        <option value="ru">RU</option>
+                        <option value="en">EN</option>
+                        <option value="tr">TR</option>
+                        <option value="de">DE</option>
+                    </select>
+                    <div id="user-premium-badge" class="badge-premium" style="display: none;"><i class="fas fa-crown"></i> ELITE</div>
+                </div>
             </header>
 
             <!-- 1. Overview Page -->
@@ -254,7 +312,7 @@
                 <div class="card">
                     <div class="card-title"><i class="fas fa-diagram-project"></i> Identity Snapshot</div>
                     <div id="home-identity-info">
-                        <div class="item-row"><span>Target Channel</span><span id="home-target-channel">Not connected ⚠️</span></div>
+                        <div class="item-row"><span>Target Channel</span><span id="home-target-channel">Not connected âš ï¸</span></div>
                     </div>
                 </div>
 
@@ -302,6 +360,26 @@
             <section id="page-studio" class="page">
                 <div class="card">
                     <div class="card-title"><i class="fas fa-robot"></i> AI SMM Studio</div>
+                    <div class="input-group">
+                        <label>Post tili</label>
+                        <select id="post-lang">
+                            <option value="uz">O'zbek</option>
+                            <option value="ru">Russian</option>
+                            <option value="en">English</option>
+                            <option value="tr">Turkish</option>
+                            <option value="de">Deutsch</option>
+                            <option value="fr">French</option>
+                            <option value="es">Spanish</option>
+                            <option value="it">Italiano</option>
+                            <option value="pt">Portuguese</option>
+                            <option value="ar">Arabic</option>
+                            <option value="hi">Hindi</option>
+                            <option value="zh">Chinese</option>
+                            <option value="ja">Japanese</option>
+                            <option value="ko">Korean</option>
+                            <option value="fa">Persian</option>
+                        </select>
+                    </div>
                     <div class="input-group"><textarea id="ai-prompt" rows="3" placeholder="Mavzu..."></textarea></div>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
                         <input type="checkbox" id="ai-image" style="width: 18px; height: 18px;"> <label for="ai-image">Rasm generatsiya qilinsin</label>
@@ -376,7 +454,7 @@
                         </select>
                     </div>
                     <div class="input-group">
-                        <div id="telegram-source-hint" style="font-size:0.75rem;color:var(--gold);margin-bottom:10px;padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;border:1px solid var(--gold); display:none;">⚠️ Botni <b>manba kanalga admin</b> qiling (@kanal yoki -100...)</div>
+                        <div id="telegram-source-hint" style="font-size:0.75rem;color:var(--gold);margin-bottom:10px;padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;border:1px solid var(--gold); display:none;">âš ï¸ Botni <b>manba kanalga admin</b> qiling (@kanal yoki -100...)</div>
                         <div id="telegram-options" style="margin-bottom:12px; display:none;">
                             <select id="channel-forward-mode" style="width:100%;padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:white;margin-bottom:8px;">
                                 <option value="copy">Copy</option><option value="forward">Forward</option>
@@ -499,15 +577,22 @@
 
                 <div class="card">
                     <div class="card-title"><i class="fas fa-key"></i> Custom API Keys</div>
-                    <div style="background: rgba(56, 189, 248, 0.1); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--accent);">
-                        <h4 style="color: var(--accent); margin-bottom: 10px;">🎁 API Kalit Qo'shish Bonuslari:</h4>
+                    <div class="glass-guide">
+                        <h4 style="color: var(--accent); margin-bottom: 10px;">API key guide</h4>
                         <ul style="font-size: 0.85rem; color: var(--secondary); margin-left: 20px;">
                             <li>Har bir API kalit uchun +1 RSS manba limiti</li>
                             <li>AI xizmatlaridan tezroq foydalanish</li>
                             <li>3 ta kalitgacha maksimal limit</li>
                         </ul>
+                        <div style="display:grid; gap:8px; margin-top:14px; font-size:0.85rem;">
+                            <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--accent);">Groq Console</a>
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--accent);">Google Gemini API keys</a>
+                            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);">OpenAI API keys</a>
+                            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent);">OpenRouter keys</a>
+                            <a href="https://cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent);">YouTube Data API / Google Cloud credentials</a>
+                        </div>
                     </div>
-                    <div class="input-group">
+                    <div id="api-key-form" class="input-group">
                         <input type="text" id="api-key" placeholder="API kaliti">
                         <select id="api-key-type" style="margin-top: 10px;">
                             <option value="groq">Groq</option>
@@ -515,19 +600,13 @@
                             <option value="openrouter">OpenRouter</option>
                             <option value="gemini">Google Gemini</option>
                             <option value="openai">OpenAI</option>
+                            <option value="google">Google / YouTube</option>
                         </select>
                     </div>
-                    <button class="btn btn-primary" onclick="addApiKey()" style="margin-bottom: 15px;">Kalit qo'shish</button>
+                    <button id="btn-add-api-key" class="btn btn-primary" onclick="addApiKey()" style="margin-bottom: 15px;">Kalit qo'shish</button>
                     <div id="api-keys-list"></div>
                 </div>
 
-                <div class="card">
-                    <div class="card-title"><i class="fas fa-info-circle"></i> API Kalitlarni Olish</div>
-                    <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6;">
-                        <p style="margin-bottom: 10px;"><strong>Groq:</strong> console.groq.com saytida API kalit oling</p>
-                        <p style="margin-bottom: 10px;"><strong>Google Gemini:</strong> makersuite.google.com saytida API kalit oling</p>
-                    </div>
-                </div>
             </section>
 
             <!-- 8. Settings Page -->
@@ -798,6 +877,22 @@
             return u && (u.role === 'owner' || u.role === 'admin' || u.is_owner);
         }
 
+        async function changeQuickLanguage(language) {
+            const setLang = document.getElementById('set-lang');
+            const postLang = document.getElementById('post-lang');
+            if (setLang) setLang.value = language;
+            if (postLang) postLang.value = language;
+            if (window.WebAppI18n) WebAppI18n.setLang(language);
+            if (userData?.user) userData.user.language = language;
+            if (userId && token) {
+                await apiFetch(`/api/settings/${userId}/extended`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-bot-token': token },
+                    body: JSON.stringify({ language })
+                }).catch(() => {});
+            }
+        }
+
         function updatePriceDisplay() {
             const pm = document.getElementById('price-monthly');
             const py = document.getElementById('price-yearly');
@@ -827,7 +922,7 @@
                 const res = await apiFetch('/api/payments/methods', { headers: { 'x-bot-token': token, 'x-user-id': userId || '' } });
                 const methods = res.ok ? await res.json() : { stars: true, payme: false, click: false };
                 const defs = [
-                    { id: 'stars', key: 'pay_stars', label: '⭐ Stars' },
+                    { id: 'stars', key: 'pay_stars', label: 'â­ Stars' },
                     { id: 'payme', key: 'pay_payme', label: 'Payme' },
                     { id: 'click', key: 'pay_click', label: 'Click' },
                 ];
@@ -847,7 +942,7 @@
                 });
             } catch (_) {
                 container.innerHTML = `
-                    <button type="button" class="btn btn-ghost pay-method-btn active" data-method="stars" onclick="setPayMethod('stars')">⭐ Stars</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn active" data-method="stars" onclick="setPayMethod('stars')">â­ Stars</button>
                     <button type="button" class="btn btn-ghost pay-method-btn" data-method="payme" onclick="setPayMethod('payme')">Payme (Demo)</button>
                     <button type="button" class="btn btn-ghost pay-method-btn" data-method="click" onclick="setPayMethod('click')">Click (Demo)</button>
                 `;
@@ -865,7 +960,7 @@
             };
             const url = routes[action];
             if (!url) return;
-            // BUG-3XX Fix: days=0 → revoke premium via existing revokePremium endpoint
+            // BUG-3XX Fix: days=0 â†’ revoke premium via existing revokePremium endpoint
             const body = (action === 'premium' || action === 'revoke')
               ? JSON.stringify({ days: action === 'revoke' ? 0 : 30 })
               : undefined;
@@ -956,7 +1051,7 @@
 function renderUI() {
              const u = userData.user || {};
              const displayName = u.username || u.first_name || u.telegram_id || u.id || 'User';
-             const roleLabel = u.role === 'owner' ? ' 👑 Owner' : (u.role === 'admin' ? ' 🛡 Admin' : '');
+             const roleLabel = u.role === 'owner' ? ' ðŸ‘‘ Owner' : (u.role === 'admin' ? ' ðŸ›¡ Admin' : '');
              document.getElementById('user-name').textContent = displayName + roleLabel;
              if (u.is_premium) {
                  document.documentElement.classList.add('premium-active');
@@ -973,11 +1068,7 @@ function renderUI() {
                  const navSettings = document.getElementById('nav-settings');
                  const adminNav = document.getElementById('nav-admin');
 
-                 if (u.role === 'owner') {
-                     if (navSettings) navSettings.style.display = 'none';
-                 } else {
-                     if (navSettings) navSettings.style.display = 'flex';
-                 }
+                 if (navSettings) navSettings.style.display = 'flex';
 
                  // Also show admin panel in navigation for easier access
                  if (!adminNav) {
@@ -1008,12 +1099,16 @@ function renderUI() {
             
             document.getElementById('set-channel').value = u.target_channel || '';
             document.getElementById('set-lang').value = u.language || 'uz';
+            const quickLang = document.getElementById('quick-lang');
+            const postLang = document.getElementById('post-lang');
+            if (quickLang) quickLang.value = u.language || 'uz';
+            if (postLang) postLang.value = u.language || 'uz';
             document.getElementById('set-interval').value = String(u.interval_minutes || 15);
             const walletState = document.getElementById('wallet-membership-state');
             if (walletState) walletState.textContent = u.is_premium ? 'Elite Member' : 'Creator';
 
             const homeTarget = document.getElementById('home-target-channel');
-            if (homeTarget) homeTarget.textContent = u.target_channel || (tt('not_set', 'Sozlanmagan') + ' ⚠️');
+            if (homeTarget) homeTarget.textContent = u.target_channel || (tt('not_set', 'Sozlanmagan') + ' âš ï¸');
 
             // UI-5 Fix: Display full user info - connected RSS and channel
             const userInfo = document.getElementById('user-info') || document.createElement('div');
@@ -1037,7 +1132,7 @@ function renderUI() {
             sch.innerHTML = '';
             if (userData.scheduled?.length) {
                 userData.scheduled.slice(0, 3).forEach(p => {
-                    sch.innerHTML += `<div class="item-row"><div><h4>${p.type.toUpperCase()}</h4><p>${new Date(p.scheduled_at).toLocaleTimeString()}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="cancelScheduled(${p.id})">❌</button></div>`;
+                    sch.innerHTML += `<div class="item-row"><div><h4>${p.type.toUpperCase()}</h4><p>${new Date(p.scheduled_at).toLocaleTimeString()}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="cancelScheduled(${p.id})">âŒ</button></div>`;
                 });
             } else sch.innerHTML = `<p style="color:var(--secondary); font-size:0.8rem">${tt('home_no_scheduled', 'Navbatda postlar yo\'q.')}</p>`;
 
@@ -1060,7 +1155,7 @@ function renderUI() {
                 if (Array.isArray(data) && data.length > 0) {
                     data.slice(0, 3).forEach(s => {
                         homeSourcesList.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:6px 10px; border-radius:6px; border:1px solid var(--border); margin-bottom: 6px;">
-                            <span>🟢 ${s.name}</span>
+                            <span>ðŸŸ¢ ${s.name}</span>
                             <span style="font-size:0.75rem; color:var(--secondary);">${s.lang.toUpperCase()}</span>
                         </div>`;
                     });
@@ -1109,7 +1204,8 @@ function renderUI() {
                 ? '<i class="fas fa-spinner fa-spin"></i> Matn va rasm tayyorlanmoqda...'
                 : '<i class="fas fa-spinner fa-spin"></i> Matn tayyorlanmoqda...';
             try {
-                const res = await apiFetch('/api/ai/smm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ prompt, withImage: document.getElementById('ai-image').checked }) });
+                const language = document.getElementById('post-lang')?.value || userData?.user?.language || 'uz';
+                const res = await apiFetch('/api/ai/smm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ prompt, language, withImage: document.getElementById('ai-image').checked }) });
                 if (!res.ok) {
                     const error = await res.json();
                     throw new Error(error.error || 'Xatolik yuz berdi');
@@ -1270,7 +1366,7 @@ function renderUI() {
                     throw new Error(err.error || 'Server xatosi');
                 }
                 const blob = await res.blob();
-                if (blob.size < 1000) throw new Error('Fayl juda kichik — yuklash muvaffaqiyatsiz');
+                if (blob.size < 1000) throw new Error('Fayl juda kichik â€” yuklash muvaffaqiyatsiz');
                 triggerBrowserDownload(blob, `media_${Date.now()}.${ext}`);
             } catch (e) {
                 showToast('Xatolik: ' + e.message, 'error');
@@ -1458,17 +1554,38 @@ function renderUI() {
             const data = await r.json();
             const list = document.getElementById('api-keys-list');
             list.innerHTML = '';
+            const canManage = isAdminUser(userData?.user || {});
+            const form = document.getElementById('api-key-form');
+            const addBtn = document.getElementById('btn-add-api-key');
+            if (form) form.style.display = canManage ? 'block' : 'none';
+            if (addBtn) addBtn.style.display = canManage ? 'flex' : 'none';
             if (Array.isArray(data)) {
+                if (!data.length) {
+                    list.innerHTML = '<p style="color:var(--secondary);font-size:0.85rem;">API key hali qo\'shilmagan.</p>';
+                    return;
+                }
                 data.forEach(k => {
-                    const safeKey = k.api_key ? k.api_key.slice(0, 10) : 'Noma\'lum';
-                    list.innerHTML += `<div class="item-row"><div><h4>${k.api_type || 'Kalit'}</h4><p>${safeKey}...</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteApiKey('${k.api_key}')">❌</button></div>`;
+                    const raw = k.api_key || '';
+                    const safeKey = raw.length > 10 ? `${raw.slice(0, 6)}...${raw.slice(-4)}` : 'Noma\'lum';
+                    list.innerHTML += `
+                        <details class="key-accordion">
+                            <summary>
+                                <span><i class="fas fa-key" style="color:var(--accent);"></i> ${escapeHtml(k.api_type || 'Kalit')}</span>
+                                <span style="color:var(--secondary);font-size:0.78rem;">${escapeHtml(safeKey)}</span>
+                            </summary>
+                            <div class="key-panel">
+                                <p>ID: ${k.id || '-'}</p>
+                                <p>Status: ${k.is_active === false ? 'Inactive' : 'Active'}</p>
+                                ${canManage ? `<button class="btn btn-ghost" style="width:auto; padding:7px 10px; color:var(--danger); margin-top:10px;" onclick="deleteApiKey(${k.id})"><i class="fas fa-trash"></i> Delete</button>` : ''}
+                            </div>
+                        </details>`;
                 });
             }
         }
 
-        async function deleteApiKey(key) {
+        async function deleteApiKey(id) {
             if (confirm('Kalitni o\'chirasizmi?')) {
-                const res = await apiFetch(`/api/keys/${userId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ key }) });
+                const res = await apiFetch(`/api/keys/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'x-bot-token': token } });
                 if (res.ok) fetchApiKeys();
             }
         }
@@ -1477,8 +1594,12 @@ function renderUI() {
             const key = document.getElementById('api-key').value;
             const type = document.getElementById('api-key-type').value;
             if (!key) return;
-            const res = await apiFetch(`/api/keys/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ key, type }) });
+            const res = await apiFetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ userId, key, type }) });
             if (res.ok) { document.getElementById('api-key').value = ''; fetchApiKeys(); }
+            else {
+                const err = await res.json().catch(() => ({}));
+                showToast(err.error || 'API key saqlanmadi', 'error');
+            }
         }
 
         async function fetchTickets() {
@@ -1508,7 +1629,7 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(p => {
-                    list.innerHTML += `<div class="item-row"><div><h4><a href="${p.url}" target="_blank" style="color:white; text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.7rem; color:var(--secondary); margin-right:4px;"></i> ${p.item_name}</a></h4><p>${p.last_price.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${p.id})">❌</button></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4><a href="${p.url}" target="_blank" style="color:white; text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.7rem; color:var(--secondary); margin-right:4px;"></i> ${p.item_name}</a></h4><p>${p.last_price.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${p.id})">âŒ</button></div>`;
                 });
             }
         }
@@ -1529,11 +1650,28 @@ function renderUI() {
             list.innerHTML = '<div style="text-align:center; padding:10px; color:var(--secondary);"><i class="fas fa-spinner fa-spin"></i> Eng arzon narxlar qidirilmoqda...</div>';
 
             try {
-                const res = await apiFetch(`/api/tracker/search?q=${encodeURIComponent(query)}`, { headers: { 'x-bot-token': token } });
+                const res = await apiFetch(`/api/tracker/cheapest?q=${encodeURIComponent(query)}`, { headers: { 'x-bot-token': token } });
                 if (!res.ok) throw new Error('Qidiruv muvaffaqiyatsiz');
-                const data = await res.json();
+                const payload = await res.json();
+                const data = Array.isArray(payload.bySource) ? payload.bySource : [];
                 list.innerHTML = '';
-                if (Array.isArray(data) && data.length > 0) {
+                if (payload.cheapest) {
+                    const best = payload.cheapest;
+                    list.innerHTML += `
+                        <div class="cheapest-hero">
+                            <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+                                <div style="min-width:0;">
+                                    <p style="font-size:0.72rem;color:var(--success);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Eng arzon topildi</p>
+                                    <h4 style="margin:6px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                        <a href="${best.url}" target="_blank" style="color:white;text-decoration:none;">${escapeHtml(best.title)}</a>
+                                    </h4>
+                                    <p style="color:var(--success);font-weight:800;">${best.price.toLocaleString()} UZS <span style="color:var(--secondary);font-weight:500;">${escapeHtml(best.source)}</span></p>
+                                </div>
+                                <button class="btn btn-primary" style="width:auto; padding:8px 12px; font-size:0.78rem;" onclick="trackSearchProduct('${best.url}', '${best.title.replace(/'/g, "\\'")}', ${best.price}, this)"><i class="fas fa-bell"></i></button>
+                            </div>
+                        </div>`;
+                }
+                if (data.length > 0) {
                     data.forEach(p => {
                         list.innerHTML += `
                             <div class="item-row" style="margin-bottom: 6px; padding: 8px 12px; background: rgba(255,255,255,0.01);">
@@ -1605,7 +1743,7 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(c => {
-                    list.innerHTML += `<div class="item-row"><div><h4>${c.name}</h4><p>${c.platform}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteChannel(${c.id})">❌</button></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4>${c.name}</h4><p>${c.platform}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteChannel(${c.id})">âŒ</button></div>`;
                 });
             }
             // Set initial visibility state for telegram options
@@ -1760,7 +1898,7 @@ function renderUI() {
             const status = document.getElementById('premium-status');
             const plans = document.getElementById('premium-plans');
             if (u.is_premium) {
-                if (status) status.innerHTML = `<div style="color: var(--gold); font-weight: bold; margin-bottom: 10px;">✅ ${typeof t==='function'?t('premium_active'):'Premium faol'}</div>`;
+                if (status) status.innerHTML = `<div style="color: var(--gold); font-weight: bold; margin-bottom: 10px;">âœ… ${typeof t==='function'?t('premium_active'):'Premium faol'}</div>`;
             } else {
                 if (status) status.innerHTML = `<div style="color: var(--secondary); margin-bottom: 10px;">${typeof t==='function'?t('premium_inactive'):'Premium faol emas'}</div>`;
             }
@@ -1775,7 +1913,7 @@ function renderUI() {
                     const infoEl = document.getElementById('premium-info');
                     if (infoEl) {
                         let text = '<b>Imtiyozlar:</b><br>';
-                        data.benefits.forEach(b => text += '• ' + b + '<br>');
+                        data.benefits.forEach(b => text += 'â€¢ ' + b + '<br>');
                         if (data.isActive && data.expiresAt) {
                             text = `<b>Faol:</b> ${new Date(data.expiresAt).toLocaleDateString()}<br><br>` + text;
                         }
@@ -1912,5 +2050,6 @@ function renderUI() {
     </script>
 </body>
 </html>
+
 
 

@@ -272,6 +272,11 @@ export const DBService = {
     if (error) logger.error(`removeApiKey error: ${error.message}`);
   },
 
+  async removeApiKeyById(id: number) {
+    const { error } = await supabase.from('api_keys').delete().eq('id', id);
+    if (error) logger.error(`removeApiKeyById error: ${error.message}`);
+  },
+
   async getUserApiKeyCount(userId: number): Promise<number> {
     const { count, error } = await supabase.from('api_keys').select('*', { count: 'exact', head: true }).eq('user_id', userId);
     if (error) logger.error(`getUserApiKeyCount error: ${error.message}`);

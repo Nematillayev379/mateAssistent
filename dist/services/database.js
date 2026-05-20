@@ -126,7 +126,7 @@ exports.DBService = {
         const { data, error } = await supabase
             .from('users')
             .select('*')
-            .eq('is_active', 1)
+            .or('is_active.eq.1,is_active.is.null')
             .not('target_channel', 'is', null)
             .eq('is_approved', 1);
         if (error)
@@ -138,8 +138,11 @@ exports.DBService = {
         const insertData = {
             telegram_id: telegramId,
             is_owner: isOwner,
+            is_active: 1,
             is_approved: 1, // BUG FIX: Allow normal users to enter without manual approval
             role: isOwner === 1 ? 'owner' : 'user',
+            interval_minutes: 15,
+            language: 'uz',
             username: username || null,
             first_name: firstName || null,
         };
@@ -262,6 +265,11 @@ exports.DBService = {
         const { error } = await supabase.from('api_keys').delete().eq('user_id', userId).eq('api_key', key);
         if (error)
             logger_1.logger.error(`removeApiKey error: ${error.message}`);
+    },
+    async removeApiKeyById(id) {
+        const { error } = await supabase.from('api_keys').delete().eq('id', id);
+        if (error)
+            logger_1.logger.error(`removeApiKeyById error: ${error.message}`);
     },
     async getUserApiKeyCount(userId) {
         const { count, error } = await supabase.from('api_keys').select('*', { count: 'exact', head: true }).eq('user_id', userId);

@@ -475,7 +475,7 @@ function startDashboardServer(port, _bot) {
     app.get('/api/admin/system', checkAdmin, async (req, res) => {
         let redisStatus = false;
         try {
-            const redis = (await Promise.resolve().then(() => __importStar(require('../services/redis')))).getRedisConnection();
+            const redis = await (await Promise.resolve().then(() => __importStar(require('../services/redis')))).getRedisConnection();
             if (redis) {
                 await redis.ping();
                 redisStatus = true;
@@ -627,7 +627,8 @@ function startDashboardServer(port, _bot) {
             });
         }
         catch (e) {
-            res.status(500).json({ error: e.message });
+            logger_1.logger.warn(`Music download failed for ${videoId}: ${e.message}`);
+            res.status(502).json({ error: 'Download failed', details: e.message });
         }
     });
     app.post('/api/media/download', checkAuth, async (req, res) => {
@@ -651,7 +652,8 @@ function startDashboardServer(port, _bot) {
             });
         }
         catch (e) {
-            res.status(500).json({ error: e.message });
+            logger_1.logger.warn(`Media download failed: ${e.message}`);
+            res.status(502).json({ error: 'Download failed', details: e.message });
         }
     });
     app.get('/api/finance/prices', checkAuth, async (req, res) => {
@@ -666,7 +668,7 @@ function startDashboardServer(port, _bot) {
     });
     // BUG-060 Fix: Parse withImage as boolean properly
     app.post('/api/ai/smm', checkAuth, aiLimiter, async (req, res) => {
-        const { prompt, withImage } = req.body;
+        const { prompt, withImage, language } = req.body;
         if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
             return res.status(400).json({ error: 'Prompt bo\'sh bo\'lishi mumkin emas.' });
         }
@@ -674,7 +676,8 @@ function startDashboardServer(port, _bot) {
         const wantImage = withImage === true || withImage === 'true';
         try {
             const user = await database_1.DBService.getUser(parseInt(req.authenticatedUserId));
-            const textPromise = (0, ai_1.generateSmmPost)(topic, user?.language || 'uz');
+            const postLanguage = typeof language === 'string' && language.trim() ? language.trim().slice(0, 8) : user?.language || 'uz';
+            const textPromise = (0, ai_1.generateSmmPost)(topic, postLanguage);
             const imagePromise = wantImage ? (0, ai_1.generateSmmImage)(topic) : Promise.resolve(null);
             const [text, img] = await Promise.all([textPromise, imagePromise]);
             let imageUrl = img?.imageUrl || null;
@@ -727,6 +730,27 @@ function startDashboardServer(port, _bot) {
             const results = await PriceTrackerService.searchProducts(q.trim());
             const sorted = results.sort((a, b) => a.price - b.price);
             res.json(sorted);
+        }
+        catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+    app.get('/api/tracker/cheapest', checkAuth, async (req, res) => {
+        const q = req.query.q;
+        if (!q || typeof q !== 'string' || q.trim() === '') {
+            return res.status(400).json({ error: 'Qidiruv so\'rovi kiritilmagan' });
+        }
+        try {
+            const { PriceTrackerService } = await Promise.resolve().then(() => __importStar(require('./pricetracker')));
+            const results = await PriceTrackerService.searchProducts(q.trim());
+            const cheapest = results[0] || null;
+            const bySource = Array.from(results.reduce((acc, item) => {
+                const current = acc.get(item.source);
+                if (!current || item.price < current.price)
+                    acc.set(item.source, item);
+                return acc;
+            }, new Map())).map(([, value]) => value).sort((a, b) => a.price - b.price);
+            res.json({ cheapest, bySource });
         }
         catch (e) {
             res.status(500).json({ error: e.message });
@@ -968,12 +992,29 @@ function startDashboardServer(port, _bot) {
         const keys = await database_1.DBService.getUserApiKeys(parseInt(req.authenticatedUserId));
         res.json(keys);
     });
-    app.post('/api/keys/:userId', checkAuth, async (req, res) => {
+    app.post('/api/keys', checkAdmin, async (req, res) => {
+        const userIdForKey = Number(req.body?.userId || req.authenticatedUserId);
+        const { key, type } = req.body;
+        if (!userIdForKey || !key || !type || typeof key !== 'string' || typeof type !== 'string') {
+            return res.status(400).json({ error: 'Invalid api key payload' });
+        }
+        const validTypes = config_1.CONFIG.API_KEY_SOURCES;
+        if (!validTypes.includes(type)) {
+            return res.status(400).json({ error: 'Unsupported API key type' });
+        }
+        const isValid = await (0, ai_1.validateKey)(type, key);
+        if (!isValid)
+            return res.status(400).json({ error: 'API key validation failed' });
+        const { ApiKeyService } = await Promise.resolve().then(() => __importStar(require('./apiKeys')));
+        await ApiKeyService.addKey(userIdForKey, type, key);
+        res.json({ success: true });
+    });
+    app.post('/api/keys/:userId', checkAdmin, async (req, res) => {
         const { key, type } = req.body;
         if (!key || !type || typeof key !== 'string' || typeof type !== 'string') {
             return res.status(400).json({ error: 'Invalid api key payload' });
         }
-        const validTypes = ['groq', 'cerebras', 'openrouter', 'gemini', 'openai', 'google'];
+        const validTypes = config_1.CONFIG.API_KEY_SOURCES;
         if (!validTypes.includes(type)) {
             return res.status(400).json({ error: 'Unsupported API key type' });
         }
@@ -1022,7 +1063,20 @@ function startDashboardServer(port, _bot) {
                 return res.status(400).json({ error: e.message || 'Channel verification failed' });
             }
         }
-        const ok = await database_1.DBService.updateUser(userId, { language, target_channel, daily_digest, digest_time, schedule_times, interval_minutes: safeInterval });
+        const updates = {};
+        if (language !== undefined)
+            updates.language = language;
+        if (target_channel !== undefined)
+            updates.target_channel = target_channel;
+        if (daily_digest !== undefined)
+            updates.daily_digest = daily_digest;
+        if (digest_time !== undefined)
+            updates.digest_time = digest_time;
+        if (schedule_times !== undefined)
+            updates.schedule_times = schedule_times;
+        if (interval_minutes !== undefined)
+            updates.interval_minutes = safeInterval;
+        const ok = Object.keys(updates).length ? await database_1.DBService.updateUser(userId, updates) : true;
         if (!ok)
             return res.status(500).json({ error: 'Settings update failed' });
         if (keywords !== undefined)
@@ -1087,12 +1141,12 @@ function startDashboardServer(port, _bot) {
         }
         res.status(400).json({ error: 'Unsupported method' });
     });
-    app.delete('/api/keys/:userId', checkAuth, async (req, res) => {
-        const { key } = req.body;
-        if (!key || typeof key !== 'string') {
-            return res.status(400).json({ error: 'API key required' });
-        }
-        await database_1.DBService.removeApiKey(parseInt(req.authenticatedUserId), key);
+    app.delete('/api/keys/:id', checkAdmin, async (req, res) => {
+        const id = Number(req.params.id);
+        if (!id || Number.isNaN(id))
+            return res.status(400).json({ error: 'API key id required' });
+        const { ApiKeyService } = await Promise.resolve().then(() => __importStar(require('./apiKeys')));
+        await ApiKeyService.removeKey(id);
         res.json({ success: true });
     });
     // BUG-062 Fix: Require PAYME_KEY for webhook processing

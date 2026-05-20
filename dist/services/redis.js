@@ -9,9 +9,38 @@ const ioredis_1 = __importDefault(require("ioredis"));
 const config_1 = require("../config/config");
 const logger_1 = require("../utils/logger");
 let redisConnection = null;
+let connectPromise = null;
+let memoryConnection = null;
+function getMemoryConnection() {
+    if (memoryConnection)
+        return memoryConnection;
+    const store = new Map();
+    memoryConnection = {
+        status: 'ready',
+        async ping() {
+            return 'PONG';
+        },
+        async get(key) {
+            return store.get(key) ?? null;
+        },
+        async set(key, value) {
+            store.set(key, value);
+            return 'OK';
+        },
+        async del(...keys) {
+            let removed = 0;
+            for (const key of keys) {
+                if (store.delete(key))
+                    removed += 1;
+            }
+            return removed;
+        },
+    };
+    return memoryConnection;
+}
 function getRedisOptions() {
     if (!config_1.CONFIG.REDIS_URL || config_1.CONFIG.REDIS_URL.trim() === '') {
-        logger_1.logger.info('ℹ️ REDIS_URL not configured - Redis features disabled');
+        logger_1.logger.info('REDIS_URL not configured - queue workers disabled, in-memory Redis fallback enabled');
         return null;
     }
     return {
@@ -31,28 +60,23 @@ function getRedisOptions() {
         }
     };
 }
-// BUG-113 Fix: Allow retry on connection failure
-function getRedisConnection() {
+async function getRedisConnection() {
+    const redisOptions = getRedisOptions();
+    if (!redisOptions)
+        return getMemoryConnection();
     if (!redisConnection) {
-        const redisOptions = getRedisOptions();
-        if (!redisOptions)
-            return null;
         try {
             redisConnection = new ioredis_1.default(redisOptions);
             redisConnection.on('error', (err) => {
                 logger_1.logger.error(`Redis connection error: ${err.message}`);
             });
             redisConnection.on('connect', () => {
-                logger_1.logger.info('✅ Shared Redis connection established');
+                logger_1.logger.info('Shared Redis connection established');
             });
-            // BUG-113 Fix: Reset connection on close so next call can retry
             redisConnection.on('close', () => {
-                logger_1.logger.warn('⚠️ Redis connection closed');
+                logger_1.logger.warn('Redis connection closed');
                 redisConnection = null;
-            });
-            redisConnection.connect().catch((err) => {
-                logger_1.logger.error(`Redis connect failed: ${err.message}`);
-                redisConnection = null;
+                connectPromise = null;
             });
         }
         catch (err) {
@@ -60,6 +84,17 @@ function getRedisConnection() {
             redisConnection = null;
             return null;
         }
+    }
+    if (redisConnection.status !== 'ready') {
+        connectPromise ||= redisConnection.connect()
+            .then(() => redisConnection)
+            .catch((err) => {
+            logger_1.logger.error(`Redis connect failed: ${err.message}`);
+            redisConnection = null;
+            connectPromise = null;
+            return null;
+        });
+        await connectPromise;
     }
     return redisConnection;
 }

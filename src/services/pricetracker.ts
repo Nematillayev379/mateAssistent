@@ -6,7 +6,11 @@ import { notify } from './bot_instance';
 
 let isPriceCheckRunning = false;
 
-type SearchResult = { title: string, price: number, url: string, source: string };
+export type SearchResult = { title: string, price: number, url: string, source: string };
+
+function hasValidPrice(item: SearchResult): boolean {
+  return Number.isFinite(item.price) && item.price > 0;
+}
 
 function cleanPriceText(input: string): number {
   const normalized = String(input || '')
@@ -96,14 +100,29 @@ export const PriceTrackerService = {
 
       const unique = new Map<string, SearchResult>();
       for (const item of [...uzumResults, ...olxResults]) {
-        if (!item.url || !item.price) continue;
+        if (!item.url || !hasValidPrice(item)) continue;
         if (!unique.has(item.url)) unique.set(item.url, item);
       }
-      return Array.from(unique.values());
+      return Array.from(unique.values()).sort((a, b) => a.price - b.price);
     } catch (e: any) {
       logger.error(`Price search failed: ${e.message}`);
       return [];
     }
+  },
+
+  async searchCheapestProduct(query: string): Promise<SearchResult | null> {
+    const results = await this.searchProducts(query);
+    return results.find(hasValidPrice) ?? null;
+  },
+
+  async searchCheapestBySource(query: string): Promise<SearchResult[]> {
+    const results = await this.searchProducts(query);
+    const cheapest = new Map<string, SearchResult>();
+    for (const item of results) {
+      const current = cheapest.get(item.source);
+      if (!current || item.price < current.price) cheapest.set(item.source, item);
+    }
+    return Array.from(cheapest.values()).sort((a, b) => a.price - b.price);
   },
 
   async searchViaDuckDuckGo(site: string, query: string, source: string): Promise<SearchResult[]> {

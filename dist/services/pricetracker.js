@@ -43,6 +43,9 @@ const logger_1 = require("../utils/logger");
 const database_1 = require("./database");
 const bot_instance_1 = require("./bot_instance");
 let isPriceCheckRunning = false;
+function hasValidPrice(item) {
+    return Number.isFinite(item.price) && item.price > 0;
+}
 function cleanPriceText(input) {
     const normalized = String(input || '')
         .replace(/&nbsp;/g, ' ')
@@ -125,17 +128,31 @@ exports.PriceTrackerService = {
             ]);
             const unique = new Map();
             for (const item of [...uzumResults, ...olxResults]) {
-                if (!item.url || !item.price)
+                if (!item.url || !hasValidPrice(item))
                     continue;
                 if (!unique.has(item.url))
                     unique.set(item.url, item);
             }
-            return Array.from(unique.values());
+            return Array.from(unique.values()).sort((a, b) => a.price - b.price);
         }
         catch (e) {
             logger_1.logger.error(`Price search failed: ${e.message}`);
             return [];
         }
+    },
+    async searchCheapestProduct(query) {
+        const results = await this.searchProducts(query);
+        return results.find(hasValidPrice) ?? null;
+    },
+    async searchCheapestBySource(query) {
+        const results = await this.searchProducts(query);
+        const cheapest = new Map();
+        for (const item of results) {
+            const current = cheapest.get(item.source);
+            if (!current || item.price < current.price)
+                cheapest.set(item.source, item);
+        }
+        return Array.from(cheapest.values()).sort((a, b) => a.price - b.price);
     },
     async searchViaDuckDuckGo(site, query, source) {
         try {

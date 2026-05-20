@@ -1,6 +1,6 @@
 import { Queue } from 'bullmq';
 import { logger } from '../utils/logger';
-import { getRedisOptions, getRedisConnection } from './redis';
+import { getRedisOptions } from './redis';
 
 const redisOptions = getRedisOptions();
 
@@ -25,8 +25,7 @@ export const aiQueue = redisOptions ? new Queue('ai-queue', {
 }) : null;
 
 export function isRedisAvailable(): boolean {
-  const connection = getRedisConnection();
-  return !!connection && connection.status === 'ready';
+  return !!redisOptions;
 }
 
 // BUG-111 Fix: Added logging for silent fails
