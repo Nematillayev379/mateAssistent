@@ -41,6 +41,7 @@ const setchannel_1 = require("./setchannel");
 const status_1 = require("./status");
 const track_1 = require("./track");
 const start_1 = require("./start");
+const lang_1 = require("./lang");
 const database_1 = require("../services/database");
 const logger_1 = require("../utils/logger");
 const i18n_1 = require("../services/i18n");
@@ -55,6 +56,7 @@ exports.commands = [
     admin_1.adminCommand,
     setchannel_1.setChannelCommand,
     help_1.helpCommand,
+    lang_1.langCommand,
 ];
 function extractUrlFromText(text) {
     const match = text.match(/(https?:\/\/[^\s]+)/);
@@ -404,8 +406,19 @@ function registerCommands(bot) {
             }
             if (data === "cmd_settings") {
                 await bot.sendMessage(chatId, i18n_1.i18n.t("bot_settings_panel", { lng: lang }), {
-                    reply_markup: { inline_keyboard: [[{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }]] },
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }],
+                            [{ text: "🌐 Language / Tilni o'zgartirish", callback_data: "cmd_lang" }]
+                        ]
+                    },
                 });
+                return;
+            }
+            if (data === "cmd_lang") {
+                const { sendLanguageStep } = await Promise.resolve().then(() => __importStar(require("./start")));
+                await sendLanguageStep(bot, chatId);
+                await bot.answerCallbackQuery(query.id).catch(() => { });
                 return;
             }
             if (data === "cmd_stats" || data === "cmd_analytics") {

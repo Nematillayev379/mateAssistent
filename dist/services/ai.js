@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -57,8 +24,8 @@ exports.generateSummary = generateSummary;
 exports.generateTTS = generateTTS;
 const openai_1 = require("openai");
 const groq_sdk_1 = __importDefault(require("groq-sdk"));
-const googleTTS = __importStar(require("google-tts-api"));
 const crypto_1 = __importDefault(require("crypto"));
+const axios_1 = __importDefault(require("axios"));
 const config_1 = require("../config/config");
 const logger_1 = require("../utils/logger");
 const database_1 = require("./database");
@@ -745,15 +712,51 @@ async function generateSummary(title, content) {
 // B-30 Fix: Increase TTS text limit to 500-800 chars for better summaries
 async function generateTTS(text) {
     try {
-        // Increase limit to 800 chars for better audio summaries
         const safeText = text.slice(0, 800);
-        const allAudio = await googleTTS.getAllAudioBase64(safeText, {
-            lang: 'uz',
-            slow: false,
-            host: 'https://translate.google.com',
-            timeout: 15000,
-        });
-        const buffers = allAudio.map(a => Buffer.from(a.base64, 'base64'));
+        const chunks = [];
+        let remaining = safeText;
+        while (remaining.length > 0) {
+            if (remaining.length <= 180) {
+                chunks.push(remaining);
+                break;
+            }
+            let splitIdx = -1;
+            const sub = remaining.slice(0, 180);
+            const punctuations = ['.', '?', '!', ';', ',', ' '];
+            for (const char of punctuations) {
+                const lastIdx = sub.lastIndexOf(char);
+                if (lastIdx > splitIdx) {
+                    splitIdx = lastIdx;
+                }
+            }
+            if (splitIdx === -1) {
+                splitIdx = 180;
+            }
+            else {
+                splitIdx += 1;
+            }
+            chunks.push(remaining.slice(0, splitIdx));
+            remaining = remaining.slice(splitIdx);
+        }
+        const buffers = [];
+        for (const chunk of chunks) {
+            const cleanChunk = chunk.trim();
+            if (!cleanChunk)
+                continue;
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanChunk)}&tl=uz&client=tw-ob`;
+            const response = await axios_1.default.get(url, {
+                responseType: 'arraybuffer',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Referer': 'https://translate.google.com/',
+                },
+                timeout: 15000,
+            });
+            buffers.push(Buffer.from(response.data));
+            await new Promise((r) => setTimeout(r, 150));
+        }
+        if (buffers.length === 0)
+            return null;
         return Buffer.concat(buffers);
     }
     catch (e) {

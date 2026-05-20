@@ -79,7 +79,7 @@ async function sendWelcomeMenu(
   });
 }
 
-async function sendLanguageStep(bot: TelegramBot, chatId: number): Promise<void> {
+export async function sendLanguageStep(bot: TelegramBot, chatId: number): Promise<void> {
   await bot.sendMessage(
     chatId,
     `${i18n.t("intro_title", { lng: "en" })}\n\n${i18n.t("intro_body", { lng: "en" })}\n\n${i18n.t("bot_choose_language", { lng: "en" })}`,

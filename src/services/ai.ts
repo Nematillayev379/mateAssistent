@@ -2,6 +2,7 @@ import { OpenAI } from "openai";
 import Groq from "groq-sdk";
 import * as googleTTS from "google-tts-api";
 import crypto from 'crypto';
+import axios from 'axios';
 import { buildKeyPoolFromEnv, countKeysByProvider, CONFIG, MAX_TOKENS_BY_PROVIDER } from "../config/config";
 import type { AiKeyEntry } from "../config/config";
 import { logger } from "../utils/logger";
@@ -760,15 +761,55 @@ export async function generateSummary(title: string, content: string): Promise<s
 // B-30 Fix: Increase TTS text limit to 500-800 chars for better summaries
 export async function generateTTS(text: string): Promise<Buffer | null> {
   try {
-    // Increase limit to 800 chars for better audio summaries
     const safeText = text.slice(0, 800);
-    const allAudio = await googleTTS.getAllAudioBase64(safeText, {
-      lang: 'uz',
-      slow: false,
-      host: 'https://translate.google.com',
-      timeout: 15000,
-    });
-    const buffers = allAudio.map(a => Buffer.from(a.base64, 'base64'));
+    const chunks: string[] = [];
+    let remaining = safeText;
+
+    while (remaining.length > 0) {
+      if (remaining.length <= 180) {
+        chunks.push(remaining);
+        break;
+      }
+
+      let splitIdx = -1;
+      const sub = remaining.slice(0, 180);
+      const punctuations = ['.', '?', '!', ';', ',', ' '];
+      for (const char of punctuations) {
+        const lastIdx = sub.lastIndexOf(char);
+        if (lastIdx > splitIdx) {
+          splitIdx = lastIdx;
+        }
+      }
+
+      if (splitIdx === -1) {
+        splitIdx = 180;
+      } else {
+        splitIdx += 1;
+      }
+
+      chunks.push(remaining.slice(0, splitIdx));
+      remaining = remaining.slice(splitIdx);
+    }
+
+    const buffers: Buffer[] = [];
+    for (const chunk of chunks) {
+      const cleanChunk = chunk.trim();
+      if (!cleanChunk) continue;
+
+      const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanChunk)}&tl=uz&client=tw-ob`;
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://translate.google.com/',
+        },
+        timeout: 15000,
+      });
+      buffers.push(Buffer.from(response.data));
+      await new Promise((r) => setTimeout(r, 150));
+    }
+
+    if (buffers.length === 0) return null;
     return Buffer.concat(buffers);
   } catch (e: any) {
     logger.error(`TTS Error: ${e.message}`);

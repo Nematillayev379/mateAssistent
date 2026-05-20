@@ -252,17 +252,23 @@ async function downloadYouTube(urlParam, typeParam) {
             audioOnly: typeParam === 'audio',
         });
         if (cobaltUrl) {
-            const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
-            const filePath = path_1.default.join(TEMP_DIR, `yt_${stamp}.${ext}`);
-            const response = await axios_1.default.get(cobaltUrl, {
-                responseType: 'arraybuffer',
-                timeout: 120000,
-                maxContentLength: 52 * 1024 * 1024,
-                headers: { 'User-Agent': 'Mozilla/5.0' },
-            });
-            fs_1.default.writeFileSync(filePath, Buffer.from(response.data));
-            if (fs_1.default.statSync(filePath).size > 0)
-                return filePath;
+            try {
+                const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
+                const filePath = path_1.default.join(TEMP_DIR, `yt_${stamp}.${ext}`);
+                const response = await axios_1.default.get(cobaltUrl, {
+                    responseType: 'arraybuffer',
+                    timeout: 45000,
+                    maxContentLength: 52 * 1024 * 1024,
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+                });
+                fs_1.default.writeFileSync(filePath, Buffer.from(response.data));
+                if (fs_1.default.statSync(filePath).size > 0)
+                    return filePath;
+            }
+            catch (dlErr) {
+                logger_1.logger.warn(`Failed to download cobaltUrl locally (${dlErr.message}). Returning Cobalt URL directly for Telegram to resolve.`);
+                return cobaltUrl;
+            }
         }
     }
     catch (e) {

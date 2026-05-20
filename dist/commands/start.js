@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startCommand = void 0;
+exports.sendLanguageStep = sendLanguageStep;
 exports.sendNextOnboardingStep = sendNextOnboardingStep;
 const database_1 = require("../services/database");
 const config_1 = require("../config/config");

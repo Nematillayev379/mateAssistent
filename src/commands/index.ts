@@ -5,6 +5,7 @@ import { setChannelCommand } from "./setchannel";
 import { statusCommand } from "./status";
 import { trackCommand } from "./track";
 import { sendNextOnboardingStep, startCommand } from "./start";
+import { langCommand } from "./lang";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
@@ -21,6 +22,7 @@ export const commands: BotCommand[] = [
   adminCommand,
   setChannelCommand,
   helpCommand,
+  langCommand,
 ];
 
 interface UserStateEntry {
@@ -404,8 +406,20 @@ export function registerCommands(bot: TelegramBot) {
 
       if (data === "cmd_settings") {
         await bot.sendMessage(chatId, i18n.t("bot_settings_panel", { lng: lang }), {
-          reply_markup: { inline_keyboard: [[{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }]] },
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }],
+              [{ text: "🌐 Language / Tilni o'zgartirish", callback_data: "cmd_lang" }]
+            ]
+          },
         });
+        return;
+      }
+
+      if (data === "cmd_lang") {
+        const { sendLanguageStep } = await import("./start");
+        await sendLanguageStep(bot, chatId);
+        await bot.answerCallbackQuery(query.id).catch(() => {});
         return;
       }
 
