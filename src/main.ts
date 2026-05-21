@@ -107,16 +107,15 @@ async function bootstrap() {
 }
 
 function setupSystemCrons() {
-  // 1. Self-ping to keep Render service alive
-  cron.schedule('*/10 * * * *', async () => {
-    if (!CONFIG.PUBLIC_URL) return;
-    try {
-      await axios.get(CONFIG.PUBLIC_URL, { timeout: 10000 });
-      logger.info(`🌐 Self-ping successful`);
-    } catch (err: any) {
-      logger.warn(`🌐 Self-ping failed: ${err.message}`);
-    }
-  });
+  // 1. Self-ping to keep Render service alive (only if not on paid plan)
+  if (process.env.RENDER_SLEEP === '1' || !process.env.RENDER_SERVICE_ID) {
+    cron.schedule('*/10 * * * *', async () => {
+      if (!CONFIG.PUBLIC_URL) return;
+      try {
+        await axios.get(CONFIG.PUBLIC_URL, { timeout: 10000 });
+      } catch {}
+    });
+  }
 
   // 2. Price Tracker Cron (Every 4 hours)
   cron.schedule('0 */4 * * *', async () => {
@@ -183,10 +182,14 @@ process.on("unhandledRejection", (reason: any) => {
   logger.error(`🌐 Unhandled Rejection: ${reason?.message || reason}`);
 });
 
-// B-19 Fix: Handle polling errors and implement restart attempts
+let shuttingDown = false;
+
 process.on('SIGTERM', async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info('SIGTERM received, shutting down gracefully');
   try {
+    bot.stopPolling();
     const { gracefulShutdown } = await import('./services/memory_queue');
     await gracefulShutdown(8000);
   } catch {}
@@ -194,8 +197,11 @@ process.on('SIGTERM', async () => {
 });
 
 process.on('SIGINT', async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   logger.info('SIGINT received, shutting down gracefully');
   try {
+    bot.stopPolling();
     const { gracefulShutdown } = await import('./services/memory_queue');
     await gracefulShutdown(5000);
   } catch {}

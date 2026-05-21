@@ -5,6 +5,7 @@ jspm_packages/
 # Build outputs
 out/
 build/
+dist/
 *.tsbuildinfo
 
 # Ignore node modules in the api-server workspace

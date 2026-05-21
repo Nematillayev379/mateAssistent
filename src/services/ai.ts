@@ -8,22 +8,20 @@ import type { AiKeyEntry } from "../config/config";
 import { logger } from "../utils/logger";
 import { DBService } from "./database";
 
-// BUG-031 Fix: Use mutex to prevent race conditions on globalKeyIndex
 let globalKeyIndex = 0;
 let embeddingKeyIndex = 0;
 let activeKeys: AiKeyEntry[] = buildKeyPoolFromEnv();
-const keyMutex = { locked: false, queue: [] as (() => void)[] };
+const keyLock = { promise: Promise.resolve() as Promise<void> };
 
 async function withKeyMutex<T>(fn: () => Promise<T>): Promise<T> {
-  while (keyMutex.locked) {
-    await new Promise<void>(resolve => keyMutex.queue.push(resolve));
-  }
-  keyMutex.locked = true;
+  const prev = keyLock.promise;
+  let nextResolve: () => void;
+  keyLock.promise = new Promise<void>(resolve => { nextResolve = resolve; });
+  await prev;
   try {
     return await fn();
   } finally {
-    keyMutex.locked = false;
-    keyMutex.queue.shift()?.();
+    nextResolve!();
   }
 }
 

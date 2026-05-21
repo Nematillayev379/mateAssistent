@@ -48,12 +48,21 @@ export async function startBot() {
         secret_token: CONFIG.WEBHOOK_SECRET,
         max_connections: 100,
       });
-      logger.info(`Webhook set to: ${webhookUrl} (max_connections=100)`);
+      const whInfo = await bot.getWebHookInfo();
+      if (whInfo.url === webhookUrl) {
+        logger.info(`Webhook set to: ${webhookUrl} (max_connections=100)`);
+      } else {
+        throw new Error(`Webhook not confirmed (got: ${whInfo.url})`);
+      }
     } catch (err: any) {
       logger.error(`setWebHook error: ${err.message}`);
-      await bot.deleteWebHook().catch(() => {});
-      initPolling();
-      logger.info("Polling started (webhook failed, fallback)");
+      if (err.message.includes('409') || err.message.includes('Conflict')) {
+        logger.warn('Webhook conflict — not falling back to polling');
+      } else {
+        await bot.deleteWebHook().catch(() => {});
+        initPolling();
+        logger.info("Polling started (webhook failed, fallback)");
+      }
     }
   } else {
     await bot.deleteWebHook().catch(() => {});
