@@ -253,7 +253,9 @@ export function registerCommands(bot: TelegramBot) {
           await bot.sendMessage(targetUser.telegram_id, text, { parse_mode: "HTML" });
           count++;
           await new Promise((resolve) => setTimeout(resolve, 50));
-        } catch {}
+        } catch (e: any) {
+          logger.warn(`Broadcast failed for ${targetUser.telegram_id}: ${e.message}`);
+        }
       }
       await bot.sendMessage(chatId, `Broadcast complete: ${count}`);
       userStates.delete(chatId);

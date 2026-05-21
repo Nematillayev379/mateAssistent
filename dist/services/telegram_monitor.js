@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TelegramMonitorService = void 0;
 exports.normalizeTelegramChannelId = normalizeTelegramChannelId;
 const bot_instance_1 = require("./bot_instance");
-const config_1 = require("../config/config");
 const database_1 = require("./database");
 const logger_1 = require("../utils/logger");
 const telegram_1 = require("./telegram");
@@ -91,8 +90,7 @@ exports.TelegramMonitorService = {
                     };
                     if (msg.photo?.length) {
                         const photo = msg.photo[msg.photo.length - 1];
-                        const file = await bot_instance_1.bot.getFile(photo.file_id);
-                        article.imageUrl = `https://api.telegram.org/file/bot${config_1.CONFIG.TELEGRAM_TOKEN}/${file.file_path}`;
+                        article.imageUrl = photo.file_id;
                     }
                     sent = await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
                         const u = { ...user, target_channel: target, extra_channels: '' };

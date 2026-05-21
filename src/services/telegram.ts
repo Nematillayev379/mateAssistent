@@ -228,7 +228,7 @@ export async function safeSend(user: any, article: any): Promise<void> {
         await bot.sendVideo(targetChannel, article.videoUrl, { caption, parse_mode: "HTML" });
       } else if (article.audioUrl && ScraperService.isMediaUrl(article.audioUrl)) {
         await bot.sendAudio(targetChannel, article.audioUrl, { caption, parse_mode: "HTML" });
-      } else if (article.imageUrl && ScraperService.isMediaUrl(article.imageUrl)) {
+      } else if (article.imageUrl) {
         await bot.sendPhoto(targetChannel, article.imageUrl, { caption, parse_mode: "HTML" });
       } else {
         await bot.sendMessage(targetChannel, caption, { parse_mode: "HTML" });

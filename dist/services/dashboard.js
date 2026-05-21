@@ -167,7 +167,7 @@ function startDashboardServer(port, _bot) {
                 if (user && user.role !== 'owner') {
                     database_1.DBService.updateUserRole(parseInt(userId), 'owner');
                 }
-            }).catch(() => { });
+            }).catch((e) => logger_1.logger.warn(`Owner role sync failed: ${e.message}`));
         }
         next();
     };
@@ -624,12 +624,23 @@ function startDashboardServer(port, _bot) {
         }
         const userId = parseInt(req.authenticatedUserId);
         const webOnly = req.query.web === '1';
+        const sendToChannel = req.query.send === '1';
         try {
             const { downloadYouTube } = await Promise.resolve().then(() => __importStar(require('../services/youtube')));
             const url = `https://youtube.com/watch?v=${videoId}`;
             const filePath = await downloadYouTube(url, 'audio');
             const extension = path_1.default.extname(filePath) || '.mp3';
             const filename = `music_${videoId}${extension}`;
+            if (sendToChannel) {
+                const userData = await (await Promise.resolve().then(() => __importStar(require('../services/database')))).DBService.getUser(userId);
+                const target = userData?.target_channel;
+                if (!target) {
+                    return res.status(400).json({ success: false, error: 'Target channel not configured' });
+                }
+                await bot_instance_1.bot.sendAudio(target, filePath);
+                logger_1.logger.info(`Music sent to channel ${target} for user ${userId}`);
+                return res.json({ success: true, message: 'Musiqa kanalga yuborildi!' });
+            }
             await serveFileDownload(res, filePath, filename, {
                 userId,
                 notifyBot: webOnly ? undefined : 'audio',

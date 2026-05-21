@@ -94,8 +94,7 @@ export const TelegramMonitorService = {
           };
           if (msg.photo?.length) {
             const photo = msg.photo[msg.photo.length - 1];
-            const file = await bot.getFile(photo.file_id);
-            article.imageUrl = `https://api.telegram.org/file/bot${CONFIG.TELEGRAM_TOKEN}/${file.file_path}`;
+            article.imageUrl = photo.file_id;
           }
           sent = await safeSendToChannels(user, targets, async (target) => {
             const u = { ...user, target_channel: target, extra_channels: '' };

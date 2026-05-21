@@ -246,7 +246,7 @@ async function safeSend(user, article) {
             else if (article.audioUrl && scraper_1.ScraperService.isMediaUrl(article.audioUrl)) {
                 await bot_instance_1.bot.sendAudio(targetChannel, article.audioUrl, { caption, parse_mode: "HTML" });
             }
-            else if (article.imageUrl && scraper_1.ScraperService.isMediaUrl(article.imageUrl)) {
+            else if (article.imageUrl) {
                 await bot_instance_1.bot.sendPhoto(targetChannel, article.imageUrl, { caption, parse_mode: "HTML" });
             }
             else {

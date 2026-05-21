@@ -262,7 +262,9 @@ function registerCommands(bot) {
                     count++;
                     await new Promise((resolve) => setTimeout(resolve, 50));
                 }
-                catch { }
+                catch (e) {
+                    logger_1.logger.warn(`Broadcast failed for ${targetUser.telegram_id}: ${e.message}`);
+                }
             }
             await bot.sendMessage(chatId, `Broadcast complete: ${count}`);
             userStates.delete(chatId);
