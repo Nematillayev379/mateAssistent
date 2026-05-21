@@ -200,24 +200,27 @@ export async function safeSend(user: any, article: any): Promise<void> {
   }
 
   const botUser = cachedBotUser;
-  const botAd = `mateAssistent botida <a href="https://t.me/${botUser}">yaratildi</a>`;
   const safeTitle = escapeHtml(article.title || "");
   const safeContent = escapeHtml(article.content || "");
-  const safeSource = escapeHtml(article.source || "mateAssistent");
+  const safeSource = escapeHtml(article.source || "yangiliklar");
   const safeUrl = escapeUrl(article.url || "");
-  const sourceLine = `🔗 <a href="${safeUrl}">${safeSource}</a>`;
-  const footer = `\n\n${sourceLine}\n${botAd}`;
+  const sourceLine = `🌐 <a href="${safeUrl}">${safeSource}</a>`;
+  const botLine = `🤖 <a href="https://t.me/${botUser}">@${botUser}</a>`;
+  const footer = `\n\n${sourceLine}\n${botLine}`;
+  const titleBlock = `<b>${safeTitle}</b>`;
 
   const isMediaMessage = !!(article.videoUrl || article.audioUrl || article.imageUrl);
   const maxLen = isMediaMessage ? 1024 : 4096;
-  const reserveLen = safeTitle.length + footer.length + 50;
+  const headerLen = titleBlock.length + 2;
+  const footerLen = footer.length + 4;
+  const availableForContent = maxLen - headerLen - footerLen;
 
   let finalContent = safeContent;
-  if (finalContent.length + reserveLen > maxLen) {
-    finalContent = finalContent.slice(0, Math.max(0, maxLen - reserveLen - 3)) + "...";
+  if (finalContent.length > availableForContent) {
+    finalContent = finalContent.slice(0, Math.max(0, availableForContent - 3)) + "...";
   }
 
-  const caption = `<b>${safeTitle}</b>\n\n${finalContent}${footer}`;
+  const caption = `${titleBlock}\n\n${finalContent}${footer}`;
 
   try {
     if (!user.target_channel) {
