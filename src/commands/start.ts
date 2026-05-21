@@ -67,7 +67,10 @@ async function sendWelcomeMenu(
       { text: i18n.t("menu_analytics", { lng: lang }), callback_data: "cmd_stats" },
       { text: i18n.t("menu_settings", { lng: lang }), callback_data: "cmd_settings" },
     ],
-    [{ text: i18n.t("menu_help", { lng: lang }), callback_data: "cmd_help" }],
+    [
+      { text: i18n.t("menu_help", { lng: lang }), callback_data: "cmd_help" },
+      { text: i18n.t("menu_intro", { lng: lang }), url: `${process.env.PUBLIC_URL || ""}/intro/` },
+    ],
   );
 
   if (role === "owner" || role === "admin") {
@@ -178,9 +181,15 @@ export const startCommand: BotCommand = {
         if (isNewUser) {
           const created = await DBService.createReferral(referrer.telegram_id, chatId);
           if (created) {
-            logger.info(`New referral: ${chatId} invited by ${referrer.telegram_id}`);
+            await DBService.setPremium(chatId, 3);
+            logger.info(`New referral: ${chatId} invited by ${referrer.telegram_id}, 3d premium granted`);
             try {
-              await bot.sendMessage(referrer.telegram_id, "New referral joined from your link.");
+              const refCount = (await DBService.getReferralStats(referrer.telegram_id)).active;
+              const msg = `🎉 ${referrer.telegram_id === chatId ? '' : 'Someone joined via your link!'}\nActive referrals: ${refCount}`;
+              if (refCount > 0 && refCount % 10 === 0) {
+                await DBService.checkAndGivePremium(referrer.telegram_id);
+              }
+              await bot.sendMessage(referrer.telegram_id, msg);
             } catch (e: any) {
               logger.warn(`Could not notify referrer ${referrer.telegram_id}: ${e.message}`);
             }
