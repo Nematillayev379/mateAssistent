@@ -56,6 +56,8 @@ const telegram_monitor_1 = require("./telegram_monitor");
 const trends_1 = require("./trends");
 const ai_2 = require("./ai");
 const telegram_1 = require("./telegram");
+const child_process_1 = require("child_process");
+const util_1 = require("util");
 // B-51 Fix: Add proper type for bot parameter
 function startDashboardServer(port, _bot) {
     const app = (0, express_1.default)();
@@ -78,6 +80,16 @@ function startDashboardServer(port, _bot) {
             }
         }
     }));
+    app.get('/tonconnect-manifest.json', (req, res) => {
+        const publicBase = config_1.CONFIG.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+        res.json({
+            url: publicBase,
+            name: 'mateAssistent',
+            iconUrl: `${publicBase}/tonconnect-icon.svg`,
+            termsOfUseUrl: `${publicBase}/dashboard`,
+            privacyPolicyUrl: `${publicBase}/dashboard`,
+        });
+    });
     // BUG-154 Fix: Rate limiting on API endpoints
     const apiLimiter = (0, express_rate_limit_1.default)({
         windowMs: 60 * 1000, // 1 minute
@@ -566,9 +578,7 @@ function startDashboardServer(port, _bot) {
             let execErr = '';
             let pythonVersion = 'not checked';
             try {
-                const { exec } = require('child_process');
-                const { promisify } = require('util');
-                const execPromise = promisify(exec);
+                const execPromise = (0, util_1.promisify)(child_process_1.exec);
                 const { stdout } = await execPromise('python3 --version', { timeout: 3000 });
                 pythonVersion = stdout.trim();
             }
@@ -577,9 +587,7 @@ function startDashboardServer(port, _bot) {
             }
             if (ytdlpPath) {
                 try {
-                    const { exec } = require('child_process');
-                    const { promisify } = require('util');
-                    const execPromise = promisify(exec);
+                    const execPromise = (0, util_1.promisify)(child_process_1.exec);
                     const cmd = ytdlpPath.includes(' ') || ytdlpPath.includes('\\') ? `"${ytdlpPath}"` : ytdlpPath;
                     const { stdout, stderr } = await execPromise(`${cmd} --version`, { timeout: 5000 });
                     version = stdout.trim();
@@ -620,7 +628,8 @@ function startDashboardServer(port, _bot) {
             const { downloadYouTube } = await Promise.resolve().then(() => __importStar(require('../services/youtube')));
             const url = `https://youtube.com/watch?v=${videoId}`;
             const filePath = await downloadYouTube(url, 'audio');
-            const filename = `music_${videoId}.m4a`;
+            const extension = path_1.default.extname(filePath) || '.mp3';
+            const filename = `music_${videoId}${extension}`;
             await serveFileDownload(res, filePath, filename, {
                 userId,
                 notifyBot: webOnly ? undefined : 'audio',
@@ -644,8 +653,8 @@ function startDashboardServer(port, _bot) {
         try {
             const { downloadYouTube } = await Promise.resolve().then(() => __importStar(require('../services/youtube')));
             const filePath = await downloadYouTube(url, type);
-            const ext = type === 'video' ? 'mp4' : 'm4a';
-            const filename = `media_${Date.now()}.${ext}`;
+            const ext = path_1.default.extname(filePath) || (type === 'video' ? '.mp4' : '.mp3');
+            const filename = `media_${Date.now()}${ext}`;
             await serveFileDownload(res, filePath, filename, {
                 userId,
                 notifyBot: webOnly ? undefined : (type === 'video' ? 'video' : 'audio'),
@@ -698,7 +707,7 @@ function startDashboardServer(port, _bot) {
             if (!user?.target_channel) {
                 return res.status(400).json({ error: 'No channel configured' });
             }
-            const caption = `AI Voice News: <b></b>\n\n`;
+            const caption = `AI Voice News\n\n`;
             const remainder = text.length > 1024 ? text.slice(1024) : '';
             if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
                 const base64Data = imageBase64.split(',')[1];
@@ -742,7 +751,22 @@ function startDashboardServer(port, _bot) {
         }
         try {
             const { PriceTrackerService } = await Promise.resolve().then(() => __importStar(require('./pricetracker')));
-            const results = await PriceTrackerService.searchProducts(q.trim());
+            let results = await PriceTrackerService.searchProducts(q.trim());
+            if (!results.length) {
+                try {
+                    const scraped = await scraper_1.ScraperService.searchProducts(q.trim());
+                    results = (scraped || [])
+                        .map((item) => ({
+                        title: item.name || item.title || 'Mahsulot',
+                        price: Number(item.price) || 0,
+                        url: item.url,
+                        source: item.store || item.source || 'Marketplace',
+                    }))
+                        .filter((item) => item.url && Number.isFinite(item.price) && item.price > 0)
+                        .sort((a, b) => a.price - b.price);
+                }
+                catch { }
+            }
             const cheapest = results[0] || null;
             const bySource = Array.from(results.reduce((acc, item) => {
                 const current = acc.get(item.source);
@@ -880,8 +904,9 @@ function startDashboardServer(port, _bot) {
         if (!cleanTitle && !cleanText) {
             return res.status(400).json({ error: 'Sarlavha yoki matn kiriting' });
         }
-        const script = cleanText || await (0, ai_2.generateAudioSummary)(cleanTitle || 'Yangilik', cleanTitle || '');
-        const audio = await (0, ai_2.generateTTS)(script);
+        const lang = typeof user.language === 'string' && user.language.trim() ? user.language.trim() : 'uz';
+        const script = cleanText || await (0, ai_2.generateAudioSummary)(cleanTitle || 'Yangilik', cleanText || cleanTitle || '', lang);
+        const audio = await (0, ai_2.generateTTS)(script, lang);
         if (!audio)
             return res.status(500).json({ error: 'Ovoz generatsiyasi muvaffaqiyatsiz' });
         const caption = `AI Voice News: <b>${cleanTitle || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;

@@ -115,7 +115,7 @@ else {
 async function processArticleInline(userId, article, sourceLang) {
     try {
         const user = await database_1.DBService.getUser(userId);
-        if (!user || !user.target_channel || !user.is_active)
+        if (!user || !user.target_channel || user.is_active === 0)
             return;
         const intervalMinutes = Math.max(Number(user.interval_minutes) || 15, 1);
         if (!database_1.DBService.tryReserveUserSendSlot(userId, intervalMinutes)) {

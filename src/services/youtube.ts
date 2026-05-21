@@ -5,9 +5,19 @@ import os from 'os';
 import path from 'path';
 import { logger } from '../utils/logger';
 import { findNewestFile, resolveYtDlpCommand } from '../utils/ytdlp';
+import ffmpegStatic from 'ffmpeg-static';
 
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_yt');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+
+function detectExtensionFromContentType(contentType?: string, fallback: string = 'bin'): string {
+  const value = String(contentType || '').toLowerCase();
+  if (value.includes('audio/mpeg')) return 'mp3';
+  if (value.includes('audio/mp4') || value.includes('audio/x-m4a')) return 'm4a';
+  if (value.includes('audio/webm')) return 'webm';
+  if (value.includes('video/mp4')) return 'mp4';
+  return fallback;
+}
 
 export const YoutubeService = {
   async getLatestVideo(channelId: string) {
@@ -169,10 +179,7 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
               '30',
             ];
 
-      let ffmpegPath = '';
-      try {
-        ffmpegPath = require('ffmpeg-static') || '';
-      } catch (e) {}
+      const ffmpegPath = ffmpegStatic || '';
 
       if (ffmpegPath) {
         args.push('--ffmpeg-location', path.dirname(ffmpegPath));
@@ -221,8 +228,6 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
       audioOnly: typeParam === 'audio',
     });
     if (cobaltUrl) {
-      const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
-      const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
       try {
         const response = await axios.get(cobaltUrl, {
           responseType: 'arraybuffer',
@@ -230,6 +235,12 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
           maxContentLength: 52 * 1024 * 1024,
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
         });
+        const contentTypeHeader = response.headers?.['content-type'];
+        const ext = detectExtensionFromContentType(
+          typeof contentTypeHeader === 'string' ? contentTypeHeader : undefined,
+          typeParam === 'audio' ? 'mp3' : 'mp4'
+        );
+        const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
         fs.writeFileSync(filePath, Buffer.from(response.data));
         if (fs.existsSync(filePath) && fs.statSync(filePath).size > 1024) return filePath;
       } catch (dlErr: any) {

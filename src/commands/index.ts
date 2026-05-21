@@ -42,7 +42,8 @@ function isLikelyRssUrl(url: string): boolean {
   return /rss|feed|xml|atom/i.test(url);
 }
 
-function buildDashboardUrl(chatId: number): string {
+function buildDashboardUrl(chatId: number): string | null {
+  if (!CONFIG.PUBLIC_URL) return null;
   return `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
 }
 
@@ -259,7 +260,7 @@ export function registerCommands(bot: TelegramBot) {
       return;
     }
 
-    if (/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|soundcloud\.com/.test(text)) {
+    if (/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|soundcloud\.com/i.test(text)) {
       const mediaUrl = extractUrlFromText(text);
       if (mediaUrl) {
         userStates.set(chatId, { type: "media_download", url: mediaUrl, createdAt: Date.now() });
@@ -461,13 +462,14 @@ export function registerCommands(bot: TelegramBot) {
       }
 
       if (data === "cmd_settings") {
+        const dashUrl = buildDashboardUrl(chatId);
+        const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
+        if (dashUrl) {
+          inlineKeyboard.push([{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
+        }
+        inlineKeyboard.push([{ text: "🌐 Language / Tilni o'zgartirish", callback_data: "cmd_lang" }]);
         await bot.sendMessage(chatId, i18n.t("bot_settings_panel", { lng: lang }), {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }],
-              [{ text: "🌐 Language / Tilni o'zgartirish", callback_data: "cmd_lang" }]
-            ]
-          },
+          reply_markup: { inline_keyboard: inlineKeyboard },
         });
         return;
       }
@@ -503,12 +505,15 @@ export function registerCommands(bot: TelegramBot) {
         const paymeLink = await PaymentService.generatePaymeLink(chatId, monthlyPrice);
         const clickLink = await PaymentService.generateClickLink(chatId, monthlyPrice);
 
+        const dashUrl = buildDashboardUrl(chatId);
         const text = `${i18n.t("bot_premium_title", { lng: lang })}\n\nMonthly: ${monthlyPrice.toLocaleString()} UZS\nYearly: ${yearlyPrice.toLocaleString()} UZS`;
         const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [
           [{ text: `Payme (${monthlyPrice.toLocaleString()} UZS)`, url: paymeLink || "https://payme.uz" }],
           [{ text: `Click (${monthlyPrice.toLocaleString()} UZS)`, url: clickLink || "https://click.uz" }],
-          [{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }],
         ];
+        if (dashUrl) {
+          inlineKeyboard.push([{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
+        }
 
         await bot.sendMessage(chatId, text, { reply_markup: { inline_keyboard: inlineKeyboard } });
         return;
@@ -530,8 +535,13 @@ export function registerCommands(bot: TelegramBot) {
       }
 
       if (data === "cmd_sources" || data === "cmd_studio" || data === "cmd_channel" || data === "cmd_automation") {
+        const dashUrl = buildDashboardUrl(chatId);
+        const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
+        if (dashUrl) {
+          inlineKeyboard.push([{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
+        }
         await bot.sendMessage(chatId, i18n.t("bot_open_dashboard", { lng: lang }), {
-          reply_markup: { inline_keyboard: [[{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }]] },
+          reply_markup: { inline_keyboard: inlineKeyboard },
         });
         return;
       }

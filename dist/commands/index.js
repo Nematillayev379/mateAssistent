@@ -66,6 +66,8 @@ function isLikelyRssUrl(url) {
     return /rss|feed|xml|atom/i.test(url);
 }
 function buildDashboardUrl(chatId) {
+    if (!config_1.CONFIG.PUBLIC_URL)
+        return null;
     return `${config_1.CONFIG.PUBLIC_URL}/dashboard?token=${(0, bot_instance_1.generateDashboardToken)(chatId)}&user=${chatId}&v=${Date.now()}`;
 }
 function resolveMediaUrl(query, userStates, chatId) {
@@ -166,21 +168,47 @@ function registerCommands(bot) {
         // Onboarding: RSS feed source URL connection step
         const sources = user?.target_channel ? await database_1.DBService.getUserSources(chatId) : [];
         if (user?.target_channel && sources.length === 0) {
-            const rssUrl = extractUrlFromText(text);
-            if (rssUrl) {
-                const ok = await database_1.DBService.addSource(chatId, "Primary RSS", rssUrl, lang);
-                if (!ok) {
-                    await bot.sendMessage(chatId, i18n_1.i18n.t("err_invalid_url", { lng: lang }));
-                    return;
+            const trimmed = text.trim();
+            let websiteInput = extractUrlFromText(trimmed);
+            if (!websiteInput) {
+                const compact = trimmed.replace(/\s+/g, "");
+                if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(compact)) {
+                    websiteInput = `https://${compact}`;
                 }
-                await bot.sendMessage(chatId, i18n_1.i18n.t("quick_source_saved", { lng: lang }));
-                await (0, start_1.sendNextOnboardingStep)(bot, chatId);
+                else if (/^[a-zA-Z0-9-]{2,}$/.test(compact)) {
+                    websiteInput = `https://${compact}.uz`;
+                }
+            }
+            if (!websiteInput) {
+                await bot.sendMessage(chatId, `${i18n_1.i18n.t("onboarding_rss_body", { lng: lang })}\n\nWebsite yuboring (masalan: <code>kun.uz</code>) — bot RSS ni o'zi topadi.`, { parse_mode: "HTML" });
                 return;
+            }
+            if (!/^https?:\/\//i.test(websiteInput))
+                websiteInput = `https://${websiteInput}`;
+            const safeWebsite = websiteInput;
+            if (!(await scraper_1.ScraperService.isPublicExternalUrl(safeWebsite))) {
+                await bot.sendMessage(chatId, i18n_1.i18n.t("err_invalid_url", { lng: lang }));
+                return;
+            }
+            let rssUrl = null;
+            if (isLikelyRssUrl(safeWebsite)) {
+                rssUrl = safeWebsite;
             }
             else {
-                await bot.sendMessage(chatId, `${i18n_1.i18n.t("onboarding_rss_body", { lng: lang })}\n\nE.g.: <code>https://kun.uz/uz/news/rss</code>`, { parse_mode: "HTML" });
+                rssUrl = await scraper_1.ScraperService.discoverRSS(safeWebsite);
+            }
+            if (!rssUrl) {
+                await bot.sendMessage(chatId, "Bu sayt uchun RSS topilmadi. Saytning to'liq URL manzilini yuboring (masalan: https://example.com).");
                 return;
             }
+            const ok = await database_1.DBService.addSource(chatId, "Primary RSS", rssUrl, lang);
+            if (!ok) {
+                await bot.sendMessage(chatId, i18n_1.i18n.t("err_invalid_url", { lng: lang }));
+                return;
+            }
+            await bot.sendMessage(chatId, `${i18n_1.i18n.t("quick_source_saved", { lng: lang })}\n\nRSS: ${rssUrl}`);
+            await (0, start_1.sendNextOnboardingStep)(bot, chatId);
+            return;
         }
         // Onboarding: Posting interval cadence step
         if (user?.target_channel && sources.length > 0 && (!user.interval_minutes || Number(user.interval_minutes) < 1)) {
@@ -240,7 +268,7 @@ function registerCommands(bot) {
             userStates.delete(chatId);
             return;
         }
-        if (/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|soundcloud\.com/.test(text)) {
+        if (/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|soundcloud\.com/i.test(text)) {
             const mediaUrl = extractUrlFromText(text);
             if (mediaUrl) {
                 userStates.set(chatId, { type: "media_download", url: mediaUrl, createdAt: Date.now() });
@@ -432,13 +460,14 @@ function registerCommands(bot) {
                 return;
             }
             if (data === "cmd_settings") {
+                const dashUrl = buildDashboardUrl(chatId);
+                const inlineKeyboard = [];
+                if (dashUrl) {
+                    inlineKeyboard.push([{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
+                }
+                inlineKeyboard.push([{ text: "🌐 Language / Tilni o'zgartirish", callback_data: "cmd_lang" }]);
                 await bot.sendMessage(chatId, i18n_1.i18n.t("bot_settings_panel", { lng: lang }), {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }],
-                            [{ text: "🌐 Language / Tilni o'zgartirish", callback_data: "cmd_lang" }]
-                        ]
-                    },
+                    reply_markup: { inline_keyboard: inlineKeyboard },
                 });
                 return;
             }
@@ -466,12 +495,15 @@ function registerCommands(bot) {
                 const yearlyPrice = await database_1.DBService.getPrice("yearly");
                 const paymeLink = await payment_1.PaymentService.generatePaymeLink(chatId, monthlyPrice);
                 const clickLink = await payment_1.PaymentService.generateClickLink(chatId, monthlyPrice);
+                const dashUrl = buildDashboardUrl(chatId);
                 const text = `${i18n_1.i18n.t("bot_premium_title", { lng: lang })}\n\nMonthly: ${monthlyPrice.toLocaleString()} UZS\nYearly: ${yearlyPrice.toLocaleString()} UZS`;
                 const inlineKeyboard = [
                     [{ text: `Payme (${monthlyPrice.toLocaleString()} UZS)`, url: paymeLink || "https://payme.uz" }],
                     [{ text: `Click (${monthlyPrice.toLocaleString()} UZS)`, url: clickLink || "https://click.uz" }],
-                    [{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }],
                 ];
+                if (dashUrl) {
+                    inlineKeyboard.push([{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
+                }
                 await bot.sendMessage(chatId, text, { reply_markup: { inline_keyboard: inlineKeyboard } });
                 return;
             }
@@ -490,8 +522,13 @@ function registerCommands(bot) {
                 return;
             }
             if (data === "cmd_sources" || data === "cmd_studio" || data === "cmd_channel" || data === "cmd_automation") {
+                const dashUrl = buildDashboardUrl(chatId);
+                const inlineKeyboard = [];
+                if (dashUrl) {
+                    inlineKeyboard.push([{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
+                }
                 await bot.sendMessage(chatId, i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), {
-                    reply_markup: { inline_keyboard: [[{ text: i18n_1.i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: buildDashboardUrl(chatId) } }]] },
+                    reply_markup: { inline_keyboard: inlineKeyboard },
                 });
                 return;
             }

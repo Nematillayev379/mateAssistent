@@ -46,12 +46,13 @@ const node_cron_1 = __importDefault(require("node-cron"));
 const axios_1 = __importDefault(require("axios"));
 const dns_1 = __importDefault(require("dns"));
 const ytdlp_1 = require("./utils/ytdlp");
+const package_json_1 = __importDefault(require("../package.json"));
 // Fix for Render/Node18+ AggregateError (forces IPv4)
 if (dns_1.default.setDefaultResultOrder) {
     dns_1.default.setDefaultResultOrder('ipv4first');
 }
 async function bootstrap() {
-    logger_1.logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${require('../package.json').version}`);
+    logger_1.logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${package_json_1.default.version}`);
     logger_1.logger.info("🚀 Bootstrapping mateAssistent Bot Ecosystem...");
     // Deploy healthcheck — log which ENV vars are actually present
     logger_1.logger.info("🔧 Deploy env check:", {
@@ -163,7 +164,7 @@ function setupSystemCrons() {
             await processDailyDigests();
         }
         catch (err) {
-            // Ignore if not set up yet
+            logger_1.logger.warn(`Daily digest cron: ${err.message}`);
         }
     });
     // 4. System Cleanup (Every 6 hours)

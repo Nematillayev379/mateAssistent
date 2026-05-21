@@ -17,6 +17,8 @@ import { TelegramMonitorService, normalizeTelegramChannelId } from './telegram_m
 import { TrendsService } from './trends';
 import { generateTTS, generateAudioSummary } from './ai';
 import { safeSendToChannels } from './telegram';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 
 // B-51 Fix: Add proper type for bot parameter
 export function startDashboardServer(port: number | string, _bot?: any) {
@@ -41,6 +43,17 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       }
     }
   }));
+
+  app.get('/tonconnect-manifest.json', (req, res) => {
+    const publicBase = CONFIG.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+    res.json({
+      url: publicBase,
+      name: 'mateAssistent',
+      iconUrl: `${publicBase}/tonconnect-icon.svg`,
+      termsOfUseUrl: `${publicBase}/dashboard`,
+      privacyPolicyUrl: `${publicBase}/dashboard`,
+    });
+  });
 
   // BUG-154 Fix: Rate limiting on API endpoints
   const apiLimiter = rateLimit({
@@ -566,8 +579,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       let pythonVersion = 'not checked';
       
       try {
-        const { exec } = require('child_process');
-        const { promisify } = require('util');
         const execPromise = promisify(exec);
         const { stdout } = await execPromise('python3 --version', { timeout: 3000 });
         pythonVersion = stdout.trim();
@@ -577,8 +588,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
 
       if (ytdlpPath) {
         try {
-          const { exec } = require('child_process');
-          const { promisify } = require('util');
           const execPromise = promisify(exec);
           const cmd = ytdlpPath.includes(' ') || ytdlpPath.includes('\\') ? `"${ytdlpPath}"` : ytdlpPath;
           const { stdout, stderr } = await execPromise(`${cmd} --version`, { timeout: 5000 });
@@ -619,7 +628,8 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       const { downloadYouTube } = await import('../services/youtube');
       const url = `https://youtube.com/watch?v=${videoId}`;
       const filePath = await downloadYouTube(url, 'audio');
-      const filename = `music_${videoId}.m4a`;
+      const extension = path.extname(filePath) || '.mp3';
+      const filename = `music_${videoId}${extension}`;
 
       await serveFileDownload(res, filePath, filename, {
         userId,
@@ -645,8 +655,8 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     try {
       const { downloadYouTube } = await import('../services/youtube');
       const filePath = await downloadYouTube(url, type);
-      const ext = type === 'video' ? 'mp4' : 'm4a';
-      const filename = `media_${Date.now()}.${ext}`;
+      const ext = path.extname(filePath) || (type === 'video' ? '.mp4' : '.mp3');
+      const filename = `media_${Date.now()}${ext}`;
 
       await serveFileDownload(res, filePath, filename, {
         userId,
@@ -705,7 +715,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
         return res.status(400).json({ error: 'No channel configured' });
       }
 
-      const caption = `AI Voice News: <b></b>\n\n`;
+      const caption = `AI Voice News\n\n`;
       const remainder = text.length > 1024 ? text.slice(1024) : '';
 
       if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
@@ -748,7 +758,21 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     }
     try {
       const { PriceTrackerService } = await import('./pricetracker');
-      const results = await PriceTrackerService.searchProducts(q.trim());
+      let results = await PriceTrackerService.searchProducts(q.trim());
+      if (!results.length) {
+        try {
+          const scraped = await ScraperService.searchProducts(q.trim());
+          results = (scraped || [])
+            .map((item: any) => ({
+              title: item.name || item.title || 'Mahsulot',
+              price: Number(item.price) || 0,
+              url: item.url,
+              source: item.store || item.source || 'Marketplace',
+            }))
+            .filter((item: any) => item.url && Number.isFinite(item.price) && item.price > 0)
+            .sort((a: any, b: any) => a.price - b.price);
+        } catch {}
+      }
       const cheapest = results[0] || null;
       const bySource = Array.from(
         results.reduce((acc: Map<string, any>, item: any) => {
@@ -893,8 +917,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     if (!cleanTitle && !cleanText) {
       return res.status(400).json({ error: 'Sarlavha yoki matn kiriting' });
     }
-    const script = cleanText || await generateAudioSummary(cleanTitle || 'Yangilik', cleanTitle || '');
-    const audio = await generateTTS(script);
+    const lang = typeof user.language === 'string' && user.language.trim() ? user.language.trim() : 'uz';
+    const script = cleanText || await generateAudioSummary(cleanTitle || 'Yangilik', cleanText || cleanTitle || '', lang);
+    const audio = await generateTTS(script, lang);
     if (!audio) return res.status(500).json({ error: 'Ovoz generatsiyasi muvaffaqiyatsiz' });
 
     const caption = `AI Voice News: <b>${cleanTitle || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;

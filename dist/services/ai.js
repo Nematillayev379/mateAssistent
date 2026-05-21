@@ -429,10 +429,8 @@ async function getEmbedding(text, retryCount = 0) {
         });
         if (!response.ok) {
             if (response.status === 429) {
-                // BUG-009 Fix: Increment retry count to prevent infinite loop
-                return new Promise((resolve) => {
-                    setTimeout(() => resolve(getEmbedding(text, retryCount + 1)), 1000);
-                });
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return getEmbedding(text, retryCount + 1);
             }
             return null;
         }
@@ -720,8 +718,13 @@ async function generateSmmImage(topic) {
         return firstOk;
     return { imageUrl: urls[0], imageBase64: null };
 }
-async function generateAudioSummary(title, content) {
-    const summary = await getSmartAIResponse(`Bu yangilikni 3-4 jumlada qisqacha xulosa qil. Podcast uchun tabiiy, quloqqa yoqimli tilda yoz. O'zbek tilida.`, `${title}\n${content.slice(0, 1000)}`);
+async function generateAudioSummary(title, content, lang = 'uz') {
+    const languagePromptMap = {
+        uz: "Faqat o'zbek tilida, ravon va eshittirish uslubida yozing.",
+        ru: "Пишите только на русском языке, естественно и как для аудио-новости.",
+        en: "Write only in English in a natural spoken-news style.",
+    };
+    const summary = await getSmartAIResponse(`Bu yangilikni 3-4 jumlada qisqacha xulosa qil. Podcast uchun tabiiy, quloqqa yoqimli tilda yoz. ${languagePromptMap[lang] || languagePromptMap.uz}`, `${title}\n${content.slice(0, 1400)}`);
     return summary;
 }
 async function generateSummary(title, content) {
@@ -734,16 +737,24 @@ async function generateSummary(title, content) {
     }
 }
 // B-30 Fix: Increase TTS text limit to 500-800 chars for better summaries
-async function generateTTS(text) {
+function normalizeTextForSpeech(text) {
+    return text
+        .replace(/https?:\/\/\S+/g, ' ')
+        .replace(/[*_`#>\[\]()]/g, ' ')
+        .replace(/[\u{1F300}-\u{1FAFF}]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+async function generateTTS(text, lang = 'uz') {
     try {
-        const safeText = text.slice(0, 800).trim();
+        const safeText = normalizeTextForSpeech(text).slice(0, 800).trim();
         if (!safeText)
             return null;
         try {
             const googleTTS = await Promise.resolve().then(() => __importStar(require('google-tts-api')));
             if (typeof googleTTS.getAllAudioBase64 === 'function') {
                 const allAudio = await googleTTS.getAllAudioBase64(safeText, {
-                    lang: 'uz',
+                    lang: lang || 'uz',
                     slow: false,
                     host: 'https://translate.google.com',
                     timeout: 15000,
@@ -759,11 +770,26 @@ async function generateTTS(text) {
             logger_1.logger.warn(`Google TTS primary failed: ${googleErr.message}`);
         }
         const tts = new edge_tts_1.EdgeTTS();
-        await tts.synthesize(safeText, 'uz-UZ-MadinaNeural', {
-            outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
-        });
-        const buf = await tts.toBuffer();
-        return buf && buf.length > 100 ? buf : null;
+        const voiceMap = {
+            uz: ['uz-UZ-SardorNeural', 'uz-UZ-MadinaNeural'],
+            ru: ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
+            en: ['en-US-AvaNeural', 'en-US-AndrewNeural'],
+        };
+        const voices = voiceMap[lang] || voiceMap.uz;
+        for (const voice of voices) {
+            try {
+                await tts.synthesize(safeText, voice, {
+                    outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+                });
+                const buf = await tts.toBuffer();
+                if (buf && buf.length > 100)
+                    return buf;
+            }
+            catch (voiceErr) {
+                logger_1.logger.warn(`TTS voice ${voice} failed: ${voiceErr.message}`);
+            }
+        }
+        return null;
     }
     catch (e) {
         logger_1.logger.error(`TTS Error: ${e.message}`);

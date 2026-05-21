@@ -106,6 +106,25 @@ async function resolveYtDlpCommand() {
             // Ignored
         }
     }
+    // Windows fallback: use Python module if binary is blocked/missing
+    if (!cachedYtDlpPath && process.platform === 'win32') {
+        const pythonLaunchers = [
+            { cmd: 'py', args: ['-m', 'yt_dlp'] },
+            { cmd: 'python', args: ['-m', 'yt_dlp'] },
+            { cmd: 'python3', args: ['-m', 'yt_dlp'] },
+        ];
+        for (const launcher of pythonLaunchers) {
+            try {
+                await execFilePromise(launcher.cmd, [...launcher.args, '--version'], { timeout: 8000 });
+                cachedYtDlpPath = `${launcher.cmd} ${launcher.args.join(' ')}`;
+                cachedYtDlpCommand = { command: launcher.cmd, args: launcher.args };
+                break;
+            }
+            catch {
+                // try next launcher
+            }
+        }
+    }
     ytDlpChecked = true;
     return cachedYtDlpCommand;
 }

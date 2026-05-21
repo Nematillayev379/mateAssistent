@@ -84,10 +84,10 @@ function setupRSSCron() {
                     userLastRun.set(user.telegram_id, lastRun);
                 }
                 const nowMs = Date.now();
-                // BUG-M2 Fix: Use Tashkent timezone instead of hosting server local time
-                const nowObj = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tashkent' }));
-                const currentH = nowObj.getHours().toString().padStart(2, '0');
-                const currentM = nowObj.getMinutes().toString().padStart(2, '0');
+                const tzOffset = 5 * 60 * 60 * 1000;
+                const nowObj = new Date(nowMs + tzOffset);
+                const currentH = nowObj.getUTCHours().toString().padStart(2, '0');
+                const currentM = nowObj.getUTCMinutes().toString().padStart(2, '0');
                 const currentTime = `${currentH}:${currentM}`;
                 // Strategy 1: Fixed Schedule
                 if (user.schedule_times && user.schedule_times.trim() !== '') {

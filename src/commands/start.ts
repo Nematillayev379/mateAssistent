@@ -1,8 +1,8 @@
 import TelegramBot from "node-telegram-bot-api";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
-import { CONFIG, isOwnerId } from "../config/config";
-import { generateDashboardToken } from "../services/bot_instance";
+import { isOwnerId } from "../config/config";
+import { buildDashboardUrl } from "../services/bot_instance";
 import { i18n, WEBAPP_LANGS } from "../services/i18n";
 import { logger } from "../utils/logger";
 
@@ -37,10 +37,6 @@ function getLanguageKeyboard(): TelegramBot.InlineKeyboardButton[][] {
   return rows;
 }
 
-function buildDashboardUrl(chatId: number): string {
-  return `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
-}
-
 async function sendWelcomeMenu(
   bot: TelegramBot,
   chatId: number,
@@ -49,9 +45,16 @@ async function sendWelcomeMenu(
 ): Promise<void> {
   const lang = user.language || "uz";
   const dashboardUrl = buildDashboardUrl(chatId);
-  const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    [{ text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }],
-    [{ text: "🌐 Web3 App (Browser)", url: dashboardUrl }],
+  const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [];
+
+  if (dashboardUrl) {
+    inline_keyboard.push(
+      [{ text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }],
+      [{ text: "Web3 App (Browser)", url: dashboardUrl }]
+    );
+  }
+
+  inline_keyboard.push(
     [
       { text: i18n.t("menu_sources", { lng: lang }), callback_data: "cmd_sources" },
       { text: i18n.t("menu_studio", { lng: lang }), callback_data: "cmd_studio" },
@@ -65,7 +68,7 @@ async function sendWelcomeMenu(
       { text: i18n.t("menu_settings", { lng: lang }), callback_data: "cmd_settings" },
     ],
     [{ text: i18n.t("menu_help", { lng: lang }), callback_data: "cmd_help" }],
-  ];
+  );
 
   if (role === "owner" || role === "admin") {
     inline_keyboard.unshift([{ text: i18n.t("menu_admin", { lng: lang }), callback_data: "cmd_admin" }]);
@@ -75,23 +78,27 @@ async function sendWelcomeMenu(
     inline_keyboard.push([{ text: i18n.t("menu_buy_premium", { lng: lang }), callback_data: "buy_premium" }]);
   }
 
-  await bot.sendMessage(chatId, i18n.t("onboarding_menu_ready", { lng: lang }), {
+  const menuText = dashboardUrl
+    ? i18n.t("onboarding_menu_ready", { lng: lang })
+    : `${i18n.t("onboarding_menu_ready", { lng: lang })}\n\nDashboard hozircha ulanmagan. Admin PUBLIC_URL ni sozlashi kerak.`;
+
+  await bot.sendMessage(chatId, menuText, {
     reply_markup: { inline_keyboard },
   });
 }
 
 export async function sendLanguageStep(bot: TelegramBot, chatId: number): Promise<void> {
-  const premiumIntro = 
-    `🤖 <b>mateAssistent Creator Console</b>\n` +
+  const premiumIntro =
+    `\u{1F916} <b>mateAssistent Creator Console</b>\n` +
     `<i>The Ultimate Web3 Automator for Telegram Creators</i>\n\n` +
-    `⚡️ <b>Core Automation Features:</b>\n` +
-    `• 📡 <b>RSS Feed Aggregator:</b> Auto-publish from website feeds.\n` +
-    `• 🧠 <b>Smart AI Post Engine:</b> Auto-translate, summarize, and add emojis.\n` +
-    `• 🎨 <b>AI Image Studio:</b> Create stunning high-res matching illustrations.\n` +
-    `• 📥 <b>Universal Downloader:</b> Fetch social videos/audio in high quality.\n` +
-    `• 📅 <b>Scheduler & Cadence:</b> Smart queuing and customized interval times.\n` +
-    `• 📊 <b>Real-time Analytics:</b> Track click rates, duplicates, and top categories.\n\n` +
-    `🌐 <b>Choose your language to start / Tilni tanlang / Выберите язык:</b>`;
+    `\u26A1\ufe0f <b>Core Automation Features:</b>\n` +
+    `\u2022 \u{1F4E1} <b>RSS Feed Aggregator:</b> Auto-publish from website feeds.\n` +
+    `\u2022 \u{1F9E0} <b>Smart AI Post Engine:</b> Auto-translate, summarize, and add emojis.\n` +
+    `\u2022 \u{1F3A8} <b>AI Image Studio:</b> Create stunning high-res matching illustrations.\n` +
+    `\u2022 \u{1F4E5} <b>Universal Downloader:</b> Fetch social videos/audio in high quality.\n` +
+    `\u2022 \u{1F4D3} <b>Scheduler & Cadence:</b> Smart queuing and customized interval times.\n` +
+    `\u2022 \u{1F4CA} <b>Real-time Analytics:</b> Track click rates, duplicates, and top categories.\n\n` +
+    `\u{1F310} <b>Choose your language to start / Tilni tanlang / \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a:</b>`;
 
   await bot.sendMessage(chatId, premiumIntro, {
     parse_mode: "HTML",
@@ -156,7 +163,7 @@ export async function sendNextOnboardingStep(
 }
 
 export const startCommand: BotCommand = {
-  pattern: /\/start\s*(.*)|\/boshlash\s*(.*)|\/начать\s*(.*)/i,
+  pattern: /\/start\s*(.*)|\/boshlash\s*(.*)|\/\u043d\u0430\u0447\u0430\u0442\u044c\s*(.*)/i,
   description: "Botni boshlash / Start",
   handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
@@ -201,4 +208,3 @@ export const startCommand: BotCommand = {
     await sendNextOnboardingStep(bot, chatId, user);
   },
 };
-

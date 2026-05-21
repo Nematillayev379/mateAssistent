@@ -1,8 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PaymentService = void 0;
 const logger_1 = require("../utils/logger");
 const database_1 = require("./database");
+const crypto_1 = __importDefault(require("crypto"));
 async function getTx(txId) {
     try {
         const raw = await database_1.DBService.getSetting(`pay_tx_${txId}`);
@@ -19,25 +23,38 @@ async function saveTx(txId, state) {
     catch { }
 }
 exports.PaymentService = {
-    // ... (keep generate methods)
-    async generatePaymeLink(userId, amount) {
+    async generatePaymeLink(userId, amount, plan = 'monthly') {
         const merchantId = process.env.PAYME_MERCHANT_ID;
         if (!merchantId) {
             logger_1.logger.warn('PAYME_MERCHANT_ID not configured');
             return null;
         }
+        const days = plan === 'yearly' ? 365 : 30;
         const tiyin = Math.round(amount * 100);
-        const base64Params = Buffer.from(`m=${merchantId};ac.user_id=${userId};a=${tiyin}`).toString('base64');
+        const base64Params = Buffer.from(`m=${merchantId};ac.user_id=${userId};ac.days=${days};a=${tiyin}`).toString('base64');
         return `https://checkout.paycom.uz/${base64Params}`;
     },
-    async generateClickLink(userId, amount) {
+    async generateClickLink(userId, amount, plan = 'monthly') {
         const serviceId = process.env.CLICK_SERVICE_ID;
         const merchantId = process.env.CLICK_MERCHANT_ID;
         if (!serviceId || !merchantId) {
             logger_1.logger.warn('CLICK_SERVICE_ID or CLICK_MERCHANT_ID not configured');
             return null;
         }
-        return `https://my.click.uz/services/pay?service_id=${serviceId}&merchant_id=${merchantId}&amount=${amount}&transaction_param=${userId}`;
+        const days = plan === 'yearly' ? 365 : 30;
+        const merchantTransId = `premium_${userId}_${days}_${Date.now()}`;
+        const tx = {
+            state: 1,
+            create_time: Math.floor(Date.now() / 1000),
+            perform_time: 0,
+            cancel_time: 0,
+            user_id: userId,
+            amount,
+            days,
+            provider: 'click',
+        };
+        await saveTx(merchantTransId, tx);
+        return `https://my.click.uz/services/pay?service_id=${serviceId}&merchant_id=${merchantId}&amount=${amount}&transaction_param=${merchantTransId}`;
     },
     async handlePaymeWebhook(data, headers) {
         const paymeKey = process.env.PAYME_KEY;
@@ -89,19 +106,34 @@ exports.PaymentService = {
             case 'PerformTransaction': {
                 if (!hasValidUser)
                     return { error: { code: -31050, message: 'Invalid account' } };
+                const requestedDays = parseInt(String(data.params?.account?.days || 30), 10);
+                const days = Number.isNaN(requestedDays) ? 30 : (requestedDays >= 365 ? 365 : 30);
                 let tx = await getTx(txId);
                 if (tx && tx.state === 1) {
                     tx.state = 2;
                     tx.perform_time = Math.floor(Date.now() / 1000);
+                    tx.user_id = parsedUserId;
+                    tx.days = days;
+                    tx.amount = Number(data.params?.amount || 0) / 100;
+                    tx.provider = 'payme';
                     await saveTx(txId, tx);
-                    await database_1.DBService.setPremium(parsedUserId, 30);
-                    logger_1.logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
+                    await database_1.DBService.setPremium(parsedUserId, days);
+                    logger_1.logger.info(`✅ Payme: Premium activated for user ${parsedUserId} (${days} days)`);
                 }
                 else if (!tx) {
-                    tx = { state: 2, create_time: Math.floor(Date.now() / 1000), perform_time: Math.floor(Date.now() / 1000), cancel_time: 0 };
+                    tx = {
+                        state: 2,
+                        create_time: Math.floor(Date.now() / 1000),
+                        perform_time: Math.floor(Date.now() / 1000),
+                        cancel_time: 0,
+                        user_id: parsedUserId,
+                        days,
+                        amount: Number(data.params?.amount || 0) / 100,
+                        provider: 'payme',
+                    };
                     await saveTx(txId, tx);
-                    await database_1.DBService.setPremium(parsedUserId, 30);
-                    logger_1.logger.info(`✅ Payme: Premium activated for user ${parsedUserId}`);
+                    await database_1.DBService.setPremium(parsedUserId, days);
+                    logger_1.logger.info(`✅ Payme: Premium activated for user ${parsedUserId} (${days} days)`);
                 }
                 return { ...baseResult, result: { transaction: { id: txId, create_time: tx.create_time, perform_time: tx.perform_time, cancel_time: 0, state: 2 } } };
             }
@@ -135,5 +167,59 @@ exports.PaymentService = {
             payme: !!process.env.PAYME_MERCHANT_ID,
             click: !!(process.env.CLICK_SERVICE_ID && process.env.CLICK_MERCHANT_ID),
         };
+    },
+    async handleClickWebhook(payload) {
+        const secret = process.env.CLICK_SECRET_KEY;
+        const serviceId = process.env.CLICK_SERVICE_ID;
+        if (!secret || !serviceId) {
+            return { error: -9, error_note: 'Payment provider not configured', click_trans_id: payload?.click_trans_id || 0, merchant_trans_id: payload?.merchant_trans_id || '' };
+        }
+        const clickTransId = String(payload?.click_trans_id || '');
+        const merchantTransId = String(payload?.merchant_trans_id || '');
+        const amount = String(payload?.amount || '');
+        const action = String(payload?.action || '');
+        const signTime = String(payload?.sign_time || '');
+        const signString = String(payload?.sign_string || '');
+        const service = String(payload?.service_id || '');
+        const error = Number(payload?.error || 0);
+        if (!clickTransId || !merchantTransId || !signTime || !signString) {
+            return { error: -8, error_note: 'Invalid request', click_trans_id: clickTransId || 0, merchant_trans_id: merchantTransId || '' };
+        }
+        if (service !== String(serviceId)) {
+            return { error: -1, error_note: 'Invalid service_id', click_trans_id: clickTransId, merchant_trans_id: merchantTransId };
+        }
+        const expectedSign = crypto_1.default
+            .createHash('md5')
+            .update(`${clickTransId}${serviceId}${secret}${merchantTransId}${amount}${action}${signTime}`)
+            .digest('hex');
+        if (expectedSign.toLowerCase() !== signString.toLowerCase()) {
+            return { error: -1, error_note: 'Invalid signature', click_trans_id: clickTransId, merchant_trans_id: merchantTransId };
+        }
+        const tx = await getTx(merchantTransId);
+        if (!tx) {
+            return { error: -5, error_note: 'Transaction not found', click_trans_id: clickTransId, merchant_trans_id: merchantTransId };
+        }
+        if (error < 0) {
+            tx.state = -1;
+            tx.cancel_time = Math.floor(Date.now() / 1000);
+            await saveTx(merchantTransId, tx);
+            return { error: error, error_note: String(payload?.error_note || 'Cancelled'), click_trans_id: clickTransId, merchant_trans_id: merchantTransId };
+        }
+        if (action === '0') {
+            return { error: 0, error_note: 'Success', click_trans_id: clickTransId, merchant_trans_id: merchantTransId, merchant_prepare_id: merchantTransId };
+        }
+        if (action === '1') {
+            if (tx.state !== 2) {
+                tx.state = 2;
+                tx.perform_time = Math.floor(Date.now() / 1000);
+                await saveTx(merchantTransId, tx);
+                if (tx.user_id) {
+                    await database_1.DBService.setPremium(tx.user_id, tx.days || 30);
+                    logger_1.logger.info(`✅ Click: Premium activated for user ${tx.user_id} (${tx.days || 30} days)`);
+                }
+            }
+            return { error: 0, error_note: 'Success', click_trans_id: clickTransId, merchant_trans_id: merchantTransId, merchant_confirm_id: merchantTransId };
+        }
+        return { error: -8, error_note: 'Unknown action', click_trans_id: clickTransId, merchant_trans_id: merchantTransId };
     },
 };

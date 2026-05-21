@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notify = exports.bot = void 0;
+exports.notify = exports.bot = exports.__testing = void 0;
 exports.startBot = startBot;
 exports.safeSendToChannels = safeSendToChannels;
 exports.safeSend = safeSend;
@@ -55,6 +55,8 @@ let lastBotUserFetch = 0;
 const sendFailureAlertCooldowns = new Map();
 const MAX_RESTART_ATTEMPTS = 10;
 let pollingRestartAttempts = 0;
+let pollingRestartTimer = null;
+let pollingErrorHandlerAttached = false;
 async function startBot() {
     logger_1.logger.info(`Bot instance starting (ID: ${instanceId})`);
     (0, commands_1.registerCommands)(bot_instance_1.bot);
@@ -97,7 +99,7 @@ async function startBot() {
         initPolling();
         logger_1.logger.info("Polling started (no PUBLIC_URL)");
     }
-    if (config_1.CONFIG.OWNER_ID) {
+    if (config_1.CONFIG.OWNER_ID != null) {
         try {
             await (0, bot_instance_1.notify)(config_1.CONFIG.OWNER_ID, `<b>mateAssistent Bot v11.0</b> is live!`);
         }
@@ -105,26 +107,76 @@ async function startBot() {
     }
 }
 function initPolling() {
-    bot_instance_1.bot.startPolling();
-    bot_instance_1.bot.on("polling_error", (error) => {
-        logger_1.logger.error(`Polling error: ${error.message}`);
-        if (error.message.includes("409 Conflict")) {
-            logger_1.logger.warn("Polling conflict detected. Stopping polling.");
-            bot_instance_1.bot.stopPolling();
-            return;
+    startPollingSafe();
+    if (!pollingErrorHandlerAttached) {
+        bot_instance_1.bot.on("polling_error", (error) => {
+            handlePollingError(error);
+        });
+        pollingErrorHandlerAttached = true;
+    }
+}
+function getPollingErrorMessage(error) {
+    return String(error?.message || error || "Unknown polling error");
+}
+function isFatalPollingError(message) {
+    return /409 Conflict|401 Unauthorized|404 Not Found|connect EACCES/i.test(message);
+}
+function getPollingRestartDelay(attempt) {
+    return Math.min(5000 * Math.max(attempt, 1), 30000);
+}
+function clearPollingRestartTimer() {
+    if (pollingRestartTimer) {
+        clearTimeout(pollingRestartTimer);
+        pollingRestartTimer = null;
+    }
+}
+function startPollingSafe() {
+    clearPollingRestartTimer();
+    try {
+        const maybePromise = bot_instance_1.bot.startPolling();
+        Promise.resolve(maybePromise)
+            .then(() => {
+            pollingRestartAttempts = 0;
+        })
+            .catch((error) => {
+            logger_1.logger.error(`startPolling error: ${getPollingErrorMessage(error)}`);
+        });
+    }
+    catch (error) {
+        logger_1.logger.error(`startPolling throw: ${getPollingErrorMessage(error)}`);
+    }
+}
+function handlePollingError(error) {
+    const message = getPollingErrorMessage(error);
+    logger_1.logger.error(`Polling error: ${message}`);
+    if (message.includes("409 Conflict")) {
+        logger_1.logger.warn("Polling conflict detected. Stopping polling.");
+        clearPollingRestartTimer();
+        bot_instance_1.bot.stopPolling();
+        return;
+    }
+    pollingRestartAttempts++;
+    if (isFatalPollingError(message)) {
+        logger_1.logger.error(`Fatal polling error detected. Stopping polling after ${pollingRestartAttempts} attempt(s).`);
+        clearPollingRestartTimer();
+        bot_instance_1.bot.stopPolling();
+        return;
+    }
+    if (pollingRestartAttempts > MAX_RESTART_ATTEMPTS) {
+        logger_1.logger.error(`Too many polling errors (${pollingRestartAttempts}). Stopping polling.`);
+        clearPollingRestartTimer();
+        bot_instance_1.bot.stopPolling();
+        return;
+    }
+    if (pollingRestartTimer)
+        return;
+    const restartDelay = getPollingRestartDelay(pollingRestartAttempts);
+    pollingRestartTimer = setTimeout(() => {
+        pollingRestartTimer = null;
+        if (!bot_instance_1.bot.isPolling()) {
+            startPollingSafe();
         }
-        pollingRestartAttempts++;
-        if (pollingRestartAttempts > MAX_RESTART_ATTEMPTS) {
-            logger_1.logger.error(`Too many polling errors (${pollingRestartAttempts}). Stopping polling.`);
-            bot_instance_1.bot.stopPolling();
-            return;
-        }
-        setTimeout(() => {
-            if (!bot_instance_1.bot.isPolling()) {
-                bot_instance_1.bot.startPolling();
-            }
-        }, 5000);
-    });
+    }, restartDelay);
 }
 async function safeSendToChannels(_user, channels, sendFn) {
     const results = await Promise.allSettled(channels.map(async (ch) => {
@@ -234,3 +286,13 @@ function escapeUrl(text) {
         .replace(/</g, "%3C")
         .replace(/>/g, "%3E");
 }
+exports.__testing = {
+    getPollingRestartDelay,
+    isFatalPollingError,
+    handlePollingError,
+    resetPollingState() {
+        pollingRestartAttempts = 0;
+        clearPollingRestartTimer();
+        pollingErrorHandlerAttached = false;
+    },
+};

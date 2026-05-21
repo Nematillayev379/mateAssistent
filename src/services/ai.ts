@@ -395,10 +395,8 @@ export async function getEmbedding(text: string, retryCount = 0): Promise<number
 
     if (!response.ok) {
        if (response.status === 429) {
-          // BUG-009 Fix: Increment retry count to prevent infinite loop
-          return new Promise((resolve) => {
-            setTimeout(() => resolve(getEmbedding(text, retryCount + 1)), 1000);
-          });
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return getEmbedding(text, retryCount + 1);
        }
        return null;
     }
@@ -726,10 +724,15 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
   return { imageUrl: urls[0], imageBase64: null };
 }
 
-export async function generateAudioSummary(title: string, content: string): Promise<string> {
+export async function generateAudioSummary(title: string, content: string, lang: string = 'uz'): Promise<string> {
+  const languagePromptMap: Record<string, string> = {
+    uz: "Faqat o'zbek tilida, ravon va eshittirish uslubida yozing.",
+    ru: "Пишите только на русском языке, естественно и как для аудио-новости.",
+    en: "Write only in English in a natural spoken-news style.",
+  };
   const summary = await getSmartAIResponse(
-    `Bu yangilikni 3-4 jumlada qisqacha xulosa qil. Podcast uchun tabiiy, quloqqa yoqimli tilda yoz. O'zbek tilida.`,
-    `${title}\n${content.slice(0, 1000)}`
+    `Bu yangilikni 3-4 jumlada qisqacha xulosa qil. Podcast uchun tabiiy, quloqqa yoqimli tilda yoz. ${languagePromptMap[lang] || languagePromptMap.uz}`,
+    `${title}\n${content.slice(0, 1400)}`
   );
   return summary;
 }
@@ -747,16 +750,25 @@ export async function generateSummary(title: string, content: string): Promise<s
 }
 
 // B-30 Fix: Increase TTS text limit to 500-800 chars for better summaries
-export async function generateTTS(text: string): Promise<Buffer | null> {
+function normalizeTextForSpeech(text: string): string {
+  return text
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/[*_`#>\[\]()]/g, ' ')
+    .replace(/[\u{1F300}-\u{1FAFF}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export async function generateTTS(text: string, lang: string = 'uz'): Promise<Buffer | null> {
   try {
-    const safeText = text.slice(0, 800).trim();
+    const safeText = normalizeTextForSpeech(text).slice(0, 800).trim();
     if (!safeText) return null;
 
     try {
       const googleTTS = await import('google-tts-api');
       if (typeof googleTTS.getAllAudioBase64 === 'function') {
         const allAudio = await googleTTS.getAllAudioBase64(safeText, {
-          lang: 'uz',
+          lang: lang || 'uz',
           slow: false,
           host: 'https://translate.google.com',
           timeout: 15000,
@@ -771,11 +783,24 @@ export async function generateTTS(text: string): Promise<Buffer | null> {
     }
 
     const tts = new EdgeTTS();
-    await tts.synthesize(safeText, 'uz-UZ-MadinaNeural', {
-      outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
-    });
-    const buf = await tts.toBuffer();
-    return buf && buf.length > 100 ? buf : null;
+    const voiceMap: Record<string, string[]> = {
+      uz: ['uz-UZ-SardorNeural', 'uz-UZ-MadinaNeural'],
+      ru: ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
+      en: ['en-US-AvaNeural', 'en-US-AndrewNeural'],
+    };
+    const voices = voiceMap[lang] || voiceMap.uz;
+    for (const voice of voices) {
+      try {
+        await tts.synthesize(safeText, voice, {
+          outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+        });
+        const buf = await tts.toBuffer();
+        if (buf && buf.length > 100) return buf;
+      } catch (voiceErr: any) {
+        logger.warn(`TTS voice ${voice} failed: ${voiceErr.message}`);
+      }
+    }
+    return null;
   } catch (e: any) {
     logger.error(`TTS Error: ${e.message}`);
     return null;

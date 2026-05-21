@@ -17,6 +17,14 @@ export function generateDashboardToken(userId: number | string): string {
   return crypto.createHash('sha256').update(`${userId}:${secret}`).digest('hex').slice(0, 32);
 }
 
+export function buildDashboardUrl(userId: number | string): string | null {
+  const base = String(CONFIG.PUBLIC_URL || "").trim();
+  if (!/^https?:\/\//i.test(base)) {
+    return null;
+  }
+  return `${base}/dashboard?token=${generateDashboardToken(userId)}&user=${userId}&v=${Date.now()}`;
+}
+
 /**
  * Shared notify helper to send messages safely
  */

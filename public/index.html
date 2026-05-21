@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="/js/i18n-client.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <style>
         :root {
             --bg: #03000a;
@@ -238,6 +239,19 @@
             box-shadow: 0 18px 45px rgba(52,211,153,0.08);
         }
         .mini-status { margin-top: 10px; font-size: 0.78rem; color: var(--secondary); min-height: 18px; }
+        .ton-connect-shell {
+            margin-top: 14px;
+            padding: 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            background: rgba(255,255,255,0.035);
+        }
+        .ton-wallet-address {
+            font-size: 0.78rem;
+            color: var(--secondary);
+            word-break: break-all;
+            margin-top: 8px;
+        }
         html[dir="rtl"] .item-row { flex-direction: row-reverse; }
 
         /* Toast notifications */
@@ -361,7 +375,7 @@
                 <div class="card">
                     <div class="card-title"><i class="fas fa-robot"></i> AI SMM Studio</div>
                     <div class="input-group">
-                        <label>Post tili</label>
+                        <label id="post-language-label">Post tili</label>
                         <select id="post-lang">
                             <option value="uz">O'zbek</option>
                             <option value="ru">Russian</option>
@@ -398,18 +412,18 @@
                 <div class="card">
                     <div class="card-title"><i class="fas fa-microphone"></i> Voice News Generator</div>
                     <div class="input-group">
-                        <label>Sarlavha</label>
+                        <label id="voice-title-label">Sarlavha</label>
                         <input type="text" id="voice-title" placeholder="Yangilik sarlavhasi...">
                     </div>
                     <div class="input-group">
-                        <label>Matn</label>
+                        <label id="voice-text-label">Matn</label>
                         <textarea id="voice-text" rows="4" placeholder="Yangilik matni..."></textarea>
                     </div>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
                         <input type="checkbox" id="voice-to-channel" style="width: 18px; height: 18px;" checked> 
                         <label for="voice-to-channel">Kanalga yuborish</label>
                     </div>
-                    <button class="btn btn-primary" onclick="generateVoiceNews()">Audio yaratish & yuborish</button>
+                    <button class="btn btn-primary" id="btn-voice-generate" onclick="generateVoiceNews()">Audio yaratish & yuborish</button>
                     <p id="voice-status" style="margin-top: 10px; font-size: 0.85rem; color: var(--secondary);"></p>
                 </div>
 
@@ -511,7 +525,7 @@
             <!-- 6. Analytics Page -->
             <section id="page-analytics" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-coins"></i> Moliyaviy Bozorlar</div>
+                    <div class="card-title"><i class="fas fa-coins"></i> <span id="finance-card-title">Moliyaviy Bozorlar</span></div>
                     <div id="finance-list">
                         <div class="item-row">
                             <div class="item-info"><h4>Bitcoin (BTC)</h4><p>Global Kripto narxi</p></div>
@@ -526,7 +540,7 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-fire"></i> Google Trends</div>
+                    <div class="card-title"><i class="fas fa-fire"></i> <span id="trends-card-title">Google Trends</span></div>
                     <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6; margin-bottom: 15px;">
                         <p id="trends-summary">Yuklanmoqda...</p>
                     </div>
@@ -540,9 +554,13 @@
                 <div class="card">
                     <div class="card-title"><i class="fas fa-wallet"></i> Web3 Membership Wallet</div>
                     <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6;">
-                        <p style="margin-bottom: 12px;">Premium va VIP darajadagi foydalanuvchilar uchun portal.</p>
+                        <p id="wallet-copy" style="margin-bottom: 12px;">Premium va VIP darajadagi foydalanuvchilar uchun portal.</p>
                         <div class="item-row"><span>Membership Status</span><span id="wallet-membership-state" style="color:var(--gold); font-weight:bold;">Creator</span></div>
-                        <div class="item-row"><span>Wallet connection</span><span>Integratsiya kutilmoqda</span></div>
+                        <div class="item-row"><span id="wallet-connection-label">Wallet connection</span><span id="wallet-connection-state">Integratsiya kutilmoqda</span></div>
+                        <div class="ton-connect-shell">
+                            <div id="ton-connect"></div>
+                            <div id="wallet-address" class="ton-wallet-address"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -766,7 +784,7 @@
             <div class="nav-item" id="nav-studio" onclick="showPage('studio')"><i class="fas fa-wand-magic-sparkles"></i><span data-i18n="nav_studio">Studio</span></div>
             <div class="nav-item" id="nav-distribution" onclick="showPage('distribution')"><i class="fas fa-tower-broadcast"></i><span data-i18n="nav_distribution">Distribution</span></div>
             <div class="nav-item" id="nav-automation" onclick="showPage('automation')"><i class="fas fa-bolt"></i><span data-i18n="nav_automation">Automation</span></div>
-            <div class="nav-item" id="nav-analytics" onclick="showPage('analytics')"><i class="fas fa-chart-line"></i><span data-i18n="nav_analytics">Analytics</span></div>
+            <div class="nav-item" id="nav-analytics" onclick="showPage('wallet')" style="display:none;"><i class="fas fa-chart-line"></i><span data-i18n="nav_analytics">Analytics</span></div>
             <div class="nav-item" id="nav-wallet" onclick="showPage('wallet')"><i class="fas fa-wallet"></i><span data-i18n="nav_wallet">Wallet</span></div>
             <div class="nav-item" id="nav-settings" onclick="showPage('settings')"><i class="fas fa-cog"></i><span data-i18n="nav_settings">Settings</span></div>
             <div class="nav-item" id="nav-admin" style="display: none;" onclick="showPage('admin')"><i class="fas fa-shield-alt"></i><span data-i18n="nav_admin">Admin</span></div>
@@ -784,6 +802,27 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function escapeAttr(str) {
+            return escapeHtml(str).replace(/`/g, '&#96;');
+        }
+
+        function safeUrl(url) {
+            if (!url) return '#';
+            try {
+                const parsed = new URL(String(url), window.location.origin);
+                if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+            } catch (_) {}
+            return '#';
+        }
+
+        function escapeJsString(str) {
+            return String(str || '')
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n');
+        }
+
         function showToast(msg, type) {
             type = type || 'info';
             const toast = document.createElement('div');
@@ -793,7 +832,10 @@
             setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 3000);
         }
         function tt(key, fallback) {
-            if (typeof t === 'function') return t(key);
+            if (typeof t === 'function') {
+                const value = t(key);
+                if (value && value !== key) return value;
+            }
             return fallback || key;
         }
 
@@ -807,6 +849,8 @@
         let premiumYearlyStars = 5000;
         let adminUsersCache = [];
         let adminUserFilter = 'all';
+        let tonConnectUi = null;
+        let walletAnalyticsMerged = false;
 
         function apiFetch(resource, options = {}) {
             const headers = {
@@ -815,6 +859,74 @@
             };
             if (userId) headers['x-user-id'] = userId;
             return fetch(resource, { ...options, headers });
+        }
+
+        function mergeAnalyticsIntoWallet() {
+            if (walletAnalyticsMerged) return;
+            const analyticsPage = document.getElementById('page-analytics');
+            const walletPage = document.getElementById('page-wallet');
+            if (!analyticsPage || !walletPage) return;
+            const cards = Array.from(analyticsPage.querySelectorAll('.card'));
+            if (!cards.length) return;
+            cards.forEach(card => walletPage.appendChild(card));
+            analyticsPage.style.display = 'none';
+            walletAnalyticsMerged = true;
+        }
+
+        function applyLocalizedUi() {
+            const quickLang = document.getElementById('quick-lang')?.value || userData?.user?.language || 'uz';
+            const map = [
+                ['#wallet-copy', tt('wallet_section_body', 'Connect a TON wallet to unlock your web3 profile layer inside the mini app.')],
+                ['#wallet-connection-label', tt('wallet_connection', 'Wallet connection')],
+                ['#post-language-label', tt('post_language', 'Post language')],
+                ['#voice-title-label', tt('voice_title_label', 'Title')],
+                ['#voice-text-label', tt('voice_text_label', 'Text')],
+                ['label[for="voice-to-channel"]', tt('voice_send_channel', 'Send to channel')],
+                ['#btn-voice-generate', tt('voice_generate', 'Generate audio and send')],
+                ['#search-product-query', tt('search_placeholder', 'Enter product name')],
+                ['#btn-search-product', tt('search_button', 'Search')],
+                ['#music-q', tt('music_search_placeholder', 'Artist or song...')],
+                ['#wallet-analytics-title', tt('analytics_section_title', 'Analytics Hub')],
+                ['#finance-card-title', tt('finance_title', 'Financial Markets')],
+                ['#trends-card-title', tt('trends_title', 'Google Trends')],
+            ];
+            map.forEach(([selector, value]) => {
+                const el = document.querySelector(selector);
+                if (!el) return;
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = value;
+                else el.textContent = value;
+            });
+            const postLang = document.getElementById('post-lang');
+            if (postLang) postLang.value = quickLang;
+        }
+
+        function updateWalletUi(account) {
+            const stateEl = document.getElementById('wallet-connection-state');
+            const addressEl = document.getElementById('wallet-address');
+            if (account && account.address) {
+                const shortAddress = `${account.address.slice(0, 8)}...${account.address.slice(-6)}`;
+                if (stateEl) stateEl.textContent = `${tt('wallet_connected', 'Connected')}: ${shortAddress}`;
+                if (addressEl) addressEl.textContent = account.address;
+            } else {
+                if (stateEl) stateEl.textContent = tt('wallet_not_connected', 'Not connected');
+                if (addressEl) addressEl.textContent = '';
+            }
+        }
+
+        async function initTonWalletUi() {
+            if (tonConnectUi || !window.TON_CONNECT_UI) return;
+            try {
+                tonConnectUi = new window.TON_CONNECT_UI.TonConnectUI({
+                    manifestUrl: `${window.location.origin}/tonconnect-manifest.json`,
+                    buttonRootId: 'ton-connect',
+                });
+                updateWalletUi(tonConnectUi.wallet?.account || null);
+                tonConnectUi.onStatusChange((wallet) => {
+                    updateWalletUi(wallet?.account || null);
+                });
+            } catch (e) {
+                console.error('TON Connect init failed', e);
+            }
         }
 
         const tg = window.Telegram?.WebApp;
@@ -866,6 +978,7 @@
                 token = key;
                 localStorage.setItem('bot_token', token);
                 if (userId) localStorage.setItem('bot_user_id', userId);
+                mergeAnalyticsIntoWallet();
                 renderUI();
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('app').style.display = 'block';
@@ -883,6 +996,7 @@
             if (setLang) setLang.value = language;
             if (postLang) postLang.value = language;
             if (window.WebAppI18n) WebAppI18n.setLang(language);
+            applyLocalizedUi();
             if (userData?.user) userData.user.language = language;
             if (userId && token) {
                 await apiFetch(`/api/settings/${userId}/extended`, {
@@ -997,17 +1111,17 @@
                 card.style.cssText = 'flex-direction:column;align-items:flex-start;gap:8px;';
                 card.innerHTML = `
                     <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
-                        <h4>${u.username || u.first_name || u.telegram_id}</h4>
+                        <h4>${escapeHtml(u.username || u.first_name || u.telegram_id)}</h4>
                         <span style="font-size:0.75rem;">
                             <span class="admin-badge ${approved ? 'approved' : 'pending'}">${approved ? t('admin_status_approved') : t('admin_status_pending')}</span>
                             ${!active ? `<span class="admin-badge blocked">${t('admin_status_blocked')}</span>` : ''}
-                            <span style="background:var(--accent);padding:2px 6px;border-radius:4px;margin-left:4px;">${u.role} | ${u.is_premium ? 'Premium' : t('free')}</span>
+                            <span style="background:var(--accent);padding:2px 6px;border-radius:4px;margin-left:4px;">${escapeHtml(u.role)} | ${u.is_premium ? 'Premium' : t('free')}</span>
                         </span>
                     </div>
                     <div style="font-size:0.8rem;color:var(--secondary);word-break:break-all;">
-                        <p><strong>ID:</strong> ${u.telegram_id}</p>
-                        <p><strong>RSS:</strong> ${rss}</p>
-                        <p><strong>${t('home_target')}:</strong> ${u.target_channel || t('not_set')}</p>
+                        <p><strong>ID:</strong> ${escapeHtml(u.telegram_id)}</p>
+                        <p><strong>RSS:</strong> ${escapeHtml(rss)}</p>
+                        <p><strong>${t('home_target')}:</strong> ${escapeHtml(u.target_channel || t('not_set'))}</p>
                     </div>
                     <div class="admin-actions">
                         ${!approved ? `<button class="btn btn-ghost" onclick="adminUserAction(${u.telegram_id},'approve')">${t('admin_approve')}</button>` : ''}
@@ -1105,7 +1219,7 @@ function renderUI() {
             if (postLang) postLang.value = u.language || 'uz';
             document.getElementById('set-interval').value = String(u.interval_minutes || 15);
             const walletState = document.getElementById('wallet-membership-state');
-            if (walletState) walletState.textContent = u.is_premium ? 'Elite Member' : 'Creator';
+            if (walletState) walletState.textContent = u.is_premium ? tt('elite', 'ELITE') : tt('free', 'Free');
 
             const homeTarget = document.getElementById('home-target-channel');
             if (homeTarget) homeTarget.textContent = u.target_channel || (tt('not_set', 'Sozlanmagan') + ' âš ï¸');
@@ -1116,11 +1230,11 @@ function renderUI() {
             userInfo.style.cssText = 'background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px;';
             userInfo.innerHTML = `
                 <div style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 8px;">${tt('home_user_info', 'Identity Snapshot')}</div>
-                <div class="item-row"><span>${tt('home_telegram_id', 'Telegram ID')}</span><span>${u.telegram_id || tt('unknown', 'Noma\'lum')}</span></div>
-                <div class="item-row"><span>${tt('home_username', 'Username')}</span><span>${u.username || tt('unknown', 'Noma\'lum')}</span></div>
-                <div class="item-row"><span>${tt('home_target', 'Target Channel')}</span><span>${u.target_channel || tt('not_set', 'Not connected')}</span></div>
-                <div class="item-row"><span>${tt('home_language', 'Language')}</span><span>${u.language || 'uz'}</span></div>
-                <div class="item-row"><span>${tt('home_role', 'Role')}</span><span>${u.role || tt('user_default', 'user')}</span></div>
+                <div class="item-row"><span>${tt('home_telegram_id', 'Telegram ID')}</span><span>${escapeHtml(u.telegram_id || tt('unknown', 'Noma\'lum'))}</span></div>
+                <div class="item-row"><span>${tt('home_username', 'Username')}</span><span>${escapeHtml(u.username || tt('unknown', 'Noma\'lum'))}</span></div>
+                <div class="item-row"><span>${tt('home_target', 'Target Channel')}</span><span>${escapeHtml(u.target_channel || tt('not_set', 'Not connected'))}</span></div>
+                <div class="item-row"><span>${tt('home_language', 'Language')}</span><span>${escapeHtml(u.language || 'uz')}</span></div>
+                <div class="item-row"><span>${tt('home_role', 'Role')}</span><span>${escapeHtml(u.role || tt('user_default', 'user'))}</span></div>
                 <div class="item-row"><span>${tt('home_premium', 'Premium')}</span><span>${u.is_premium ? tt('yes', 'Ha') : tt('no', 'Yo\'q')}</span></div>
             `;
             const profileInfoContainer = document.getElementById('user-info-content');
@@ -1141,6 +1255,9 @@ function renderUI() {
                 WebAppI18n.init(u.language || localStorage.getItem('webapp_lang') || 'uz');
                 WebAppI18n.apply();
             }
+            applyLocalizedUi();
+            mergeAnalyticsIntoWallet();
+            initTonWalletUi();
         }
 
         async function fetchSources() {
@@ -1155,8 +1272,8 @@ function renderUI() {
                 if (Array.isArray(data) && data.length > 0) {
                     data.slice(0, 3).forEach(s => {
                         homeSourcesList.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:6px 10px; border-radius:6px; border:1px solid var(--border); margin-bottom: 6px;">
-                            <span>ðŸŸ¢ ${s.name}</span>
-                            <span style="font-size:0.75rem; color:var(--secondary);">${s.lang.toUpperCase()}</span>
+                            <span>ðŸŸ¢ ${escapeHtml(s.name)}</span>
+                            <span style="font-size:0.75rem; color:var(--secondary);">${escapeHtml((s.lang || '').toUpperCase())}</span>
                         </div>`;
                     });
                     if (data.length > 3) {
@@ -1171,7 +1288,8 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(s => {
-                    list.innerHTML += `<div class="item-row"><div><h4>${s.name}</h4><p>${s.url.slice(0, 30)}...</p></div><i class="fas fa-trash" style="color:var(--danger)" onclick="deleteSource(${s.id})"></i></div>`;
+                    const previewUrl = String(s.url || '').slice(0, 30);
+                    list.innerHTML += `<div class="item-row"><div><h4>${escapeHtml(s.name)}</h4><p>${escapeHtml(previewUrl)}...</p></div><i class="fas fa-trash" style="color:var(--danger)" onclick="deleteSource(${Number(s.id)})"></i></div>`;
                 });
             }
         }
@@ -1469,6 +1587,8 @@ function renderUI() {
                 loadFinance();
             }
             if (p === 'wallet') {
+                loadTrends(false);
+                loadFinance();
                 if (!lazyLoaded.apiKeys) {
                     lazyLoaded.apiKeys = true;
                     fetchApiKeys();
@@ -1561,25 +1681,30 @@ function renderUI() {
             if (addBtn) addBtn.style.display = canManage ? 'flex' : 'none';
             if (Array.isArray(data)) {
                 if (!data.length) {
-                    list.innerHTML = '<p style="color:var(--secondary);font-size:0.85rem;">API key hali qo\'shilmagan.</p>';
+                    list.innerHTML = `<p style="color:var(--secondary);font-size:0.85rem;">${tt('api_keys_empty', 'No API keys added yet.')}</p>`;
                     return;
                 }
-                data.forEach(k => {
+                const items = data.map(k => {
                     const raw = k.api_key || '';
                     const safeKey = raw.length > 10 ? `${raw.slice(0, 6)}...${raw.slice(-4)}` : 'Noma\'lum';
-                    list.innerHTML += `
-                        <details class="key-accordion">
-                            <summary>
-                                <span><i class="fas fa-key" style="color:var(--accent);"></i> ${escapeHtml(k.api_type || 'Kalit')}</span>
-                                <span style="color:var(--secondary);font-size:0.78rem;">${escapeHtml(safeKey)}</span>
-                            </summary>
-                            <div class="key-panel">
-                                <p>ID: ${k.id || '-'}</p>
-                                <p>Status: ${k.is_active === false ? 'Inactive' : 'Active'}</p>
-                                ${canManage ? `<button class="btn btn-ghost" style="width:auto; padding:7px 10px; color:var(--danger); margin-top:10px;" onclick="deleteApiKey(${k.id})"><i class="fas fa-trash"></i> Delete</button>` : ''}
+                    return `
+                        <div class="item-row" style="align-items:flex-start; gap:12px;">
+                            <div style="flex:1;">
+                                <h4>${escapeHtml(k.api_type || 'Kalit')}</h4>
+                                <p style="font-size:0.78rem; color:var(--secondary);">${escapeHtml(safeKey)}</p>
+                                <p style="font-size:0.72rem; color:var(--secondary); margin-top:4px;">ID: ${k.id || '-'} | ${k.is_active === false ? 'Inactive' : 'Active'}</p>
                             </div>
-                        </details>`;
-                });
+                            ${canManage ? `<button class="btn btn-ghost" style="width:auto; padding:7px 10px; color:var(--danger);" onclick="deleteApiKey(${k.id})"><i class="fas fa-trash"></i></button>` : ''}
+                        </div>`;
+                }).join('');
+                list.innerHTML = `
+                    <details class="key-accordion">
+                        <summary>
+                            <span><i class="fas fa-layer-group" style="color:var(--accent);"></i> ${tt('api_keys_group', 'Added API keys')}</span>
+                            <span style="color:var(--secondary);font-size:0.78rem;">${data.length}</span>
+                        </summary>
+                        <div class="key-panel">${items}</div>
+                    </details>`;
             }
         }
 
@@ -1609,7 +1734,7 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(t => {
-                    list.innerHTML += `<div class="item-row"><div><h4>${t.subject}</h4><p>${t.status}</p></div></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4>${escapeHtml(t.subject)}</h4><p>${escapeHtml(t.status)}</p></div></div>`;
                 });
             }
         }
@@ -1629,7 +1754,8 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(p => {
-                    list.innerHTML += `<div class="item-row"><div><h4><a href="${p.url}" target="_blank" style="color:white; text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.7rem; color:var(--secondary); margin-right:4px;"></i> ${p.item_name}</a></h4><p>${p.last_price.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${p.id})">âŒ</button></div>`;
+                    const numericPrice = Number(p.last_price) || 0;
+                    list.innerHTML += `<div class="item-row"><div><h4><a href="${escapeAttr(safeUrl(p.url))}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.7rem; color:var(--secondary); margin-right:4px;"></i> ${escapeHtml(p.item_name)}</a></h4><p>${numericPrice.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${Number(p.id)})">âŒ</button></div>`;
                 });
             }
         }
@@ -1663,11 +1789,11 @@ function renderUI() {
                                 <div style="min-width:0;">
                                     <p style="font-size:0.72rem;color:var(--success);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Eng arzon topildi</p>
                                     <h4 style="margin:6px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                                        <a href="${best.url}" target="_blank" style="color:white;text-decoration:none;">${escapeHtml(best.title)}</a>
+                                        <a href="${escapeAttr(safeUrl(best.url))}" target="_blank" rel="noopener noreferrer" style="color:white;text-decoration:none;">${escapeHtml(best.title)}</a>
                                     </h4>
                                     <p style="color:var(--success);font-weight:800;">${best.price.toLocaleString()} UZS <span style="color:var(--secondary);font-weight:500;">${escapeHtml(best.source)}</span></p>
                                 </div>
-                                <button class="btn btn-primary" style="width:auto; padding:8px 12px; font-size:0.78rem;" onclick="trackSearchProduct('${best.url}', '${best.title.replace(/'/g, "\\'")}', ${best.price}, this)"><i class="fas fa-bell"></i></button>
+                                <button class="btn btn-primary" style="width:auto; padding:8px 12px; font-size:0.78rem;" onclick="trackSearchProduct('${safeUrl(best.url)}', '${escapeJsString(best.title)}', ${Number(best.price) || 0}, this)"><i class="fas fa-bell"></i></button>
                             </div>
                         </div>`;
                 }
@@ -1677,11 +1803,11 @@ function renderUI() {
                             <div class="item-row" style="margin-bottom: 6px; padding: 8px 12px; background: rgba(255,255,255,0.01);">
                                 <div style="flex: 1; min-width: 0; padding-right: 10px;">
                                     <h4 style="font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                                        <a href="${p.url}" target="_blank" style="color:var(--accent); text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.75rem;"></i> ${p.title}</a>
+                                        <a href="${escapeAttr(safeUrl(p.url))}" target="_blank" rel="noopener noreferrer" style="color:var(--accent); text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.75rem;"></i> ${escapeHtml(p.title)}</a>
                                     </h4>
-                                    <p style="font-size:0.75rem; color:var(--success); font-weight:600;">${p.price.toLocaleString()} UZS <span style="color:var(--secondary); font-weight:normal; font-size:0.65rem;">(${p.source})</span></p>
+                                    <p style="font-size:0.75rem; color:var(--success); font-weight:600;">${(Number(p.price) || 0).toLocaleString()} UZS <span style="color:var(--secondary); font-weight:normal; font-size:0.65rem;">(${escapeHtml(p.source)})</span></p>
                                 </div>
-                                <button class="btn btn-primary" style="width:auto; padding:6px 12px; font-size:0.75rem;" onclick="trackSearchProduct('${p.url}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, this)"><i class="fas fa-bell"></i> Kuzatish</button>
+                                <button class="btn btn-primary" style="width:auto; padding:6px 12px; font-size:0.75rem;" onclick="trackSearchProduct('${safeUrl(p.url)}', '${escapeJsString(p.title)}', ${Number(p.price) || 0}, this)"><i class="fas fa-bell"></i> Kuzatish</button>
                             </div>
                         `;
                     });
@@ -1689,7 +1815,7 @@ function renderUI() {
                     list.innerHTML = '<div style="text-align:center; padding:10px; color:var(--secondary);">Hech qanday mahsulot topilmadi.</div>';
                 }
             } catch (e) {
-                list.innerHTML = `<div style="text-align:center; padding:10px; color:var(--danger);">Xatolik: ${e.message}</div>`;
+                list.innerHTML = `<div style="text-align:center; padding:10px; color:var(--danger);">Xatolik: ${escapeHtml(e.message)}</div>`;
                 showToast('Xatolik: ' + e.message, 'error');
             } finally {
                 btn.disabled = false;
@@ -1743,7 +1869,7 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(c => {
-                    list.innerHTML += `<div class="item-row"><div><h4>${c.name}</h4><p>${c.platform}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteChannel(${c.id})">âŒ</button></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4>${escapeHtml(c.name)}</h4><p>${escapeHtml(c.platform)}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteChannel(${Number(c.id)})">âŒ</button></div>`;
                 });
             }
             // Set initial visibility state for telegram options
@@ -1805,7 +1931,7 @@ function renderUI() {
             if (list) {
                 list.innerHTML = '';
                 (data.topics || []).forEach(t => {
-                    list.innerHTML += '<div class="item-row"><div><h4>' + (t.name || t) + '</h4><p>' + (t.note || '') + '</p></div><span style="color:var(--gold);font-weight:bold;">' + (t.score || '') + '</span></div>';
+                    list.innerHTML += '<div class="item-row"><div><h4>' + escapeHtml(t.name || t) + '</h4><p>' + escapeHtml(t.note || '') + '</p></div><span style="color:var(--gold);font-weight:bold;">' + escapeHtml(t.score || '') + '</span></div>';
                 });
             }
         }
@@ -1816,7 +1942,7 @@ function renderUI() {
             const img = document.getElementById('compose-image')?.value;
             const prev = document.getElementById('compose-preview');
             if (!prev) return;
-            prev.innerHTML = '<b>' + title + '</b><br><br>' + body.replace(/\n/g, '<br>') + (img ? '<br><img src="' + img + '" style="max-width:100%;margin-top:10px;border-radius:8px;">' : '');
+            prev.innerHTML = '<b>' + escapeHtml(title) + '</b><br><br>' + escapeHtml(body).replace(/\n/g, '<br>') + (img ? '<br><img src="' + escapeAttr(safeUrl(img)) + '" style="max-width:100%;margin-top:10px;border-radius:8px;">' : '');
         }
 
         async function publishCompose() {
@@ -1864,7 +1990,7 @@ function renderUI() {
             document.getElementById('extra-channels').value = (data.extra || '').replace(/,/g, ', ');
             const list = document.getElementById('output-channels-list');
             if (list) {
-                list.innerHTML = (data.all || []).map(ch => '<div class="item-row"><span>' + ch + '</span></div>').join('');
+                list.innerHTML = (data.all || []).map(ch => '<div class="item-row"><span>' + escapeHtml(ch) + '</span></div>').join('');
             }
         }
 
@@ -1881,10 +2007,10 @@ function renderUI() {
             const r = await apiFetch(`/api/referral/${userId}`, { headers: { 'x-bot-token': token } });
             const data = await r.json();
             const info = document.getElementById('referral-info');
-            info.innerHTML = `<div class="item-row"><div><h4>Havola</h4><p style="font-size:0.7rem; word-break:break-all;">${data.refLink}</p></div></div>
-                <div class="item-row"><span>Jami</span><span>${data.stats.total}</span></div>
-                <div class="item-row"><span>Aktiv</span><span>${data.stats.active}</span></div>
-                <div class="item-row"><span>Premiumgacha</span><span>${data.stats.needed} ta</span></div>`;
+            info.innerHTML = `<div class="item-row"><div><h4>Havola</h4><p style="font-size:0.7rem; word-break:break-all;">${escapeHtml(data.refLink)}</p></div></div>
+                <div class="item-row"><span>Jami</span><span>${escapeHtml(data.stats.total)}</span></div>
+                <div class="item-row"><span>Aktiv</span><span>${escapeHtml(data.stats.active)}</span></div>
+                <div class="item-row"><span>Premiumgacha</span><span>${escapeHtml(data.stats.needed)} ta</span></div>`;
         }
 
         function copyReferralLink() {
@@ -1897,6 +2023,7 @@ function renderUI() {
             const u = userData.user;
             const status = document.getElementById('premium-status');
             const plans = document.getElementById('premium-plans');
+            const purchaseCard = document.getElementById('premium-purchase-card');
             if (u.is_premium) {
                 if (status) status.innerHTML = `<div style="color: var(--gold); font-weight: bold; margin-bottom: 10px;">âœ… ${typeof t==='function'?t('premium_active'):'Premium faol'}</div>`;
             } else {
@@ -1913,9 +2040,9 @@ function renderUI() {
                     const infoEl = document.getElementById('premium-info');
                     if (infoEl) {
                         let text = '<b>Imtiyozlar:</b><br>';
-                        data.benefits.forEach(b => text += 'â€¢ ' + b + '<br>');
+                        data.benefits.forEach(b => text += 'â€¢ ' + escapeHtml(b) + '<br>');
                         if (data.isActive && data.expiresAt) {
-                            text = `<b>Faol:</b> ${new Date(data.expiresAt).toLocaleDateString()}<br><br>` + text;
+                            text = `<b>Faol:</b> ${escapeHtml(new Date(data.expiresAt).toLocaleDateString())}<br><br>` + text;
                         }
                         infoEl.innerHTML = text;
                     }
@@ -1979,7 +2106,7 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(s => {
-                    list.innerHTML += `<div class="item-row"><div><h4>${s.name}</h4><p>User: ${s.user_id}</p></div></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4>${escapeHtml(s.name)}</h4><p>User: ${escapeHtml(s.user_id)}</p></div></div>`;
                 });
             }
         }
@@ -2029,7 +2156,7 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(t => {
-                    list.innerHTML += `<div class="item-row"><div><h4>${t.subject}</h4><p>${t.status} | User: ${t.user_id}</p></div></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4>${escapeHtml(t.subject)}</h4><p>${escapeHtml(t.status)} | User: ${escapeHtml(t.user_id)}</p></div></div>`;
                 });
             }
         }

@@ -8,6 +8,7 @@ import cron from "node-cron";
 import axios from 'axios';
 import dns from 'dns';
 import { resolveYtDlpPath } from './utils/ytdlp';
+import pkg from '../package.json';
 
 // Fix for Render/Node18+ AggregateError (forces IPv4)
 if (dns.setDefaultResultOrder) {
@@ -15,7 +16,7 @@ if (dns.setDefaultResultOrder) {
 }
 
 async function bootstrap() {
-  logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${require('../package.json').version}`);
+  logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${pkg.version}`);
   logger.info("🚀 Bootstrapping mateAssistent Bot Ecosystem...");
 
   // Deploy healthcheck — log which ENV vars are actually present
@@ -133,7 +134,7 @@ function setupSystemCrons() {
       const { processDailyDigests } = await import('./crons/digest_cron');
       await processDailyDigests();
     } catch (err: any) {
-      // Ignore if not set up yet
+      logger.warn(`Daily digest cron: ${err.message}`);
     }
   });
 

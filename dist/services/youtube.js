@@ -45,9 +45,22 @@ const os_1 = __importDefault(require("os"));
 const path_1 = __importDefault(require("path"));
 const logger_1 = require("../utils/logger");
 const ytdlp_1 = require("../utils/ytdlp");
+const ffmpeg_static_1 = __importDefault(require("ffmpeg-static"));
 const TEMP_DIR = path_1.default.join(os_1.default.tmpdir(), 'newsbot_yt');
 if (!fs_1.default.existsSync(TEMP_DIR))
     fs_1.default.mkdirSync(TEMP_DIR, { recursive: true });
+function detectExtensionFromContentType(contentType, fallback = 'bin') {
+    const value = String(contentType || '').toLowerCase();
+    if (value.includes('audio/mpeg'))
+        return 'mp3';
+    if (value.includes('audio/mp4') || value.includes('audio/x-m4a'))
+        return 'm4a';
+    if (value.includes('audio/webm'))
+        return 'webm';
+    if (value.includes('video/mp4'))
+        return 'mp4';
+    return fallback;
+}
 exports.YoutubeService = {
     async getLatestVideo(channelId) {
         try {
@@ -200,11 +213,7 @@ async function downloadYouTube(urlParam, typeParam) {
                     '--socket-timeout',
                     '30',
                 ];
-            let ffmpegPath = '';
-            try {
-                ffmpegPath = require('ffmpeg-static') || '';
-            }
-            catch (e) { }
+            const ffmpegPath = ffmpeg_static_1.default || '';
             if (ffmpegPath) {
                 args.push('--ffmpeg-location', path_1.default.dirname(ffmpegPath));
             }
@@ -253,21 +262,21 @@ async function downloadYouTube(urlParam, typeParam) {
         });
         if (cobaltUrl) {
             try {
-                const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
-                const filePath = path_1.default.join(TEMP_DIR, `yt_${stamp}.${ext}`);
                 const response = await axios_1.default.get(cobaltUrl, {
                     responseType: 'arraybuffer',
-                    timeout: 45000,
+                    timeout: 60000,
                     maxContentLength: 52 * 1024 * 1024,
                     headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
                 });
+                const contentTypeHeader = response.headers?.['content-type'];
+                const ext = detectExtensionFromContentType(typeof contentTypeHeader === 'string' ? contentTypeHeader : undefined, typeParam === 'audio' ? 'mp3' : 'mp4');
+                const filePath = path_1.default.join(TEMP_DIR, `yt_${stamp}.${ext}`);
                 fs_1.default.writeFileSync(filePath, Buffer.from(response.data));
-                if (fs_1.default.statSync(filePath).size > 0)
+                if (fs_1.default.existsSync(filePath) && fs_1.default.statSync(filePath).size > 1024)
                     return filePath;
             }
             catch (dlErr) {
-                logger_1.logger.warn(`Failed to download cobaltUrl locally (${dlErr.message}). Returning Cobalt URL directly for Telegram to resolve.`);
-                return cobaltUrl;
+                logger_1.logger.warn(`Failed to persist Cobalt media locally: ${dlErr.message}`);
             }
         }
     }
