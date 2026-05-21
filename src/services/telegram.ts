@@ -44,8 +44,11 @@ export async function startBot() {
   if (CONFIG.PUBLIC_URL && process.env.NODE_ENV !== "development") {
     try {
       const webhookUrl = `${CONFIG.PUBLIC_URL}/api/bot/webhook`;
-      await bot.setWebHook(webhookUrl, { secret_token: CONFIG.WEBHOOK_SECRET });
-      logger.info(`Webhook set to: ${webhookUrl}`);
+      await bot.setWebHook(webhookUrl, {
+        secret_token: CONFIG.WEBHOOK_SECRET,
+        max_connections: 100,
+      });
+      logger.info(`Webhook set to: ${webhookUrl} (max_connections=100)`);
     } catch (err: any) {
       logger.error(`setWebHook error: ${err.message}`);
       await bot.deleteWebHook().catch(() => {});

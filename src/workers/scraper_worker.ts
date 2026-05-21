@@ -54,12 +54,8 @@ if (!connectionOptions) {
               await aiQueue.add("process-ai", { userId, article: articleData, lang }, { jobId: `ai_${userId}_${linkHash}` });
             }
           } else {
-            try {
-              await processArticleInline(userId, articleData, lang);
-              await DBService.markSeen(userId, article.link, article.title);
-            } catch (e: any) {
-              logger.error(`Inline processing failed, article left unmarked for retry: ${e.message}`);
-            }
+            const { aiQueue: memAiQueue } = await import("../services/memory_queue");
+            await memAiQueue.add("process-article", { userId, article: articleData, lang }, { jobId: `ai_${userId}_${crypto.createHash("md5").update(article.link).digest("hex")}` });
           }
         }
       } catch (error) {

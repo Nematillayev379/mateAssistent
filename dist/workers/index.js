@@ -36,18 +36,31 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.startWorkers = startWorkers;
 const queue_1 = require("../services/queue");
 const logger_1 = require("../utils/logger");
+const memory_queue_1 = require("../services/memory_queue");
 async function startWorkers() {
     if (!(0, queue_1.isRedisAvailable)()) {
-        logger_1.logger.info('ℹ️ Redis not available — workers skipped, using inline RSS processing');
+        logger_1.logger.info('ℹ️ Redis not available — starting in-memory queue workers');
+        const { processArticleInline } = await Promise.resolve().then(() => __importStar(require('./scraper_worker')));
+        const { DBService } = await Promise.resolve().then(() => __importStar(require('../services/database')));
+        memory_queue_1.aiQueue.process(async (task) => {
+            const { userId, article, lang } = task.data;
+            try {
+                await processArticleInline(userId, article, lang);
+                if (article.url && article.title) {
+                    await DBService.markSeen(userId, article.url, article.title);
+                }
+            }
+            catch (e) {
+                logger_1.logger.error(`Memory queue processing failed: ${e.message}`);
+            }
+        });
+        logger_1.logger.info('🚀 In-memory queue workers started (concurrency=3)');
         return;
     }
-    // Workers self-register when imported; guards inside each file prevent
-    // Worker construction when REDIS_URL is empty.
     try {
-        // CRIT-2 Fix: Use dynamic import instead of require for ESM compatibility
         await Promise.resolve().then(() => __importStar(require('./scraper_worker')));
         await Promise.resolve().then(() => __importStar(require('./ai_worker')));
-        logger_1.logger.info('🚀 Queue workers started');
+        logger_1.logger.info('🚀 Queue workers started with Redis');
     }
     catch (err) {
         logger_1.logger.warn(`⚠️ Workers failed to start: ${err.message} — falling back to inline processing`);

@@ -86,13 +86,8 @@ else {
                     }
                 }
                 else {
-                    try {
-                        await processArticleInline(userId, articleData, lang);
-                        await database_1.DBService.markSeen(userId, article.link, article.title);
-                    }
-                    catch (e) {
-                        logger_1.logger.error(`Inline processing failed, article left unmarked for retry: ${e.message}`);
-                    }
+                    const { aiQueue: memAiQueue } = await Promise.resolve().then(() => __importStar(require("../services/memory_queue")));
+                    await memAiQueue.add("process-article", { userId, article: articleData, lang }, { jobId: `ai_${userId}_${crypto_1.default.createHash("md5").update(article.link).digest("hex")}` });
                 }
             }
         }

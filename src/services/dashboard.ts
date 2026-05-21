@@ -81,11 +81,18 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     message: { error: 'AI request limit exceeded.' }
   });
 
-  app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active' }));
-  app.post('/api/bot/webhook', async (req, res) => {
+  app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active', uptime: process.uptime() }));
+  app.post('/api/bot/webhook', rateLimit({ windowMs: 1000, max: 100, keyGenerator: () => 'webhook' }), async (req, res) => {
     const secret = req.headers['x-telegram-bot-api-secret-token'];
     if (secret !== CONFIG.WEBHOOK_SECRET) return res.sendStatus(403);
-    try { await bot.processUpdate(req.body); res.sendStatus(200); } catch (e: any) { res.sendStatus(500); }
+    if (!req.body) return res.sendStatus(400);
+    try {
+      await bot.processUpdate(req.body);
+      res.sendStatus(200);
+    } catch (e: any) {
+      logger.warn(`Webhook process error: ${e.message}`);
+      res.sendStatus(500);
+    }
   });
 
   // BUG-055/056 Fix: Unified auth with consistent userId extraction

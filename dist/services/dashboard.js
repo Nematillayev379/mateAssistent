@@ -114,16 +114,19 @@ function startDashboardServer(port, _bot) {
         },
         message: { error: 'AI request limit exceeded.' }
     });
-    app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active' }));
-    app.post('/api/bot/webhook', async (req, res) => {
+    app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active', uptime: process.uptime() }));
+    app.post('/api/bot/webhook', (0, express_rate_limit_1.default)({ windowMs: 1000, max: 100, keyGenerator: () => 'webhook' }), async (req, res) => {
         const secret = req.headers['x-telegram-bot-api-secret-token'];
         if (secret !== config_1.CONFIG.WEBHOOK_SECRET)
             return res.sendStatus(403);
+        if (!req.body)
+            return res.sendStatus(400);
         try {
             await bot_instance_1.bot.processUpdate(req.body);
             res.sendStatus(200);
         }
         catch (e) {
+            logger_1.logger.warn(`Webhook process error: ${e.message}`);
             res.sendStatus(500);
         }
     });
