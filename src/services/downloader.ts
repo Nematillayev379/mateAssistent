@@ -22,7 +22,6 @@ export const DownloaderService = {
       
       if (ytdlpCommand) {
         logger.info(`Downloading YouTube video with yt-dlp: ${sanitizeLogInput(url)}`);
-        // BUG-047 Fix: Use execFile to avoid hanging processes when shell ignores SIGTERM on timeout
         const { execFile } = await import('child_process');
         const execFilePromise = promisify(execFile);
         await execFilePromise(ytdlpCommand.command, [
@@ -192,7 +191,6 @@ export const DownloaderService = {
   },
 
   /** Clean up temp files older than 1 hour */
-  // BUG-048 Fix: Use async operations to prevent blocking the Node.js event loop
   async cleanup() {
     try {
       if (!fs.existsSync(TEMP_DIR)) return;

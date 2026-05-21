@@ -32,8 +32,6 @@ export const MusicService = {
     } catch (e: any) {
       logger.warn(`MusicService: yt-dlp strategy failed: ${e.message}`);
     }
-
-    // BUG-114 Fix: If strategy 1 found anything, do not fall through to other strategies, as they will likely fail too and just waste time
     if (results.length === 0) {
       try {
         logger.info(`MusicService: Cobalt API orqali qidirilmoqda...`);
@@ -54,8 +52,6 @@ export const MusicService = {
         logger.warn(`MusicService: YouTube scrape strategy failed: ${e.message}`);
       }
     }
-
-    // BUG-055 Fix: Throw error if no results found so caller can notify user
     if (results.length === 0) {
       throw new Error("Musiqa topilmadi yoki yuklashda xatolik yuz berdi. Iltimos keyinroq urinib ko'ring.");
     }
@@ -73,7 +69,6 @@ export const MusicService = {
    */
   async searchWithYtDlp(artist: string, amount: number): Promise<{ title: string, path: string }[]> {
     const results: { title: string, path: string }[] = [];
-    // BUG-113 & BUG-054 Fix: Use cached path
     const ytdlpCommand = await this.getYtDlpCommandAsync();
     if (!ytdlpCommand) {
       logger.warn('yt-dlp topilmadi, skip');
@@ -113,7 +108,6 @@ export const MusicService = {
         const filePath = path.join(TEMP_DIR, `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.m4a`);
         
         try {
-          // BUG-113 Fix: Use child_process.execFile to prevent shell injection and maxBuffer issues
           const { execFile } = await import('child_process');
           const execFilePromise = promisify(execFile);
           await execFilePromise(
@@ -128,11 +122,9 @@ export const MusicService = {
               results.push({ title: title.trim(), path: filePath });
               logger.info(`✅ Music downloaded: ${sanitizeLogInput(title.trim())} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
             } else {
-              // B-14 Fix: Delete temp file if invalid size
               try { fs.unlinkSync(filePath); } catch {}
             }
           }
-          // B-13 Fix: Check alt paths only if primary file doesn't exist
           const altExtensions = ['.webm', '.opus', '.mp3'];
           for (const altExt of altExtensions) {
             const altPath = filePath.replace(/\.[a-zA-Z0-9]+$/, '') + altExt;
@@ -153,8 +145,6 @@ export const MusicService = {
     } catch (e: any) {
       logger.warn(`yt-dlp search error: ${e.message?.slice(0, 200)}`);
     }
-
-    // B-54 Fix: Deduplicate search results by title
     const uniqueResults = new Map<string, { title: string, path: string }>();
     for (const result of results) {
       const normalizedTitle = result.title.toLowerCase().trim();
@@ -222,8 +212,6 @@ export const MusicService = {
           const writer = fs.createWriteStream(filePath);
           const audioRes = await axios.get(audioUrl, { responseType: 'stream', timeout: 30000 });
           audioRes.data.pipe(writer);
-
-          // B-15 Fix: Add resolved flag to prevent race condition
           let resolved = false;
           await new Promise<void>((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -255,7 +243,6 @@ export const MusicService = {
               logger.info(`✅ Cobalt download: ${sanitizeLogInput(video.title)} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
               break; // Success, move to next video
             } else {
-              // B-14 Fix: Delete temp file if invalid size
               try { fs.unlinkSync(filePath); } catch {}
             }
           }
@@ -283,7 +270,6 @@ export const MusicService = {
       if (ytdlpCommand) {
         const filePath = path.join(TEMP_DIR, `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.m4a`);
         try {
-          // BUG-113 Fix: execFile usage
           const { execFile } = await import('child_process');
           const execFilePromise = promisify(execFile);
           await execFilePromise(
@@ -297,7 +283,6 @@ export const MusicService = {
             if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
               results.push({ title: video.title, path: filePath });
             } else {
-              // B-14 Fix: Delete temp file if invalid size
               try { fs.unlinkSync(filePath); } catch {}
             }
           }
@@ -330,8 +315,6 @@ export const MusicService = {
       });
 
       const body = res.data;
-      
-      // BUG-057 Fix: Support modern regex and fallbacks for YouTube search changes
       const jsonMatch = body.match(/(?:var ytInitialData|window\["ytInitialData"\])\s*=\s*({[\s\S]*?});/);
       if (jsonMatch) {
         try {
@@ -404,8 +387,6 @@ export const MusicService = {
 
     return results;
   },
-
-  // BUG-054 Fix: Cached async yt-dlp resolver
   cachedYtDlpCommand: null as { command: string; args: string[] } | null,
   ytDlpChecked: false,
   async getYtDlpCommandAsync(): Promise<{ command: string; args: string[] } | null> {

@@ -44,12 +44,8 @@ export async function refreshKeyPool() {
         }
       }
       activeKeys = allKeys;
-      // BUG-004 Fix: Reset globalKeyIndex
       globalKeyIndex = 0;
-      // BUG-036 Fix: Reset embedding index to prevent out-of-range
       embeddingKeyIndex = 0;
-      
-      // BUG-131 Fix: Clean up old clients from Maps to prevent memory leak
       for (const key of groqClients.keys()) {
         if (!allKeys.find(k => k.key === key)) groqClients.delete(key);
       }
@@ -65,19 +61,13 @@ export async function refreshKeyPool() {
     }
   });
 }
-
-// BUG-032 Fix: Limit retries to Math.min(activeKeys.length, 10) and prevent infinite loop with 1 key
 export async function getSmartAIResponse(system: string, user: string, retryCount = 0): Promise<string> {
   if (activeKeys.length === 0) throw new Error("API kalitlar mavjud emas!");
   const maxRetries = Math.min(activeKeys.length, 5);
   if (retryCount >= maxRetries) throw new Error("Barcha API kalitlar tugadi (limit yoki xato).");
-  
-  // BUG-003 Fix: Max delay 5 seconds to avoid Webhook timeout
   if (retryCount > 0) {
     await new Promise(resolve => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
   }
-  
-  // BUG-001 & BUG-002 Fix: Extract key selection to happen inside mutex, but execution and retry outside
   let currentKeyObj: any;
   let idx = 0;
   
@@ -95,7 +85,6 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
   });
 
   try {
-    // BUG-001 Fix: Use provider-specific max tokens
     const maxTokens = MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || CONFIG.MAX_TOKENS;
 
     if (currentKeyObj.type === "groq") {
@@ -104,7 +93,6 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
         groq = new Groq({ apiKey: currentKeyObj.key, timeout: 15000 });
         groqClients.set(currentKeyObj.key, groq);
       }
-      // BUG-033 Fix: Added max_tokens for Groq
       const res = await groq.chat.completions.create({
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
         model: "llama-3.3-70b-versatile",
@@ -112,7 +100,6 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
       });
       return res.choices[0]?.message?.content ?? "";
     } else if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
-      // BUG-034 Fix: Use gemini-2.0-flash (widely supported)
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,8 +174,6 @@ export async function getSmartAIResponse(system: string, user: string, retryCoun
     throw error;
   }
 }
-
-// BUG-035 Fix: Use same model for validation as main usage
 export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "gemini" | "openai" | "google", key: string): Promise<boolean> {
   try {
     if (type === "openrouter") {
@@ -199,7 +184,6 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
     }
 
     if (type === "groq") {
-      // B-24 Fix: Use GET /models endpoint instead of making API call that costs tokens
       const response = await fetch("https://api.groq.com/openai/v1/models", {
         headers: { "Authorization": `Bearer ${key}` }
       });
@@ -210,7 +194,6 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
       const data = await response.json() as any;
       return Array.isArray(data.models) && data.models.length > 0;
     } else if (type === "openai") {
-      // B-24 Fix: Use GET /models endpoint instead of making API call that costs tokens
       const response = await fetch("https://api.openai.com/v1/models", {
         headers: { "Authorization": `Bearer ${key}` }
       });
@@ -222,7 +205,6 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
       } else {
         throw new Error(`Unknown API key type: ${type}`);
       }
-      // B-24 Fix: Use GET /models endpoint instead of making API call that costs tokens
       const response = await fetch(`${baseURL}/models`, {
         headers: { "Authorization": `Bearer ${key}` }
       });
@@ -233,9 +215,6 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
     return false;
   }
 }
-
-
-// B-57 Fix: Reduce lastTitles count to prevent token overflow
 export async function isDuplicateAI(userId: number, title: string, content: string): Promise<boolean> {
   const lastTitles = await DBService.getLastTitles(userId, 20);
   if (lastTitles.length === 0) return false;
@@ -254,8 +233,6 @@ export async function isDuplicateAI(userId: number, title: string, content: stri
     return true; // BUG-007 Fix: Fail-safe to avoid spamming if AI fails
   }
 }
-
-// BUG-043 Fix: Log warning when embedding returns null
 export async function checkSemanticDuplicate(userId: number, title: string, content: string): Promise<boolean> {
   try {
     const textToEmbed = `${title}\n${content.slice(0, 500)}`;
@@ -281,26 +258,19 @@ export async function checkSemanticDuplicate(userId: number, title: string, cont
     return false;
   }
 }
-
-
-// B-33 Fix: Add fallback for empty AI responses
 export async function getNiceEmoji(title: string): Promise<string> {
   try {
     const res = await getSmartAIResponse(
       "Pick one relevant emoji for this news topic. Output ONLY the emoji.",
       title
     );
-    // BUG-009 Fix: Safely extract first emoji to support multi-byte Unicode
     const emojis = res.match(/[\p{Emoji}\u200d]+/gu);
     const emoji = emojis ? emojis[0] : "🔹";
-    // B-33 Fix: Return fallback if empty
     return emoji || "🔹";
   } catch {
     return "🔹";
   }
 }
-
-// BUG-041 Fix: Removed redundant toUpperCase before regex with /i flag
 export async function moderateContent(title: string, content: string): Promise<{status: 'SAFE'|'BLOCKED', reason?: string}> {
   const categories = [
     {label: 'Jinsiy zo\'ravonlik va Pornografiya', description: 'Sexual violence, sexual assault, harassment, or explicit adult content.'},
@@ -336,10 +306,6 @@ export async function moderateContent(title: string, content: string): Promise<{
     return {status: 'BLOCKED', reason: 'Moderation service unavailable'};
   }
 }
-
-// BUG-038 Fix: Log warning when translation fails
-// B-17 Fix: Add content length limit to prevent token overflow
-// B-33 Fix: Add fallback for empty AI responses
 export async function translateToUzbek(title: string, content: string) {
   const prompt = `Translate this news to Uzbek. Keep it professional. Output JSON: {"title": "...", "content": "..."}`;
   try {
@@ -349,7 +315,6 @@ export async function translateToUzbek(title: string, content: string) {
     const jsonMatch = res.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
-      // B-33 Fix: Add fallback for empty responses
       if (!parsed.title || !parsed.content) {
         return { title: title || 'Untitled', content: content || '' };
       }
@@ -363,7 +328,6 @@ export async function translateToUzbek(title: string, content: string) {
 }
 
 /** Gemini orqali matnli embedding (vektor) olish */
-// BUG-036 Fix: Safe embedding key index management with proper retry
 export async function getEmbedding(text: string, retryCount = 0): Promise<number[] | null> {
   if (retryCount > 5) return null;
   if (activeKeys.length === 0) return null;
@@ -406,8 +370,6 @@ export async function getEmbedding(text: string, retryCount = 0): Promise<number
     return null;
   }
 }
-
-// BUG-042 Fix: Normalize category comparison
 export async function categorizeNews(title: string, content: string): Promise<string> {
   try {
     const res = await getSmartAIResponse(
@@ -415,7 +377,6 @@ export async function categorizeNews(title: string, content: string): Promise<st
       `${title}\n${content.slice(0, 300)}`
     );
     const validCategories = ['Sport', 'Siyosat', 'Iqtisodiyot', 'Texnologiya', 'Jamiyat', 'Madaniyat', 'Sogliq', 'Talim', 'Hodisalar', 'Boshqa'];
-    // BUG-042 Fix: Normalize by removing apostrophes and comparing
     const normalizedRes = res.replace(/[''ʻʼ`]/g, '');
     const found = validCategories.find(c => normalizedRes.includes(c));
     return found || 'Boshqa';
@@ -423,8 +384,6 @@ export async function categorizeNews(title: string, content: string): Promise<st
     return 'general';
   }
 }
-
-// B-37 Fix: Combined function to get both category and sentiment in one API call
 export async function categorizeAndAnalyze(title: string, content: string): Promise<{category: string, sentiment: string}> {
   try {
     const validCategories = ['Sport', 'Siyosat', 'Iqtisodiyot', 'Texnologiya', 'Jamiyat', 'Madaniyat', 'Sogliq', 'Talim', 'Hodisalar', 'Boshqa'];
@@ -464,9 +423,6 @@ export async function analyzeSentiment(title: string): Promise<'positive' | 'neg
     return 'neutral';
   }
 }
-
-// BUG-040 Fix: Validate AI-returned indices against array bounds
-// B-43 Fix: Improve selectTopNews JSON parsing with better error handling
 export async function selectTopNews(titles: {title: string, url: string}[]): Promise<{title: string, url: string}[]> {
   if (titles.length <= 5) return titles;
   try {
@@ -475,12 +431,10 @@ export async function selectTopNews(titles: {title: string, url: string}[]): Pro
       `Quyidagi yangiliklar ro'yxatidan eng muhim va qiziqarli 5 tasini tanla. FAQAT JSON formatida javob ber: [0, 2, 5, 8, 12] kabi indekslar.`,
       list
     );
-    // B-43 Fix: More flexible JSON parsing to handle various AI response formats
     const match = res.match(/\[[\d,\s]+\]/);
     if (match) {
       try {
         const indices: number[] = JSON.parse(match[0]);
-        // BUG-040 Fix: Validate indices are in range
         const selected = indices
           .filter(i => typeof i === 'number' && i >= 0 && i < titles.length)
           .slice(0, 5)
@@ -746,8 +700,6 @@ export async function generateSummary(title: string, content: string): Promise<s
     return "";
   }
 }
-
-// B-30 Fix: Increase TTS text limit to 500-800 chars for better summaries
 function normalizeTextForSpeech(text: string): string {
   return text
     .replace(/https?:\/\/\S+/g, ' ')

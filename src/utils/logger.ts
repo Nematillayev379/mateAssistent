@@ -8,15 +8,11 @@ const logFormat = winston.format.combine(
   winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
   winston.format.printf(info => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`)
 );
-
-// BUG-149 Fix: On ephemeral FS (Render.com), only use console transport
 const isEphemeralFs = !!(process.env.RENDER || process.env.RAILWAY_ENVIRONMENT || process.env.FLY_APP_NAME);
 
 const logDir = CONFIG.LOG_DIR || path.join(process.cwd(), "logs");
 
 const fileTransports: winston.transport[] = [];
-
-// BUG-149 Fix: Only create file transports if not on ephemeral filesystem
 if (!isEphemeralFs) {
   try {
     if (!fs.existsSync(logDir)) {

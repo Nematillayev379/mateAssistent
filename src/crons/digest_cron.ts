@@ -9,7 +9,6 @@ export async function processDailyDigests() {
 
   try {
     const users = await DBService.getUsersWithDigest();
-    // BUG-033/BUG-H01 Fix: Use Uzbekistan Time (UTC+5) for 'today' and time comparisons
     const uzbNow = new Date(now.getTime() + (5 * 60 * 60 * 1000));
     const today = uzbNow.toISOString().split('T')[0];
 
@@ -19,8 +18,6 @@ export async function processDailyDigests() {
       const [targetH, targetM] = user.digest_time.split(':').map(Number);
       const targetTotal = targetH * 60 + targetM;
       const currentTotal = uzbNow.getUTCHours() * 60 + uzbNow.getUTCMinutes();
-      
-      // BUG-033 Fix: Only send if within 60 minutes of target time
       let timeDiff = currentTotal - targetTotal;
       // Handle cross-midnight comparison
       if (timeDiff < 0) timeDiff += 1440;
@@ -58,7 +55,6 @@ async function sendDigest(user: any): Promise<boolean> {
 
     if (summary) {
       const header = `🗞 <b>${i18n.t('daily_digest_header', { lng: lang }) || 'Daily News Digest'}</b>\n\n`;
-      // BUG-034 Fix: Try to send to target channel if they have one, fallback to PM
       const target = user.target_channel || user.telegram_id;
       await bot.sendMessage(target, header + summary, { parse_mode: 'HTML' });
       return true;
@@ -66,7 +62,6 @@ async function sendDigest(user: any): Promise<boolean> {
     return false;
   } catch (err: any) {
     logger.error(`Failed to send digest to ${user.telegram_id}: ${err.message}`);
-    // BUG-138 Fix: Return true on terminal errors like blocked bot to prevent retry loops
     if (err.message?.includes('Forbidden') || err.message?.includes('blocked')) {
       return true; 
     }

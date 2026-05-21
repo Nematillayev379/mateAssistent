@@ -27,8 +27,6 @@ export const aiQueue = redisOptions ? new Queue('ai-queue', {
 export function isRedisAvailable(): boolean {
   return !!redisOptions;
 }
-
-// BUG-111 Fix: Added logging for silent fails
 export async function addScraperJob(data: any): Promise<void> {
   if (!scraperQueue) {
     logger.debug('addScraperJob: Redis not available, skipping queue');

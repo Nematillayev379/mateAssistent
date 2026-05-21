@@ -3,8 +3,6 @@ import * as path from "path";
 import * as crypto from "crypto";
 
 dotenv.config({ override: false }); // Kubernetes/Render env-vars win over local .env
-
-// BUG-001 Fix: Provider-based max token limits
 export const MAX_TOKENS_BY_PROVIDER: Record<string, number> = {
   groq: 1500,       // Groq models have smaller context limits
   cerebras: 2000,
@@ -31,7 +29,6 @@ export const CONFIG = {
     "2. Agar mavzu bir xil bo'lsa-da (masalan, bir xil voqea haqida boshqa tafsilot, davomi, yuzaga kelgan yangi holat, munosabat) -> UNIQUE.\n" +
     "3. Agar voqea bir xil, lekin umuman boshqa nuqtai nazar yoki qo'shimcha muhim faktlar bo'lsa -> UNIQUE.\n" +
     "Xulosa qat'iy bo'lsin: 'DUPLICATE' yoki 'UNIQUE'.",
-  // BUG-005 Fix: Added English and international ad keywords
   AD_KEYWORDS: [
     "reklama", "xarid", "aksiya", "shartlari", "yutuq", "muddati",
     "to'lov", "oyiga", "bonus", "sovg'a", "narxi", "sotiladi",
@@ -46,7 +43,6 @@ export const CONFIG = {
   SUPABASE_URL: process.env.SUPABASE_URL || "",
   SUPABASE_KEY: process.env.SUPABASE_KEY || "",
   TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID || "",
-  // BUG-004 Fix: Fail early if DASHBOARD_SECRET not set (required for persistent dashboard links)
   // IMPORTANT: Set DASHBOARD_SECRET in your .env file or Render Environment Variables.
   // This is your master password for the admin dashboard - keep it secret!
   // Generate one with: openssl rand -hex 32 (Linux/Mac) or generate a long random string

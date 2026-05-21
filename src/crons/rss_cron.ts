@@ -4,16 +4,13 @@ import { isRedisAvailable, addScraperJob } from '../services/queue';
 import { ScraperService } from '../services/scraper';
 import { processArticleInline } from '../workers/scraper_worker';
 import { logger, sanitizeLogInput } from '../utils/logger';
-// BUG-097 Fix: Import bot properly
 import { bot } from '../services/bot_instance';
 
 const userLastRun = new Map<number, number>();
-// BUG-096 Fix: Track last monitored channel check
 let lastMonitoredCheck = 0;
 const MONITORED_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 export function setupRSSCron() {
-  // BUG-030 & BUG-146 Fix: Prune inactive users instead of full clear to prevent midnight thundering herd
   cron.schedule('0 0 * * *', async () => {
     try {
       const activeUsers = await DBService.getActiveUsers();
@@ -30,8 +27,6 @@ export function setupRSSCron() {
   cron.schedule('*/2 * * * *', async () => {
     try {
       const users = await DBService.getActiveUsers();
-      
-      // BUG-096 Fix: Rate limit monitored channel checks
       const now = Date.now();
       if (now - lastMonitoredCheck > MONITORED_CHECK_INTERVAL) {
         lastMonitoredCheck = now;
@@ -43,7 +38,6 @@ export function setupRSSCron() {
         const intervalMs = intervalMinutes * 60 * 1000;
         
         let lastRun = userLastRun.get(user.telegram_id);
-        // BUG-118 Fix: Randomize initial state on restart to spread network load (Thundering Herd prevention)
         if (lastRun === undefined) {
           lastRun = Date.now() - Math.floor(Math.random() * intervalMs);
           userLastRun.set(user.telegram_id, lastRun);
@@ -59,7 +53,6 @@ export function setupRSSCron() {
         // Strategy 1: Fixed Schedule
         if (user.schedule_times && user.schedule_times.trim() !== '') {
           const times = user.schedule_times.split(',').map((t: string) => {
-            // BUG-031 Fix: Safer regex parsing for time
             const match = t.trim().match(/^(\d{1,2})[:.](\d{2})/);
             if (!match) return null;
             const h = parseInt(match[1]);
@@ -102,8 +95,6 @@ export function setupRSSCron() {
 
   logger.info('📅 RSS cron scheduled (every 2 min, respects user intervals)');
 }
-
-// BUG-097 Fix: Use imported bot instance
 async function checkMonitoredChannels() {
   try {
     const channels = await DBService.getMonitoredChannels();

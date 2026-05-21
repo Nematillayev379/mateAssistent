@@ -37,8 +37,6 @@ async function bootstrap() {
     OPENROUTER_KEYS_set: !!process.env.OPENROUTER_KEYS,
     REDIS_URL_set: !!process.env.REDIS_URL,
   });
-
-  // B-08 Fix: Validate TELEGRAM_BOT_TOKEN on startup
   if (!CONFIG.TELEGRAM_TOKEN) {
     logger.error('❌ TELEGRAM_BOT_TOKEN must be set in environment variables!');
     process.exit(1);
@@ -51,7 +49,6 @@ async function bootstrap() {
   }
 
   try {
-    // BUG-001 & #002: Critical Service Initialization
     const { initI18n } = await import("./services/i18n");
     const { refreshKeyPool } = await import("./services/ai");
     await initI18n();
@@ -81,7 +78,6 @@ async function bootstrap() {
     }
 
     // 1. Start Dashboard
-    // B-31 Fix: Parse PORT as integer
     const PORT = parseInt(process.env.PORT || '3000', 10);
     startDashboardServer(PORT, bot);
 
@@ -96,7 +92,6 @@ async function bootstrap() {
     SchedulerService.setup();
 
     // 5. Setup Cron Jobs — always run regardless of webhook/polling mode
-    // BUG-003 Fix: Crons must run in both webhook AND polling modes.
     // startBot() already handles webhook vs polling selection — no duplicate calls here.
     setupRSSCron();
     setupSystemCrons();
@@ -147,7 +142,6 @@ function setupSystemCrons() {
       await DownloaderService.cleanup();
       await MusicService.cleanup();
       await DBService.cleanupOldEmbeddings(7);
-      // BUG-020 Fix: Cleanup expired premium users
       await DBService.cleanupExpiredPremium();
       
       logger.info(`🧹 System cleanup completed`);

@@ -314,7 +314,9 @@ export function registerCommands(bot: TelegramBot) {
       logger.error(`pre_checkout_query error: ${e.message}`);
       try {
         await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Server error" });
-      } catch {}
+      } catch (inner: any) {
+        logger.warn(`PreCheckoutQuery answer failed: ${inner.message}`);
+      }
     }
   });
 

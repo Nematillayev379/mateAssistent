@@ -19,8 +19,6 @@ import { generateTTS, generateAudioSummary } from './ai';
 import { safeSendToChannels } from './telegram';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-
-// B-51 Fix: Add proper type for bot parameter
 export function startDashboardServer(port: number | string, _bot?: any) {
   const app = express();
 
@@ -38,7 +36,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     }
     next();
   });
-  // B-20 Fix: Use process.cwd() instead of __dirname for tsx compatibility
   app.use(express.static(path.join(process.cwd(), 'public'), {
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
@@ -57,15 +54,12 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       privacyPolicyUrl: `${publicBase}/dashboard`,
     });
   });
-
-  // BUG-154 Fix: Rate limiting on API endpoints
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 60, // 60 requests per minute
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
-    // BUG-102 Fix: Exclude webhook from rate limiting
     skip: (req) => req.path === '/api/bot/webhook'
   });
   app.use('/api/', apiLimiter);
@@ -98,8 +92,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       }
     });
   });
-
-  // BUG-055/056 Fix: Unified auth with consistent userId extraction
   const extractUserId = (req: any) => {
     return String(
       req.headers['x-user-id'] ||
@@ -243,8 +235,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       res.status(401).json({ error: 'Invalid master token' });
     }
   });
-
-  // BUG-056 Fix: Same userId extraction order as checkAuth
   const checkAdmin = async (req: any, res: any, next: any) => {
     const token = req.headers['x-bot-token'] || req.query.token || (req.headers.authorization?.split(' ')[1] ?? '');
     const adminId = extractUserId(req);
@@ -273,7 +263,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
 
   // --- API ---
   app.get('/api/dashboard-info', checkAuth, async (req: any, res: any) => {
-    // BUG-123/BUG-083 Fix: Use authenticatedUserId
     const userId = parseInt(req.authenticatedUserId);
     const user = await DBService.getUser(userId);
     if (!user) return res.status(404).json({ error: 'Not found' });
@@ -301,17 +290,13 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   app.get('/api/user/:userId', checkAuth, async (req: any, res: any) => {
-    // BUG-123/BUG-083 Fix: Use authenticatedUserId to prevent IDOR
     const u = await DBService.getUser(parseInt(req.authenticatedUserId));
     res.json(u ? { ...u, api_key_count: await DBService.getUserApiKeyCount(u.telegram_id) } : { error: 'Not found' });
   });
 
   app.get('/api/sources/:userId', checkAuth, async (req: any, res: any) => {
-    // BUG-124/BUG-084 Fix: Use authenticatedUserId
     res.json(await DBService.getUserSources(parseInt(req.authenticatedUserId)));
   });
-
-  // BUG-058 Fix: Admin limit calculation included
   app.post('/api/sources/:userId', checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId);
     const { name, url, lang } = req.body;
@@ -322,7 +307,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     }
 
     const discovered = await ScraperService.discoverRSS(url);
-    // BUG-024 Fix: Better error message for RSS discovery failure
     if (!discovered) return res.status(400).json({ error: 'URL yaroqli RSS/Atom formatida emas yoki server bloklagan.' });
 
     const user = await DBService.getUser(uid);
@@ -484,8 +468,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   app.get('/api/payments/methods', checkAuth, async (_req, res) => {
     res.json(PaymentService.getAvailableMethods());
   });
-
-  // BUG-059 Fix: Actually ping Redis to check connection
   app.get('/api/admin/system', checkAdmin, async (req, res) => {
     let redisStatus = false;
     try {
@@ -518,8 +500,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     await refreshKeyPool();
     res.json({ success: true, ...getActiveKeyStats() });
   });
-
-  // BUG-085 Fix: Admin broadcast rate limit applied via aiLimiter (or custom)
   app.post('/api/admin/broadcast', checkAdmin, aiLimiter, async (req: any, res: any) => {
     const { message } = req.body;
     if (!message || typeof message !== 'string') {
@@ -550,7 +530,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   const cleanupTempFile = (filePath: string) => {
     try {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    } catch {}
+    } catch (e: any) {
+      logger.debug(`Temp file cleanup error: ${e.message}`);
+    }
   };
 
   const serveFileDownload = async (
@@ -700,8 +682,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       res.json({ btc: 'N/A', usd: 'N/A' });
     }
   });
-
-  // BUG-060 Fix: Parse withImage as boolean properly
   app.post('/api/ai/smm', checkAuth, aiLimiter, async (req: any, res: any) => {
     const { prompt, withImage, language } = req.body;
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') {
@@ -794,7 +774,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
             }))
             .filter((item: any) => item.url && Number.isFinite(item.price) && item.price > 0)
             .sort((a: any, b: any) => a.price - b.price);
-        } catch {}
+        } catch (e: any) {
+          logger.debug(`ScraperService searchProducts fallback failed: ${e.message}`);
+        }
       }
       const cheapest = results[0] || null;
       const bySource = Array.from(
@@ -834,7 +816,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
             finalName = resolved.title;
             finalPrice = resolved.price;
           }
-        } catch {}
+        } catch (e: any) {
+          logger.debug(`Price URL resolve fallback: ${e.message}`);
+        }
       }
 
       await DBService.addTrackedPrice(parseInt(req.authenticatedUserId), url, finalName, finalPrice);
@@ -1153,8 +1137,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     if (keywords !== undefined) await DBService.setKeywords(parseInt(req.authenticatedUserId), keywords);
     res.json({ success: true });
   });
-
-  // BUG-061 Fix: Use DB prices instead of hardcoded
   app.get('/api/premium-info', checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId as string);
     const priceMonthly = await DBService.getPrice('monthly');
@@ -1227,13 +1209,10 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     await ApiKeyService.removeKey(id);
     res.json({ success: true });
   });
-
-  // BUG-062 Fix: Require PAYME_KEY for webhook processing
   app.post('/api/payments/payme', async (req, res) => {
     try {
       if (!process.env.PAYME_KEY) {
         logger.warn('🚫 Payme webhook rejected: PAYME_KEY not configured');
-        // BUG-087 Fix: Return 200 to prevent Payme from sending spam retries
         return res.status(200).json({ error: { code: -32504, message: 'Payment not configured' } });
       }
       res.json(await PaymentService.handlePaymeWebhook(req.body, req.headers));
@@ -1257,12 +1236,9 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       });
     }
   });
-
-  // BUG-065 Fix: Error handling for sendFile
   app.use('/dashboard', (req, res) => {
     const filePath = path.join(process.cwd(), 'public', 'index.html');
     res.sendFile(filePath, (err) => {
-      // BUG-101 Fix: Check headersSent to avoid exception
       if (err && !res.headersSent) res.status(404).json({ error: 'Dashboard not found' });
     });
   });
@@ -1274,8 +1250,6 @@ export function startDashboardServer(port: number | string, _bot?: any) {
       if (err && !res.headersSent) res.status(404).json({ error: 'Page not found' });
     });
   });
-
-  // BUG-064 Fix: app.listen is called here
   app.listen(port, () => logger.info(`🖥 Dashboard on ${port}`));
   return app;
 }

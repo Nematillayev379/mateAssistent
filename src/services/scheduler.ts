@@ -5,7 +5,6 @@ import { logger } from '../utils/logger';
 
 export const SchedulerService = {
   setup() {
-    // BUG-118 Fix: Use arrow function to preserve 'this' context
     cron.schedule('* * * * *', async () => {
       await this.processScheduledPosts();
     });
@@ -23,11 +22,9 @@ export const SchedulerService = {
         const user = await DBService.getUser(post.user_id);
         if (!user || !user.target_channel) {
           logger.warn(`Skip post ${post.id}: user ${post.user_id} has no target channel`);
-          await DBService.updateScheduledPostStatus(post.id, 'failed').catch(() => {});
+          await DBService.updateScheduledPostStatus(post.id, 'failed').catch((e: any) => logger.warn(`Scheduler status update failed: ${e.message}`));
           continue;
         }
-
-        // BUG-116 Fix: Ensure content is an object
         let content = post.content;
         if (typeof content === 'string') {
           try { content = JSON.parse(content); } catch {
@@ -53,7 +50,7 @@ export const SchedulerService = {
         logger.info(`✅ Scheduled post ${post.id} sent to ${user.target_channel}`);
       } catch (err: any) {
         logger.error(`❌ Failed to send scheduled post ${post.id}: ${err.message}`);
-        await DBService.updateScheduledPostStatus(post.id, 'failed').catch(() => {});
+        await DBService.updateScheduledPostStatus(post.id, 'failed').catch((e: any) => logger.warn(`Scheduler status update failed: ${e.message}`));
       }
     }
   }

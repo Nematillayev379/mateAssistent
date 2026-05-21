@@ -2,8 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import { CONFIG } from "../config/config";
 import { logger } from "../utils/logger";
 import crypto from 'crypto';
-
-// B-07 Fix: Validate SUPABASE_URL and SUPABASE_KEY on startup
 const supabaseUrl = CONFIG.SUPABASE_URL;
 const supabaseKey = CONFIG.SUPABASE_KEY;
 
@@ -117,8 +115,6 @@ export const DBService = {
     if (error) logger.error(`getAllUsers error: ${error.message}`);
     return data || [];
   },
-
-  // BUG-018 Fix: Removed dead 'yesterday' variable
   async getActiveUsers() {
     const { data, error } = await supabase
       .from('users')
@@ -130,8 +126,6 @@ export const DBService = {
     if (error) logger.error(`getActiveUsers error: ${error.message}`);
     return (data || []).filter((u) => typeof u.target_channel === 'string' && u.target_channel.trim() !== '');
   },
-
-  // BUG-016 Fix: Handle null from getUser properly
   async upsertUser(telegramId: number, isOwner = 0, username?: string, firstName?: string) {
     const insertData: Record<string, any> = {
       telegram_id: telegramId,
@@ -163,8 +157,6 @@ export const DBService = {
 
     return data;
   },
-
-  // BUG-030 Fix: Return success boolean
   async updateUser(telegramId: number, updates: Record<string, any>): Promise<boolean> {
     const safeUpdates = { ...updates };
     if (typeof safeUpdates.target_channel === 'string') {
@@ -192,8 +184,6 @@ export const DBService = {
     if (error) logger.error(`getAllSources error: ${error.message}`);
     return data || [];
   },
-
-  // BUG-011 Fix: Return success boolean
   async addSource(userId: number, name: string, url: string, lang: string): Promise<boolean> {
     const { error } = await supabase.from('sources').insert({ user_id: userId, name, url, lang });
     if (error) {
@@ -209,7 +199,6 @@ export const DBService = {
   },
 
   // --- NEWS DEDUPLICATION ---
-  // BUG-012 Fix: Single optimized query for deduplication
   async isSeenOrSeenByTitle(userId: number, url: string, title: string): Promise<boolean> {
     const seenUrl = await this.isSeen(userId, url);
     if (seenUrl) return true;
@@ -234,8 +223,6 @@ export const DBService = {
     if (!data || data.length === 0) return false;
     return data.some((row: any) => this.isLikelyDuplicateTitle(row.title, title));
   },
-
-  // BUG-013 Fix: Use upsert with onConflict to handle unique constraints gracefully
   async markSeen(userId: number, url: string, title: string) {
     const normalizedUrl = this.normalizeNewsUrl(url);
     const { error } = await supabase.from('processed_news').upsert(
@@ -255,7 +242,6 @@ export const DBService = {
   },
 
   // --- API KEYS ---
-  // BUG-023 Fix: Use onConflict with user_id check
   async addApiKey(userId: number, key: string, type: string) {
     // Check if key already belongs to another user
     const { data: existingKey } = await supabase.from('api_keys').select('user_id').eq('api_key', key).maybeSingle();
@@ -305,16 +291,12 @@ export const DBService = {
     const { error } = await supabase.rpc('increment_stat', { p_user_id: userId, p_field: field });
     if (error) logger.error(`incrementStat rpc error: ${error.message}`);
   },
-
-  // BUG-024 Fix: Initialize stats if not exists
-  // BUG-095 Fix: Removed non-existent total_errors
   async getStats(userId: number) {
     const { data } = await supabase.from('stats').select('*').eq('user_id', userId).maybeSingle();
     return data || { total_posts: 0, total_duplicates: 0 };
   },
 
   // --- PRICE TRACKER ---
-  // BUG-093 Fix: Added error handling
   async addTrackedPrice(userId: number, url: string, name: string, price: number) {
     const { error } = await supabase.from('tracked_prices').insert({ user_id: userId, url, item_name: name, last_price: price });
     if (error) {
@@ -458,15 +440,11 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     const { error } = await supabase.from('monitored_channels').delete().eq('id', id).eq('user_id', userId);
     if (error) logger.error(`removeMonitoredChannel error: ${error.message}`);
   },
-
-  // BUG-012 Fix: Single getMonitoredChannels
   async getMonitoredChannels() {
     const { data, error } = await supabase.from('monitored_channels').select('*');
     if (error) logger.error(`getMonitoredChannels error: ${error.message}`);
     return data || [];
   },
-
-  // BUG-013 Fix: Single updateMonitoredChannel with last_check
   async updateMonitoredChannel(id: number, lastPostId: string) {
     const { error } = await supabase.from('monitored_channels').update({ last_post_id: lastPostId, last_check: new Date().toISOString() }).eq('id', id);
     if (error) logger.error(`updateMonitoredChannel error: ${error.message}`);
@@ -516,8 +494,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     const { data } = await supabase.from('referrals').select('id').eq('referred_id', referredId).maybeSingle();
     return !!data;
   },
-
-  // BUG-022 Fix: Check for existing referral before creating
   async createReferral(referrerId: number, referredId: number): Promise<boolean> {
     const exists = await this.hasReferral(referredId);
     if (exists) {
@@ -542,8 +518,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
        await this.checkAndGivePremium(ref.referrer_id);
     }
   },
-
-  // BUG-029 Fix: Added error handling for RPCs
   async checkAndGivePremium(referrerId: number) {
     const { count } = await supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('referrer_id', referrerId).eq('is_active', true);
     const activeCount = count || 0;
@@ -562,8 +536,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     const needed = 10 - (active % 10);
     return { total, active, needed };
   },
-
-// BUG-021 Fix: Collision check for referral code - fallback to unique suffix
    async ensureReferralCode(userId: number): Promise<string> {
      const user = await this.getUser(userId);
      if (user?.referral_code) return user.referral_code;
@@ -577,8 +549,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
        if (!existing) break;
        attempts++;
      } while (attempts < maxAttempts);
-
-     // BUG-015 Fix: Fallback to userId-based unique code instead of throwing
      if (attempts >= maxAttempts) {
        const fallbackCode = `${userId.toString(36).toUpperCase().slice(-4)}${code.slice(-4)}`;
        code = fallbackCode;
@@ -587,8 +557,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
      await supabase.from('users').update({ referral_code: code }).eq('telegram_id', userId);
      return code;
    },
-
-  // BUG-126 Fix: Add in-memory cache for premium status
   async isPremiumActive(userId: number): Promise<boolean> {
     const cached = premiumCache.get(userId);
     const nowTime = Date.now();
@@ -617,8 +585,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     premiumCache.set(userId, { active, expiresAt: nowTime + 5 * 60 * 1000 }); // Cache for 5 minutes
     return active;
   },
-
-  // BUG-020 Fix: Now called from main.ts system crons
   async cleanupExpiredPremium() {
     const now = new Date().toISOString();
     const { error } = await supabase
@@ -629,14 +595,10 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
       .lte('premium_until', now);
     if (error) logger.error(`cleanupExpiredPremium error: ${error.message}`);
   },
-
-  // BUG-132 Fix: Add length limit
   async setKeywords(userId: number, keywords: string) {
     const safeKeywords = keywords.slice(0, 1000); // Prevent overflow
     await supabase.from('users').update({ keywords: safeKeywords }).eq('telegram_id', userId);
   },
-
-  // BUG-008 Fix: Filter out empty strings from split
   async getKeywords(userId: number): Promise<string[]> {
     const user = await this.getUser(userId);
     if (!user?.keywords || user.keywords.trim() === '') return [];
@@ -646,8 +608,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
   async setScheduleTimes(userId: number, times: string) {
     await supabase.from('users').update({ schedule_times: times }).eq('telegram_id', userId);
   },
-
-  // BUG-027 Fix: Validate digest time format
   async setDailyDigest(userId: number, enabled: boolean, time: string) {
     // Validate time format HH:MM
     const match = time.match(/^(\d{1,2}):(\d{2})$/);
@@ -668,8 +628,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     const { data } = await supabase.from('users').select('*').eq('daily_digest', true).eq('is_approved', 1);
     return data || [];
   },
-
-  // BUG-028 & BUG-097 Fix: Increase limit for digest and add source info
   async getRecentTitlesForDigest(userId: number, hours: number = 24): Promise<any[]> {
     const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
     const { data } = await supabase.from('processed_news').select('title, url, created_at').eq('user_id', userId).gte('created_at', since).order('created_at', { ascending: false }).limit(100);
@@ -695,15 +653,11 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
   async setPrice(type: string, price: number) {
     await this.setSetting(`price_${type}`, price.toString());
   },
-
-  // BUG-014 Fix: Single getPrice using settings table
   async getPrice(type: string): Promise<number> {
     const val = await this.getSetting(`price_${type}`);
     const numericValue = val ? parseInt(val) : NaN;
     return isNaN(numericValue) ? (type === 'monthly' ? 25000 : 250000) : numericValue;
   },
-
-  // BUG-025 Fix: Validate scheduled_at and type
   async addScheduledPost(userId: number, type: 'video' | 'audio' | 'text', content: any, scheduledAt: string) {
     const validTypes = ['video', 'audio', 'text'];
     if (!validTypes.includes(type)) {
@@ -725,16 +679,12 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     const { error } = await supabase.from('scheduled_posts').update({ status: 'cancelled' }).eq('id', scheduleId).eq('user_id', userId);
     if (error) logger.error(`cancelScheduledPost error: ${error.message}`);
   },
-
-  // BUG-016 Fix: Include 'failed' posts for retry
   async getPendingScheduledPosts() {
     const now = new Date().toISOString();
     const { data, error } = await supabase.from('scheduled_posts').select('*').in('status', ['pending', 'failed']).lte('scheduled_at', now);
     if (error) logger.error(`getPendingScheduledPosts error: ${error.message}`);
     return data || [];
   },
-
-  // BUG-026 Fix: Filter only pending/sent posts for user view
   async getUserScheduledPosts(userId: number) {
     const { data, error } = await supabase.from('scheduled_posts').select('*').eq('user_id', userId).in('status', ['pending', 'sent']).order('scheduled_at', { ascending: false });
     if (error) logger.error(`getUserScheduledPosts error: ${error.message}`);
@@ -748,8 +698,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
   async updateScheduledPostStatus(id: number, status: string) {
     await supabase.from('scheduled_posts').update({ status }).eq('id', id);
   },
-
-  // BUG-017 Fix: Consistent limit calculation
   async checkUserLimit(userId: number, limitType: 'sources' | 'channels' | 'scheduled'): Promise<boolean> {
     const user = await this.getUser(userId);
     if (user && (user.role === 'owner' || user.role === 'admin' || user.is_owner === 1)) {
@@ -804,8 +752,6 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     if (error) logger.error(`getTickets error: ${error.message}`);
     return data || [];
   },
-
-  // BUG-133 Fix: Validate status
   async updateTicketStatus(ticketId: number, status: string) {
     if (!['open', 'closed', 'resolved'].includes(status)) return;
     await supabase.from('support_tickets').update({ status }).eq('id', ticketId);

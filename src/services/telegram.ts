@@ -65,7 +65,7 @@ export async function startBot() {
       }
     }
   } else {
-    await bot.deleteWebHook().catch(() => {});
+    await bot.deleteWebHook().catch((delErr: any) => logger.warn(`Webhook delete error: ${delErr.message}`));
     initPolling();
     logger.info("Polling started (no PUBLIC_URL)");
   }
@@ -73,7 +73,9 @@ export async function startBot() {
   if (CONFIG.OWNER_ID != null) {
     try {
       await notify(CONFIG.OWNER_ID, `<b>mateAssistent Bot v11.0</b> is live!`);
-    } catch {}
+    } catch (e: any) {
+      logger.warn(`Owner notify failed: ${e.message}`);
+    }
   }
 }
 
@@ -265,7 +267,9 @@ export async function safeSend(user: any, article: any): Promise<void> {
           { parse_mode: "HTML" }
         );
       }
-    } catch {}
+    } catch (inner: any) {
+      logger.warn(`Error alert cooldown send failed: ${inner.message}`);
+    }
     throw e;
   }
 }

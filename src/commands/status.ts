@@ -11,8 +11,6 @@ export const statusCommand: BotCommand = {
     const user = await DBService.getUser(chatId);
 
     if (!user) return;
-
-    // BUG-095 Fix: Limit chart data to prevent URL overflow
     const chartConfig = {
       type: 'pie',
       data: {
@@ -25,7 +23,6 @@ export const statusCommand: BotCommand = {
     };
 
     const chartJson = JSON.stringify(chartConfig);
-    // BUG-095 Fix: Only use chart URL if it's not too long
     const chartUrl = chartJson.length < 1500 
       ? `https://quickchart.io/chart?c=${encodeURIComponent(chartJson)}&w=600&h=400`
       : null;
@@ -34,8 +31,6 @@ export const statusCommand: BotCommand = {
                  `📈 <b>Muvaffaqiyatli postlar:</b> ${stats.total_posts || 0}\n` +
                  `♻️ <b>Ushlab qolingan dublikatlar:</b> ${stats.total_duplicates || 0}\n\n` +
                  `<i>Grafikda sizning faoliyat ko'rsatkichlaringiz tasvirlangan.</i>`;
-
-    // BUG-094 Fix: Graceful fallback if quickchart.io is down
     if (chartUrl) {
       try {
         await bot.sendPhoto(chatId, chartUrl, { caption: text, parse_mode: 'HTML' });
