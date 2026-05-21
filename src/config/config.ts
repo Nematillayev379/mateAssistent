@@ -13,7 +13,12 @@ export const MAX_TOKENS_BY_PROVIDER: Record<string, number> = {
 };
 
 export const CONFIG = {
-  TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN || "",
+  TELEGRAM_TOKEN: (() => {
+    if (process.env.TELEGRAM_BOT_TOKEN && !process.env.TELEGRAM_TOKEN) {
+      console.warn('⚠️ TELEGRAM_BOT_TOKEN is deprecated. Use TELEGRAM_TOKEN instead.');
+    }
+    return process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '';
+  })(),
   MAX_TOKENS:      2000,
   TEMPERATURE:     0.6,
   WATCHER_CRON:    "*/5 * * * *", // B-55 Fix: Every 5 min to reduce API load and rate limit issues

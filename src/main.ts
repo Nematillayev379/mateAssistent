@@ -26,12 +26,10 @@ async function bootstrap() {
     NODE_ENV: process.env.NODE_ENV || "(unset)",
     PORT: process.env.PORT || "(unset)",
     TELEGRAM_TOKEN_set: !!process.env.TELEGRAM_TOKEN,
-    TELEGRAM_BOT_TOKEN_set: !!process.env.TELEGRAM_BOT_TOKEN,
-    OWNER_ID: process.env.OWNER_ID || "(unset)",
-    SUPABASE_URL: !!process.env.SUPABASE_URL,
-    PUBLIC_URL: process.env.PUBLIC_URL || "(unset)",
-    TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID || "(unset)",
-    GROQ_KEYS_count: (process.env.GROQ_KEYS?.split(',') ?? []).filter(Boolean).length,
+    OWNER_ID_set: !!process.env.OWNER_ID,
+    SUPABASE_URL_set: !!process.env.SUPABASE_URL,
+    PUBLIC_URL_set: !!process.env.PUBLIC_URL,
+    GROQ_KEYS_set: !!process.env.GROQ_KEYS,
     GEMINI_KEYS_set: !!process.env.GEMINI_KEYS,
     CEREBRAS_KEYS_set: !!process.env.CEREBRAS_KEYS,
     OPENROUTER_KEYS_set: !!process.env.OPENROUTER_KEYS,
@@ -122,8 +120,8 @@ function setupSystemCrons() {
     }
   });
 
-  // 3. Daily Digest Cron (Every minute, check who needs digest)
-  cron.schedule('* * * * *', async () => {
+  // 3. Daily Digest Cron (Every 15 minutes, check who needs digest)
+  cron.schedule('*/15 * * * *', async () => {
     try {
       const { processDailyDigests } = await import('./crons/digest_cron');
       await processDailyDigests();
