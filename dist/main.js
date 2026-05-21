@@ -208,11 +208,21 @@ process.on("unhandledRejection", (reason) => {
     logger_1.logger.error(`🌐 Unhandled Rejection: ${reason?.message || reason}`);
 });
 // B-19 Fix: Handle polling errors and implement restart attempts
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
     logger_1.logger.info('SIGTERM received, shutting down gracefully');
+    try {
+        const { gracefulShutdown } = await Promise.resolve().then(() => __importStar(require('./services/memory_queue')));
+        await gracefulShutdown(8000);
+    }
+    catch { }
     process.exit(0);
 });
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
     logger_1.logger.info('SIGINT received, shutting down gracefully');
+    try {
+        const { gracefulShutdown } = await Promise.resolve().then(() => __importStar(require('./services/memory_queue')));
+        await gracefulShutdown(5000);
+    }
+    catch { }
     process.exit(0);
 });

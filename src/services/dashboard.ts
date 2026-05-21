@@ -82,17 +82,18 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   });
 
   app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active', uptime: process.uptime() }));
-  app.post('/api/bot/webhook', rateLimit({ windowMs: 1000, max: 100, keyGenerator: () => 'webhook' }), async (req, res) => {
+  app.post('/api/bot/webhook', rateLimit({ windowMs: 1000, max: 100, keyGenerator: () => 'webhook' }), (req, res) => {
     const secret = req.headers['x-telegram-bot-api-secret-token'];
     if (secret !== CONFIG.WEBHOOK_SECRET) return res.sendStatus(403);
-    if (!req.body) return res.sendStatus(400);
-    try {
-      await bot.processUpdate(req.body);
-      res.sendStatus(200);
-    } catch (e: any) {
-      logger.warn(`Webhook process error: ${e.message}`);
-      res.sendStatus(500);
-    }
+    if (!req.body || !req.body.update_id) return res.sendStatus(400);
+    res.sendStatus(200);
+    setImmediate(async () => {
+      try {
+        await bot.processUpdate(req.body);
+      } catch (e: any) {
+        logger.warn(`Webhook process error: ${e.message}`);
+      }
+    });
   });
 
   // BUG-055/056 Fix: Unified auth with consistent userId extraction

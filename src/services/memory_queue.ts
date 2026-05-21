@@ -107,3 +107,31 @@ const downloadQueue = createMemoryQueue("download", 2);
 
 export { aiQueue, downloadQueue };
 export function isMemoryQueueAvailable() { return true; }
+
+const shutdownCallbacks: (() => Promise<void>)[] = [];
+export function onShutdown(cb: () => Promise<void>) {
+  shutdownCallbacks.push(cb);
+}
+
+export async function gracefulShutdown(timeoutMs = 10000): Promise<void> {
+  logger.info('[MemoryQueue] Shutting down gracefully...');
+  const start = Date.now();
+  for (const q of queues.values()) {
+    if (q.tasks.length > 0) {
+      logger.info(`[MemoryQueue] Waiting for ${q.tasks.length} tasks (active: ${q.active})...`);
+    }
+  }
+  while (true) {
+    const busy = Array.from(queues.values()).some(q => q.active > 0 || q.tasks.length > 0);
+    if (!busy) break;
+    if (Date.now() - start > timeoutMs) {
+      logger.warn('[MemoryQueue] Shutdown timeout reached, force quitting');
+      break;
+    }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  for (const cb of shutdownCallbacks) {
+    try { await cb(); } catch {}
+  }
+  logger.info('[MemoryQueue] Shutdown complete');
+}

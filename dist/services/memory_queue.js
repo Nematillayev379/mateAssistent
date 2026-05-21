@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.downloadQueue = exports.aiQueue = void 0;
 exports.createMemoryQueue = createMemoryQueue;
 exports.isMemoryQueueAvailable = isMemoryQueueAvailable;
+exports.onShutdown = onShutdown;
+exports.gracefulShutdown = gracefulShutdown;
 const logger_1 = require("../utils/logger");
 const queues = new Map();
 const apiCache = new Map();
@@ -81,3 +83,33 @@ exports.aiQueue = aiQueue;
 const downloadQueue = createMemoryQueue("download", 2);
 exports.downloadQueue = downloadQueue;
 function isMemoryQueueAvailable() { return true; }
+const shutdownCallbacks = [];
+function onShutdown(cb) {
+    shutdownCallbacks.push(cb);
+}
+async function gracefulShutdown(timeoutMs = 10000) {
+    logger_1.logger.info('[MemoryQueue] Shutting down gracefully...');
+    const start = Date.now();
+    for (const q of queues.values()) {
+        if (q.tasks.length > 0) {
+            logger_1.logger.info(`[MemoryQueue] Waiting for ${q.tasks.length} tasks (active: ${q.active})...`);
+        }
+    }
+    while (true) {
+        const busy = Array.from(queues.values()).some(q => q.active > 0 || q.tasks.length > 0);
+        if (!busy)
+            break;
+        if (Date.now() - start > timeoutMs) {
+            logger_1.logger.warn('[MemoryQueue] Shutdown timeout reached, force quitting');
+            break;
+        }
+        await new Promise(r => setTimeout(r, 200));
+    }
+    for (const cb of shutdownCallbacks) {
+        try {
+            await cb();
+        }
+        catch { }
+    }
+    logger_1.logger.info('[MemoryQueue] Shutdown complete');
+}

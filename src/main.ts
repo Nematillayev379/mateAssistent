@@ -184,12 +184,20 @@ process.on("unhandledRejection", (reason: any) => {
 });
 
 // B-19 Fix: Handle polling errors and implement restart attempts
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  try {
+    const { gracefulShutdown } = await import('./services/memory_queue');
+    await gracefulShutdown(8000);
+  } catch {}
   process.exit(0);
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
+  try {
+    const { gracefulShutdown } = await import('./services/memory_queue');
+    await gracefulShutdown(5000);
+  } catch {}
   process.exit(0);
 });
