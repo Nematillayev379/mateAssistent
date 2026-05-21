@@ -764,45 +764,81 @@ export async function generateTTS(text: string, lang: string = 'uz'): Promise<Bu
     const safeText = normalizeTextForSpeech(text).slice(0, 800).trim();
     if (!safeText) return null;
 
+    // Strategy 1: Google Translate TTS via direct HTTP request
     try {
-      const googleTTS = await import('google-tts-api');
-      if (typeof googleTTS.getAllAudioBase64 === 'function') {
-        const allAudio = await googleTTS.getAllAudioBase64(safeText, {
-          lang: lang || 'uz',
-          slow: false,
-          host: 'https://translate.google.com',
+      const ttsLangs: Record<string, string> = { uz: 'uz', ru: 'ru', en: 'en' };
+      const ttsLang = ttsLangs[lang] || 'uz';
+      const chunks = splitText(safeText, 180);
+      const audioBuffers: Buffer[] = [];
+
+      for (const chunk of chunks) {
+        const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${ttsLang}&client=tw-ob`;
+        const res = await axios.get(url, {
+          responseType: 'arraybuffer',
           timeout: 15000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Referer': 'https://translate.google.com',
+          },
         });
-        const buffers = allAudio
-          .map((a: any) => Buffer.from(a.base64, 'base64'))
-          .filter((buf: Buffer) => buf.length > 100);
-        if (buffers.length) return Buffer.concat(buffers);
+        const buf = Buffer.from(res.data);
+        if (buf.length > 200) audioBuffers.push(buf);
+      }
+
+      if (audioBuffers.length > 0) {
+        logger.info(`TTS: Google generated ${audioBuffers.length} chunks, ${audioBuffers.reduce((s, b) => s + b.length, 0)} bytes`);
+        return Buffer.concat(audioBuffers);
       }
     } catch (googleErr: any) {
-      logger.warn(`Google TTS primary failed: ${googleErr.message}`);
+      logger.warn(`Google TTS failed: ${googleErr.message}`);
     }
 
-    const tts = new EdgeTTS();
-    const voiceMap: Record<string, string[]> = {
-      uz: ['uz-UZ-SardorNeural', 'uz-UZ-MadinaNeural'],
-      ru: ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
-      en: ['en-US-AvaNeural', 'en-US-AndrewNeural'],
-    };
-    const voices = voiceMap[lang] || voiceMap.uz;
-    for (const voice of voices) {
-      try {
-        await tts.synthesize(safeText, voice, {
-          outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
-        });
-        const buf = await tts.toBuffer();
-        if (buf && buf.length > 100) return buf;
-      } catch (voiceErr: any) {
-        logger.warn(`TTS voice ${voice} failed: ${voiceErr.message}`);
+    // Strategy 2: Edge TTS as fallback
+    try {
+      const tts = new EdgeTTS();
+      const voiceMap: Record<string, string[]> = {
+        uz: ['uz-UZ-SardorNeural', 'uz-UZ-MadinaNeural'],
+        ru: ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
+        en: ['en-US-AvaNeural', 'en-US-AndrewNeural'],
+      };
+      const voices = voiceMap[lang] || voiceMap.uz;
+      for (const voice of voices) {
+        try {
+          await tts.synthesize(safeText, voice, {
+            outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+          });
+          const buf = tts.toBuffer();
+          if (buf && buf.length > 200) {
+            logger.info(`TTS: Edge generated ${buf.length} bytes (voice: ${voice})`);
+            return buf;
+          }
+        } catch (voiceErr: any) {
+          logger.warn(`TTS voice ${voice} failed: ${voiceErr.message}`);
+        }
       }
+    } catch (edgeErr: any) {
+      logger.error(`Edge TTS failed: ${edgeErr.message}`);
     }
+
     return null;
   } catch (e: any) {
     logger.error(`TTS Error: ${e.message}`);
     return null;
   }
+}
+
+function splitText(text: string, maxLen: number): string[] {
+  const chunks: string[] = [];
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  let current = '';
+  for (const s of sentences) {
+    if ((current + s).length > maxLen && current) {
+      chunks.push(current.trim());
+      current = s;
+    } else {
+      current += s;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks.length ? chunks : [text];
 }

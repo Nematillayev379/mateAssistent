@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -59,6 +26,7 @@ const openai_1 = require("openai");
 const groq_sdk_1 = __importDefault(require("groq-sdk"));
 const edge_tts_1 = require("@andresaya/edge-tts");
 const crypto_1 = __importDefault(require("crypto"));
+const axios_1 = __importDefault(require("axios"));
 const config_1 = require("../config/config");
 const logger_1 = require("../utils/logger");
 const database_1 = require("./database");
@@ -750,44 +718,61 @@ async function generateTTS(text, lang = 'uz') {
         const safeText = normalizeTextForSpeech(text).slice(0, 800).trim();
         if (!safeText)
             return null;
+        // Strategy 1: Google Translate TTS via direct HTTP request
         try {
-            const googleTTS = await Promise.resolve().then(() => __importStar(require('google-tts-api')));
-            if (typeof googleTTS.getAllAudioBase64 === 'function') {
-                const allAudio = await googleTTS.getAllAudioBase64(safeText, {
-                    lang: lang || 'uz',
-                    slow: false,
-                    host: 'https://translate.google.com',
+            const ttsLangs = { uz: 'uz', ru: 'ru', en: 'en' };
+            const ttsLang = ttsLangs[lang] || 'uz';
+            const chunks = splitText(safeText, 180);
+            const audioBuffers = [];
+            for (const chunk of chunks) {
+                const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${ttsLang}&client=tw-ob`;
+                const res = await axios_1.default.get(url, {
+                    responseType: 'arraybuffer',
                     timeout: 15000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Referer': 'https://translate.google.com',
+                    },
                 });
-                const buffers = allAudio
-                    .map((a) => Buffer.from(a.base64, 'base64'))
-                    .filter((buf) => buf.length > 100);
-                if (buffers.length)
-                    return Buffer.concat(buffers);
+                const buf = Buffer.from(res.data);
+                if (buf.length > 200)
+                    audioBuffers.push(buf);
+            }
+            if (audioBuffers.length > 0) {
+                logger_1.logger.info(`TTS: Google generated ${audioBuffers.length} chunks, ${audioBuffers.reduce((s, b) => s + b.length, 0)} bytes`);
+                return Buffer.concat(audioBuffers);
             }
         }
         catch (googleErr) {
-            logger_1.logger.warn(`Google TTS primary failed: ${googleErr.message}`);
+            logger_1.logger.warn(`Google TTS failed: ${googleErr.message}`);
         }
-        const tts = new edge_tts_1.EdgeTTS();
-        const voiceMap = {
-            uz: ['uz-UZ-SardorNeural', 'uz-UZ-MadinaNeural'],
-            ru: ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
-            en: ['en-US-AvaNeural', 'en-US-AndrewNeural'],
-        };
-        const voices = voiceMap[lang] || voiceMap.uz;
-        for (const voice of voices) {
-            try {
-                await tts.synthesize(safeText, voice, {
-                    outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
-                });
-                const buf = await tts.toBuffer();
-                if (buf && buf.length > 100)
-                    return buf;
+        // Strategy 2: Edge TTS as fallback
+        try {
+            const tts = new edge_tts_1.EdgeTTS();
+            const voiceMap = {
+                uz: ['uz-UZ-SardorNeural', 'uz-UZ-MadinaNeural'],
+                ru: ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
+                en: ['en-US-AvaNeural', 'en-US-AndrewNeural'],
+            };
+            const voices = voiceMap[lang] || voiceMap.uz;
+            for (const voice of voices) {
+                try {
+                    await tts.synthesize(safeText, voice, {
+                        outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+                    });
+                    const buf = tts.toBuffer();
+                    if (buf && buf.length > 200) {
+                        logger_1.logger.info(`TTS: Edge generated ${buf.length} bytes (voice: ${voice})`);
+                        return buf;
+                    }
+                }
+                catch (voiceErr) {
+                    logger_1.logger.warn(`TTS voice ${voice} failed: ${voiceErr.message}`);
+                }
             }
-            catch (voiceErr) {
-                logger_1.logger.warn(`TTS voice ${voice} failed: ${voiceErr.message}`);
-            }
+        }
+        catch (edgeErr) {
+            logger_1.logger.error(`Edge TTS failed: ${edgeErr.message}`);
         }
         return null;
     }
@@ -795,4 +780,21 @@ async function generateTTS(text, lang = 'uz') {
         logger_1.logger.error(`TTS Error: ${e.message}`);
         return null;
     }
+}
+function splitText(text, maxLen) {
+    const chunks = [];
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    let current = '';
+    for (const s of sentences) {
+        if ((current + s).length > maxLen && current) {
+            chunks.push(current.trim());
+            current = s;
+        }
+        else {
+            current += s;
+        }
+    }
+    if (current.trim())
+        chunks.push(current.trim());
+    return chunks.length ? chunks : [text];
 }
