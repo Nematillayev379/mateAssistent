@@ -55,6 +55,7 @@ export const CONFIG = {
   WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || crypto.randomBytes(32).toString('hex'),
   DEFAULT_REDIS_URL: process.env.DEFAULT_REDIS_URL || "redis://127.0.0.1:6379",
   REDIS_URL: process.env.REDIS_URL || "",
+  REDIS_URLS: process.env.REDIS_URLS || "",
   API_KEY_SOURCES: ['groq', 'cerebras', 'openrouter', 'gemini', 'openai', 'google'] as const
 };
 

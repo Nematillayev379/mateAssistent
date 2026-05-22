@@ -58,11 +58,17 @@ export function registerAdminRoutes(app: express.Application) {
   app.get('/api/admin/sources', checkAdmin, async (req, res) => res.json(await DBService.getAllSources()));
 
   app.get('/api/admin/system', checkAdmin, async (req, res) => {
+    const { getRedisPool } = await import('../../services/redis');
+    const pool = getRedisPool();
     let redisStatus = false;
-    try { const redis = await (await import('../../services/redis')).getRedisConnection(); if (redis) { await redis.ping(); redisStatus = true; } } catch {}
+    let poolInfo = null;
+    if (pool) {
+      try { await pool.active.ping(); redisStatus = true; } catch {}
+      poolInfo = { active: pool.exhaustedCount + 1, total: pool.totalCount, exhausted: pool.exhaustedCount, url: pool.activeUrl.replace(/:\/\/.*@/, '://***@') };
+    }
     const envPool = buildKeyPoolFromEnv();
     const active = getActiveKeyStats();
-    res.json({ uptime: process.uptime(), memory: process.memoryUsage(), redis: redisStatus, nodeVersion: process.version, aiKeys: { envLoaded: envPool.length, activeLoaded: active.total, envByProvider: countKeysByProvider(envPool), activeByProvider: active.byProvider, envVarCounts: getEnvKeySourceReport() } });
+    res.json({ uptime: process.uptime(), memory: process.memoryUsage(), redis: redisStatus, redisPool: poolInfo, nodeVersion: process.version, aiKeys: { envLoaded: envPool.length, activeLoaded: active.total, envByProvider: countKeysByProvider(envPool), activeByProvider: active.byProvider, envVarCounts: getEnvKeySourceReport() } });
   });
 
   app.post('/api/admin/ai-keys/refresh', checkAdmin, async (_req, res) => { await refreshKeyPool(); res.json({ success: true, ...getActiveKeyStats() }); });

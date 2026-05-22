@@ -1,8 +1,20 @@
 import { Queue } from 'bullmq';
 import { logger } from '../utils/logger';
-import { getRedisOptions } from './redis';
+import { getRedisOptions, getRedisPool } from './redis';
 
 const redisOptions = getRedisOptions();
+
+// When a queue job fails due to limit-exceeded, rotate the pool
+function handleLimitError(err: any): void {
+  if (err?.message?.includes('limit exceeded') || err?.message?.toLowerCase().includes('exceeded')) {
+    const pool = getRedisPool();
+    if (pool && pool.markExhausted()) {
+      logger.warn('Queue: limit exceeded, pool rotated');
+    } else {
+      logger.error('Queue: limit exceeded, no tokens left');
+    }
+  }
+}
 
 export const scraperQueue = redisOptions ? new Queue('scraper-queue', {
   connection: redisOptions,
@@ -14,6 +26,8 @@ export const scraperQueue = redisOptions ? new Queue('scraper-queue', {
   }
 }) : null;
 
+if (scraperQueue) scraperQueue.on('error', handleLimitError);
+
 export const aiQueue = redisOptions ? new Queue('ai-queue', {
   connection: redisOptions,
   defaultJobOptions: {
@@ -23,6 +37,8 @@ export const aiQueue = redisOptions ? new Queue('ai-queue', {
     removeOnFail: 100
   }
 }) : null;
+
+if (aiQueue) aiQueue.on('error', handleLimitError);
 
 export function isRedisAvailable(): boolean {
   return !!redisOptions;

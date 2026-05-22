@@ -10,6 +10,7 @@ const envSchema = z.object({
   PUBLIC_URL: z.string().optional().default(""),
   PORT: z.coerce.number().int().positive().default(3000),
   REDIS_URL: z.string().optional().default(""),
+  REDIS_URLS: z.string().optional().default(""),
   NODE_ENV: z.enum(["development", "production"]).optional().default("production"),
   GROQ_KEYS: z.string().optional(),
   GEMINI_KEYS: z.string().optional(),

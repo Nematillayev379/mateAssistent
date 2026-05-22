@@ -95,15 +95,14 @@ if (!connectionOptions) {
   );
 
   aiWorker.on("error", (err) => {
-    if (err.message.includes("limit exceeded")) {
-      logger.error("Upstash Redis limit exceeded! Pausing AI worker to prevent spam.");
-      aiWorker.pause().catch(() => {});
+    if (err.message.includes("limit exceeded") || err.message.toLowerCase().includes("exceeded")) {
+      logger.warn(`AI worker: limit exceeded (pool rotating automatically)`);
     } else {
       logger.error(`AI worker error: ${err.message}`);
     }
   });
 
-  logger.info("AI Worker started with Redis connection options");
+  logger.info("AI Worker started with Redis pool");
 }
 
 export {};

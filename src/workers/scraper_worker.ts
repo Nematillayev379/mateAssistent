@@ -67,9 +67,8 @@ if (!connectionOptions) {
   );
 
   scraperWorker.on("error", (err) => {
-    if (err.message.includes("limit exceeded")) {
-      logger.error("Upstash Redis limit exceeded! Pausing scraper worker to prevent spam.");
-      scraperWorker.pause().catch((err: any) => logger.warn(`Scraper worker pause error: ${err.message}`));
+    if (err.message.includes("limit exceeded") || err.message.toLowerCase().includes("exceeded")) {
+      logger.warn(`Scraper worker: limit exceeded (pool rotating automatically)`);
     } else {
       logger.error(`Scraper worker error: ${err.message}`);
     }

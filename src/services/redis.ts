@@ -1,8 +1,8 @@
 import IORedis, { RedisOptions } from 'ioredis';
+import { EventEmitter } from 'events';
 import { CONFIG } from '../config/config';
 import { logger } from '../utils/logger';
 
-export type RedisConnectionOptions = RedisOptions & { url?: string };
 export interface RedisRuntimeConnection {
   readonly status: string;
   ping(): Promise<string>;
@@ -13,8 +13,8 @@ export interface RedisRuntimeConnection {
   pexpire(key: string, ms: number): Promise<number>;
 }
 
-let redisConnection: IORedis | null = null;
-let connectPromise: Promise<IORedis | null> | null = null;
+// ─── In-memory fallback ─────────────────────────────────────
+
 let memoryConnection: RedisRuntimeConnection | null = null;
 
 function getMemoryConnection(): RedisRuntimeConnection {
@@ -27,10 +27,7 @@ function getMemoryConnection(): RedisRuntimeConnection {
     async get(key: string) {
       const entry = store.get(key);
       if (!entry) return null;
-      if (Date.now() > entry.expiresAt) {
-        store.delete(key);
-        return null;
-      }
+      if (Date.now() > entry.expiresAt) { store.delete(key); return null; }
       return entry.value ?? null;
     },
     async set(key: string, value: string) {
@@ -40,7 +37,7 @@ function getMemoryConnection(): RedisRuntimeConnection {
     async del(...keys: string[]) {
       let removed = 0;
       for (const key of keys) {
-        if (store.delete(key)) { removed += 1; }
+        if (store.delete(key)) removed += 1;
         const t = ttlTimers.get(key);
         if (t) { clearTimeout(t); ttlTimers.delete(key); }
       }
@@ -69,72 +66,282 @@ function getMemoryConnection(): RedisRuntimeConnection {
   return memoryConnection;
 }
 
-export function getRedisOptions(): RedisConnectionOptions | null {
-  if (!CONFIG.REDIS_URL || CONFIG.REDIS_URL.trim() === '') {
-    logger.info('REDIS_URL not configured - queue workers disabled, in-memory Redis fallback enabled');
+// ─── Parse multiple Redis URLs ─────────────────────────────
+
+function parseRedisUrls(): string[] {
+  const urls: string[] = [];
+  if (CONFIG.REDIS_URLS && CONFIG.REDIS_URLS.trim()) {
+    for (const u of CONFIG.REDIS_URLS.split(',')) {
+      const t = u.trim();
+      if (t) urls.push(t);
+    }
+  }
+  if (CONFIG.REDIS_URL && CONFIG.REDIS_URL.trim()) {
+    const existing = new Set(urls);
+    if (!existing.has(CONFIG.REDIS_URL.trim())) {
+      urls.unshift(CONFIG.REDIS_URL.trim());
+    }
+  }
+  return urls;
+}
+
+// ─── Connection pool ───────────────────────────────────────
+
+interface PoolEntry {
+  url: string;
+  exhausted: boolean;
+  conn: IORedis | null;
+}
+
+class RedisPool {
+  readonly entries: PoolEntry[] = [];
+  private currentIndex = 0;
+
+  constructor(urls: string[]) {
+    this.entries = urls.map(url => ({ url, exhausted: false, conn: null }));
+  }
+
+  get active(): IORedis {
+    const entry = this.entries[this.currentIndex];
+    if (!entry.conn) {
+      entry.conn = this.createConnection(entry.url);
+    }
+    return entry.conn;
+  }
+
+  get status(): string {
+    return this.active.status;
+  }
+
+  hasAvailable(): boolean {
+    return this.entries.some(e => !e.exhausted);
+  }
+
+  get activeUrl(): string {
+    return this.entries[this.currentIndex]?.url || '(none)';
+  }
+
+  get exhaustedCount(): number {
+    return this.entries.filter(e => e.exhausted).length;
+  }
+
+  get totalCount(): number {
+    return this.entries.length;
+  }
+
+  /** Mark current token as exhausted and rotate. Returns false if all exhausted. */
+  markExhausted(): boolean {
+    const oldEntry = this.entries[this.currentIndex];
+    oldEntry.exhausted = true;
+    logger.warn(`Redis token exhausted: ${this.maskUrl(oldEntry.url)}`);
+
+    if (oldEntry.conn) {
+      try { oldEntry.conn.disconnect(); } catch { /* ignore */ }
+      oldEntry.conn = null;
+    }
+
+    for (let i = 0; i < this.entries.length; i++) {
+      const idx = (this.currentIndex + 1 + i) % this.entries.length;
+      if (!this.entries[idx].exhausted) {
+        this.currentIndex = idx;
+        logger.info(`Rotated to Redis token #${idx + 1}/${this.entries.length}: ${this.maskUrl(this.entries[idx].url)}`);
+        return true;
+      }
+    }
+
+    logger.error('All Redis tokens exhausted! Falling back to in-memory.');
+    return false;
+  }
+
+  private createConnection(url: string): IORedis {
+    return new IORedis(url, {
+      lazyConnect: true,
+      connectTimeout: 10000,
+      maxRetriesPerRequest: null,
+
+      retryStrategy: (times: number) => {
+        if (times > 3) {
+          logger.error(`Redis connection failed after 3 retries: ${this.maskUrl(url)}`);
+          return null;
+        }
+        return Math.min(times * 1000, 3000);
+      },
+    });
+  }
+
+  private maskUrl(url: string): string {
+    try {
+      const u = new URL(url);
+      if (u.password) u.password = '***';
+      return u.toString();
+    } catch {
+      return url.length > 20 ? url.slice(0, 10) + '...' + url.slice(-10) : url;
+    }
+  }
+
+  /** Close all connections */
+  async shutdown(): Promise<void> {
+    for (const entry of this.entries) {
+      if (entry.conn) {
+        try { await entry.conn.quit(); } catch { /* ignore */ }
+        entry.conn = null;
+      }
+    }
+  }
+}
+
+// ─── Pool-aware ioredis wrapper for BullMQ ─────────────────
+// Uses Proxy to intercept all calls; the proxied target is an IORedis
+// instance so BullMQ's `instanceof IORedis` check passes.
+
+function createPooledIORedis(pool: RedisPool): IORedis {
+  const registered = new Map<string, Set<(...args: any[]) => void>>();
+  const ee = new EventEmitter();
+
+  let currentConn = pool.active;
+  attachPoolListeners(currentConn);
+
+  function attachPoolListeners(conn: IORedis): void {
+    conn.on('error', (err: Error) => handleError(err, conn));
+    conn.on('connect', () => ee.emit('connect'));
+    conn.on('close', () => ee.emit('close'));
+  }
+
+  function handleError(err: Error, conn: IORedis): void {
+    const isLimit = err.message?.includes('limit exceeded') || err.message?.toLowerCase().includes('exceeded');
+    if (isLimit) {
+      logger.warn('Upstash limit exceeded \u2014 rotating Redis token');
+      if (pool.markExhausted()) {
+        currentConn = pool.active;
+        attachPoolListeners(currentConn);
+        // Re-register all user event listeners on new connection
+        for (const [event, handlers] of registered) {
+          for (const h of handlers) currentConn.on(event, h);
+        }
+      } else {
+        ee.emit('error', new Error('All Redis tokens exhausted'));
+      }
+      return;
+    }
+    ee.emit('error', err);
+  }
+
+  async function execCmd<T>(fn: (c: IORedis) => Promise<T>): Promise<T> {
+    try {
+      return await fn(currentConn);
+    } catch (err: any) {
+      if (err.message?.includes('limit exceeded') || err.message?.toLowerCase().includes('exceeded')) {
+        logger.warn('Redis: limit exceeded on command, rotating token');
+        if (pool.markExhausted()) {
+          currentConn = pool.active;
+          attachPoolListeners(currentConn);
+          for (const [event, handlers] of registered) {
+            for (const h of handlers) currentConn.on(event, h);
+          }
+          return fn(currentConn);
+        }
+      }
+      throw err;
+    }
+  }
+
+  // Create a dummy IORedis instance as Proxy target (passes instanceof)
+  const dummy = new IORedis({ host: '127.0.0.1', port: 6379, lazyConnect: true, maxRetriesPerRequest: null });
+  dummy.disconnect();
+
+  const proxy = new Proxy(dummy, {
+    get(target, prop) {
+      if (prop === 'status') return currentConn.status;
+      if (prop === 'connect') return async () => { if (currentConn.status !== 'ready') await currentConn.connect(); };
+      if (prop === 'disconnect') return async () => { try { await currentConn.disconnect(); } catch {} };
+      if (prop === 'quit') return async () => { for (const e of pool.entries) { if (e.conn) { try { await e.conn.quit(); } catch {} e.conn = null; } } };
+      if (prop === 'duplicate') return () => dummy;
+
+      // Event emitter delegation
+      if (prop === 'on') return (event: string, handler: (...a: any[]) => void) => {
+        if (!registered.has(event)) registered.set(event, new Set());
+        registered.get(event)!.add(handler);
+        currentConn.on(event, handler);
+        return proxy;
+      };
+      if (prop === 'off' || prop === 'removeListener') return (event: string, handler: (...a: any[]) => void) => {
+        registered.get(event)?.delete(handler);
+        currentConn.off(event, handler);
+        return proxy;
+      };
+      if (prop === 'removeAllListeners') return (event?: string) => {
+        if (event) registered.delete(event); else registered.clear();
+        currentConn.removeAllListeners(event);
+        return proxy;
+      };
+      if (prop === 'emit') return (event: string, ...args: any[]) => ee.emit(event, ...args);
+      if (prop === 'listenerCount') return (event?: string) => event ? (registered.get(event)?.size || 0) : registered.size;
+      if (prop === 'eventNames') return () => Array.from(registered.keys());
+
+      // Commands that need execWithRotate
+      if (typeof (target as any)[prop] === 'function') {
+        return (...args: any[]) => execCmd(c => (c as any)[prop](...args));
+      }
+
+      return (currentConn as any)[prop];
+    },
+    set(_target, prop, value) {
+      (currentConn as any)[prop] = value;
+      return true;
+    }
+  });
+
+  return proxy;
+}
+
+// ─── Global state ──────────────────────────────────────────
+
+let pool: RedisPool | null = null;
+let pooledRedis: IORedis | null = null;
+let poolUrls: string[] = [];
+
+function ensurePool(): void {
+  if (pool) return;
+  poolUrls = parseRedisUrls();
+  if (poolUrls.length === 0) return;
+  pool = new RedisPool(poolUrls);
+  pooledRedis = createPooledIORedis(pool);
+}
+
+// ─── Public API ────────────────────────────────────────────
+
+/** Get a pooled IORedis instance (auto-rotates on limit exceeded).
+ *  Returns null if no URLs configured -- callers fall back to in-memory. */
+export function getRedisOptions(): IORedis | null {
+  ensurePool();
+  if (!pool || !pooledRedis) {
+    logger.info('REDIS_URLS & REDIS_URL not configured - in-memory fallback enabled');
     return null;
   }
-
-  return {
-    url: CONFIG.REDIS_URL,
-    lazyConnect: true,
-    connectTimeout: 10000,
-    maxRetriesPerRequest: 1,
-    enableOfflineQueue: false,
-    autoResubscribe: false,
-    autoResendUnfulfilledCommands: false,
-    retryStrategy: (times: number) => {
-      if (times > 3) {
-        logger.error('Redis connection failed after 3 retries');
-        return null;
-      }
-      return Math.min(times * 1000, 3000);
-    }
-  } as RedisConnectionOptions;
+  if (!pool.hasAvailable()) {
+    logger.error('All Redis tokens exhausted - in-memory fallback');
+    return null;
+  }
+  return pooledRedis;
 }
 
+/** Get pooled connection as RedisRuntimeConnection (for rate limiter, etc.) */
 export async function getRedisConnection(): Promise<RedisRuntimeConnection | null> {
-  const redisOptions = getRedisOptions();
-  if (!redisOptions) return getMemoryConnection();
-
-  if (!redisConnection) {
-    try {
-      redisConnection = new IORedis(redisOptions);
-
-      redisConnection.on('error', (err) => {
-        logger.error(`Redis connection error: ${err.message}`);
-      });
-
-      redisConnection.on('connect', () => {
-        logger.info('Shared Redis connection established');
-      });
-
-      redisConnection.on('close', () => {
-        logger.warn('Redis connection closed');
-        redisConnection = null;
-        connectPromise = null;
-      });
-    } catch (err: any) {
-      logger.error(`Failed to create Redis connection: ${err.message}`);
-      redisConnection = null;
-      return null;
-    }
-  }
-
-  if (redisConnection.status !== 'ready') {
-    connectPromise ||= redisConnection.connect()
-      .then(() => redisConnection)
-      .catch((err: any) => {
-        logger.error(`Redis connect failed: ${err.message}`);
-        redisConnection = null;
-        connectPromise = null;
-        return null;
-      });
-    await connectPromise;
-  }
-
-  return redisConnection;
+  const client = getRedisOptions();
+  return client || getMemoryConnection();
 }
 
-/** Alias for getRedisConnection */
-export const getRedisClient = getRedisConnection;
+export async function getRedisClient(): Promise<RedisRuntimeConnection | null> {
+  return getRedisConnection();
+}
+
+/** Get the raw pool (for admin status, diagnostics) */
+export function getRedisPool(): RedisPool | null {
+  ensurePool();
+  return pool;
+}
+
+/** Shut down all Redis connections gracefully */
+export async function shutdownRedis(): Promise<void> {
+  if (pool) await pool.shutdown();
+}
