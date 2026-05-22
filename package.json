@@ -52,6 +52,6 @@
     "typescript": "~5.9.3"
   },
   "overrides": {
-    "typescript": "$typescript"
+    "typescript": "5.9.3"
   }
 }
