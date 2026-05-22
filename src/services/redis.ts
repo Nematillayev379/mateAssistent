@@ -245,6 +245,11 @@ function createPooledIORedis(pool: RedisPool): IORedis {
     }
   }
 
+  const eventMethods = new Set([
+    'setMaxListeners', 'getMaxListeners', 'eventNames', 'listeners', 'rawListeners',
+    'prependListener', 'prependOnceListener', 'addListener', 'listenerCount'
+  ]);
+
   // Create a dummy IORedis instance as Proxy target (passes instanceof)
   const dummy = new IORedis({ host: '127.0.0.1', port: 6379, lazyConnect: true, maxRetriesPerRequest: null });
   dummy.disconnect();
@@ -255,9 +260,14 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       if (prop === 'connect') return async () => { if (currentConn.status !== 'ready') await currentConn.connect(); };
       if (prop === 'disconnect') return async () => { try { await currentConn.disconnect(); } catch {} };
       if (prop === 'quit') return async () => { for (const e of pool.entries) { if (e.conn) { try { await e.conn.quit(); } catch {} e.conn = null; } } };
-      if (prop === 'duplicate') return () => dummy;
+      if (prop === 'duplicate') return () => proxy;
 
-      // Event emitter delegation
+      // EventEmitter methods -> delegate to ee (local EventEmitter)
+      if (typeof prop === 'string' && eventMethods.has(prop)) {
+        return (ee as any)[prop].bind(ee);
+      }
+
+      // Event listener registration -> track and delegate to currentConn
       if (prop === 'on') return (event: string, handler: (...a: any[]) => void) => {
         if (!registered.has(event)) registered.set(event, new Set());
         registered.get(event)!.add(handler);
@@ -278,7 +288,7 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       if (prop === 'listenerCount') return (event?: string) => event ? (registered.get(event)?.size || 0) : registered.size;
       if (prop === 'eventNames') return () => Array.from(registered.keys());
 
-      // Commands that need execWithRotate
+      // Redis commands -> execute with auto-rotate
       if (typeof (target as any)[prop] === 'function') {
         return (...args: any[]) => execCmd(c => (c as any)[prop](...args));
       }
