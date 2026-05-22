@@ -1,3 +1,6 @@
+const _startTime = Date.now();
+console.log(`[BOOT] Process started at ${new Date().toISOString()}, PID ${process.pid}`);
+
 import { CONFIG } from "./config/config";
 import { logger } from "./utils/logger";
 import { bot, startBot } from "./services/telegram";
@@ -16,6 +19,7 @@ if (dns.setDefaultResultOrder) {
 }
 
 async function bootstrap() {
+  console.log(`[BOOT] bootstrap() started, elapsed ${Date.now() - _startTime}ms`);
   logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${pkg.version}`);
   logger.info("🚀 Bootstrapping mateAssistent Bot Ecosystem...");
 
@@ -47,6 +51,7 @@ async function bootstrap() {
   }
 
   try {
+    console.log(`[BOOT] Starting i18n + AI key pool, elapsed ${Date.now() - _startTime}ms`);
     const { initI18n } = await import("./services/i18n");
     const { refreshKeyPool } = await import("./services/ai");
     await initI18n();
@@ -94,6 +99,7 @@ async function bootstrap() {
     setupRSSCron();
     setupSystemCrons();
   } catch (err: any) {
+    console.error(`[BOOT] Fatal error: ${err.message}`, err.stack);
     logger.error(`🔥 Fatal Initialization Error: ${err.message}`);
     process.exit(1);
   }
