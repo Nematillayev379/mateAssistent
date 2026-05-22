@@ -1,5 +1,6 @@
 const _startTime = Date.now();
-console.log(`[BOOT] Process started at ${new Date().toISOString()}, PID ${process.pid}`);
+process.stdout.write(`[BOOT] Process started at ${new Date().toISOString()}, PID ${process.pid}\n`);
+process.stderr.write(`[BOOT.STDERR] Process started\n`);
 
 import { CONFIG } from "./config/config";
 import { logger } from "./utils/logger";
@@ -19,7 +20,7 @@ if (dns.setDefaultResultOrder) {
 }
 
 async function bootstrap() {
-  console.log(`[BOOT] bootstrap() started, elapsed ${Date.now() - _startTime}ms`);
+  process.stdout.write(`[BOOT] bootstrap() started, elapsed ${Date.now() - _startTime}ms\n`);
   logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${pkg.version}`);
   logger.info("🚀 Bootstrapping mateAssistent Bot Ecosystem...");
 
@@ -99,7 +100,7 @@ async function bootstrap() {
     setupRSSCron();
     setupSystemCrons();
   } catch (err: any) {
-    console.error(`[BOOT] Fatal error: ${err.message}`, err.stack);
+    process.stderr.write(`[BOOT] Fatal: ${err.message}\n${err.stack}\n`);
     logger.error(`🔥 Fatal Initialization Error: ${err.message}`);
     process.exit(1);
   }
