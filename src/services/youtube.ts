@@ -5,10 +5,11 @@ import os from 'os';
 import path from 'path';
 import { logger } from '../utils/logger';
 import { findNewestFile, resolveYtDlpCommand } from '../utils/ytdlp';
-import ffmpegStatic from 'ffmpeg-static';
+let ffmpegStatic: string | null = null;
+try { ffmpegStatic = require('ffmpeg-static'); } catch {}
 
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_yt');
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch {}
 
 function detectExtensionFromContentType(contentType?: string, fallback: string = 'bin'): string {
   const value = String(contentType || '').toLowerCase();
