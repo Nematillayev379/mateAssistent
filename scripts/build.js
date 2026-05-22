@@ -5,17 +5,14 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const tsconfigPath = path.join(root, 'tsconfig.json');
 const buildConfigPath = path.join(root, 'tsconfig.build.json');
-const isWin = process.platform === 'win32';
-const tscBin = path.join(root, 'node_modules', '.bin', isWin ? 'tsc.cmd' : 'tsc');
 
 let major = 0;
 try {
-  const versionOut = execSync(`"${tscBin}" --version 2>&1`, { encoding: 'utf8', cwd: root, shell: isWin });
+  const versionOut = execSync('npx --yes tsc --version 2>&1', { encoding: 'utf8', cwd: root });
   const m = versionOut.match(/Version\s+(\d+)/);
   major = m ? parseInt(m[1], 10) : 0;
 } catch (e) {
-  // tsc not available
-  console.error('[build] tsc not found, run npm install first');
+  console.error('[build] tsc not found via npx either');
   process.exit(1);
 }
 
@@ -29,7 +26,7 @@ if (major >= 6) {
 
 try {
   const projectFlag = major >= 6 ? `--project "${buildConfigPath}"` : '';
-  execSync(`"${tscBin}" ${projectFlag}`, { stdio: 'inherit', cwd: root, shell: isWin });
+  execSync(`npx --yes tsc ${projectFlag}`, { stdio: 'inherit', cwd: root, shell: process.platform === 'win32' });
 } finally {
   if (fs.existsSync(buildConfigPath)) fs.unlinkSync(buildConfigPath);
 }
