@@ -795,4 +795,66 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
       sources: sources.filter(s => s.user_id === u.telegram_id)
     }));
   },
+
+  // --- RULES (Automation) ---
+  async getUserRules(userId: number): Promise<any[]> {
+    const { data, error } = await supabase.from('automation_rules').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    if (error) { logger.error(`getUserRules error: ${error.message}`); return []; }
+    return data || [];
+  },
+
+  async addRule(userId: number, trigger: string, condition: string, action: string, actionValue: string): Promise<boolean> {
+    const { error } = await supabase.from('automation_rules').insert({ user_id: userId, trigger, condition, action, action_value: actionValue });
+    if (error) { logger.error(`addRule error: ${error.message}`); return false; }
+    return true;
+  },
+
+  async toggleRule(ruleId: number, isActive: boolean): Promise<boolean> {
+    const { error } = await supabase.from('automation_rules').update({ is_active: isActive }).eq('id', ruleId);
+    if (error) { logger.error(`toggleRule error: ${error.message}`); return false; }
+    return true;
+  },
+
+  async deleteRule(ruleId: number): Promise<boolean> {
+    const { error } = await supabase.from('automation_rules').delete().eq('id', ruleId);
+    if (error) { logger.error(`deleteRule error: ${error.message}`); return false; }
+    return true;
+  },
+
+  // --- WORKSPACES (Multi-Channel) ---
+  async getUserWorkspaces(userId: number): Promise<any[]> {
+    const { data, error } = await supabase.from('workspaces').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    if (error) { logger.error(`getUserWorkspaces error: ${error.message}`); return []; }
+    return data || [];
+  },
+
+  async createWorkspace(userId: number, name: string): Promise<any> {
+    const { data, error } = await supabase.from('workspaces').insert({ user_id: userId, name }).select().single();
+    if (error) { logger.error(`createWorkspace error: ${error.message}`); return null; }
+    return data;
+  },
+
+  async getWorkspaceChannels(workspaceId: number): Promise<any[]> {
+    const { data, error } = await supabase.from('workspace_channels').select('*').eq('workspace_id', workspaceId);
+    if (error) { logger.error(`getWorkspaceChannels error: ${error.message}`); return []; }
+    return data || [];
+  },
+
+  async addWorkspaceChannel(workspaceId: number, channelId: string, name: string): Promise<boolean> {
+    const { error } = await supabase.from('workspace_channels').insert({ workspace_id: workspaceId, channel_id: channelId, name });
+    if (error) { logger.error(`addWorkspaceChannel error: ${error.message}`); return false; }
+    return true;
+  },
+
+  async removeWorkspaceChannel(channelId: string, workspaceId: number): Promise<boolean> {
+    const { error } = await supabase.from('workspace_channels').delete().eq('channel_id', channelId).eq('workspace_id', workspaceId);
+    if (error) { logger.error(`removeWorkspaceChannel error: ${error.message}`); return false; }
+    return true;
+  },
+
+  async getRecentTitlesForChannel(channelId: string): Promise<any[]> {
+    const { data, error } = await supabase.from('processed_news').select('title').eq('target_channel', channelId).order('created_at', { ascending: false }).limit(10);
+    if (error) return [];
+    return data || [];
+  },
 };

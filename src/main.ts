@@ -148,7 +148,41 @@ function setupSystemCrons() {
     }
   });
 
-  // 5. Refresh Key Pool every hour
+  // 5. Cluster Digest (Every 4 hours — sends Top 5 topics to users)
+  cron.schedule('0 */4 * * *', async () => {
+    try {
+      const { ClusteringService } = await import('./services/clustering');
+      const activeUsers = await (await import('./services/database')).DBService.getActiveUsers();
+      for (const u of activeUsers) {
+        if (u.target_channel) {
+          await ClusteringService.sendClusterDigest(u.telegram_id, u.target_channel);
+          await new Promise(r => setTimeout(r, 200));
+        }
+      }
+    } catch (err: any) {
+      logger.error(`Cluster digest cron: ${err.message}`);
+    }
+  });
+
+  // 6. Workspace Content Rebalance (Every 6 hours)
+  cron.schedule('0 */6 * * *', async () => {
+    try {
+      const { WorkspaceService } = await import('./services/workspace');
+      const { DBService } = await import('./services/database');
+      const users = await DBService.getActiveUsers();
+      for (const u of users) {
+        const workspaces = await DBService.getUserWorkspaces(u.telegram_id);
+        for (const ws of workspaces) {
+          await WorkspaceService.rebalanceContent(ws.id);
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+    } catch (err: any) {
+      logger.error(`Workspace rebalance cron: ${err.message}`);
+    }
+  });
+
+  // 7. Refresh Key Pool every hour
   cron.schedule('0 * * * *', async () => {
     try {
       const { refreshKeyPool } = await import('./services/ai');
