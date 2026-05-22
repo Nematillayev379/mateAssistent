@@ -207,11 +207,13 @@ bootstrap().catch(err => {
 
 // Global error handlers
 process.on("uncaughtException", (err) => {
+  process.stderr.write(`[FATAL] Uncaught Exception: ${err.message}\n${err.stack}\n`);
   logger.error(`🔥 Uncaught Exception: ${err.message}`);
-  logger.error(err.stack || "");
+  process.exit(1);
 });
 
 process.on("unhandledRejection", (reason: any) => {
+  process.stderr.write(`[FATAL] Unhandled Rejection: ${reason?.message || reason}\n`);
   logger.error(`🌐 Unhandled Rejection: ${reason?.message || reason}`);
 });
 
