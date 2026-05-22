@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CONFIG } from "../config/config";
 import { logger } from "../utils/logger";
+import { encrypt, decrypt, hashKey } from "../utils/crypto";
 import crypto from 'crypto';
 
 let supabase: SupabaseClient;
@@ -247,20 +248,24 @@ export const DBService = {
     return (data || []).map(r => r.title);
   },
 
-  // --- API KEYS ---
+  // --- API KEYS (encrypted at rest) ---
   async addApiKey(userId: number, key: string, type: string) {
-    // Check if key already belongs to another user
-    const { data: existingKey } = await getSupabase().from('api_keys').select('user_id').eq('api_key', key).maybeSingle();
+    const hashed = hashKey(key);
+    const { data: existingKey } = await getSupabase().from('api_keys').select('user_id').eq('api_key_hash', hashed).maybeSingle();
     if (existingKey && existingKey.user_id !== userId) {
       logger.warn(`addApiKey: key already owned by another user`);
       return;
     }
-    const { error } = await getSupabase().from('api_keys').upsert({ user_id: userId, api_key: key, api_type: type, is_active: true }, { onConflict: 'api_key' });
+    const encryptedKey = encrypt(key);
+    const { error } = await getSupabase().from('api_keys').upsert({
+      user_id: userId, api_key: encryptedKey, api_key_hash: hashed, api_type: type, is_active: true
+    }, { onConflict: 'api_key_hash' });
     if (error) logger.error(`addApiKey error: ${error.message}`);
   },
 
   async removeApiKey(userId: number, key: string) {
-    const { error } = await getSupabase().from('api_keys').delete().eq('user_id', userId).eq('api_key', key);
+    const hashed = hashKey(key);
+    const { error } = await getSupabase().from('api_keys').delete().eq('user_id', userId).eq('api_key_hash', hashed);
     if (error) logger.error(`removeApiKey error: ${error.message}`);
   },
 
@@ -276,20 +281,27 @@ export const DBService = {
   },
 
   async isKeyExists(key: string): Promise<boolean> {
-    const { data, error } = await getSupabase().from('api_keys').select('id').eq('api_key', key).maybeSingle();
+    const hashed = hashKey(key);
+    const { data, error } = await getSupabase().from('api_keys').select('id').eq('api_key_hash', hashed).maybeSingle();
     return !!data;
   },
 
   async getValidApiKeys() {
     const { data, error } = await getSupabase().from('api_keys').select('api_key, api_type').eq('is_active', true);
-    if (error) logger.error(`getValidApiKeys error: ${error.message}`);
-    return (data || []).map(k => ({ key: k.api_key, type: k.api_type }));
+    if (error) { logger.error(`getValidApiKeys error: ${error.message}`); return []; }
+    return (data || []).map(k => {
+      try { return { key: decrypt(k.api_key), type: k.api_type }; }
+      catch { return { key: k.api_key, type: k.api_type }; }
+    });
   },
 
   async getUserApiKeys(userId: number) {
     const { data, error } = await getSupabase().from('api_keys').select('*').eq('user_id', userId).eq('is_active', true);
-    if (error) logger.error(`getUserApiKeys error: ${error.message}`);
-    return data || [];
+    if (error) { logger.error(`getUserApiKeys error: ${error.message}`); return []; }
+    return (data || []).map(k => {
+      try { return { ...k, api_key: decrypt(k.api_key) }; }
+      catch { return k; }
+    });
   },
 
   // --- STATS ---

@@ -50,17 +50,18 @@ export function registerCommands(bot: TelegramBot) {
     return cachedBotInfo;
   };
 
+  // Clean stale user states every 60s (10-min TTL)
   setInterval(() => {
     const now = Date.now();
     for (const [id, state] of userStates.entries()) {
-      if (now - state.createdAt > 30 * 60 * 1000) userStates.delete(id);
+      if (now - state.createdAt > 10 * 60 * 1000) userStates.delete(id);
     }
-  }, 5 * 60 * 1000);
+  }, 60_000);
 
   bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
     const userId = msg.from?.id || chatId;
-    if (!checkRateLimit(userId)) {
+    if (!await checkRateLimit(userId)) {
       logger.warn(`Rate limited message from ${userId}`);
       return;
     }
@@ -216,7 +217,7 @@ export function registerCommands(bot: TelegramBot) {
   bot.on("callback_query", async (query) => {
     const chatId = query.message?.chat.id;
     if (!chatId || !query.data) return;
-    if (!checkRateLimit(query.from?.id ?? chatId ?? 0)) {
+    if (!await checkRateLimit(query.from?.id ?? chatId ?? 0)) {
       logger.warn(`Rate limited callback`);
       await bot.answerCallbackQuery(query.id, { text: "Too many requests" }).catch(() => {});
       return;

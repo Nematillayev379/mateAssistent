@@ -9,6 +9,8 @@ export interface RedisRuntimeConnection {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<string>;
   del(...keys: string[]): Promise<number>;
+  incr(key: string): Promise<number>;
+  pexpire(key: string, ms: number): Promise<number>;
 }
 
 let redisConnection: IORedis | null = null;
@@ -17,25 +19,51 @@ let memoryConnection: RedisRuntimeConnection | null = null;
 
 function getMemoryConnection(): RedisRuntimeConnection {
   if (memoryConnection) return memoryConnection;
-  const store = new Map<string, string>();
+  const store = new Map<string, { value: string; expiresAt: number }>();
+  const ttlTimers = new Map<string, NodeJS.Timeout>();
   memoryConnection = {
     status: 'ready',
-    async ping() {
-      return 'PONG';
-    },
+    async ping() { return 'PONG'; },
     async get(key: string) {
-      return store.get(key) ?? null;
+      const entry = store.get(key);
+      if (!entry) return null;
+      if (Date.now() > entry.expiresAt) {
+        store.delete(key);
+        return null;
+      }
+      return entry.value ?? null;
     },
     async set(key: string, value: string) {
-      store.set(key, value);
+      store.set(key, { value, expiresAt: Infinity });
       return 'OK';
     },
     async del(...keys: string[]) {
       let removed = 0;
       for (const key of keys) {
-        if (store.delete(key)) removed += 1;
+        if (store.delete(key)) { removed += 1; }
+        const t = ttlTimers.get(key);
+        if (t) { clearTimeout(t); ttlTimers.delete(key); }
       }
       return removed;
+    },
+    async incr(key: string) {
+      const entry = store.get(key);
+      if (!entry || Date.now() > entry.expiresAt) {
+        store.set(key, { value: '1', expiresAt: Infinity });
+        return 1;
+      }
+      const next = parseInt(entry.value, 10) + 1;
+      entry.value = String(next);
+      return next;
+    },
+    async pexpire(key: string, ms: number) {
+      const entry = store.get(key);
+      if (!entry) return 0;
+      entry.expiresAt = Date.now() + ms;
+      const existing = ttlTimers.get(key);
+      if (existing) clearTimeout(existing);
+      ttlTimers.set(key, setTimeout(() => { store.delete(key); ttlTimers.delete(key); }, ms));
+      return 1;
     },
   };
   return memoryConnection;
@@ -107,3 +135,6 @@ export async function getRedisConnection(): Promise<RedisRuntimeConnection | nul
 
   return redisConnection;
 }
+
+/** Alias for getRedisConnection */
+export const getRedisClient = getRedisConnection;
