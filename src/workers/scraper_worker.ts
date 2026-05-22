@@ -2,9 +2,8 @@ import { Worker, Job } from "bullmq";
 import { CONFIG } from "../config/config";
 import { ScraperService } from "../services/scraper";
 import { DBService } from "../services/database";
-import { isRedisAvailable } from "../services/queue";
 import { getRedisOptions } from "../services/redis";
-import { getSmartAIResponse } from "../services/ai";
+import { getSmartAIResponse, moderateContent, checkSemanticDuplicate, categorizeNews, getNiceEmoji } from "../services/ai";
 import { safeSend } from "../services/sender";
 import { logger, sanitizeLogInput } from "../utils/logger";
 import crypto from "crypto";
@@ -38,25 +37,14 @@ if (!connectionOptions) {
             continue;
           }
 
-          const articleData = {
+          await processArticleInline(userId, {
             title: article.title,
             url: article.link,
             source: sourceName,
             content: article.contentSnippet || article.content || "",
             imageUrl: article.imageUrl || null,
             pubDate: article.pubDate,
-          };
-
-          if (isRedisAvailable()) {
-            const linkHash = crypto.createHash("md5").update(article.link).digest("hex");
-            const { aiQueue } = await import("../services/queue");
-            if (aiQueue) {
-              await aiQueue.add("process-ai", { userId, article: articleData, lang }, { jobId: `ai_${userId}_${linkHash}` });
-            }
-          } else {
-            const { aiQueue: memAiQueue } = await import("../services/memory_queue");
-            await memAiQueue.add("process-article", { userId, article: articleData, lang }, { jobId: `ai_${userId}_${crypto.createHash("md5").update(article.link).digest("hex")}` });
-          }
+          }, lang);
         }
       } catch (error) {
         logger.error(`Scraper Worker Error: ${error}`);
@@ -101,7 +89,6 @@ export async function processArticleInline(userId: number, article: any, sourceL
       } catch {}
     }
 
-    const { moderateContent, checkSemanticDuplicate, categorizeNews, getNiceEmoji } = await import("../services/ai");
     const moderation = await moderateContent(article.title, article.content || "");
     if (moderation.status === "BLOCKED") {
       DBService.releaseUserSendSlot(userId);
