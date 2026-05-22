@@ -207,19 +207,16 @@ function createPooledIORedis(pool: RedisPool): IORedis {
     conn.on('close', () => ee.emit('close'));
   }
 
-  function handleError(err: Error, conn: IORedis): void {
+  function handleError(err: Error, _conn: IORedis): void {
     const isLimit = err.message?.includes('limit exceeded') || err.message?.toLowerCase().includes('exceeded');
     if (isLimit) {
-      logger.warn('Upstash limit exceeded \u2014 rotating Redis token');
       if (pool.markExhausted()) {
         currentConn = pool.active;
         attachPoolListeners(currentConn);
-        // Re-register all user event listeners on new connection
         for (const [event, handlers] of registered) {
           for (const h of handlers) currentConn.on(event, h);
         }
-      } else {
-        ee.emit('error', new Error('All Redis tokens exhausted'));
+        logger.info('Rotated to next Redis token');
       }
       return;
     }
@@ -231,7 +228,6 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       return await fn(currentConn);
     } catch (err: any) {
       if (err.message?.includes('limit exceeded') || err.message?.toLowerCase().includes('exceeded')) {
-        logger.warn('Redis: limit exceeded on command, rotating token');
         if (pool.markExhausted()) {
           currentConn = pool.active;
           attachPoolListeners(currentConn);

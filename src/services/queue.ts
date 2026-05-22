@@ -29,7 +29,8 @@ export const scraperQueue = redisOptions ? new Queue('scraper-queue', {
 if (scraperQueue) scraperQueue.on('error', handleLimitError);
 
 export function isRedisAvailable(): boolean {
-  return !!redisOptions;
+  const pool = getRedisPool();
+  return !!pool && pool.hasAvailable();
 }
 export async function addScraperJob(data: any): Promise<void> {
   if (!scraperQueue) {
