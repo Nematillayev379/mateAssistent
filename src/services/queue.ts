@@ -37,6 +37,11 @@ export async function addScraperJob(data: any): Promise<void> {
     logger.debug('addScraperJob: Redis not available, skipping queue');
     return;
   }
+  const pool = getRedisPool();
+  if (!pool || !pool.hasAvailable()) {
+    logger.debug('addScraperJob: all Redis tokens exhausted, skipping queue');
+    return;
+  }
   try {
     await scraperQueue.add('scrape-rss', data);
   } catch (err: any) {
