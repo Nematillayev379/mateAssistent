@@ -1,16 +1,22 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CONFIG } from "../config/config";
 import { logger } from "../utils/logger";
 import crypto from 'crypto';
-const supabaseUrl = CONFIG.SUPABASE_URL;
-const supabaseKey = CONFIG.SUPABASE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  logger.error('❌ SUPABASE_URL and SUPABASE_KEY must be set in environment variables!');
-  process.exit(1);
+let supabase: SupabaseClient;
+
+function getSupabase(): SupabaseClient {
+  if (!supabase) {
+    const url = CONFIG.SUPABASE_URL;
+    const key = CONFIG.SUPABASE_KEY;
+    if (!url || !key) {
+      console.error('❌ SUPABASE_URL and SUPABASE_KEY must be set in environment variables!');
+      process.exit(1);
+    }
+    supabase = createClient(url, key);
+  }
+  return supabase;
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // In-memory cache to prevent redundant Supabase queries for premium verification
 const premiumCache = new Map<number, { active: boolean; expiresAt: number }>();
@@ -105,13 +111,13 @@ export const DBService = {
 
   // --- USERS ---
   async getUser(telegramId: number) {
-    const { data, error } = await supabase.from('users').select('*').eq('telegram_id', telegramId).single();
+    const { data, error } = await getSupabase().from('users').select('*').eq('telegram_id', telegramId).single();
     if (error && error.code !== 'PGRST116') logger.error(`getUser error: ${error.message}`);
     return data;
   },
   
   async getAllUsers() {
-    const { data, error } = await supabase.from('users').select('*');
+    const { data, error } = await getSupabase().from('users').select('*');
     if (error) logger.error(`getAllUsers error: ${error.message}`);
     return data || [];
   },
@@ -139,19 +145,19 @@ export const DBService = {
       first_name: firstName || null,
     };
 
-    let { data, error } = await supabase.from('users').upsert(insertData, { onConflict: 'telegram_id' }).select().single();
+    let { data, error } = await getSupabase().from('users').upsert(insertData, { onConflict: 'telegram_id' }).select().single();
     if (error) {
       logger.error(`upsertUser error: ${error.message}`);
       const fallbackInsertData = { ...insertData };
       delete fallbackInsertData.role;
-      const fallback = await supabase.from('users').upsert(fallbackInsertData, { onConflict: 'telegram_id' }).select().single();
+      const fallback = await getSupabase().from('users').upsert(fallbackInsertData, { onConflict: 'telegram_id' }).select().single();
       if (fallback.error) {
         logger.error(`upsertUser fallback without role failed: ${fallback.error.message}`);
         return null;
       }
       data = fallback.data;
       if (isOwner === 1 && data) {
-        await supabase.from('users').update({ is_owner: 1 }).eq('telegram_id', telegramId);
+        await getSupabase().from('users').update({ is_owner: 1 }).eq('telegram_id', telegramId);
       }
     }
 
@@ -162,7 +168,7 @@ export const DBService = {
     if (typeof safeUpdates.target_channel === 'string') {
       safeUpdates.target_channel = this.normalizeTargetChannel(safeUpdates.target_channel);
     }
-    const { error } = await supabase.from('users').update(safeUpdates).eq('telegram_id', telegramId);
+    const { error } = await getSupabase().from('users').update(safeUpdates).eq('telegram_id', telegramId);
     if (error) {
       logger.error(`updateUser error: ${error.message}`);
       return false;
@@ -174,18 +180,18 @@ export const DBService = {
 
   // --- SOURCES ---
   async getUserSources(userId: number) {
-    const { data, error } = await supabase.from('sources').select('*').eq('user_id', userId);
+    const { data, error } = await getSupabase().from('sources').select('*').eq('user_id', userId);
     if (error) logger.error(`getUserSources error: ${error.message}`);
     return data || [];
   },
 
   async getAllSources() {
-    const { data, error } = await supabase.from('sources').select('*');
+    const { data, error } = await getSupabase().from('sources').select('*');
     if (error) logger.error(`getAllSources error: ${error.message}`);
     return data || [];
   },
   async addSource(userId: number, name: string, url: string, lang: string): Promise<boolean> {
-    const { error } = await supabase.from('sources').insert({ user_id: userId, name, url, lang });
+    const { error } = await getSupabase().from('sources').insert({ user_id: userId, name, url, lang });
     if (error) {
       logger.error(`addSource error: ${error.message}`);
       return false;
@@ -194,7 +200,7 @@ export const DBService = {
   },
 
   async removeSource(userId: number, sourceId: number) {
-    const { error } = await supabase.from('sources').delete().eq('id', sourceId).eq('user_id', userId);
+    const { error } = await getSupabase().from('sources').delete().eq('id', sourceId).eq('user_id', userId);
     if (error) logger.error(`removeSource error: ${error.message}`);
   },
 
@@ -207,7 +213,7 @@ export const DBService = {
 
   async isSeen(userId: number, url: string): Promise<boolean> {
     const normalizedUrl = this.normalizeNewsUrl(url);
-    const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('url', normalizedUrl).limit(1);
+    const { data, error } = await getSupabase().from('processed_news').select('id').eq('user_id', userId).eq('url', normalizedUrl).limit(1);
     if (error) logger.error(`isSeen error: ${error.message}`);
     return !!(data && data.length > 0);
   },
@@ -225,7 +231,7 @@ export const DBService = {
   },
   async markSeen(userId: number, url: string, title: string) {
     const normalizedUrl = this.normalizeNewsUrl(url);
-    const { error } = await supabase.from('processed_news').upsert(
+    const { error } = await getSupabase().from('processed_news').upsert(
       { user_id: userId, url: normalizedUrl, title },
       { onConflict: 'user_id,url' }
     );
@@ -236,7 +242,7 @@ export const DBService = {
   },
 
   async getLastTitles(userId: number, limit: number = 20): Promise<string[]> {
-    const { data, error } = await supabase.from('processed_news').select('title').eq('user_id', userId).order('created_at', { ascending: false }).limit(limit);
+    const { data, error } = await getSupabase().from('processed_news').select('title').eq('user_id', userId).order('created_at', { ascending: false }).limit(limit);
     if (error) logger.error(`getLastTitles error: ${error.message}`);
     return (data || []).map(r => r.title);
   },
@@ -244,61 +250,61 @@ export const DBService = {
   // --- API KEYS ---
   async addApiKey(userId: number, key: string, type: string) {
     // Check if key already belongs to another user
-    const { data: existingKey } = await supabase.from('api_keys').select('user_id').eq('api_key', key).maybeSingle();
+    const { data: existingKey } = await getSupabase().from('api_keys').select('user_id').eq('api_key', key).maybeSingle();
     if (existingKey && existingKey.user_id !== userId) {
       logger.warn(`addApiKey: key already owned by another user`);
       return;
     }
-    const { error } = await supabase.from('api_keys').upsert({ user_id: userId, api_key: key, api_type: type, is_active: true }, { onConflict: 'api_key' });
+    const { error } = await getSupabase().from('api_keys').upsert({ user_id: userId, api_key: key, api_type: type, is_active: true }, { onConflict: 'api_key' });
     if (error) logger.error(`addApiKey error: ${error.message}`);
   },
 
   async removeApiKey(userId: number, key: string) {
-    const { error } = await supabase.from('api_keys').delete().eq('user_id', userId).eq('api_key', key);
+    const { error } = await getSupabase().from('api_keys').delete().eq('user_id', userId).eq('api_key', key);
     if (error) logger.error(`removeApiKey error: ${error.message}`);
   },
 
   async removeApiKeyById(id: number) {
-    const { error } = await supabase.from('api_keys').delete().eq('id', id);
+    const { error } = await getSupabase().from('api_keys').delete().eq('id', id);
     if (error) logger.error(`removeApiKeyById error: ${error.message}`);
   },
 
   async getUserApiKeyCount(userId: number): Promise<number> {
-    const { count, error } = await supabase.from('api_keys').select('*', { count: 'exact', head: true }).eq('user_id', userId);
+    const { count, error } = await getSupabase().from('api_keys').select('*', { count: 'exact', head: true }).eq('user_id', userId);
     if (error) logger.error(`getUserApiKeyCount error: ${error.message}`);
     return count || 0;
   },
 
   async isKeyExists(key: string): Promise<boolean> {
-    const { data, error } = await supabase.from('api_keys').select('id').eq('api_key', key).maybeSingle();
+    const { data, error } = await getSupabase().from('api_keys').select('id').eq('api_key', key).maybeSingle();
     return !!data;
   },
 
   async getValidApiKeys() {
-    const { data, error } = await supabase.from('api_keys').select('api_key, api_type').eq('is_active', true);
+    const { data, error } = await getSupabase().from('api_keys').select('api_key, api_type').eq('is_active', true);
     if (error) logger.error(`getValidApiKeys error: ${error.message}`);
     return (data || []).map(k => ({ key: k.api_key, type: k.api_type }));
   },
 
   async getUserApiKeys(userId: number) {
-    const { data, error } = await supabase.from('api_keys').select('*').eq('user_id', userId).eq('is_active', true);
+    const { data, error } = await getSupabase().from('api_keys').select('*').eq('user_id', userId).eq('is_active', true);
     if (error) logger.error(`getUserApiKeys error: ${error.message}`);
     return data || [];
   },
 
   // --- STATS ---
   async incrementStat(userId: number, field: 'total_posts' | 'total_duplicates') {
-    const { error } = await supabase.rpc('increment_stat', { p_user_id: userId, p_field: field });
+    const { error } = await getSupabase().rpc('increment_stat', { p_user_id: userId, p_field: field });
     if (error) logger.error(`incrementStat rpc error: ${error.message}`);
   },
   async getStats(userId: number) {
-    const { data } = await supabase.from('stats').select('*').eq('user_id', userId).maybeSingle();
+    const { data } = await getSupabase().from('stats').select('*').eq('user_id', userId).maybeSingle();
     return data || { total_posts: 0, total_duplicates: 0 };
   },
 
   // --- PRICE TRACKER ---
   async addTrackedPrice(userId: number, url: string, name: string, price: number) {
-    const { error } = await supabase.from('tracked_prices').insert({ user_id: userId, url, item_name: name, last_price: price });
+    const { error } = await getSupabase().from('tracked_prices').insert({ user_id: userId, url, item_name: name, last_price: price });
     if (error) {
       logger.error(`addTrackedPrice error: ${error.message}`);
       throw new Error('Narxni kuzatuvga olishda xatolik yuz berdi.');
@@ -306,36 +312,36 @@ export const DBService = {
   },
 
   async getTrackedPrices(userId: number) {
-    const { data } = await supabase.from('tracked_prices').select('*').eq('user_id', userId);
+    const { data } = await getSupabase().from('tracked_prices').select('*').eq('user_id', userId);
     return data || [];
   },
 
   async getAllTrackedPrices() {
-    const { data } = await supabase.from('tracked_prices').select('*');
+    const { data } = await getSupabase().from('tracked_prices').select('*');
     return data || [];
   },
 
   async updatePrice(id: number, newPrice: number) {
-    await supabase.from('tracked_prices').update({ last_price: newPrice }).eq('id', id);
+    await getSupabase().from('tracked_prices').update({ last_price: newPrice }).eq('id', id);
   },
 
   async removePrice(userId: number, id: number) {
-    await supabase.from('tracked_prices').delete().eq('id', id).eq('user_id', userId);
+    await getSupabase().from('tracked_prices').delete().eq('id', id).eq('user_id', userId);
   },
 
   // --- SETTINGS --- (BUG-014/015 Fix: Single unified implementation using 'settings' table)
   async getSetting(key: string): Promise<string | null> {
-    const { data } = await supabase.from('settings').select('value').eq('key', key).maybeSingle();
+    const { data } = await getSupabase().from('settings').select('value').eq('key', key).maybeSingle();
     return data?.value ?? null;
   },
 
   async setSetting(key: string, value: string) {
-    await supabase.from('settings').upsert({ key, value }, { onConflict: 'key' });
+    await getSupabase().from('settings').upsert({ key, value }, { onConflict: 'key' });
   },
 
   // --- MONITORED CHANNELS --- (BUG-012/013 Fix: Single unified implementation)
   async getUserMonitoredChannels(userId: number) {
-    const { data, error } = await supabase.from('monitored_channels').select('*').eq('user_id', userId);
+    const { data, error } = await getSupabase().from('monitored_channels').select('*').eq('user_id', userId);
     if (error) logger.error(`getUserMonitoredChannels error: ${error.message}`);
     return data || [];
   },
@@ -356,12 +362,12 @@ export const DBService = {
       use_ai: opts?.use_ai ?? 0,
       is_active: 1,
     };
-    const { error } = await supabase.from('monitored_channels').insert(row);
+    const { error } = await getSupabase().from('monitored_channels').insert(row);
     if (error) logger.error(`addMonitoredChannel error: ${error.message}`);
   },
 
   async updateMonitoredChannelSettings(id: number, userId: number, updates: Record<string, any>) {
-    const { error } = await supabase.from('monitored_channels').update(updates).eq('id', id).eq('user_id', userId);
+    const { error } = await getSupabase().from('monitored_channels').update(updates).eq('id', id).eq('user_id', userId);
     if (error) logger.error(`updateMonitoredChannelSettings error: ${error.message}`);
   },
 
@@ -383,7 +389,7 @@ export const DBService = {
   },
 
   async isTelegramMessageSeen(userId: number, sourceChatId: string, messageId: number): Promise<boolean> {
-    const { data } = await supabase.from('telegram_seen_messages')
+    const { data } = await getSupabase().from('telegram_seen_messages')
       .select('id')
       .eq('user_id', userId)
       .eq('source_chat_id', sourceChatId)
@@ -393,7 +399,7 @@ export const DBService = {
   },
 
   async markTelegramMessageSeen(userId: number, sourceChatId: string, messageId: number) {
-    const { error } = await supabase.from('telegram_seen_messages').insert({
+    const { error } = await getSupabase().from('telegram_seen_messages').insert({
       user_id: userId,
       source_chat_id: sourceChatId,
       message_id: messageId,
@@ -404,22 +410,22 @@ export const DBService = {
   },
 
 async getRecentNewsTitles(limit = 80): Promise<string[]> {
-     const { data, error } = await supabase.from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
+     const { data, error } = await getSupabase().from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
      if (error) logger.error(`getRecentNewsTitles error: ${error.message}`);
      return (data || []).map((r: any) => r?.title).filter(Boolean) as string[];
    },
 
   async saveTrendsSnapshot(topics: any[], summary: string) {
-    await supabase.from('trends_snapshots').insert({ topics, summary });
+    await getSupabase().from('trends_snapshots').insert({ topics, summary });
   },
 
   async getLatestTrendsSnapshot() {
-    const { data } = await supabase.from('trends_snapshots').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const { data } = await getSupabase().from('trends_snapshots').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
     return data;
   },
 
   async savePostDraft(userId: number, draft: { title?: string; body: string; image_url?: string; channels?: string[] }) {
-    const { data, error } = await supabase.from('post_drafts').insert({
+    const { data, error } = await getSupabase().from('post_drafts').insert({
       user_id: userId,
       title: draft.title || null,
       body: draft.body,
@@ -432,27 +438,27 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
   },
 
   async getUserPostDrafts(userId: number) {
-    const { data } = await supabase.from('post_drafts').select('*').eq('user_id', userId).order('updated_at', { ascending: false }).limit(20);
+    const { data } = await getSupabase().from('post_drafts').select('*').eq('user_id', userId).order('updated_at', { ascending: false }).limit(20);
     return data || [];
   },
 
   async removeMonitoredChannel(userId: number, id: number) {
-    const { error } = await supabase.from('monitored_channels').delete().eq('id', id).eq('user_id', userId);
+    const { error } = await getSupabase().from('monitored_channels').delete().eq('id', id).eq('user_id', userId);
     if (error) logger.error(`removeMonitoredChannel error: ${error.message}`);
   },
   async getMonitoredChannels() {
-    const { data, error } = await supabase.from('monitored_channels').select('*');
+    const { data, error } = await getSupabase().from('monitored_channels').select('*');
     if (error) logger.error(`getMonitoredChannels error: ${error.message}`);
     return data || [];
   },
   async updateMonitoredChannel(id: number, lastPostId: string) {
-    const { error } = await supabase.from('monitored_channels').update({ last_post_id: lastPostId, last_check: new Date().toISOString() }).eq('id', id);
+    const { error } = await getSupabase().from('monitored_channels').update({ last_post_id: lastPostId, last_check: new Date().toISOString() }).eq('id', id);
     if (error) logger.error(`updateMonitoredChannel error: ${error.message}`);
   },
 
   // --- VECTOR DEDUPLICATION ---
   async findSimilarNews(userId: number, embedding: number[], threshold: number = 0.9) {
-    const { data, error } = await supabase.rpc('match_news', {
+    const { data, error } = await getSupabase().rpc('match_news', {
       query_embedding: embedding,
       match_threshold: threshold,
       p_user_id: userId
@@ -470,7 +476,7 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
   },
 
   async saveEmbedding(userId: number, contentHash: string, embedding: number[]) {
-    const { error } = await supabase.from('news_embeddings').insert({
+    const { error } = await getSupabase().from('news_embeddings').insert({
       user_id: userId,
       content_hash: contentHash,
       embedding: embedding
@@ -480,18 +486,18 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
 
   async cleanupOldEmbeddings(days: number = 7) {
      const date = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-     await supabase.from('news_embeddings').delete().lt('created_at', date);
+     await getSupabase().from('news_embeddings').delete().lt('created_at', date);
   },
 
   // ── REFERRAL ──────────────────────────────
 
   async getUserByReferralCode(code: string) {
-    const { data } = await supabase.from('users').select('*').eq('referral_code', code.toUpperCase()).maybeSingle();
+    const { data } = await getSupabase().from('users').select('*').eq('referral_code', code.toUpperCase()).maybeSingle();
     return data;
   },
 
   async hasReferral(referredId: number): Promise<boolean> {
-    const { data } = await supabase.from('referrals').select('id').eq('referred_id', referredId).maybeSingle();
+    const { data } = await getSupabase().from('referrals').select('id').eq('referred_id', referredId).maybeSingle();
     return !!data;
   },
   async createReferral(referrerId: number, referredId: number): Promise<boolean> {
@@ -500,7 +506,7 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
       logger.warn(`createReferral: referred user ${referredId} already has a referrer`);
       return false;
     }
-    const { error } = await supabase.from('referrals').insert({ referrer_id: referrerId, referred_id: referredId });
+    const { error } = await getSupabase().from('referrals').insert({ referrer_id: referrerId, referred_id: referredId });
     if (error) { logger.error(`createReferral: ${error.message}`); return false; }
     return true;
   },
@@ -512,25 +518,25 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     const sources = await this.getUserSources(userId);
     if (sources.length === 0) return;
 
-    const { data: ref } = await supabase.from('referrals').select('*').eq('referred_id', userId).maybeSingle();
+    const { data: ref } = await getSupabase().from('referrals').select('*').eq('referred_id', userId).maybeSingle();
     if (ref && ref.is_active === false) {
-       await supabase.from('referrals').update({ is_active: true }).eq('referred_id', userId);
+       await getSupabase().from('referrals').update({ is_active: true }).eq('referred_id', userId);
        await this.checkAndGivePremium(ref.referrer_id);
     }
   },
   async checkAndGivePremium(referrerId: number) {
-    const { count } = await supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('referrer_id', referrerId).eq('is_active', true);
+    const { count } = await getSupabase().from('referrals').select('*', { count: 'exact', head: true }).eq('referrer_id', referrerId).eq('is_active', true);
     const activeCount = count || 0;
     if (activeCount > 0 && activeCount % 10 === 0) {
-      const { error } = await supabase.rpc('extend_premium', { p_user_id: referrerId, p_days: 30 });
+      const { error } = await getSupabase().rpc('extend_premium', { p_user_id: referrerId, p_days: 30 });
       if (error) logger.error(`extend_premium RPC error: ${error.message}`);
     }
-    const { error } = await supabase.rpc('increment_referral_count', { p_user_id: referrerId });
+    const { error } = await getSupabase().rpc('increment_referral_count', { p_user_id: referrerId });
     if (error) logger.error(`increment_referral_count RPC error: ${error.message}`);
   },
 
   async getReferralStats(userId: number) {
-    const { data: all } = await supabase.from('referrals').select('*').eq('referrer_id', userId);
+    const { data: all } = await getSupabase().from('referrals').select('*').eq('referrer_id', userId);
     const total = all?.length || 0;
     const active = all?.filter(r => r.is_active).length || 0;
     const needed = 10 - (active % 10);
@@ -554,7 +560,7 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
        code = fallbackCode;
      }
 
-     await supabase.from('users').update({ referral_code: code }).eq('telegram_id', userId);
+     await getSupabase().from('users').update({ referral_code: code }).eq('telegram_id', userId);
      return code;
    },
   async isPremiumActive(userId: number): Promise<boolean> {
@@ -576,7 +582,7 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
         active = true;
       } else {
         if (isPremiumFlag) {
-          await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
+          await getSupabase().from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
         }
         active = false;
       }
@@ -597,7 +603,7 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
   },
   async setKeywords(userId: number, keywords: string) {
     const safeKeywords = keywords.slice(0, 1000); // Prevent overflow
-    await supabase.from('users').update({ keywords: safeKeywords }).eq('telegram_id', userId);
+    await getSupabase().from('users').update({ keywords: safeKeywords }).eq('telegram_id', userId);
   },
   async getKeywords(userId: number): Promise<string[]> {
     const user = await this.getUser(userId);
@@ -606,7 +612,7 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
   },
 
   async setScheduleTimes(userId: number, times: string) {
-    await supabase.from('users').update({ schedule_times: times }).eq('telegram_id', userId);
+    await getSupabase().from('users').update({ schedule_times: times }).eq('telegram_id', userId);
   },
   async setDailyDigest(userId: number, enabled: boolean, time: string) {
     // Validate time format HH:MM
@@ -621,32 +627,32 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
     } else {
       time = '20:00'; // Default fallback
     }
-    await supabase.from('users').update({ daily_digest: enabled, digest_time: time }).eq('telegram_id', userId);
+    await getSupabase().from('users').update({ daily_digest: enabled, digest_time: time }).eq('telegram_id', userId);
   },
 
   async getUsersWithDigest(): Promise<any[]> {
-    const { data } = await supabase.from('users').select('*').eq('daily_digest', true).eq('is_approved', 1);
+    const { data } = await getSupabase().from('users').select('*').eq('daily_digest', true).eq('is_approved', 1);
     return data || [];
   },
   async getRecentTitlesForDigest(userId: number, hours: number = 24): Promise<any[]> {
     const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-    const { data } = await supabase.from('processed_news').select('title, url, created_at').eq('user_id', userId).gte('created_at', since).order('created_at', { ascending: false }).limit(100);
+    const { data } = await getSupabase().from('processed_news').select('title, url, created_at').eq('user_id', userId).gte('created_at', since).order('created_at', { ascending: false }).limit(100);
     return data || [];
   },
 
   async setLanguage(userId: number, lang: string) {
-    await supabase.from('users').update({ language: lang }).eq('telegram_id', userId);
+    await getSupabase().from('users').update({ language: lang }).eq('telegram_id', userId);
   },
 
   async setPremium(telegramId: number, days: number) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + days);
-    await supabase.from('users').update({ is_premium: 1, premium_until: expiresAt.toISOString() }).eq('telegram_id', telegramId);
+    await getSupabase().from('users').update({ is_premium: 1, premium_until: expiresAt.toISOString() }).eq('telegram_id', telegramId);
     premiumCache.set(telegramId, { active: true, expiresAt: Date.now() + 5 * 60 * 1000 });
   },
 
   async revokePremium(telegramId: number) {
-    await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', telegramId);
+    await getSupabase().from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', telegramId);
     premiumCache.set(telegramId, { active: false, expiresAt: Date.now() + 5 * 60 * 1000 });
   },
 
@@ -671,32 +677,32 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
       throw new Error(errorText);
     }
 
-    const { error } = await supabase.from('scheduled_posts').insert({ user_id: userId, type, content, scheduled_at: scheduledAt, status: 'pending' });
+    const { error } = await getSupabase().from('scheduled_posts').insert({ user_id: userId, type, content, scheduled_at: scheduledAt, status: 'pending' });
     if (error) logger.error(`addScheduledPost error: ${error.message}`);
   },
 
   async cancelScheduledPost(userId: number, scheduleId: number) {
-    const { error } = await supabase.from('scheduled_posts').update({ status: 'cancelled' }).eq('id', scheduleId).eq('user_id', userId);
+    const { error } = await getSupabase().from('scheduled_posts').update({ status: 'cancelled' }).eq('id', scheduleId).eq('user_id', userId);
     if (error) logger.error(`cancelScheduledPost error: ${error.message}`);
   },
   async getPendingScheduledPosts() {
     const now = new Date().toISOString();
-    const { data, error } = await supabase.from('scheduled_posts').select('*').in('status', ['pending', 'failed']).lte('scheduled_at', now);
+    const { data, error } = await getSupabase().from('scheduled_posts').select('*').in('status', ['pending', 'failed']).lte('scheduled_at', now);
     if (error) logger.error(`getPendingScheduledPosts error: ${error.message}`);
     return data || [];
   },
   async getUserScheduledPosts(userId: number) {
-    const { data, error } = await supabase.from('scheduled_posts').select('*').eq('user_id', userId).in('status', ['pending', 'sent']).order('scheduled_at', { ascending: false });
+    const { data, error } = await getSupabase().from('scheduled_posts').select('*').eq('user_id', userId).in('status', ['pending', 'sent']).order('scheduled_at', { ascending: false });
     if (error) logger.error(`getUserScheduledPosts error: ${error.message}`);
     return data || [];
   },
 
   async markScheduledPostSent(id: number) {
-    await supabase.from('scheduled_posts').update({ status: 'sent' }).eq('id', id);
+    await getSupabase().from('scheduled_posts').update({ status: 'sent' }).eq('id', id);
   },
 
   async updateScheduledPostStatus(id: number, status: string) {
-    await supabase.from('scheduled_posts').update({ status }).eq('id', id);
+    await getSupabase().from('scheduled_posts').update({ status }).eq('id', id);
   },
   async checkUserLimit(userId: number, limitType: 'sources' | 'channels' | 'scheduled'): Promise<boolean> {
     const user = await this.getUser(userId);
@@ -729,32 +735,32 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
       return channels.length < limit;
     }
     if (limitType === 'scheduled') {
-      const { count } = await supabase.from('scheduled_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending');
+      const { count } = await getSupabase().from('scheduled_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending');
       return (count || 0) < 3;
     }
     return true;
   },
 
   async createTicket(userId: number, subject: string, message: string) {
-    const { data, error } = await supabase.from('support_tickets').insert({ user_id: userId, subject, message }).select().single();
+    const { data, error } = await getSupabase().from('support_tickets').insert({ user_id: userId, subject, message }).select().single();
     if (error) logger.error(`createTicket error: ${error.message}`);
     return data;
   },
 
   async getUserTickets(userId: number) {
-    const { data, error } = await supabase.from('support_tickets').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    const { data, error } = await getSupabase().from('support_tickets').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (error) logger.error(`getUserTickets error: ${error.message}`);
     return data || [];
   },
 
   async getTickets() {
-    const { data, error } = await supabase.from('support_tickets').select('*, users(username, first_name)').order('created_at', { ascending: false });
+    const { data, error } = await getSupabase().from('support_tickets').select('*, users(username, first_name)').order('created_at', { ascending: false });
     if (error) logger.error(`getTickets error: ${error.message}`);
     return data || [];
   },
   async updateTicketStatus(ticketId: number, status: string) {
     if (!['open', 'closed', 'resolved'].includes(status)) return;
-    await supabase.from('support_tickets').update({ status }).eq('id', ticketId);
+    await getSupabase().from('support_tickets').update({ status }).eq('id', ticketId);
   },
 
   async updateUserRole(telegramId: number, role: string) {
@@ -766,7 +772,7 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
       updates.is_owner = 0;
     }
 
-    const { error } = await supabase.from('users').update(updates).eq('telegram_id', telegramId);
+    const { error } = await getSupabase().from('users').update(updates).eq('telegram_id', telegramId);
     if (error) {
       logger.warn(`updateUserRole warning: ${error.message}`);
       return false;
@@ -783,7 +789,7 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
   },
 
   async getUsersForAdmin() {
-    const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+    const { data, error } = await getSupabase().from('users').select('*').order('created_at', { ascending: false });
     if (error) {
       logger.error(`getUsersForAdmin error: ${error.message}`);
       return [];
@@ -798,62 +804,62 @@ async getRecentNewsTitles(limit = 80): Promise<string[]> {
 
   // --- RULES (Automation) ---
   async getUserRules(userId: number): Promise<any[]> {
-    const { data, error } = await supabase.from('automation_rules').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    const { data, error } = await getSupabase().from('automation_rules').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (error) { logger.error(`getUserRules error: ${error.message}`); return []; }
     return data || [];
   },
 
   async addRule(userId: number, trigger: string, condition: string, action: string, actionValue: string): Promise<boolean> {
-    const { error } = await supabase.from('automation_rules').insert({ user_id: userId, trigger, condition, action, action_value: actionValue });
+    const { error } = await getSupabase().from('automation_rules').insert({ user_id: userId, trigger, condition, action, action_value: actionValue });
     if (error) { logger.error(`addRule error: ${error.message}`); return false; }
     return true;
   },
 
   async toggleRule(ruleId: number, isActive: boolean): Promise<boolean> {
-    const { error } = await supabase.from('automation_rules').update({ is_active: isActive }).eq('id', ruleId);
+    const { error } = await getSupabase().from('automation_rules').update({ is_active: isActive }).eq('id', ruleId);
     if (error) { logger.error(`toggleRule error: ${error.message}`); return false; }
     return true;
   },
 
   async deleteRule(ruleId: number): Promise<boolean> {
-    const { error } = await supabase.from('automation_rules').delete().eq('id', ruleId);
+    const { error } = await getSupabase().from('automation_rules').delete().eq('id', ruleId);
     if (error) { logger.error(`deleteRule error: ${error.message}`); return false; }
     return true;
   },
 
   // --- WORKSPACES (Multi-Channel) ---
   async getUserWorkspaces(userId: number): Promise<any[]> {
-    const { data, error } = await supabase.from('workspaces').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+    const { data, error } = await getSupabase().from('workspaces').select('*').eq('user_id', userId).order('created_at', { ascending: false });
     if (error) { logger.error(`getUserWorkspaces error: ${error.message}`); return []; }
     return data || [];
   },
 
   async createWorkspace(userId: number, name: string): Promise<any> {
-    const { data, error } = await supabase.from('workspaces').insert({ user_id: userId, name }).select().single();
+    const { data, error } = await getSupabase().from('workspaces').insert({ user_id: userId, name }).select().single();
     if (error) { logger.error(`createWorkspace error: ${error.message}`); return null; }
     return data;
   },
 
   async getWorkspaceChannels(workspaceId: number): Promise<any[]> {
-    const { data, error } = await supabase.from('workspace_channels').select('*').eq('workspace_id', workspaceId);
+    const { data, error } = await getSupabase().from('workspace_channels').select('*').eq('workspace_id', workspaceId);
     if (error) { logger.error(`getWorkspaceChannels error: ${error.message}`); return []; }
     return data || [];
   },
 
   async addWorkspaceChannel(workspaceId: number, channelId: string, name: string): Promise<boolean> {
-    const { error } = await supabase.from('workspace_channels').insert({ workspace_id: workspaceId, channel_id: channelId, name });
+    const { error } = await getSupabase().from('workspace_channels').insert({ workspace_id: workspaceId, channel_id: channelId, name });
     if (error) { logger.error(`addWorkspaceChannel error: ${error.message}`); return false; }
     return true;
   },
 
   async removeWorkspaceChannel(channelId: string, workspaceId: number): Promise<boolean> {
-    const { error } = await supabase.from('workspace_channels').delete().eq('channel_id', channelId).eq('workspace_id', workspaceId);
+    const { error } = await getSupabase().from('workspace_channels').delete().eq('channel_id', channelId).eq('workspace_id', workspaceId);
     if (error) { logger.error(`removeWorkspaceChannel error: ${error.message}`); return false; }
     return true;
   },
 
   async getRecentTitlesForChannel(channelId: string): Promise<any[]> {
-    const { data, error } = await supabase.from('processed_news').select('title').eq('target_channel', channelId).order('created_at', { ascending: false }).limit(10);
+    const { data, error } = await getSupabase().from('processed_news').select('title').eq('target_channel', channelId).order('created_at', { ascending: false }).limit(10);
     if (error) return [];
     return data || [];
   },
