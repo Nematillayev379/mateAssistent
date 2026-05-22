@@ -52,7 +52,7 @@ async function bootstrap() {
   }
 
   try {
-    console.log(`[BOOT] Starting i18n + AI key pool, elapsed ${Date.now() - _startTime}ms`);
+    process.stdout.write(`[BOOT] Starting i18n + AI key pool, elapsed ${Date.now() - _startTime}ms\n`);
     const { initI18n } = await import("./services/i18n");
     const { refreshKeyPool } = await import("./services/ai");
     await initI18n();
