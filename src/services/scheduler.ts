@@ -32,7 +32,7 @@ export const SchedulerService = {
           }
         }
 
-        const { safeSend } = await import('./telegram');
+        const { safeSend } = await import('./sender');
         
         // Convert scheduled post to article format for safeSend
         const article = {

@@ -5,7 +5,7 @@ import { DBService } from "../services/database";
 import { isRedisAvailable } from "../services/queue";
 import { getRedisOptions } from "../services/redis";
 import { getSmartAIResponse } from "../services/ai";
-import { safeSend } from "../services/telegram";
+import { safeSend } from "../services/sender";
 import { logger, sanitizeLogInput } from "../utils/logger";
 import crypto from "crypto";
 

@@ -1,26 +1,22 @@
 import cron from 'node-cron';
 import { DBService } from '../services/database';
 import { isRedisAvailable, addScraperJob } from '../services/queue';
-import { ScraperService } from '../services/scraper';
-import { processArticleInline } from '../workers/scraper_worker';
-import { logger, sanitizeLogInput } from '../utils/logger';
-import { bot } from '../services/bot_instance';
+import { RssService } from '../services/rss_service';
+import { logger } from '../utils/logger';
 
 const userLastRun = new Map<number, number>();
 let lastMonitoredCheck = 0;
-const MONITORED_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const MONITORED_CHECK_INTERVAL = 5 * 60 * 1000;
 
 export function setupRSSCron() {
   cron.schedule('0 0 * * *', async () => {
     try {
       const activeUsers = await DBService.getActiveUsers();
       const activeIds = new Set(activeUsers.map(u => u.telegram_id));
-      for (const id of userLastRun.keys()) {
-        if (!activeIds.has(id)) userLastRun.delete(id);
-      }
-      logger.info('🧹 Memory cleanup: userLastRun cache pruned');
+      await RssService.pruneCache(activeIds);
+      logger.info('Memory cleanup: userLastRun cache pruned');
     } catch (err: any) {
-      logger.error(`❌ Memory cleanup cron failed: ${err.message}`);
+      logger.error(`Memory cleanup cron failed: ${err.message}`);
     }
   });
 
@@ -30,13 +26,13 @@ export function setupRSSCron() {
       const now = Date.now();
       if (now - lastMonitoredCheck > MONITORED_CHECK_INTERVAL) {
         lastMonitoredCheck = now;
-        await checkMonitoredChannels().catch(err => logger.error(`checkMonitoredChannels: ${err.message}`));
+        await RssService.checkMonitoredChannels().catch(err => logger.error(`checkMonitoredChannels: ${err.message}`));
       }
 
       for (const user of users) {
         const intervalMinutes = Math.max(user.interval_minutes || 15, 1);
         const intervalMs = intervalMinutes * 60 * 1000;
-        
+
         let lastRun = userLastRun.get(user.telegram_id);
         if (lastRun === undefined) {
           lastRun = Date.now() - Math.floor(Math.random() * intervalMs);
@@ -50,7 +46,6 @@ export function setupRSSCron() {
         const currentM = nowObj.getUTCMinutes().toString().padStart(2, '0');
         const currentTime = `${currentH}:${currentM}`;
 
-        // Strategy 1: Fixed Schedule
         if (user.schedule_times && user.schedule_times.trim() !== '') {
           const times = user.schedule_times.split(',').map((t: string) => {
             const match = t.trim().match(/^(\d{1,2})[:.](\d{2})/);
@@ -59,12 +54,9 @@ export function setupRSSCron() {
             const m = parseInt(match[2]);
             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
           }).filter(Boolean);
-          
           if (!times.includes(currentTime)) continue;
           if (nowMs - lastRun < 65000) continue;
-        } 
-        // Strategy 2: Interval
-        else if (nowMs - lastRun < intervalMs) {
+        } else if (nowMs - lastRun < intervalMs) {
           continue;
         }
 
@@ -73,7 +65,7 @@ export function setupRSSCron() {
         const sources = await DBService.getUserSources(user.telegram_id);
         if (!sources || sources.length === 0) continue;
 
-        logger.info(`⏰ RSS cron: processing ${sources.length} sources for user ${user.telegram_id}`);
+        logger.info(`RSS cron: processing ${sources.length} sources for user ${user.telegram_id}`);
 
         for (const source of sources) {
           if (isRedisAvailable()) {
@@ -84,96 +76,14 @@ export function setupRSSCron() {
               lang: source.lang || 'uz',
             });
           } else {
-            await processDirectly(user.telegram_id, source);
+            await RssService.processDirectly(user.telegram_id, source);
           }
         }
       }
     } catch (error) {
-      logger.error(`❌ RSS Cron Error: ${error}`);
+      logger.error(`RSS Cron Error: ${error}`);
     }
   });
 
-  logger.info('📅 RSS cron scheduled (every 2 min, respects user intervals)');
+  logger.info('RSS cron scheduled (every 2 min, respects user intervals)');
 }
-async function checkMonitoredChannels() {
-  try {
-    const channels = await DBService.getMonitoredChannels();
-    for (const channel of channels) {
-      let latestPost: any = null;
-      if (channel.platform === 'youtube') {
-        const { YoutubeService } = await import('../services/youtube');
-        latestPost = await YoutubeService.getLatestVideo(channel.channel_id);
-      } else if (channel.platform === 'instagram') {
-        const { InstagramService } = await import('../services/instagram');
-        latestPost = await InstagramService.getLatestPost(channel.channel_id);
-      }
-
-      if (latestPost && latestPost.id !== channel.last_post_id) {
-        logger.info(`📢 New post found on ${sanitizeLogInput(channel.platform)} channel ${sanitizeLogInput(channel.name)}`);
-        const user = await DBService.getUser(channel.user_id);
-        if (user && user.target_channel) {
-          const caption = `📢 <b>Yangi ${channel.platform} xabari!</b>\n\n${latestPost.title}\n\n🔗 <a href="${latestPost.url}">Ko'rish</a>`;
-          try {
-            await bot.sendMessage(user.target_channel, caption, { parse_mode: 'HTML' });
-          } catch (e: any) {
-            logger.warn(`Failed to send monitored channel update: ${e.message}`);
-            // BUG-M3 Fix: Alert the user directly if the bot is not admin/allowed in their target channel
-            try {
-              const errMsg = `⚠️ <b>Kanalga post yuborib bo'lmadi!</b>\n\nBot <code>${user.target_channel}</code> kanalida administrator emas yoki xabar yuborish huquqi yo'q. Iltimos, botni kanalga admin qilib qo'shing.\n\nPost: ${latestPost.title}`;
-              await bot.sendMessage(channel.user_id, errMsg, { parse_mode: 'HTML' });
-            } catch (alertErr: any) {
-              logger.error(`Failed to alert user ${channel.user_id} about channel permissions: ${alertErr.message}`);
-            }
-          }
-        }
-        await DBService.updateMonitoredChannel(channel.id, latestPost.id);
-      }
-    }
-  } catch (err: any) {
-    logger.error(`checkMonitoredChannels error: ${err.message}`);
-  }
-}
-
-async function processDirectly(userId: number, source: any): Promise<void> {
-  try {
-    const articles: any[] = await ScraperService.fetchRSS(source.url);
-    articles.sort((a: any, b: any) => {
-      const left = new Date(b?.pubDate || 0).getTime();
-      const right = new Date(a?.pubDate || 0).getTime();
-      return left - right;
-    });
-    const lang = source.lang || 'uz';
-
-    for (const article of articles) {
-      try {
-        const locked = DBService.acquireRecentNewsLock(userId, article.link, article.title);
-        if (!locked) continue;
-
-        const isDuplicate = await DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
-        if (isDuplicate) continue;
-
-        logger.info(`🆕 [direct] New article: ${sanitizeLogInput(article.title)}`);
-
-        const articleData = {
-          title: article.title,
-          url: article.link,
-          source: source.name,
-          content: article.contentSnippet || article.content || '',
-          imageUrl: article.imageUrl || null,
-          pubDate: article.pubDate,
-        };
-
-        try {
-          await processArticleInline(userId, articleData, lang);
-          await DBService.markSeen(userId, article.link, article.title);
-        } catch (articleErr: any) {
-          logger.error(`❌ Error inline processing article ${sanitizeLogInput(article.link)}: ${articleErr.message}`);
-        }
-      } catch (articleErr: any) {
-        logger.error(`❌ Error handling article ${sanitizeLogInput(article.link)}: ${articleErr.message}`);
-      }
-    }
-  } catch (err: any) {
-    logger.warn(`⚠️ Direct RSS process error for ${sanitizeLogInput(source.url)}: ${err.message}`);
-  }
-  }

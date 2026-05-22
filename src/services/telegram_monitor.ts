@@ -3,7 +3,7 @@ import { bot } from './bot_instance';
 import { CONFIG } from '../config/config';
 import { DBService } from './database';
 import { logger } from '../utils/logger';
-import { safeSend, safeSendToChannels } from './telegram';
+import { safeSend, safeSendToChannels } from './sender';
 import { getSmartAIResponse } from './ai';
 
 /** Normalize @channel, -100id, or numeric id */

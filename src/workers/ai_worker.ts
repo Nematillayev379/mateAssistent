@@ -2,7 +2,7 @@ import { Worker, Job } from "bullmq";
 import { getRedisOptions } from "../services/redis";
 import { CONFIG } from "../config/config";
 import { getSmartAIResponse, moderateContent, checkSemanticDuplicate, categorizeNews, getNiceEmoji } from "../services/ai";
-import { safeSend } from "../services/telegram";
+import { safeSend } from "../services/sender";
 import { logger, sanitizeLogInput } from "../utils/logger";
 import { DBService } from "../services/database";
 
