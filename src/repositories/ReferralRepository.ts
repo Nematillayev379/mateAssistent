@@ -1,4 +1,5 @@
 import { getSupabase } from "./BaseRepository";
+import { logger } from "../utils/logger";
 
 export const ReferralRepository = {
   async has(referredId: number): Promise<boolean> {
@@ -8,9 +9,9 @@ export const ReferralRepository = {
 
   async create(referrerId: number, referredId: number): Promise<boolean> {
     const exists = await this.has(referredId);
-    if (exists) { console.warn(`createReferral: user ${referredId} already has a referrer`); return false; }
+    if (exists) { logger.warn(`createReferral: user ${referredId} already has a referrer`); return false; }
     const { error } = await getSupabase().from('referrals').insert({ referrer_id: referrerId, referred_id: referredId });
-    if (error) { console.error(`createReferral: ${error.message}`); return false; }
+    if (error) { logger.error(`createReferral: ${error.message}`); return false; }
     return true;
   },
 
@@ -35,9 +36,9 @@ export const ReferralRepository = {
     const activeCount = count || 0;
     if (activeCount > 0 && activeCount % 10 === 0) {
       const { error } = await getSupabase().rpc('extend_premium', { p_user_id: referrerId, p_days: 30 });
-      if (error) console.error(`extend_premium RPC error: ${error.message}`);
+      if (error) logger.error(`extend_premium RPC error: ${error.message}`);
     }
     const { error } = await getSupabase().rpc('increment_referral_count', { p_user_id: referrerId });
-    if (error) console.error(`increment_referral_count RPC error: ${error.message}`);
+    if (error) logger.error(`increment_referral_count RPC error: ${error.message}`);
   },
 };

@@ -1,10 +1,7 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { CONFIG } from '../config/config';
+import { DBService } from './database';
 import { logger } from '../utils/logger';
-
-const PAYMENTS_FILE = path.join(process.cwd(), 'data', 'crypto_payments.json');
 const USDT_JETTON_MASTER = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCzRVZ5F2pD2v4TO';
 
 interface PaymentRequest {
@@ -20,17 +17,20 @@ interface PaymentRequest {
   plan: string;
 }
 
-function loadPayments(): PaymentRequest[] {
-  try {
-    if (fs.existsSync(PAYMENTS_FILE)) return JSON.parse(fs.readFileSync(PAYMENTS_FILE, 'utf-8'));
-  } catch (e) { logger.error(`crypto_payments.json load: ${(e as Error).message}`); }
-  return [];
-}
-
-function savePayments(payments: PaymentRequest[]) {
-  const dir = path.dirname(PAYMENTS_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(PAYMENTS_FILE, JSON.stringify(payments, null, 2), 'utf-8');
+function mapPaymentRecord(record: any): PaymentRequest | null {
+  if (!record) return null;
+  return {
+    id: record.id,
+    userId: record.user_id,
+    amountUZS: record.amount_uzs,
+    currency: record.currency,
+    cryptoAmount: record.crypto_amount,
+    walletAddress: record.wallet_address,
+    memo: record.memo,
+    status: record.status,
+    createdAt: record.created_at,
+    plan: record.plan,
+  };
 }
 
 let usdtPrice = 12800;
@@ -68,15 +68,24 @@ export const CryptoPaymentService = {
     const finalAmount = amountUZS || (isYearly ? 250000 : 25000);
     const cryptoAmount = (finalAmount / usdtPrice).toFixed(2);
     const id = crypto.randomBytes(4).toString('hex').toUpperCase();
-    const payments = loadPayments();
     const req: PaymentRequest = {
       id, userId, amountUZS: finalAmount, currency: 'USDT', cryptoAmount,
       walletAddress: CONFIG.TON_WALLET, memo: `MATE${id}`,
       status: 'pending', createdAt: Date.now(), plan
     };
-    payments.push(req);
-    savePayments(payments);
-    return req;
+    const created = await DBService.createCryptoPayment({
+      id: req.id,
+      user_id: req.userId,
+      amount_uzs: req.amountUZS,
+      currency: req.currency,
+      crypto_amount: req.cryptoAmount,
+      wallet_address: req.walletAddress,
+      memo: req.memo,
+      status: req.status,
+      created_at: req.createdAt,
+      plan: req.plan,
+    });
+    return created ? req : null;
   },
 
   async createTonRequest(userId: number, plan: string, amountUZS?: number): Promise<PaymentRequest | null> {
@@ -86,37 +95,43 @@ export const CryptoPaymentService = {
     const finalAmount = amountUZS || (isYearly ? 250000 : 25000);
     const cryptoAmount = (finalAmount / usdtPrice / tonPriceUsdt).toFixed(4);
     const id = crypto.randomBytes(4).toString('hex').toUpperCase();
-    const payments = loadPayments();
     const req: PaymentRequest = {
       id, userId, amountUZS: finalAmount, currency: 'TON', cryptoAmount,
       walletAddress: CONFIG.TON_WALLET, memo: `MATE${id}`,
       status: 'pending', createdAt: Date.now(), plan
     };
-    payments.push(req);
-    savePayments(payments);
-    return req;
+    const created = await DBService.createCryptoPayment({
+      id: req.id,
+      user_id: req.userId,
+      amount_uzs: req.amountUZS,
+      currency: req.currency,
+      crypto_amount: req.cryptoAmount,
+      wallet_address: req.walletAddress,
+      memo: req.memo,
+      status: req.status,
+      created_at: req.createdAt,
+      plan: req.plan,
+    });
+    return created ? req : null;
   },
 
-  getRequest(id: string): PaymentRequest | null {
-    return loadPayments().find(p => p.id === id) || null;
+  async getRequest(id: string): Promise<PaymentRequest | null> {
+    return mapPaymentRecord(await DBService.getCryptoPayment(id));
   },
 
   async verifyPayment(id: string): Promise<'paid' | 'pending' | 'not_found'> {
-    const payments = loadPayments();
-    const req = payments.find(p => p.id === id);
+    const req = mapPaymentRecord(await DBService.getCryptoPayment(id));
     if (!req) return 'not_found';
     if (req.status === 'paid') return 'paid';
     if (Date.now() - req.createdAt > 86400000) {
-      req.status = 'expired';
-      savePayments(payments);
+      await DBService.updateCryptoPaymentStatus(id, 'expired');
       return 'not_found';
     }
     const found = req.currency === 'TON'
       ? await checkTonTransaction(req)
       : await checkUsdtJettonTransaction(req);
     if (found) {
-      req.status = 'paid';
-      savePayments(payments);
+      await DBService.updateCryptoPaymentStatus(id, 'paid');
       return 'paid';
     }
     return 'pending';

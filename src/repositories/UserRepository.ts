@@ -1,15 +1,16 @@
 import { getSupabase } from "./BaseRepository";
+import { logger } from "../utils/logger";
 
 export const UserRepository = {
   async get(telegramId: number) {
     const { data, error } = await getSupabase().from('users').select('*').eq('telegram_id', telegramId).single();
-    if (error && error.code !== 'PGRST116') console.error(`getUser error: ${error.message}`);
+    if (error && error.code !== 'PGRST116') logger.error(`getUser error: ${error.message}`);
     return data;
   },
 
   async getAll() {
     const { data, error } = await getSupabase().from('users').select('*');
-    if (error) console.error(`getAllUsers error: ${error.message}`);
+    if (error) logger.error(`getAllUsers error: ${error.message}`);
     return data || [];
   },
 
@@ -20,7 +21,7 @@ export const UserRepository = {
       .or('is_active.eq.1,is_active.is.null')
       .not('target_channel', 'is', null)
       .eq('is_approved', 1);
-    if (error) console.error(`getActiveUsers error: ${error.message}`);
+    if (error) logger.error(`getActiveUsers error: ${error.message}`);
     return (data || []).filter((u: any) => typeof u.target_channel === 'string' && u.target_channel.trim() !== '');
   },
 
@@ -32,11 +33,11 @@ export const UserRepository = {
     };
     let { data, error } = await getSupabase().from('users').upsert(insertData, { onConflict: 'telegram_id' }).select().single();
     if (error) {
-      console.error(`upsertUser error: ${error.message}`);
+      logger.error(`upsertUser error: ${error.message}`);
       const fallback = { ...insertData };
       delete fallback.role;
       const fb = await getSupabase().from('users').upsert(fallback, { onConflict: 'telegram_id' }).select().single();
-      if (fb.error) { console.error(`upsertUser fallback failed: ${fb.error.message}`); return null; }
+      if (fb.error) { logger.error(`upsertUser fallback failed: ${fb.error.message}`); return null; }
       data = fb.data;
       if (isOwner === 1 && data) await getSupabase().from('users').update({ is_owner: 1 }).eq('telegram_id', telegramId);
     }
@@ -52,7 +53,7 @@ export const UserRepository = {
       safe.target_channel = ch;
     }
     const { error } = await getSupabase().from('users').update(safe).eq('telegram_id', telegramId);
-    if (error) { console.error(`updateUser error: ${error.message}`); return false; }
+    if (error) { logger.error(`updateUser error: ${error.message}`); return false; }
     return true;
   },
 
@@ -63,7 +64,7 @@ export const UserRepository = {
 
   async getForAdmin() {
     const { data, error } = await getSupabase().from('users').select('*').order('created_at', { ascending: false });
-    if (error) { console.error(`getUsersForAdmin error: ${error.message}`); return []; }
+    if (error) { logger.error(`getUsersForAdmin error: ${error.message}`); return []; }
     return (data || []);
   },
 

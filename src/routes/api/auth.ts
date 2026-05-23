@@ -1,30 +1,11 @@
 import express from 'express';
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
 import { CONFIG, isOwnerId } from '../../config/config';
 import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { checkAuth, timingSafeCompare, verifyTelegramWebAppData } from '../../middleware/auth';
 import { generateDashboardToken } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
-
-const WEB_USERS_FILE = path.join(process.cwd(), 'data', 'web_users.json');
-
-function loadWebUsers(): any[] {
-  try {
-    if (fs.existsSync(WEB_USERS_FILE)) {
-      return JSON.parse(fs.readFileSync(WEB_USERS_FILE, 'utf-8'));
-    }
-  } catch (e) { logger.warn(`web_users.json load error: ${(e as Error).message}`); }
-  return [];
-}
-
-function saveWebUsers(users: any[]) {
-  const dir = path.dirname(WEB_USERS_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(WEB_USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
-}
 
 function hashPassword(password: string, salt: string): string {
   return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
@@ -55,7 +36,7 @@ export function registerAuthRoutes(app: express.Application) {
       await DBService.updateUserRole(tgUser.id, 'owner');
       user.role = 'owner';
     }
-    const token = require('../../services/bot_instance').generateDashboardToken(tgUser.id);
+    const token = generateDashboardToken(tgUser.id);
     res.json({ token, userId: tgUser.id, role: user.role || 'user' });
   });
 
@@ -98,21 +79,28 @@ export function registerAuthRoutes(app: express.Application) {
       return res.status(400).json({ error: 'Email and password (6+ chars) required' });
     }
     const normalizedEmail = email.trim().toLowerCase();
-    const users = loadWebUsers();
-    if (users.find(u => u.email === normalizedEmail)) {
+    if (await DBService.getWebUserByEmail(normalizedEmail)) {
       return res.status(409).json({ error: 'Email already registered' });
     }
-    const telegramId = nextWebUserId(users);
+    const telegramId = WEB_ID_START + Date.now();
     const salt = generateSalt();
     const passwordHash = hashPassword(password, salt);
-    const entry = { email: normalizedEmail, passwordHash, salt, telegram_id: telegramId, approved: true, created: new Date().toISOString() };
-    users.push(entry);
-    saveWebUsers(users);
     try {
       await DBService.upsertUser(telegramId, 0, normalizedEmail.split('@')[0], normalizedEmail.split('@')[0]);
+      const entry = await DBService.createWebUser({
+        email: normalizedEmail,
+        password_hash: passwordHash,
+        salt,
+        telegram_id: telegramId,
+        approved: true,
+      });
+      if (!entry) {
+        return res.status(500).json({ error: 'Account creation failed' });
+      }
       logger.info(`Web user created: ${normalizedEmail} -> id ${telegramId}`);
     } catch (e) {
       logger.error(`Web user DB creation failed for ${normalizedEmail}: ${(e as Error).message}`);
+      return res.status(500).json({ error: 'Account creation failed' });
     }
     res.json({ success: true, message: 'Account created. You can now login.' });
   });
@@ -121,15 +109,14 @@ export function registerAuthRoutes(app: express.Application) {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
     const normalizedEmail = email.trim().toLowerCase();
-    const users = loadWebUsers();
-    const entry = users.find(u => u.email === normalizedEmail);
+    const entry = await DBService.getWebUserByEmail(normalizedEmail);
     if (!entry) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       return res.status(401).json({ error: 'Invalid email or password' });
     }
     if (!entry.approved) return res.status(403).json({ error: 'Account pending approval' });
     const hash = hashPassword(password, entry.salt);
-    if (hash !== entry.passwordHash) {
+    if (hash !== entry.password_hash) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -143,7 +130,6 @@ export function registerAuthRoutes(app: express.Application) {
     const admin = await DBService.getUser(userId);
     const isAdmin = admin && (admin.role === 'owner' || admin.role === 'admin' || admin.is_owner);
     if (!isAdmin && !isOwnerId(userId)) return res.status(403).json({ error: 'Forbidden' });
-    const users = loadWebUsers();
-    res.json(users.map(u => ({ email: u.email, telegram_id: u.telegram_id, approved: u.approved, created: u.created })));
+    res.json(await DBService.getWebUsers());
   });
 }

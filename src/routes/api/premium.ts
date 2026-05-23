@@ -59,7 +59,7 @@ export function registerPremiumRoutes(app: express.Application) {
   });
 
   app.post('/api/crypto-payment/status/:id', checkAuth, async (req: any, res: any) => {
-    const reqData = CryptoPaymentService.getRequest(req.params.id);
+    const reqData = await CryptoPaymentService.getRequest(req.params.id);
     if (!reqData) return res.json({ status: 'not_found' });
     if (reqData.userId !== parseInt(req.authenticatedUserId)) return res.status(403).json({ error: 'Forbidden' });
     if (reqData.status === 'paid') return res.json({ status: 'paid' });

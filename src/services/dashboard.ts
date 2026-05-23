@@ -9,6 +9,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
   const allowedOrigins = [CONFIG.PUBLIC_URL || '', 'https://t.me', 'https://telegram.org'].filter(Boolean);
   app.use((req, res, next) => {

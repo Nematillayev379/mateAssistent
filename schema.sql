@@ -171,6 +171,34 @@ CREATE TABLE IF NOT EXISTS post_drafts (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS web_users (
+  telegram_id BIGINT PRIMARY KEY REFERENCES users(telegram_id) ON DELETE CASCADE,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  approved BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS crypto_payments (
+  id TEXT PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(telegram_id) ON DELETE CASCADE,
+  amount_uzs BIGINT NOT NULL,
+  currency TEXT NOT NULL,
+  crypto_amount TEXT NOT NULL,
+  wallet_address TEXT NOT NULL,
+  memo TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at BIGINT NOT NULL,
+  plan TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_posts_user_id ON scheduled_posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_monitored_channels_user_id ON monitored_channels(user_id);
+CREATE INDEX IF NOT EXISTS idx_web_users_email ON web_users(email);
+CREATE INDEX IF NOT EXISTS idx_crypto_payments_user_id ON crypto_payments(user_id);
+
 DO $$ BEGIN
   ALTER TABLE users ALTER COLUMN target_channel TYPE TEXT USING target_channel::text;
 EXCEPTION WHEN others THEN NULL;

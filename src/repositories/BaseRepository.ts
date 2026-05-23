@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CONFIG } from "../config/config";
+import { logger } from "../utils/logger";
 
 let supabase: SupabaseClient;
 
@@ -8,10 +9,10 @@ export function getSupabase(): SupabaseClient {
     const url = CONFIG.SUPABASE_URL;
     const key = CONFIG.SUPABASE_KEY;
     if (!url || !key) {
-      console.error('SUPABASE_URL and SUPABASE_KEY must be set in environment variables!');
-      process.exit(1);
+      throw new Error('SUPABASE_URL and SUPABASE_KEY must be set in environment variables.');
     }
     supabase = createClient(url, key);
+    logger.info('Supabase client initialized.');
   }
   return supabase;
 }

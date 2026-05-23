@@ -1,9 +1,10 @@
 import { getSupabase } from "./BaseRepository";
+import { logger } from "../utils/logger";
 
 export const StatsRepository = {
   async increment(userId: number, field: 'total_posts' | 'total_duplicates') {
     const { error } = await getSupabase().rpc('increment_stat', { p_user_id: userId, p_field: field });
-    if (error) console.error(`incrementStat rpc error: ${error.message}`);
+    if (error) logger.error(`incrementStat rpc error: ${error.message}`);
   },
 
   async get(userId: number) {

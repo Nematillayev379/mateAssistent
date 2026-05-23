@@ -1,4 +1,5 @@
 import { getSupabase, normalizeUrl, normalizeTitle, isLikelyDuplicate } from "./BaseRepository";
+import { logger } from "../utils/logger";
 
 export const NewsRepository = {
   async isSeen(userId: number, url: string, title: string): Promise<boolean> {
@@ -9,7 +10,7 @@ export const NewsRepository = {
   async isSeenByUrl(userId: number, url: string): Promise<boolean> {
     const nUrl = normalizeUrl(url);
     const { data, error } = await getSupabase().from('processed_news').select('id').eq('user_id', userId).eq('url', nUrl).limit(1);
-    if (error) console.error(`isSeen error: ${error.message}`);
+    if (error) logger.error(`isSeen error: ${error.message}`);
     return !!(data && data.length > 0);
   },
 
@@ -17,7 +18,7 @@ export const NewsRepository = {
     const { data, error } = await getSupabase()
       .from('processed_news').select('title').eq('user_id', userId)
       .order('created_at', { ascending: false }).limit(80);
-    if (error) console.error(`isSeenByTitle error: ${error.message}`);
+    if (error) logger.error(`isSeenByTitle error: ${error.message}`);
     if (!data || data.length === 0) return false;
     return data.some((row: any) => isLikelyDuplicate(row.title, title));
   },
@@ -27,18 +28,18 @@ export const NewsRepository = {
     const { error } = await getSupabase().from('processed_news').upsert(
       { user_id: userId, url: nUrl, title }, { onConflict: 'user_id,url' }
     );
-    if (error) { console.error(`markSeen error: ${error.message}`); throw error; }
+    if (error) { logger.error(`markSeen error: ${error.message}`); throw error; }
   },
 
   async getLastTitles(userId: number, limit: number = 20): Promise<string[]> {
     const { data, error } = await getSupabase().from('processed_news').select('title').eq('user_id', userId).order('created_at', { ascending: false }).limit(limit);
-    if (error) console.error(`getLastTitles error: ${error.message}`);
+    if (error) logger.error(`getLastTitles error: ${error.message}`);
     return (data || []).map(r => r.title);
   },
 
   async getRecentTitles(limit = 80): Promise<string[]> {
     const { data, error } = await getSupabase().from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
-    if (error) console.error(`getRecentNewsTitles error: ${error.message}`);
+    if (error) logger.error(`getRecentNewsTitles error: ${error.message}`);
     return (data || []).map((r: any) => r?.title).filter(Boolean) as string[];
   },
 };

@@ -17,9 +17,10 @@ export const extractUserId = (req: any): string => {
 
 export const timingSafeCompare = (str1: string, str2: string): boolean => {
   if (!str1 || !str2) return false;
-  const h1 = crypto.createHmac('sha256', 'timing-safe-salt').update(str1).digest();
-  const h2 = crypto.createHmac('sha256', 'timing-safe-salt').update(str2).digest();
-  return crypto.timingSafeEqual(h1, h2);
+  const b1 = Buffer.from(str1, 'utf8');
+  const b2 = Buffer.from(str2, 'utf8');
+  if (b1.length !== b2.length) return false;
+  return crypto.timingSafeEqual(b1, b2);
 };
 
 export const checkAuth = (req: any, res: any, next: any) => {
@@ -38,8 +39,10 @@ export const checkAuth = (req: any, res: any, next: any) => {
 
   req.authenticatedUserId = userId;
   if (isOwnerId(parseInt(userId))) {
-    DBService.getUser(parseInt(userId)).then((user: any) => {
-      if (user && user.role !== 'owner') DBService.updateUserRole(parseInt(userId), 'owner');
+    DBService.getUser(parseInt(userId)).then(async (user: any) => {
+      if (user && user.role !== 'owner') {
+        await DBService.updateUserRole(parseInt(userId), 'owner');
+      }
     }).catch((e: any) => logger.warn(`Owner role sync failed: ${e.message}`));
   }
 
@@ -79,7 +82,7 @@ export const verifyTelegramWebAppData = (telegramInitData: string): any => {
     if (isNaN(authTs)) { logger.warn(`Telegram auth failed: auth_date "${authDate}" is not a number`); return null; }
 
     const timeDiff = Math.abs(Date.now() / 1000 - authTs);
-    if (timeDiff > 86400 * 30) { logger.warn(`Telegram auth failed: auth_date age ${timeDiff}s exceeds 30 days limit`); return null; }
+    if (timeDiff > 86400) { logger.warn(`Telegram auth failed: auth_date age ${timeDiff}s exceeds 24 hours limit`); return null; }
 
     initData.delete('hash');
     const keys = Array.from(initData.keys()).sort();

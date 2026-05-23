@@ -1,9 +1,10 @@
 import { getSupabase } from "./BaseRepository";
+import { logger } from "../utils/logger";
 
 export const PriceRepository = {
   async add(userId: number, url: string, name: string, price: number) {
     const { error } = await getSupabase().from('tracked_prices').insert({ user_id: userId, url, item_name: name, last_price: price });
-    if (error) { console.error(`addTrackedPrice error: ${error.message}`); throw new Error('Narxni kuzatuvga olishda xatolik.'); }
+    if (error) { logger.error(`addTrackedPrice error: ${error.message}`); throw new Error('Narxni kuzatuvga olishda xatolik.'); }
   },
 
   async getByUser(userId: number) {
@@ -42,24 +43,24 @@ export const ScheduleRepository = {
     if (!validTypes.includes(type)) throw new Error(`Invalid scheduled post type: ${type}`);
     if (!scheduledAt || isNaN(Date.parse(scheduledAt))) throw new Error(`Invalid scheduledAt: ${scheduledAt}`);
     const { error } = await getSupabase().from('scheduled_posts').insert({ user_id: userId, type, content, scheduled_at: scheduledAt, status: 'pending' });
-    if (error) console.error(`addScheduledPost error: ${error.message}`);
+    if (error) logger.error(`addScheduledPost error: ${error.message}`);
   },
 
   async cancel(userId: number, id: number) {
     const { error } = await getSupabase().from('scheduled_posts').update({ status: 'cancelled' }).eq('id', id).eq('user_id', userId);
-    if (error) console.error(`cancelScheduledPost error: ${error.message}`);
+    if (error) logger.error(`cancelScheduledPost error: ${error.message}`);
   },
 
   async getPending() {
     const now = new Date().toISOString();
     const { data, error } = await getSupabase().from('scheduled_posts').select('*').in('status', ['pending', 'failed']).lte('scheduled_at', now);
-    if (error) console.error(`getPendingScheduledPosts error: ${error.message}`);
+    if (error) logger.error(`getPendingScheduledPosts error: ${error.message}`);
     return data || [];
   },
 
   async getByUser(userId: number) {
     const { data, error } = await getSupabase().from('scheduled_posts').select('*').eq('user_id', userId).in('status', ['pending', 'sent']).order('scheduled_at', { ascending: false });
-    if (error) console.error(`getUserScheduledPosts error: ${error.message}`);
+    if (error) logger.error(`getUserScheduledPosts error: ${error.message}`);
     return data || [];
   },
 

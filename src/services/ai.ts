@@ -12,6 +12,7 @@ let globalKeyIndex = 0;
 let embeddingKeyIndex = 0;
 let activeKeys: AiKeyEntry[] = buildKeyPoolFromEnv();
 const keyLock = { promise: Promise.resolve() as Promise<void> };
+const scopedKeyIndexes = new Map<string, number>();
 
 async function withKeyMutex<T>(fn: () => Promise<T>): Promise<T> {
   const prev = keyLock.promise;
@@ -31,6 +32,151 @@ const openaiClients = new Map<string, OpenAI>();
 
 // Circuit Breaker for temporarily failed or rate-limited API keys
 const blockedKeys = new Map<string, number>();
+
+function getAvailableKeys(keys: AiKeyEntry[]): AiKeyEntry[] {
+  const now = Date.now();
+  const availableKeys = keys.filter((key) => {
+    const blockedUntil = blockedKeys.get(key.key);
+    return !blockedUntil || blockedUntil < now;
+  });
+  return availableKeys.length > 0 ? availableKeys : keys;
+}
+
+async function selectRotatingKey(keys: AiKeyEntry[], scope: 'global' | 'smm'): Promise<{ key: AiKeyEntry; idx: number }> {
+  return withKeyMutex(async () => {
+    const poolToUse = getAvailableKeys(keys);
+    if (poolToUse.length === 0) {
+      throw new Error('API kalitlar mavjud emas!');
+    }
+
+    if (scope === 'global') {
+      const idx = globalKeyIndex % poolToUse.length;
+      const key = poolToUse[idx];
+      globalKeyIndex = (globalKeyIndex + 1) % poolToUse.length;
+      return { key, idx };
+    }
+
+    const currentIndex = scopedKeyIndexes.get(scope) || 0;
+    const idx = currentIndex % poolToUse.length;
+    const key = poolToUse[idx];
+    scopedKeyIndexes.set(scope, (currentIndex + 1) % poolToUse.length);
+    return { key, idx };
+  });
+}
+
+async function requestAICompletion(currentKeyObj: AiKeyEntry, system: string, user: string, maxTokens: number, timeoutMs: number): Promise<string> {
+  if (currentKeyObj.type === "groq") {
+    let groq = groqClients.get(currentKeyObj.key);
+    if (!groq) {
+      groq = new Groq({ apiKey: currentKeyObj.key, timeout: timeoutMs });
+      groqClients.set(currentKeyObj.key, groq);
+    }
+    const res = await groq.chat.completions.create({
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      model: "llama-3.3-70b-versatile",
+      max_tokens: maxTokens,
+    });
+    return res.choices[0]?.message?.content ?? "";
+  }
+
+  if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ parts: [{ text: user }] }],
+        generationConfig: { maxOutputTokens: maxTokens, temperature: CONFIG.TEMPERATURE }
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), { status: response.status });
+    }
+
+    const data = await response.json().catch(() => ({})) as any;
+    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  }
+
+  if (currentKeyObj.type === "openai") {
+    let client = openaiClients.get(currentKeyObj.key);
+    if (!client) {
+      client = new OpenAI({ apiKey: currentKeyObj.key, timeout: timeoutMs });
+      openaiClients.set(currentKeyObj.key, client);
+    }
+    const res = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      max_tokens: maxTokens,
+    });
+    return res.choices[0]?.message?.content ?? "";
+  }
+
+  let baseURL: string;
+  let model: string;
+  switch (currentKeyObj.type) {
+    case "cerebras":
+      baseURL = "https://api.cerebras.ai/v1";
+      model = "llama-3.1-70b";
+      break;
+    case "openrouter":
+      baseURL = "https://openrouter.ai/api/v1";
+      model = "google/gemini-2.0-flash-001";
+      break;
+    default:
+      throw new Error(`Unsupported AI provider type: ${currentKeyObj.type}`);
+  }
+
+  const clientKey = `${baseURL}:${currentKeyObj.key}`;
+  let client = openaiClients.get(clientKey);
+  if (!client) {
+    client = new OpenAI({
+      apiKey: currentKeyObj.key,
+      baseURL,
+      timeout: timeoutMs
+    });
+    openaiClients.set(clientKey, client);
+  }
+
+  const res = await client.chat.completions.create({
+    model,
+    messages: [{ role: "system", content: system }, { role: "user", content: user }],
+    max_tokens: maxTokens,
+  });
+  return res.choices[0]?.message?.content ?? "";
+}
+
+async function getSmartAIResponseInternal(
+  keys: AiKeyEntry[],
+  system: string,
+  user: string,
+  retryCount = 0,
+  scope: 'global' | 'smm' = 'global'
+): Promise<string> {
+  if (keys.length === 0) throw new Error("API kalitlar mavjud emas!");
+  const maxRetries = Math.min(keys.length, 5);
+  if (retryCount >= maxRetries) throw new Error("Barcha API kalitlar tugadi (limit yoki xato).");
+  if (retryCount > 0) {
+    await new Promise(resolve => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
+  }
+
+  const { key: currentKeyObj, idx } = await selectRotatingKey(keys, scope);
+
+  try {
+    const maxTokens = MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || CONFIG.MAX_TOKENS;
+    return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000);
+  } catch (error) {
+    const status = (error as any)?.status ?? (error as any)?.response?.status;
+    if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
+      blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000);
+      logger.warn(`[${scope.toUpperCase()} ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
+      return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
+    }
+    throw error;
+  }
+}
 
 /** Bazadan va ENV dan kalitlarni yuklash */
 export async function refreshKeyPool() {
@@ -62,117 +208,7 @@ export async function refreshKeyPool() {
   });
 }
 export async function getSmartAIResponse(system: string, user: string, retryCount = 0): Promise<string> {
-  if (activeKeys.length === 0) throw new Error("API kalitlar mavjud emas!");
-  const maxRetries = Math.min(activeKeys.length, 5);
-  if (retryCount >= maxRetries) throw new Error("Barcha API kalitlar tugadi (limit yoki xato).");
-  if (retryCount > 0) {
-    await new Promise(resolve => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
-  }
-  let currentKeyObj: any;
-  let idx = 0;
-  
-  await withKeyMutex(async () => {
-    const now = Date.now();
-    const availableKeys = activeKeys.filter(k => {
-      const blockedUntil = blockedKeys.get(k.key);
-      return !blockedUntil || blockedUntil < now;
-    });
-    const poolToUse = availableKeys.length > 0 ? availableKeys : activeKeys;
-
-    idx = globalKeyIndex % poolToUse.length;
-    currentKeyObj = poolToUse[idx];
-    globalKeyIndex = (globalKeyIndex + 1) % poolToUse.length;
-  });
-
-  try {
-    const maxTokens = MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || CONFIG.MAX_TOKENS;
-
-    if (currentKeyObj.type === "groq") {
-      let groq = groqClients.get(currentKeyObj.key);
-      if (!groq) {
-        groq = new Groq({ apiKey: currentKeyObj.key, timeout: 15000 });
-        groqClients.set(currentKeyObj.key, groq);
-      }
-      const res = await groq.chat.completions.create({
-        messages: [{ role: "system", content: system }, { role: "user", content: user }],
-        model: "llama-3.3-70b-versatile",
-        max_tokens: maxTokens,
-      });
-      return res.choices[0]?.message?.content ?? "";
-    } else if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: [{ parts: [{ text: user }] }],
-          generationConfig: { maxOutputTokens: maxTokens, temperature: CONFIG.TEMPERATURE }
-        })
-      });
-      
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), { status: response.status });
-      }
-      
-      const data = await response.json().catch(() => ({})) as any;
-      return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    } else if (currentKeyObj.type === "openai") {
-      let client = openaiClients.get(currentKeyObj.key);
-      if (!client) {
-        client = new OpenAI({ apiKey: currentKeyObj.key, timeout: 15000 });
-        openaiClients.set(currentKeyObj.key, client);
-      }
-      const res = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "system", content: system }, { role: "user", content: user }],
-        max_tokens: maxTokens,
-      });
-      return res.choices[0]?.message?.content ?? "";
-    } else {
-      let baseURL: string;
-      let model: string;
-      switch (currentKeyObj.type) {
-        case "cerebras":
-          baseURL = "https://api.cerebras.ai/v1";
-          model = "llama-3.1-70b";
-          break;
-        case "openrouter":
-          baseURL = "https://openrouter.ai/api/v1";
-          model = "google/gemini-2.0-flash-001";
-          break;
-        default:
-          throw new Error(`Unsupported AI provider type: ${currentKeyObj.type}`);
-      }
-      
-      let client = openaiClients.get(`${baseURL}:${currentKeyObj.key}`);
-      if (!client) {
-        client = new OpenAI({
-          apiKey: currentKeyObj.key,
-          baseURL,
-          timeout: 15000
-        });
-        openaiClients.set(`${baseURL}:${currentKeyObj.key}`, client);
-      }
-      
-      const res = await client.chat.completions.create({
-        model,
-        messages: [{ role: "system", content: system }, { role: "user", content: user }],
-        max_tokens: maxTokens,
-      });
-      return res.choices[0]?.message?.content ?? "";
-    }
-  } catch (error) {
-    const status = (error as any)?.status ?? (error as any)?.response?.status;
-    if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
-      if (currentKeyObj?.key) {
-        blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
-      }
-      logger.warn(`[${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
-      return getSmartAIResponse(system, user, retryCount + 1);
-    }
-    throw error;
-  }
+  return getSmartAIResponseInternal(activeKeys, system, user, retryCount, 'global');
 }
 export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "gemini" | "openai" | "google", key: string): Promise<boolean> {
   try {
@@ -330,15 +366,11 @@ export async function translateToUzbek(title: string, content: string) {
 /** Gemini orqali matnli embedding (vektor) olish */
 export async function getEmbedding(text: string, retryCount = 0): Promise<number[] | null> {
   if (retryCount > 5) return null;
-  if (activeKeys.length === 0) return null;
-
-  const geminiKeys = activeKeys.filter(k => k.type === 'gemini' || k.type === 'google');
-  if (geminiKeys.length === 0) {
-    return null;
-  }
-
   let keyObj: any;
   await withKeyMutex(async () => {
+    if (activeKeys.length === 0) return;
+    const geminiKeys = activeKeys.filter(k => k.type === 'gemini' || k.type === 'google');
+    if (geminiKeys.length === 0) return;
     const safeIndex = embeddingKeyIndex % geminiKeys.length;
     keyObj = geminiKeys[safeIndex];
     embeddingKeyIndex = (embeddingKeyIndex + 1) % geminiKeys.length;
@@ -464,116 +496,7 @@ async function getSmartAIResponseWithKeys(
   user: string,
   retryCount = 0
 ): Promise<string> {
-  if (keys.length === 0) throw new Error('API kalitlar mavjud emas!');
-  const maxRetries = Math.min(keys.length, 5);
-  if (retryCount >= maxRetries) throw new Error('Barcha API kalitlar tugadi (limit yoki xato).');
-
-  if (retryCount > 0) {
-    await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
-  }
-
-  const now = Date.now();
-  const availableKeys = keys.filter(k => {
-    const blockedUntil = blockedKeys.get(k.key);
-    return !blockedUntil || blockedUntil < now;
-  });
-  const poolToUse = availableKeys.length > 0 ? availableKeys : keys;
-
-  const idx = retryCount % poolToUse.length;
-  const currentKeyObj = poolToUse[idx];
-
-  try {
-    const maxTokens = MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || CONFIG.MAX_TOKENS;
-
-    if (currentKeyObj.type === 'groq') {
-      let groq = groqClients.get(currentKeyObj.key);
-      if (!groq) {
-        groq = new Groq({ apiKey: currentKeyObj.key, timeout: 20000 });
-        groqClients.set(currentKeyObj.key, groq);
-      }
-      const res = await groq.chat.completions.create({
-        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: maxTokens,
-      });
-      return res.choices[0]?.message?.content ?? '';
-    }
-
-    if (currentKeyObj.type === 'gemini' || currentKeyObj.type === 'google') {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: system }] },
-            contents: [{ parts: [{ text: user }] }],
-            generationConfig: { maxOutputTokens: maxTokens, temperature: CONFIG.TEMPERATURE },
-          }),
-          signal: AbortSignal.timeout(25000),
-        }
-      );
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), {
-          status: response.status,
-        });
-      }
-      const data = (await response.json().catch(() => ({}))) as any;
-      return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    }
-
-    if (currentKeyObj.type === 'openai') {
-      let client = openaiClients.get(currentKeyObj.key);
-      if (!client) {
-        client = new OpenAI({ apiKey: currentKeyObj.key, timeout: 20000 });
-        openaiClients.set(currentKeyObj.key, client);
-      }
-      const res = await client.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-        max_tokens: maxTokens,
-      });
-      return res.choices[0]?.message?.content ?? '';
-    }
-
-    let baseURL: string;
-    let model: string;
-    switch (currentKeyObj.type) {
-      case 'cerebras':
-        baseURL = 'https://api.cerebras.ai/v1';
-        model = 'llama-3.1-70b';
-        break;
-      case 'openrouter':
-        baseURL = 'https://openrouter.ai/api/v1';
-        model = 'google/gemini-2.0-flash-001';
-        break;
-      default:
-        throw new Error(`Unsupported AI provider type: ${currentKeyObj.type}`);
-    }
-
-    let client = openaiClients.get(`${baseURL}:${currentKeyObj.key}`);
-    if (!client) {
-      client = new OpenAI({ apiKey: currentKeyObj.key, baseURL, timeout: 20000 });
-      openaiClients.set(`${baseURL}:${currentKeyObj.key}`, client);
-    }
-    const res = await client.chat.completions.create({
-      model,
-      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-      max_tokens: maxTokens,
-    });
-    return res.choices[0]?.message?.content ?? '';
-  } catch (error) {
-    const status = (error as any)?.status ?? (error as any)?.response?.status;
-    if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
-      if (currentKeyObj?.key) {
-        blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
-      }
-      logger.warn(`[SMM ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato (${status}), keyingisi...`);
-      return getSmartAIResponseWithKeys(keys, system, user, retryCount + 1);
-    }
-    throw error;
-  }
+  return getSmartAIResponseInternal(keys, system, user, retryCount, 'smm');
 }
 
 export function getActiveKeyStats() {

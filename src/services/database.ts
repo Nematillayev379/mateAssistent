@@ -9,6 +9,9 @@ import { MonitorRepository, TelegramMessageRepository, TrendsRepository } from "
 import { ReferralRepository } from "../repositories/ReferralRepository";
 import { WorkspaceRepository } from "../repositories/WorkspaceRepository";
 import { RuleRepository, TicketRepository, DraftRepository } from "../repositories/RuleRepository";
+import { WebUserRepository } from "../repositories/WebUserRepository";
+import { CryptoPaymentRepository, type CryptoPaymentRecord } from "../repositories/CryptoPaymentRepository";
+import { logger } from "../utils/logger";
 
 
 const premiumCache = new Map<number, { active: boolean; expiresAt: number }>();
@@ -31,6 +34,9 @@ export const DBService = {
   getUserByReferralCode: (c: string) => UserRepository.getByReferralCode(c),
   getUsersForAdmin: () => UserRepository.getForAdmin(),
   getUserOutputChannels: (u: any) => UserRepository.outputChannels(u),
+  getWebUserByEmail: (email: string) => WebUserRepository.getByEmail(email),
+  getWebUsers: () => WebUserRepository.list(),
+  createWebUser: (record: { telegram_id: number; email: string; password_hash: string; salt: string; approved: boolean }) => WebUserRepository.create(record),
 
   // ── Source ──
   getUserSources: (id: number) => SourceRepository.getByUser(id),
@@ -77,6 +83,9 @@ export const DBService = {
   getUserScheduledPosts: (id: number) => ScheduleRepository.getByUser(id),
   markScheduledPostSent: (id: number) => ScheduleRepository.markSent(id),
   updateScheduledPostStatus: (id: number, s: string) => ScheduleRepository.updateStatus(id, s),
+  createCryptoPayment: (payment: CryptoPaymentRecord) => CryptoPaymentRepository.create(payment),
+  getCryptoPayment: (id: string) => CryptoPaymentRepository.getById(id),
+  updateCryptoPaymentStatus: (id: string, status: CryptoPaymentRecord['status']) => CryptoPaymentRepository.updateStatus(id, status),
 
   // ── Monitored Channels ──
   getUserMonitoredChannels: (id: number) => MonitorRepository.getByUser(id),
@@ -129,8 +138,8 @@ export const DBService = {
     const { data, error } = await getSupabase().rpc('match_news', { query_embedding: embedding, match_threshold: threshold, p_user_id: userId });
     if (error) {
       if (error.message.includes('function match_news') && error.message.includes('does not exist')) {
-        console.warn('Supabase SQL migration (match_news) hali bajarilmagan.');
-      } else console.error(`findSimilarNews error: ${error.message}`);
+        logger.warn('Supabase SQL migration (match_news) hali bajarilmagan.');
+      } else logger.error(`findSimilarNews error: ${error.message}`);
       return null;
     }
     return data && data.length > 0 ? data[0] : null;
@@ -138,7 +147,7 @@ export const DBService = {
 
   async saveEmbedding(userId: number, contentHash: string, embedding: number[]) {
     const { error } = await getSupabase().from('news_embeddings').insert({ user_id: userId, content_hash: contentHash, embedding });
-    if (error) console.error(`saveEmbedding error: ${error.message}`);
+    if (error) logger.error(`saveEmbedding error: ${error.message}`);
   },
 
   async cleanupOldEmbeddings(days: number = 7) {
@@ -216,7 +225,7 @@ export const DBService = {
   async cleanupExpiredPremium() {
     const now = new Date().toISOString();
     const { error } = await getSupabase().from('users').update({ is_premium: 0 }).eq('is_premium', 1).not('premium_until', 'is', null).lte('premium_until', now);
-    if (error) console.error(`cleanupExpiredPremium error: ${error.message}`);
+    if (error) logger.error(`cleanupExpiredPremium error: ${error.message}`);
   },
 
   async setKeywords(userId: number, keywords: string) {
@@ -303,7 +312,7 @@ export const DBService = {
     if (role === 'owner') { updates.is_owner = 1; updates.is_approved = 1; }
     else updates.is_owner = 0;
     const { error } = await getSupabase().from('users').update(updates).eq('telegram_id', telegramId);
-    if (error) { console.warn(`updateUserRole warning: ${error.message}`); return false; }
+    if (error) { logger.warn(`updateUserRole warning: ${error.message}`); return false; }
     premiumCache.delete(telegramId);
     if (role === 'premium') await this.setPremium(telegramId, 30);
     else if (role === 'user') await this.revokePremium(telegramId);
