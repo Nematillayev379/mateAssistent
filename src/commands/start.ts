@@ -112,21 +112,24 @@ export async function sendLanguageStep(bot: TelegramBot, chatId: number): Promis
 async function sendChannelStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `${i18n.t("onboarding_channel_title", { lng: lang })}\n\n${i18n.t("onboarding_channel_body", { lng: lang })}`
+    `\u{1F4E1} <b>Qadam 1/3: Kanal ulang</b>\n\n${i18n.t("onboarding_channel_title", { lng: lang })}\n\n${i18n.t("onboarding_channel_body", { lng: lang })}`,
+    { parse_mode: "HTML" }
   );
 }
 
 async function sendSourceStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `${i18n.t("onboarding_rss_title", { lng: lang })}\n\n${i18n.t("onboarding_rss_body", { lng: lang })}`
+    `\u{1F4E1} <b>Qadam 2/3: Manba qo\u02BBshing</b>\n\n${i18n.t("onboarding_rss_title", { lng: lang })}\n\n${i18n.t("onboarding_rss_body", { lng: lang })}`,
+    { parse_mode: "HTML" }
   );
 }
 
 async function sendIntervalStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `${i18n.t("onboarding_interval_title", { lng: lang })}\n\n${i18n.t("onboarding_interval_body", { lng: lang })}`
+    `\u{23F0} <b>Qadam 3/3: Intervalni tanlang</b>\n\n${i18n.t("onboarding_interval_title", { lng: lang })}\n\n${i18n.t("onboarding_interval_body", { lng: lang })}`,
+    { parse_mode: "HTML" }
   );
 }
 
@@ -161,6 +164,7 @@ export async function sendNextOnboardingStep(
     return "interval";
   }
 
+  await DBService.checkAndMarkReferralActive(chatId).catch(() => {});
   await sendWelcomeMenu(bot, chatId, user, user.role || "user");
   return "menu";
 }

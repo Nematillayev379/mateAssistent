@@ -24,6 +24,7 @@ export function startDashboardServer(port: number | string, _bot?: any) {
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Content-Type', `${res.getHeader('Content-Type') || 'text/html'}; charset=utf-8`);
       }
     }
   }));
