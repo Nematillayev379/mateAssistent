@@ -57,6 +57,9 @@ async function bootstrap() {
     SchedulerService.setup();
     setupRSSCron();
     setupSystemCrons();
+    if (CONFIG.OWNER_ID) {
+      bot.sendMessage(CONFIG.OWNER_ID, `✅ Bot started\nVersion: ${pkg.version}\nUptime: ${Math.round(process.uptime())}s`).catch(() => {});
+    }
   } catch (err: any) {
     process.stderr.write(`[BOOT] Fatal: ${err.message}\n${err.stack}\n`);
     logger.error(`Fatal Initialization Error: ${err.message}`);

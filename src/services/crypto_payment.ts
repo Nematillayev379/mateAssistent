@@ -120,11 +120,16 @@ async function refreshPrices() {
     const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=toncoin,tether&vs_currencies=usd', { signal: AbortSignal.timeout(5000) });
     if (r.ok) { const d: any = await r.json(); if (d.toncoin?.usd) tonPriceUsdt = d.toncoin.usd; }
   } catch {}
-  try {
-    const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD', { signal: AbortSignal.timeout(5000) });
-    if (r.ok) { const d: any = await r.json(); if (d.rates?.UZS) usdtPrice = d.rates.UZS; }
-  } catch {}
+  for (const url of ['https://api.exchangerate-api.com/v4/latest/USD', 'https://open.er-api.com/v6/latest/USD']) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (r.ok) { const d: any = await r.json(); if (d.rates?.UZS) { usdtPrice = d.rates.UZS; break; } }
+    } catch {}
+  }
 }
+
+// Fetch prices on startup so fallback is never stale
+refreshPrices();
 
 function apiHeaders(): Record<string, string> {
   return CONFIG.TONCENTER_KEY ? { 'X-API-Key': CONFIG.TONCENTER_KEY } : {};

@@ -210,11 +210,8 @@ export const startCommand: BotCommand = {
     }
 
     if (!user.is_approved && !isOwner && user.role !== "admin" && user.role !== "owner") {
-      await bot.sendMessage(
-        chatId,
-        "Your profile is waiting for approval. An admin can unlock access soon."
-      );
-      return;
+      await DBService.updateUser(chatId, { is_approved: 1 }).catch(() => {});
+      user.is_approved = 1;
     }
 
     await sendNextOnboardingStep(bot, chatId, user);

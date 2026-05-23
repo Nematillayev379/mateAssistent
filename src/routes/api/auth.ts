@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import { CONFIG, isOwnerId } from '../../config/config';
 import { DBService } from '../../services/database';
@@ -24,6 +25,9 @@ function nextWebUserId(users: any[]): number {
 }
 
 export function registerAuthRoutes(app: express.Application) {
+  const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: 'Too many attempts. Try again later.' } });
+  const masterLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { error: 'Too many attempts. Try again later.' } });
+
   app.post('/api/auth/telegram', async (req, res) => {
     const { initData } = req.body;
     if (!initData) return res.status(400).json({ error: 'Missing initData' });
@@ -40,7 +44,7 @@ export function registerAuthRoutes(app: express.Application) {
     res.json({ token, userId: tgUser.id, role: user.role || 'user' });
   });
 
-  app.post('/api/auth/master', async (req, res) => {
+  app.post('/api/auth/master', masterLimiter, async (req, res) => {
     const { token } = req.body;
     if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {
       if (CONFIG.OWNER_ID == null) return res.status(500).json({ error: 'Owner ID not configured' });
@@ -105,7 +109,7 @@ export function registerAuthRoutes(app: express.Application) {
     res.json({ success: true, message: 'Account created. You can now login.' });
   });
 
-  app.post('/api/auth/web-login', async (req, res) => {
+  app.post('/api/auth/web-login', authLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
     const normalizedEmail = email.trim().toLowerCase();
