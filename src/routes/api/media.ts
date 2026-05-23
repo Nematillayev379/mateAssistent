@@ -47,6 +47,22 @@ export function registerMediaRoutes(app: express.Application) {
       await serveFileDownload(res, filePath, filename, { userId, notifyBot: webOnly ? undefined : 'audio' });
     } catch (e: any) {
       logger.warn(`Music download failed for ${videoId}: ${e.message}`);
+      if (sendToChannel) {
+        try {
+          const userData = await DBService.getUser(userId);
+          const target = userData?.target_channel;
+          if (!target) return res.status(400).json({ success: false, error: 'Target channel not configured' });
+          const { DownloaderService } = await import('../../services/downloader');
+          const directAudioUrl = await DownloaderService.getCobaltMedia(`https://youtube.com/watch?v=${videoId}`, { audioOnly: true });
+          if (directAudioUrl) {
+            await bot.sendAudio(target, directAudioUrl);
+            logger.info(`Music sent to channel via direct fallback ${target} for user ${userId}`);
+            return res.json({ success: true, message: 'Musiqa kanalga yuborildi!' });
+          }
+        } catch (fallbackErr: any) {
+          logger.warn(`Music direct fallback failed for ${videoId}: ${fallbackErr.message}`);
+        }
+      }
       res.status(502).json({ error: e.message || 'Musiqa yuklab bo‘lmadi' });
     }
   });

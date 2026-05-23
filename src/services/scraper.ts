@@ -31,22 +31,45 @@ async function fetchWithRetry(url: string, retries = 3): Promise<string> {
   return "";
 }
 
+function resolveUrl(value: string | undefined, baseUrl: string): string | undefined {
+  if (!value) return undefined;
+
+  try {
+    return new URL(value, baseUrl).href;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractImageFromHtmlFragment(fragment: string | undefined): string | undefined {
+  if (!fragment) return undefined;
+
+  try {
+    const $fragment = cheerio.load(fragment);
+    return $fragment("img").first().attr("src") || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const ScraperService = {
   async scrapeArticle(url: string) {
     try {
       const html = await fetchWithRetry(url);
       const $ = cheerio.load(html);
-      
-      let imageUrl = $("meta[property='og:image']").attr("content") || $("meta[name='twitter:image']").attr("content");
-      const title = $("meta[property='og:title']").attr("content") || $("h1").first().text().trim() || $("title").text().trim() || '';
 
-      if (imageUrl && !imageUrl.startsWith("http")) {
-        try {
-          imageUrl = new URL(imageUrl, url).href;
-        } catch {
-          imageUrl = undefined;
-        }
-      }
+      const imageCandidates = [
+        $("meta[property='og:image:secure_url']").attr("content"),
+        $("meta[property='og:image']").attr("content"),
+        $("meta[name='twitter:image']").attr("content"),
+        $("meta[name='twitter:image:src']").attr("content"),
+        $("link[rel='image_src']").attr("href"),
+        $("article img[src]").first().attr("src"),
+        $("main img[src]").first().attr("src"),
+        $(".news-text img[src], .content img[src], .article-body img[src], .post-content img[src], .entry-content img[src]").first().attr("src"),
+      ];
+      let imageUrl = imageCandidates.map((candidate) => resolveUrl(candidate, url)).find((candidate) => candidate && this.isMediaUrl(candidate));
+      const title = $("meta[property='og:title']").attr("content") || $("h1").first().text().trim() || $("title").text().trim() || '';
 
       if (imageUrl === url || !this.isMediaUrl(imageUrl)) imageUrl = undefined;
 
@@ -74,19 +97,8 @@ export const ScraperService = {
         if (metaDesc) paragraphs.push(metaDesc);
       }
 
-      let audioUrl = $("enclosure[type^='audio']").attr("url") || $("a[href$='.mp3']").first().attr("href");
-      let videoUrl = $("meta[property='og:video']").attr("content") || $("enclosure[type^='video']").attr("url") || $("a[href$='.mp4']").first().attr("href");
-      try {
-        if (audioUrl && !audioUrl.startsWith("http")) {
-          audioUrl = new URL(audioUrl, url).href;
-        }
-        if (videoUrl && !videoUrl.startsWith("http")) {
-          videoUrl = new URL(videoUrl, url).href;
-        }
-      } catch (e) {
-        // If URL parsing fails, keep original value
-        logger.warn(`URL conversion failed for ${sanitizeLogInput(url)}: ${e}`);
-      }
+      let audioUrl = resolveUrl($("enclosure[type^='audio']").attr("url") || $("a[href$='.mp3']").first().attr("href"), url);
+      let videoUrl = resolveUrl($("meta[property='og:video']").attr("content") || $("enclosure[type^='video']").attr("url") || $("a[href$='.mp4']").first().attr("href"), url);
 
       return { title, content: paragraphs.join("\n\n"), imageUrl, audioUrl, videoUrl };
     } catch (e: any) {
@@ -153,8 +165,15 @@ export const ScraperService = {
   },
 
   extractMedia(el: any, $: any) {
+    const descriptionHtml = $(el).find("description").text().trim() ||
+      $(el).find("content\\:encoded").text().trim() ||
+      $(el).find("content").text().trim();
+    const inlineImage = extractImageFromHtmlFragment(descriptionHtml);
+
     let imageUrl = $(el).find("enclosure[type^='image']").attr("url") || 
-                   $(el).find("media\\:content[medium='image'], media\\:content[type^='image']").attr("url");
+                   $(el).find("media\\:content[medium='image'], media\\:content[type^='image']").attr("url") ||
+                   $(el).find("media\\:thumbnail").attr("url") ||
+                   inlineImage;
     let videoUrl = $(el).find("enclosure[type^='video']").attr("url") ||
                    $(el).find("media\\:content[medium='video'], media\\:content[type^='video']").attr("url");
     let audioUrl = $(el).find("enclosure[type^='audio']").attr("url") ||

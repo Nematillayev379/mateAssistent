@@ -406,6 +406,8 @@ function renderUI() {
             document.getElementById('stat-refs').textContent = userData.referrals?.total || 0;
             
             document.getElementById('set-channel').value = u.target_channel || '';
+            const primaryChannelDisplay = document.getElementById('primary-target-channel-display');
+            if (primaryChannelDisplay) primaryChannelDisplay.textContent = u.target_channel || tt('not_set', 'Sozlanmagan');
             document.getElementById('set-lang').value = u.language || 'uz';
             const quickLang = document.getElementById('quick-lang');
             const postLang = document.getElementById('post-lang');
@@ -520,6 +522,8 @@ function renderUI() {
             if (res.ok) {
                 userData.user.language = language;
                 userData.user.target_channel = target_channel;
+                const primaryChannelDisplay = document.getElementById('primary-target-channel-display');
+                if (primaryChannelDisplay) primaryChannelDisplay.textContent = target_channel || tt('not_set', 'Sozlanmagan');
                 userData.user.interval_minutes = interval_minutes;
                 if (window.WebAppI18n) WebAppI18n.setLang(language);
                 showToast(typeof t === 'function' ? t('common_lang_changed') : 'Saved!', 'success');
@@ -530,6 +534,27 @@ function renderUI() {
             } else {
                 const err = await res.json().catch(() => ({}));
                 showToast(err.error || (typeof t === 'function' ? t('common_error') : 'Error'), 'error');
+            }
+        }
+
+        async function removeMainChannel() {
+            if (!confirm('Asosiy kanalni olib tashlaysizmi?')) return;
+            try {
+                const res = await apiFetch(`/api/settings/${userId}/extended`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-bot-token': token },
+                    body: JSON.stringify({ target_channel: '' })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || 'Kanalni olib tashlab bo‘lmadi');
+                document.getElementById('set-channel').value = '';
+                if (userData?.user) userData.user.target_channel = '';
+                const primaryChannelDisplay = document.getElementById('primary-target-channel-display');
+                if (primaryChannelDisplay) primaryChannelDisplay.textContent = tt('not_set', 'Sozlanmagan');
+                renderUI();
+                showToast('Asosiy kanal olib tashlandi', 'success');
+            } catch (e) {
+                showToast('Xatolik: ' + e.message, 'error');
             }
         }
 

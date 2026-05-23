@@ -60,7 +60,9 @@ export function registerSettingsRoutes(app: express.Application) {
     }
     const updates: Record<string, any> = {};
     if (language !== undefined) updates.language = language;
-    if (target_channel !== undefined) updates.target_channel = target_channel;
+    if (target_channel !== undefined) {
+      updates.target_channel = typeof target_channel === 'string' && !target_channel.trim() ? '' : target_channel;
+    }
     if (daily_digest !== undefined) updates.daily_digest = daily_digest;
     if (digest_time !== undefined) updates.digest_time = digest_time;
     if (schedule_times !== undefined) updates.schedule_times = schedule_times;

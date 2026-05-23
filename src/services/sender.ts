@@ -108,7 +108,10 @@ export async function safeSend(user: any, article: any): Promise<void> {
       } else if (article.imageUrl) {
         await bot.sendPhoto(targetChannel, article.imageUrl, { caption, parse_mode: "HTML" });
       } else {
-        await bot.sendMessage(targetChannel, caption, { parse_mode: "HTML" });
+        await bot.sendMessage(targetChannel, caption, {
+          parse_mode: "HTML",
+          disable_web_page_preview: true,
+        });
       }
     });
 

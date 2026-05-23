@@ -82,10 +82,11 @@ export async function processArticleInline(userId: number, article: any, sourceL
       return;
     }
 
-    if ((article.content || "").length < 200 && article.url) {
+    if (((article.content || "").length < 200 || !article.imageUrl) && article.url) {
       try {
         const full = await ScraperService.scrapeArticle(article.url);
         if (full?.content) article.content = full.content;
+        if (!article.imageUrl && full?.imageUrl) article.imageUrl = full.imageUrl;
       } catch {}
     }
 
