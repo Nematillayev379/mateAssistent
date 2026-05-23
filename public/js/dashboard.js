@@ -237,13 +237,12 @@
             const container = document.getElementById('pay-methods-container');
             if (!container) return;
             try {
-                // BUG-4XX Fix: Pass x-user-id header so checkAuth can validate the token against the correct userId
                 const res = await apiFetch('/api/payments/methods', { headers: { 'x-bot-token': token, 'x-user-id': userId || '' } });
-                const methods = res.ok ? await res.json() : { stars: true, payme: false, click: false };
+                const methods = res.ok ? await res.json() : { stars: true };
                 const defs = [
-                    { id: 'stars', key: 'pay_stars', label: 'â­ Stars' },
-                    { id: 'payme', key: 'pay_payme', label: 'Payme' },
-                    { id: 'click', key: 'pay_click', label: 'Click' },
+                    { id: 'stars', key: 'pay_stars', label: '\u2B50 Stars' },
+                    { id: 'usdt', key: 'pay_usdt', label: 'USDT (TRC-20)' },
+                    { id: 'ton', key: 'pay_ton', label: 'TON' },
                 ];
                 container.innerHTML = '';
                 defs.forEach((d) => {
@@ -252,18 +251,16 @@
                     btn.className = 'btn btn-ghost pay-method-btn' + (selectedPayMethod === d.id ? ' active' : '');
                     btn.dataset.method = d.id;
                     btn.style.cssText = 'width:auto;padding:8px 12px;font-size:0.8rem;';
-                    
                     const isConfigured = methods[d.id];
-                    // Always show the button, but mark as Demo if not configured in environment variables
-                    btn.textContent = (typeof t === 'function' ? t(d.key) : d.label) + (!isConfigured ? ' (Demo)' : '');
+                    btn.textContent = d.label + (!isConfigured ? ' (Not set)' : '');
                     btn.onclick = () => setPayMethod(d.id);
                     container.appendChild(btn);
                 });
             } catch (_) {
                 container.innerHTML = `
-                    <button type="button" class="btn btn-ghost pay-method-btn active" data-method="stars" onclick="setPayMethod('stars')">â­ Stars</button>
-                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="payme" onclick="setPayMethod('payme')">Payme (Demo)</button>
-                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="click" onclick="setPayMethod('click')">Click (Demo)</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn active" data-method="stars" onclick="setPayMethod('stars')">\u2B50 Stars</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="usdt" onclick="setPayMethod('usdt')">USDT (Not set)</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="ton" onclick="setPayMethod('ton')">TON (Not set)</button>
                 `;
             }
         }
@@ -1023,28 +1020,112 @@ function renderUI() {
         }
 
         async function buyPremium(plan) {
+            if (selectedPayMethod === 'usdt' || selectedPayMethod === 'ton') {
+                const res = await apiFetch('/api/premium/buy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ method: selectedPayMethod, plan })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.request) {
+                    showToast(data.error || 'To\'lovni boshlab bo\'lmadi', 'error');
+                    return;
+                }
+                const req = data.request;
+                showCryptoPaymentModal(req);
+                return;
+            }
             const res = await apiFetch('/api/premium/buy', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ method: selectedPayMethod, plan })
+                body: JSON.stringify({ method: 'stars', plan })
             });
             const data = await res.json();
             if (!res.ok || !data.url) {
                 showToast(data.error || 'To\'lovni boshlab bo\'lmadi', 'error');
                 return;
             }
-            if (selectedPayMethod === 'stars' && tg?.openInvoice) {
+            if (tg?.openInvoice) {
                 tg.openInvoice(data.url, (status) => {
                     if (status === 'paid') {
                         showToast('Premium faollashtirildi!', 'success');
                         location.reload();
                     }
                 });
-            } else if (tg?.openLink) {
-                tg.openLink(data.url);
             } else {
                 window.open(data.url, '_blank');
             }
+        }
+
+        var cryptoPollInterval = null;
+        function showCryptoPaymentModal(req) {
+            var existing = document.getElementById('crypto-payment-modal');
+            if (existing) existing.remove();
+            if (cryptoPollInterval) { clearInterval(cryptoPollInterval); cryptoPollInterval = null; }
+            var overlay = document.createElement('div');
+            overlay.id = 'crypto-payment-modal';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+            overlay.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:30px;max-width:400px;width:100%;text-align:center;">' +
+                '<h3 style="margin-bottom:16px;">' + req.currency + ' to\'lov</h3>' +
+                '<p style="color:var(--secondary);margin-bottom:8px;">Yuboriladigan summa:</p>' +
+                '<div style="font-size:1.8rem;font-weight:700;color:var(--accent);margin-bottom:16px;">' + req.cryptoAmount + ' ' + req.currency + '</div>' +
+                '<p style="color:var(--secondary);margin-bottom:4px;">Hamyon manzili:</p>' +
+                '<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;font-size:0.75rem;word-break:break-all;margin-bottom:8px;font-family:monospace;">' + req.walletAddress + '</div>' +
+                '<button class="btn btn-ghost" style="width:auto;padding:4px 12px;font-size:0.75rem;margin-bottom:16px;" onclick="navigator.clipboard.writeText(\'' + req.walletAddress + '\').then(function(){showToast(\'Manzil nusxalandi!\',\'success\')})">\u{1F4CB} Nusxalash</button>' +
+                '<p style="color:var(--secondary);margin-bottom:4px;">Memo (komment):</p>' +
+                '<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:8px;font-size:1rem;font-weight:600;margin-bottom:16px;font-family:monospace;">' + req.memo + '</div>' +
+                '<p style="font-size:0.8rem;color:var(--secondary);margin-bottom:20px;">\u26A0\uFE0F Aynan shu memoni kommentga yozing!</p>' +
+                '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
+                '<button class="btn btn-primary" onclick="verifyCryptoPayment(\'' + req.id + '\')" id="crypto-verify-btn">\u2705 To\'lov qildim</button>' +
+                '<button class="btn btn-ghost" onclick="closeCryptoModal()">\u274C Yopish</button>' +
+                '</div>' +
+                '<div id="crypto-status" style="margin-top:12px;font-size:0.85rem;color:var(--secondary);"></div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            cryptoPollInterval = setInterval(function() {
+                fetch('/api/crypto-payment/status/' + req.id, {
+                    method: 'POST',
+                    headers: { 'x-bot-token': token, 'x-user-id': userId, 'Content-Type': 'application/json' }
+                }).then(function(r){return r.json()}).then(function(d) {
+                    if (d.status === 'paid') {
+                        showToast('Premium faollashtirildi!', 'success');
+                        closeCryptoModal();
+                        location.reload();
+                    }
+                }).catch(function(){});
+            }, 10000);
+        }
+
+        async function verifyCryptoPayment(id) {
+            var btn = document.getElementById('crypto-verify-btn');
+            var statusEl = document.getElementById('crypto-status');
+            if (btn) btn.disabled = true;
+            if (statusEl) statusEl.textContent = 'Tekshirilmoqda...';
+            try {
+                var r = await fetch('/api/crypto-payment/status/' + id, {
+                    method: 'POST',
+                    headers: { 'x-bot-token': token, 'x-user-id': userId, 'Content-Type': 'application/json' }
+                });
+                var d = await r.json();
+                if (d.status === 'paid') {
+                    showToast('Premium faollashtirildi!', 'success');
+                    closeCryptoModal();
+                    location.reload();
+                } else if (d.status === 'pending') {
+                    if (statusEl) statusEl.textContent = 'To\'lov topilmadi. Blockchain da tasdiqlanishi biroz vaqt olishi mumkin. Agar yuborgan bo\'lsangiz, birozdan so\'ng qayta bosing.';
+                } else {
+                    if (statusEl) statusEl.textContent = 'Buyurtma topilmadi yoki muddati o\'tgan.';
+                }
+            } catch(e) {
+                if (statusEl) statusEl.textContent = 'Xatolik: ' + e.message;
+            }
+            if (btn) btn.disabled = false;
+        }
+
+        function closeCryptoModal() {
+            var el = document.getElementById('crypto-payment-modal');
+            if (el) el.remove();
+            if (cryptoPollInterval) { clearInterval(cryptoPollInterval); cryptoPollInterval = null; }
         }
 
         async function cancelScheduled(id) {

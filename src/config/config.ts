@@ -56,6 +56,9 @@ export const CONFIG = {
   DEFAULT_REDIS_URL: process.env.DEFAULT_REDIS_URL || "redis://127.0.0.1:6379",
   REDIS_URL: process.env.REDIS_URL || "",
   REDIS_URLS: process.env.REDIS_URLS || "",
+  TON_WALLET: process.env.TON_WALLET || "",
+  USDT_WALLET: process.env.USDT_WALLET || "",
+  TONCENTER_KEY: process.env.TONCENTER_KEY || "",
   API_KEY_SOURCES: ['groq', 'cerebras', 'openrouter', 'gemini', 'openai', 'google'] as const
 };
 

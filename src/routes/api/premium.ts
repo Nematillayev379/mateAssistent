@@ -2,6 +2,7 @@ import express from 'express';
 import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { PaymentService } from '../../services/payment';
+import { CryptoPaymentService } from '../../services/crypto_payment';
 import { logger } from '../../utils/logger';
 import { checkAuth } from '../../middleware/auth';
 
@@ -9,7 +10,7 @@ const walletClaims = new Map<number, boolean>();
 
 export function registerPremiumRoutes(app: express.Application) {
   app.get('/api/payments/methods', checkAuth, async (req: any, res: any) => {
-    res.json(PaymentService.getAvailableMethods());
+    res.json(CryptoPaymentService.getAvailableMethods());
   });
 
   app.get('/api/premium-info', checkAuth, async (req: any, res: any) => {
@@ -32,17 +33,15 @@ export function registerPremiumRoutes(app: express.Application) {
       const invoice = await bot.createInvoiceLink(isYearly ? 'mateAssistent Premium (1 Year)' : 'mateAssistent Premium (1 Month)', 'Premium access', `premium_sub_${uid}${isYearly ? '_yearly' : ''}`, '', 'XTR', [{ label: 'Premium', amount: isYearly ? starsPrice * 10 : starsPrice }]);
       return res.json({ success: true, url: invoice, method: 'stars' });
     }
-    if (method === 'payme') {
-      const amount = isYearly ? await DBService.getPrice('yearly') : await DBService.getPrice('monthly');
-      const link = await PaymentService.generatePaymeLink(uid, amount, isYearly ? 'yearly' : 'monthly');
-      if (!link) return res.status(503).json({ error: 'Payme sozlanmagan' });
-      return res.json({ success: true, url: link, method: 'payme' });
+    if (method === 'usdt') {
+      const req = await CryptoPaymentService.createRequest(uid, isYearly ? 'yearly' : 'monthly');
+      if (!req) return res.status(503).json({ error: 'USDT sozlanmagan. Admin TON_WALLET ni o\'rnatsin.' });
+      return res.json({ success: true, request: req, method: 'usdt' });
     }
-    if (method === 'click') {
-      const amount = isYearly ? await DBService.getPrice('yearly') : await DBService.getPrice('monthly');
-      const link = await PaymentService.generateClickLink(uid, amount, isYearly ? 'yearly' : 'monthly');
-      if (!link) return res.status(503).json({ error: 'Click sozlanmagan' });
-      return res.json({ success: true, url: link, method: 'click' });
+    if (method === 'ton') {
+      const req = await CryptoPaymentService.createTonRequest(uid, isYearly ? 'yearly' : 'monthly');
+      if (!req) return res.status(503).json({ error: 'TON sozlanmagan. Admin TON_WALLET ni o\'rnatsin.' });
+      return res.json({ success: true, request: req, method: 'ton' });
     }
     res.status(400).json({ error: 'Unsupported method' });
   });
@@ -60,6 +59,19 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: any) {
       res.status(200).json({ error: -9, error_note: 'Internal server error', click_trans_id: req.body?.click_trans_id || 0, merchant_trans_id: req.body?.merchant_trans_id || '' });
     }
+  });
+
+  app.post('/api/crypto-payment/status/:id', checkAuth, async (req: any, res: any) => {
+    const reqData = CryptoPaymentService.getRequest(req.params.id);
+    if (!reqData) return res.json({ status: 'not_found' });
+    if (reqData.userId !== parseInt(req.authenticatedUserId)) return res.status(403).json({ error: 'Forbidden' });
+    if (reqData.status === 'paid') return res.json({ status: 'paid' });
+    const result = await CryptoPaymentService.verifyPayment(req.params.id);
+    if (result === 'paid') {
+      await DBService.setPremium(reqData.userId, reqData.plan === 'yearly' ? 365 : 30);
+      logger.info(`Crypto premium granted: user ${reqData.userId}, ${reqData.currency} ${reqData.cryptoAmount}`);
+    }
+    res.json({ status: result });
   });
 
   app.post('/api/premium/wallet-claim', checkAuth, async (req: any, res: any) => {
