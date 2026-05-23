@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   is_owner INTEGER DEFAULT 0,
   is_active INTEGER DEFAULT 1,
   is_approved INTEGER DEFAULT 0,
+  wallet_address TEXT,
   is_premium INTEGER DEFAULT 0,
   premium_until TIMESTAMPTZ,
   referral_code TEXT UNIQUE,

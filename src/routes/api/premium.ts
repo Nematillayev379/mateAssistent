@@ -35,7 +35,8 @@ export function registerPremiumRoutes(app: express.Application) {
     }
     if (method === 'usdt' || method === 'ton') {
       const fn = method === 'usdt' ? CryptoPaymentService.createRequest : CryptoPaymentService.createTonRequest;
-      const req = await fn(uid, isYearly ? 'yearly' : 'monthly');
+      const price = await DBService.getPrice(isYearly ? 'yearly' : 'monthly');
+      const req = await fn(uid, isYearly ? 'yearly' : 'monthly', price);
       if (!req) return res.status(503).json({ error: 'Crypto wallet sozlanmagan. Admin TON_WALLET ni o\'rnatsin.' });
       return res.json({ success: true, request: req, method });
     }

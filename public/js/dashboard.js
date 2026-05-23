@@ -413,7 +413,7 @@ function renderUI() {
             if (walletState) walletState.textContent = u.is_premium ? tt('elite', 'ELITE') : tt('free', 'Free');
 
             const homeTarget = document.getElementById('home-target-channel');
-            if (homeTarget) homeTarget.textContent = u.target_channel || (tt('not_set', 'Sozlanmagan') + ' âš ï¸');
+            if (homeTarget) homeTarget.textContent = u.target_channel || (tt('not_set', 'Sozlanmagan') + ' \u26A0\uFE0F');
 
             // UI-5 Fix: Display full user info - connected RSS and channel
             const userInfo = document.getElementById('user-info') || document.createElement('div');
@@ -437,7 +437,7 @@ function renderUI() {
             sch.innerHTML = '';
             if (userData.scheduled?.length) {
                 userData.scheduled.slice(0, 3).forEach(p => {
-                    sch.innerHTML += `<div class="item-row"><div><h4>${p.type.toUpperCase()}</h4><p>${new Date(p.scheduled_at).toLocaleTimeString()}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="cancelScheduled(${p.id})">âŒ</button></div>`;
+                    sch.innerHTML += `<div class="item-row"><div><h4>${p.type.toUpperCase()}</h4><p>${new Date(p.scheduled_at).toLocaleTimeString()}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="cancelScheduled(${p.id})">\u274C</button></div>`;
                 });
             } else sch.innerHTML = `<p style="color:var(--secondary); font-size:0.8rem">${tt('home_no_scheduled', 'Navbatda postlar yo\'q.')}</p>`;
 
@@ -462,7 +462,7 @@ function renderUI() {
                 if (Array.isArray(data) && data.length > 0) {
                     data.slice(0, 3).forEach(s => {
                         homeSourcesList.innerHTML += `<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); padding:6px 10px; border-radius:6px; border:1px solid var(--border); margin-bottom: 6px;">
-                            <span>ðŸŸ¢ ${escapeHtml(s.name)}</span>
+                            <span>\uD83D\uDFE2 ${escapeHtml(s.name)}</span>
                             <span style="font-size:0.75rem; color:var(--secondary);">${escapeHtml((s.lang || '').toUpperCase())}</span>
                         </div>`;
                     });
@@ -749,7 +749,7 @@ function renderUI() {
             if (Array.isArray(data)) {
                 data.forEach(p => {
                     const numericPrice = Number(p.last_price) || 0;
-                    list.innerHTML += `<div class="item-row"><div><h4><a href="${escapeAttr(safeUrl(p.url))}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.7rem; color:var(--secondary); margin-right:4px;"></i> ${escapeHtml(p.item_name)}</a></h4><p>${numericPrice.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${Number(p.id)})">âŒ</button></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4><a href="${escapeAttr(safeUrl(p.url))}" target="_blank" rel="noopener noreferrer" style="color:white; text-decoration:none;"><i class="fas fa-external-link-alt" style="font-size:0.7rem; color:var(--secondary); margin-right:4px;"></i> ${escapeHtml(p.item_name)}</a></h4><p>${numericPrice.toLocaleString()} UZS</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deletePrice(${Number(p.id)})">\u274C</button></div>`;
                 });
             }
         }
@@ -863,7 +863,7 @@ function renderUI() {
             list.innerHTML = '';
             if (Array.isArray(data)) {
                 data.forEach(c => {
-                    list.innerHTML += `<div class="item-row"><div><h4>${escapeHtml(c.name)}</h4><p>${escapeHtml(c.platform)}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteChannel(${Number(c.id)})">âŒ</button></div>`;
+                    list.innerHTML += `<div class="item-row"><div><h4>${escapeHtml(c.name)}</h4><p>${escapeHtml(c.platform)}</p></div><button class="btn btn-ghost" style="width:auto; padding:4px 8px; color:var(--danger);" onclick="deleteChannel(${Number(c.id)})">\u274C</button></div>`;
                 });
             }
             // Set initial visibility state for telegram options
@@ -1004,7 +1004,7 @@ function renderUI() {
                     const infoEl = document.getElementById('premium-info');
                     if (infoEl) {
                         let text = '<b>Imtiyozlar:</b><br>';
-                        data.benefits.forEach(b => text += 'â€¢ ' + escapeHtml(b) + '<br>');
+                        data.benefits.forEach(b => text += '\u2022 ' + escapeHtml(b) + '<br>');
                         if (data.isActive && data.expiresAt) {
                             text = `<b>Faol:</b> ${escapeHtml(new Date(data.expiresAt).toLocaleDateString())}<br><br>` + text;
                         }

@@ -61,16 +61,16 @@ async function fetchJson(url: string): Promise<any> {
 }
 
 export const CryptoPaymentService = {
-  async createRequest(userId: number, plan: string): Promise<PaymentRequest | null> {
+  async createRequest(userId: number, plan: string, amountUZS?: number): Promise<PaymentRequest | null> {
     if (!CONFIG.TON_WALLET) return null;
     await refreshPrices();
     const isYearly = plan === 'yearly';
-    const amountUZS = isYearly ? 250000 : 25000;
-    const cryptoAmount = (amountUZS / usdtPrice).toFixed(2);
+    const finalAmount = amountUZS || (isYearly ? 250000 : 25000);
+    const cryptoAmount = (finalAmount / usdtPrice).toFixed(2);
     const id = crypto.randomBytes(4).toString('hex').toUpperCase();
     const payments = loadPayments();
     const req: PaymentRequest = {
-      id, userId, amountUZS, currency: 'USDT', cryptoAmount,
+      id, userId, amountUZS: finalAmount, currency: 'USDT', cryptoAmount,
       walletAddress: CONFIG.TON_WALLET, memo: `MATE${id}`,
       status: 'pending', createdAt: Date.now(), plan
     };
@@ -79,16 +79,16 @@ export const CryptoPaymentService = {
     return req;
   },
 
-  async createTonRequest(userId: number, plan: string): Promise<PaymentRequest | null> {
+  async createTonRequest(userId: number, plan: string, amountUZS?: number): Promise<PaymentRequest | null> {
     if (!CONFIG.TON_WALLET) return null;
     await refreshPrices();
     const isYearly = plan === 'yearly';
-    const amountUZS = isYearly ? 250000 : 25000;
-    const cryptoAmount = (amountUZS / usdtPrice / tonPriceUsdt).toFixed(4);
+    const finalAmount = amountUZS || (isYearly ? 250000 : 25000);
+    const cryptoAmount = (finalAmount / usdtPrice / tonPriceUsdt).toFixed(4);
     const id = crypto.randomBytes(4).toString('hex').toUpperCase();
     const payments = loadPayments();
     const req: PaymentRequest = {
-      id, userId, amountUZS, currency: 'TON', cryptoAmount,
+      id, userId, amountUZS: finalAmount, currency: 'TON', cryptoAmount,
       walletAddress: CONFIG.TON_WALLET, memo: `MATE${id}`,
       status: 'pending', createdAt: Date.now(), plan
     };
