@@ -37,6 +37,82 @@ let usdtPrice = 12800;
 let tonPriceUsdt = 5;
 let lastPriceFetch = 0;
 
+function normalizeMemo(value: string): string {
+  return value.replace(/\0/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function tryDecodeBase64(value: string): string | null {
+  if (!/^[A-Za-z0-9+/=_-]+$/.test(value) || value.length < 8) return null;
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+    const decoded = Buffer.from(padded, 'base64').toString('utf-8');
+    const cleaned = normalizeMemo(decoded);
+    return cleaned || null;
+  } catch {
+    return null;
+  }
+}
+
+function tryDecodeHex(value: string): string | null {
+  const hex = value.startsWith('0x') ? value.slice(2) : value;
+  if (!/^[0-9a-f]+$/i.test(hex) || hex.length < 8 || hex.length % 2 !== 0) return null;
+  try {
+    const decoded = Buffer.from(hex, 'hex').toString('utf-8');
+    const cleaned = normalizeMemo(decoded);
+    return cleaned || null;
+  } catch {
+    return null;
+  }
+}
+
+function collectStringLeaves(value: any, out = new Set<string>()): Set<string> {
+  if (typeof value === 'string') {
+    const cleaned = normalizeMemo(value);
+    if (cleaned) out.add(cleaned);
+    const b64 = tryDecodeBase64(value);
+    if (b64) out.add(b64);
+    const hex = tryDecodeHex(value);
+    if (hex) out.add(hex);
+    return out;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectStringLeaves(item, out);
+    return out;
+  }
+
+  if (value && typeof value === 'object') {
+    for (const nested of Object.values(value)) collectStringLeaves(nested, out);
+  }
+
+  return out;
+}
+
+function memoMatches(candidateValues: Iterable<string>, expectedMemo: string): boolean {
+  const expected = normalizeMemo(expectedMemo);
+  for (const value of candidateValues) {
+    const normalized = normalizeMemo(value);
+    if (!normalized) continue;
+    if (normalized === expected || normalized.includes(expected)) return true;
+  }
+  return false;
+}
+
+function isAmountMatch(actual: number, expected: number): boolean {
+  if (!Number.isFinite(actual) || !Number.isFinite(expected) || expected <= 0) return false;
+  return Math.abs(actual - expected) / expected < 0.05;
+}
+
+function appendQuery(url: string, params: Record<string, string | number | undefined>): string {
+  const parsed = new URL(url);
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue;
+    parsed.searchParams.set(key, String(value));
+  }
+  return parsed.toString();
+}
+
 async function refreshPrices() {
   if (Date.now() - lastPriceFetch < 300000) return;
   lastPriceFetch = Date.now();
@@ -148,16 +224,30 @@ export const CryptoPaymentService = {
 
 async function checkTonTransaction(req: PaymentRequest): Promise<boolean> {
   try {
-    const data = await fetchJson(`https://toncenter.com/api/v2/getTransactions?address=${req.walletAddress}&limit=30`);
-    if (!data?.ok || !data.result) return false;
-    for (const tx of data.result) {
-      const msg = tx.in_msg;
-      if (!msg || !msg.message || msg.destination !== req.walletAddress) continue;
-      const decoded = Buffer.from(msg.message, 'base64').toString('utf-8').replace(/\0/g, '').trim();
-      if (decoded === req.memo) {
+    const data = await fetchJson(appendQuery('https://toncenter.com/api/v3/transactions', {
+      account: req.walletAddress,
+      limit: 30,
+      sort: 'desc',
+      start_utime: Math.floor(req.createdAt / 1000) - 300,
+    }));
+    const transactions = data?.transactions;
+    if (!Array.isArray(transactions)) return false;
+
+    for (const tx of transactions) {
+      const msg = tx?.in_msg;
+      if (!msg || msg.destination !== req.walletAddress) continue;
+
+      const candidates = collectStringLeaves([
+        msg.message,
+        msg.message_content?.body,
+        msg.message_content?.decoded,
+        msg.decoded_opcode,
+      ]);
+
+      if (memoMatches(candidates, req.memo)) {
         const value = parseFloat(msg.value) / 1e9;
         const expected = parseFloat(req.cryptoAmount);
-        if (Math.abs(value - expected) / expected < 0.05) return true;
+        if (isAmountMatch(value, expected)) return true;
       }
     }
   } catch (e) { logger.warn(`TON tx check: ${(e as Error).message}`); }
@@ -166,16 +256,32 @@ async function checkTonTransaction(req: PaymentRequest): Promise<boolean> {
 
 async function checkUsdtJettonTransaction(req: PaymentRequest): Promise<boolean> {
   try {
-    const data = await fetchJson(
-      `https://toncenter.com/api/v2/getJettonTransfers?address=${req.walletAddress}&jetton_master=${USDT_JETTON_MASTER}&limit=30`
-    );
-    if (!data?.ok || !data.result) return false;
-    for (const tx of data.result) {
-      if (tx.to !== req.walletAddress) continue;
-      if (tx.comment?.trim() === req.memo) {
+    const data = await fetchJson(appendQuery('https://toncenter.com/api/v3/jetton/transfers', {
+      owner_address: req.walletAddress,
+      jetton_master: USDT_JETTON_MASTER,
+      direction: 'in',
+      limit: 30,
+      sort: 'desc',
+      start_utime: Math.floor(req.createdAt / 1000) - 300,
+    }));
+    const transfers = data?.jetton_transfers;
+    if (!Array.isArray(transfers)) return false;
+
+    for (const tx of transfers) {
+      if (tx.transaction_aborted) continue;
+
+      const candidates = collectStringLeaves([
+        tx.comment,
+        tx.forward_payload,
+        tx.custom_payload,
+        tx.decoded_forward_payload,
+        tx.decoded_custom_payload,
+      ]);
+
+      if (memoMatches(candidates, req.memo)) {
         const value = parseFloat(tx.amount) / 1e6;
         const expected = parseFloat(req.cryptoAmount);
-        if (Math.abs(value - expected) / expected < 0.05) return true;
+        if (isAmountMatch(value, expected)) return true;
       }
     }
   } catch (e) { logger.warn(`USDT Jetton check: ${(e as Error).message}`); }

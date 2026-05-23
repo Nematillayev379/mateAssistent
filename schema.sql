@@ -193,11 +193,23 @@ CREATE TABLE IF NOT EXISTS crypto_payments (
   plan TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS wallet_claims (
+  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  telegram_id BIGINT NOT NULL REFERENCES users(telegram_id) ON DELETE CASCADE,
+  wallet_address TEXT NOT NULL,
+  bonus_days INTEGER NOT NULL DEFAULT 7,
+  claimed_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(telegram_id),
+  UNIQUE(wallet_address)
+);
+
 CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
 CREATE INDEX IF NOT EXISTS idx_scheduled_posts_user_id ON scheduled_posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_monitored_channels_user_id ON monitored_channels(user_id);
 CREATE INDEX IF NOT EXISTS idx_web_users_email ON web_users(email);
 CREATE INDEX IF NOT EXISTS idx_crypto_payments_user_id ON crypto_payments(user_id);
+CREATE INDEX IF NOT EXISTS idx_wallet_claims_telegram_id ON wallet_claims(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_wallet_claims_wallet_address ON wallet_claims(wallet_address);
 
 DO $$ BEGIN
   ALTER TABLE users ALTER COLUMN target_channel TYPE TEXT USING target_channel::text;

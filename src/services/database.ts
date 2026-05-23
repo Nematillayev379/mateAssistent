@@ -10,7 +10,7 @@ import { ReferralRepository } from "../repositories/ReferralRepository";
 import { WorkspaceRepository } from "../repositories/WorkspaceRepository";
 import { RuleRepository, TicketRepository, DraftRepository } from "../repositories/RuleRepository";
 import { WebUserRepository } from "../repositories/WebUserRepository";
-import { CryptoPaymentRepository, type CryptoPaymentRecord } from "../repositories/CryptoPaymentRepository";
+import { CryptoPaymentRepository, type CryptoPaymentRecord, type WalletClaimRecord } from "../repositories/CryptoPaymentRepository";
 import { logger } from "../utils/logger";
 
 
@@ -86,6 +86,10 @@ export const DBService = {
   createCryptoPayment: (payment: CryptoPaymentRecord) => CryptoPaymentRepository.create(payment),
   getCryptoPayment: (id: string) => CryptoPaymentRepository.getById(id),
   updateCryptoPaymentStatus: (id: string, status: CryptoPaymentRecord['status']) => CryptoPaymentRepository.updateStatus(id, status),
+  getWalletClaimByTelegramId: (telegramId: number) => CryptoPaymentRepository.getWalletClaimByTelegramId(telegramId),
+  getWalletClaimByAddress: (walletAddress: string) => CryptoPaymentRepository.getWalletClaimByAddress(walletAddress),
+  createWalletClaim: (record: WalletClaimRecord) => CryptoPaymentRepository.createWalletClaim(record),
+  deleteWalletClaim: (telegramId: number) => CryptoPaymentRepository.deleteWalletClaim(telegramId),
 
   // ── Monitored Channels ──
   getUserMonitoredChannels: (id: number) => MonitorRepository.getByUser(id),

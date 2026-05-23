@@ -6,8 +6,6 @@ import { CryptoPaymentService } from '../../services/crypto_payment';
 import { logger } from '../../utils/logger';
 import { checkAuth } from '../../middleware/auth';
 
-const walletClaims = new Map<number, boolean>();
-
 export function registerPremiumRoutes(app: express.Application) {
   app.get('/api/payments/methods', checkAuth, async (req: any, res: any) => {
     res.json(CryptoPaymentService.getAvailableMethods());
@@ -73,17 +71,42 @@ export function registerPremiumRoutes(app: express.Application) {
 
   app.post('/api/premium/wallet-claim', checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId);
-    if (walletClaims.get(uid)) {
-      return res.json({ success: false, error: 'already_claimed', message: 'You already claimed your wallet premium bonus.' });
-    }
     const { walletAddress } = req.body;
-    if (!walletAddress || typeof walletAddress !== 'string') {
+    const normalizedWalletAddress = typeof walletAddress === 'string' ? walletAddress.trim() : '';
+
+    if (!normalizedWalletAddress) {
       return res.status(400).json({ success: false, error: 'wallet_required' });
     }
-    await DBService.setPremium(uid, 7);
-    walletClaims.set(uid, true);
-    try { await DBService.updateUser(uid, { wallet_address: walletAddress } as any); } catch {}
-    logger.info(`TON wallet premium granted: user ${uid}, wallet ${walletAddress.slice(0, 8)}...`);
-    res.json({ success: true, days: 7, message: '7-day premium granted for connecting your wallet!' });
+
+    const existingByUser = await DBService.getWalletClaimByTelegramId(uid);
+    if (existingByUser) {
+      return res.json({ success: false, error: 'already_claimed', message: 'You already claimed your wallet premium bonus.' });
+    }
+
+    const existingByWallet = await DBService.getWalletClaimByAddress(normalizedWalletAddress);
+    if (existingByWallet) {
+      return res.json({ success: false, error: 'wallet_already_used', message: 'This wallet already received the premium bonus.' });
+    }
+
+    const claim = await DBService.createWalletClaim({
+      telegram_id: uid,
+      wallet_address: normalizedWalletAddress,
+      bonus_days: 7,
+    });
+    if (!claim) {
+      return res.status(409).json({ success: false, error: 'claim_conflict', message: 'Wallet bonus already claimed or temporarily unavailable.' });
+    }
+
+    try {
+      await DBService.setPremium(uid, claim.bonus_days);
+      await DBService.updateUser(uid, { wallet_address: normalizedWalletAddress } as any);
+    } catch (e: any) {
+      await DBService.deleteWalletClaim(uid).catch(() => false);
+      logger.error(`Wallet premium grant failed for ${uid}: ${e.message}`);
+      return res.status(500).json({ success: false, error: 'claim_apply_failed', message: 'Wallet bonus could not be applied. Please try again.' });
+    }
+
+    logger.info(`TON wallet premium granted: user ${uid}, wallet ${normalizedWalletAddress.slice(0, 8)}...`);
+    res.json({ success: true, days: claim.bonus_days, message: '7-day premium granted for connecting your wallet!' });
   });
 }
