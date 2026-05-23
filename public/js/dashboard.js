@@ -364,13 +364,16 @@
             paymentMethods: false,
         };
 
+        var _studioStubs = ['searchMusic','downloadM','downloadAndSendMusic','downloadMedia','generateAIPost','generateVoiceNews','copyAIPostText','sendAIPostToChannel'];
+        _studioStubs.forEach(function(fn) { window[fn] = function() { showToast('Studio yuklanmoqda...', 'info'); }; });
+
         let studioLoaded = false;
         function loadStudioScript() {
             if (studioLoaded) return;
             studioLoaded = true;
             var s = document.createElement('script');
             s.src = '/js/dashboard-studio.js';
-            s.async = true;
+            s.onload = function() { document.dispatchEvent(new Event('studio-ready')); };
             document.head.appendChild(s);
         }
 

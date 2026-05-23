@@ -152,11 +152,11 @@ async function generateVoiceNews() {
     } catch (e) { if (status) status.textContent = 'Aloqa xatosi'; showToast('Aloqa xatosi: ' + (e.message || e), 'error'); }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
+(function() {
     var musicInput = document.getElementById('music-q');
     if (musicInput) {
         musicInput.addEventListener('keydown', function (event) {
             if (event.key === 'Enter') searchMusic();
         });
     }
-});
+})();
