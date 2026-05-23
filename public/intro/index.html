@@ -4,193 +4,285 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Uzbekistan Newsroom — AI Telegram Bot</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #050a14; color: #e2e8f0; line-height: 1.6; }
-  .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
-  header { text-align: center; padding: 4rem 0 2rem; }
-  h1 { font-size: 2.8rem; font-weight: 800; background: linear-gradient(135deg, #22d3ee, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem; }
-  .subtitle { font-size: 1.2rem; color: #94a3b8; max-width: 600px; margin: 0 auto 2rem; }
-  .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
-  .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.9rem 2rem; border-radius: 12px; font-size: 1.05rem; font-weight: 600; text-decoration: none; transition: all 0.2s; }
-  .btn-primary { background: linear-gradient(135deg, #22d3ee, #06b6d4); color: #050a14; }
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(34,211,238,0.3); }
-  .btn-secondary { background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.12); }
-  .btn-secondary:hover { background: rgba(255,255,255,0.12); }
-  section { padding: 3rem 0; }
-  h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 1.5rem; color: #f1f5f9; }
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
-  .feature { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.5rem; transition: 0.2s; }
-  .feature:hover { border-color: #22d3ee44; transform: translateY(-2px); }
-  .feature-icon { font-size: 2rem; margin-bottom: 0.8rem; }
-  .feature h3 { font-size: 1.15rem; margin-bottom: 0.5rem; color: #f1f5f9; }
-  .feature p { font-size: 0.92rem; color: #94a3b8; }
-  .steps { display: flex; flex-direction: column; gap: 1.2rem; }
-  .step { display: flex; gap: 1rem; align-items: flex-start; background: rgba(255,255,255,0.03); padding: 1.2rem 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); }
-  .step-num { background: linear-gradient(135deg, #22d3ee, #06b6d4); color: #050a14; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.9rem; flex-shrink: 0; }
-  .pricing-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
-  .pricing-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 2rem; text-align: center; }
-  .pricing-card.featured { border-color: #22d3ee; background: rgba(34,211,238,0.06); }
-  .pricing-card h3 { font-size: 1.3rem; margin-bottom: 0.5rem; }
-  .pricing-card .price { font-size: 2rem; font-weight: 800; color: #22d3ee; margin: 0.5rem 0; }
-  .pricing-card ul { list-style: none; text-align: left; margin: 1rem 0; }
-  .pricing-card li { padding: 0.4rem 0; color: #94a3b8; }
-  .pricing-card li::before { content: "✓ "; color: #22d3ee; font-weight: 700; }
-  footer { text-align: center; padding: 3rem 0; color: #475569; font-size: 0.9rem; }
-  .badge { display: inline-block; background: rgba(34,211,238,0.15); color: #22d3ee; padding: 0.25rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
-  @media (max-width: 600px) { h1 { font-size: 2rem; } .container { padding: 1rem; } }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0a0a0f;
+    color: #e2e8f0;
+    overflow-x: hidden;
+  }
+  #bg-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .content {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+  section {
+    padding: 5rem 0;
+  }
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem 1.5rem;
+  }
+  .hero-badge {
+    display: inline-block;
+    padding: 0.4rem 1.2rem;
+    border-radius: 100px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: rgba(34, 211, 238, 0.1);
+    border: 1px solid rgba(34, 211, 238, 0.2);
+    color: #22d3ee;
+    margin-bottom: 2rem;
+    backdrop-filter: blur(10px);
+  }
+  .hero h1 {
+    font-size: clamp(2.5rem, 7vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, #f1f5f9 0%, #22d3ee 50%, #6366f1 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: #94a3b8;
+    max-width: 600px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+  .btn-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1rem 2.2rem;
+    border-radius: 14px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    color: #0a0a0f;
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.15);
+  }
+  .btn-primary:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 0 50px rgba(34, 211, 238, 0.3);
+  }
+  .btn-secondary {
+    background: rgba(255,255,255,0.05);
+    color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+  }
+  .btn-secondary:hover {
+    background: rgba(255,255,255,0.1);
+    transform: translateY(-3px);
+  }
+  .section-title {
+    text-align: center;
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .section-sub {
+    text-align: center;
+    color: #64748b;
+    margin-bottom: 3.5rem;
+    font-size: 1.05rem;
+  }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.2rem;
+  }
+  .feature-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    padding: 1.8rem 1.5rem;
+    backdrop-filter: blur(12px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  .feature-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .feature-card:hover {
+    border-color: rgba(34, 211, 238, 0.3);
+    background: rgba(255,255,255,0.06);
+    transform: translateY(-4px);
+    box-shadow: 0 0 40px rgba(34, 211, 238, 0.05);
+  }
+  .feature-card .icon {
+    font-size: 1.8rem;
+    margin-bottom: 1rem;
+    display: block;
+  }
+  .feature-card h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #f1f5f9;
+  }
+  .feature-card p {
+    font-size: 0.88rem;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+  .cta-section {
+    text-align: center;
+    padding: 6rem 1.5rem;
+  }
+  .cta-section h2 {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #f1f5f9, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .cta-section p {
+    color: #94a3b8;
+    margin-bottom: 2.5rem;
+    font-size: 1.05rem;
+  }
+  .scroll-hint {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #475569;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    animation: bounce 2s infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+  @media (max-width: 600px) {
+    .hero { min-height: 90vh; }
+    .features-grid { grid-template-columns: 1fr; }
+    .btn { width: 100%; justify-content: center; }
+  }
 </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <h1>🤖 Uzbekistan Newsroom</h1>
-    <p class="subtitle">AI-powered Telegram bot that automatically finds, summarizes, and publishes news to your channel. Supports 15 languages, RSS feeds, video download, and more.</p>
-    <div class="hero-buttons">
-      <a class="btn btn-primary" href="https://t.me/Yangiliklar_Newsroom_Bot" target="_blank">🚀 Open in Telegram</a>
-      <a class="btn btn-secondary" href="#how-it-works">📖 How It Works</a>
+<canvas id="bg-canvas"></canvas>
+
+<div class="content">
+  <section class="hero">
+    <span class="hero-badge">AI-Powered Telegram Bot</span>
+    <h1>Uzbekistan<br>Newsroom</h1>
+    <p>Automatic news aggregation, AI summarization, image generation, and publishing — all inside Telegram. Supports 15 languages.</p>
+    <div class="btn-group">
+      <a class="btn btn-primary" href="https://t.me/Yangiliklar_Newsroom_Bot" target="_blank">Open in Telegram</a>
+      <a class="btn btn-secondary" href="#features">Explore Features</a>
     </div>
-  </header>
+    <div class="scroll-hint">SCROLL</div>
+  </section>
 
   <section id="features">
-    <h2>⚡ Core Features</h2>
-    <div class="features">
-      <div class="feature">
-        <div class="feature-icon">📡</div>
-        <h3>RSS Feed Aggregator</h3>
-        <p>Connect any website RSS feed. New articles are automatically fetched, checked for duplicates, and published to your channel.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🧠</div>
-        <h3>AI Summarization</h3>
-        <p>Every article is summarized by AI in your language. Supports Uzbek, Russian, English, Turkish, and 11 more languages.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🎨</div>
-        <h3>AI Image Studio</h3>
-        <p>Automatically generates matching images for your posts. No need to search for photos — AI creates them.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📥</div>
-        <h3>Universal Downloader</h3>
-        <p>Send any YouTube, Instagram, TikTok, or SoundCloud link — bot downloads and sends the media to your channel.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🎵</div>
-        <h3>Music Search & Send</h3>
-        <p>Search YouTube for any song and send it directly to your channel. Perfect for music-themed channels.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🗣️</div>
-        <h3>AI Voice News</h3>
-        <p>Convert your news into a realistic AI voice-over. Generate audio summaries in multiple languages.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🌐</div>
-        <h3>Telegram Channel Monitor</h3>
-        <p>Monitor other Telegram channels and automatically repost with AI rewriting. Never miss trending content.</p>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📊</div>
-        <h3>Analytics Dashboard</h3>
-        <p>Track post performance, duplicate rates, popular categories, and growth stats — all in a beautiful Web3 dashboard.</p>
+    <div class="container">
+      <h2 class="section-title">Core Features</h2>
+      <p class="section-sub">Everything you need to run an automated news channel</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="icon">📡</span>
+          <h3>RSS Aggregator</h3>
+          <p>Connect any RSS feed. New articles are automatically fetched and published to your channel.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🧠</span>
+          <h3>AI Summarization</h3>
+          <p>Every article is summarized by AI in your language. Supports 15 languages including Uzbek.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🎨</span>
+          <h3>AI Image Studio</h3>
+          <p>Generates matching images for your posts automatically. No need to search for photos.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">📥</span>
+          <h3>Universal Downloader</h3>
+          <p>Send YouTube, Instagram, TikTok links — bot downloads and sends media to your channel.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">🗣️</span>
+          <h3>AI Voice News</h3>
+          <p>Convert news into realistic AI voice-overs. Generate audio summaries in multiple languages.</p>
+        </div>
+        <div class="feature-card">
+          <span class="icon">📊</span>
+          <h3>Analytics Dashboard</h3>
+          <p>Track post performance, duplicates, popular categories, and growth in a Web3 dashboard.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section id="how-it-works">
-    <h2>📋 How It Works</h2>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div><strong>Start the bot</strong><br>Open <a href="https://t.me/Yangiliklar_Newsroom_Bot" style="color:#22d3ee">@Yangiliklar_Newsroom_Bot</a> on Telegram and press /start. Choose your language.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div><strong>Connect a channel</strong><br>Add the bot as an admin to your Telegram channel. Enter the channel username (e.g., @my_channel).</div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div><strong>Add sources</strong><br>Add RSS feed URLs (news websites, blogs) or Telegram channels to monitor. The bot will automatically scan them.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">4</div>
-        <div><strong>Set interval</strong><br>Choose how often the bot checks for new content (every 2-60 minutes). The bot handles the rest.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">5</div>
-        <div><strong>Relax</strong><br>Your channel runs on autopilot. AI finds, summarizes, moderates, and publishes content 24/7.</div>
-      </div>
-    </div>
+  <section class="cta-section">
+    <h2>Ready to automate<br>your channel?</h2>
+    <p>Join 100+ creators already using Uzbekistan Newsroom Bot</p>
+    <a class="btn btn-primary" href="https://t.me/Yangiliklar_Newsroom_Bot" target="_blank">Start on Telegram</a>
   </section>
-
-  <section id="pricing">
-    <h2>💰 Pricing</h2>
-    <div class="pricing-cards">
-      <div class="pricing-card">
-        <h3>Free</h3>
-        <div class="price">$0</div>
-        <ul>
-          <li>1 RSS feed source</li>
-          <li>AI summarization</li>
-          <li>15 language support</li>
-          <li>Media downloader</li>
-          <li>Basic analytics</li>
-        </ul>
-      </div>
-      <div class="pricing-card featured">
-        <div class="badge">POPULAR</div>
-        <h3>Premium</h3>
-        <div class="price">$5/mo</div>
-        <ul>
-          <li>Unlimited RSS sources</li>
-          <li>AI Image Studio</li>
-          <li>AI Voice News</li>
-          <li>Channel monitoring</li>
-          <li>Advanced analytics</li>
-          <li>Priority support</li>
-        </ul>
-        <a class="btn btn-primary" href="tg://resolve?domain=Yangiliklar_Newsroom_Bot" style="margin-top: 1rem; display: inline-block;">Get Premium</a>
-      </div>
-    </div>
-  </section>
-
-  <section id="referral">
-    <h2>🎁 Referral Program</h2>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">🎉</div>
-        <div><strong>Invite friends</strong><br>Share your referral link with friends. When they join, you both get rewards.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">📅</div>
-        <div><strong>New user gets 3 days Premium</strong><br>When someone joins via your link, they immediately get 3 days of Premium to try all features.</div>
-      </div>
-      <div class="step">
-        <div class="step-num">🏆</div>
-        <div><strong>10 referrals = 1 month Premium</strong><br>Every 10 active referrals earn you 1 month of Premium. Unlimited stacking.</div>
-      </div>
-    </div>
-  </section>
-
-  <section id="faq">
-    <h2>❓ FAQ</h2>
-    <div class="steps">
-      <div class="step">
-        <div><strong>What is "active" referral?</strong><br>A referral becomes "active" when the invited user sets up their channel and adds at least one RSS source.</div>
-      </div>
-      <div class="step">
-        <div><strong>Can I use my own AI key?</strong><br>Premium users can configure their own Groq, Gemini, or OpenAI API keys for faster processing.</div>
-      </div>
-      <div class="step">
-        <div><strong>Does it work in my language?</strong><br>Yes! The bot supports Uzbek, Russian, English, Turkish, German, French, Spanish, Italian, Portuguese, Arabic, Hindi, Chinese, Japanese, Korean, and Persian.</div>
-      </div>
-    </div>
-  </section>
-
-  <footer>
-    <p>Powered by Uzbekistan Newsroom Bot · <a href="https://t.me/Yangiliklar_Newsroom_Bot" style="color:#22d3ee">@Yangiliklar_Newsroom_Bot</a></p>
-  </footer>
 </div>
+
+<script type="module" src="scene.js"></script>
+<script>
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.feature-card').forEach(el => observer.observe(el));
+</script>
 </body>
 </html>
