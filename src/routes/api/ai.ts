@@ -5,6 +5,7 @@ import { bot } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
 import { generateSmmPost, generateSmmImage } from '../../services/ai';
 import { checkAuth } from '../../middleware/auth';
+import { buildChannelPostMarkup } from '../../services/sender';
 
 export function registerAiRoutes(app: express.Application) {
   const aiLimiter = rateLimit({
@@ -29,21 +30,22 @@ export function registerAiRoutes(app: express.Application) {
   });
 
   app.post('/api/ai/post-to-channel', checkAuth, async (req: any, res: any) => {
-    const { text, imageUrl, imageBase64 } = req.body;
+    const { text, imageUrl, imageBase64, prompt } = req.body;
     if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Invalid text' });
     try {
       const user = await DBService.getUser(parseInt(req.authenticatedUserId));
       if (!user?.target_channel) return res.status(400).json({ error: 'No channel configured' });
-      const caption = `AI Voice News\n\n`;
-      const remainder = text.length > 1024 ? text.slice(1024) : '';
+      const title = typeof prompt === 'string' && prompt.trim() ? prompt.trim().slice(0, 120) : 'AI Studio Post';
       if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
-        await bot.sendPhoto(user.target_channel, Buffer.from(imageBase64.split(',')[1], 'base64'), { caption });
+        const caption = await buildChannelPostMarkup({ title, content: text, source: 'AI Studio', url: process.env.PUBLIC_URL || '' }, { maxLength: 1024 });
+        await bot.sendPhoto(user.target_channel, Buffer.from(imageBase64.split(',')[1], 'base64'), { caption, parse_mode: 'HTML' });
       } else if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
-        await bot.sendPhoto(user.target_channel, imageUrl, { caption });
+        const caption = await buildChannelPostMarkup({ title, content: text, source: 'AI Studio', url: process.env.PUBLIC_URL || '' }, { maxLength: 1024 });
+        await bot.sendPhoto(user.target_channel, imageUrl, { caption, parse_mode: 'HTML' });
       } else {
-        await bot.sendMessage(user.target_channel, text);
+        const message = await buildChannelPostMarkup({ title, content: text, source: 'AI Studio', url: process.env.PUBLIC_URL || '' });
+        await bot.sendMessage(user.target_channel, message, { parse_mode: 'HTML' });
       }
-      if (remainder) await bot.sendMessage(user.target_channel, remainder);
       res.json({ success: true });
     } catch (e: any) { logger.error(`SMM post-to-channel error: ${e.message}`); res.status(500).json({ error: 'Telegram send failed' }); }
   });

@@ -23,6 +23,47 @@ function normalizeChannelId(channel: string): string {
   return targetChannel;
 }
 
+async function getBotUsername(): Promise<string> {
+  if (!cachedBotUser || Date.now() - lastBotUserFetch > 3600000) {
+    try {
+      const me = await bot.getMe();
+      cachedBotUser = me.username || "bot";
+      lastBotUserFetch = Date.now();
+    } catch {
+      cachedBotUser = cachedBotUser || "bot";
+    }
+  }
+  return cachedBotUser || "bot";
+}
+
+export async function buildChannelPostMarkup(article: {
+  title?: string;
+  content?: string;
+  source?: string;
+  url?: string;
+}, opts?: { maxLength?: number }): Promise<string> {
+  const botUser = await getBotUsername();
+  const safeTitle = escapeHtml(article.title || "");
+  const safeContent = escapeHtml(article.content || "");
+  const safeSource = escapeHtml(article.source || "yangiliklar");
+  const safeUrl = escapeUrl(article.url || "");
+  const sourceLine = safeUrl
+    ? `🌐 <a href="${safeUrl}">${safeSource}</a>`
+    : `🌐 ${safeSource}`;
+  const botLine = `🤖 <a href="https://t.me/${botUser}">@${botUser}</a>`;
+  const footer = `\n\n${sourceLine}\n${botLine}`;
+  const titleBlock = `<b>${safeTitle}</b>`;
+  const maxLen = opts?.maxLength || 4096;
+  const availableForContent = Math.max(0, maxLen - titleBlock.length - footer.length - 6);
+
+  let finalContent = safeContent;
+  if (finalContent.length > availableForContent) {
+    finalContent = finalContent.slice(0, Math.max(0, availableForContent - 3)) + "...";
+  }
+
+  return `${titleBlock}\n\n${finalContent}${footer}`;
+}
+
 export async function safeSendToChannels(
   _user: any,
   channels: string[],
@@ -49,38 +90,8 @@ export async function safeSend(user: any, article: any): Promise<void> {
     return;
   }
 
-  if (!cachedBotUser || Date.now() - lastBotUserFetch > 3600000) {
-    try {
-      const me = await bot.getMe();
-      cachedBotUser = me.username || "bot";
-      lastBotUserFetch = Date.now();
-    } catch {
-      cachedBotUser = cachedBotUser || "bot";
-    }
-  }
-
-  const botUser = cachedBotUser;
-  const safeTitle = escapeHtml(article.title || "");
-  const safeContent = escapeHtml(article.content || "");
-  const safeSource = escapeHtml(article.source || "yangiliklar");
-  const safeUrl = escapeUrl(article.url || "");
-  const sourceLine = `🌐 <a href="${safeUrl}">${safeSource}</a>`;
-  const botLine = `🤖 <a href="https://t.me/${botUser}">@${botUser}</a>`;
-  const footer = `\n\n${sourceLine}\n${botLine}`;
-  const titleBlock = `<b>${safeTitle}</b>`;
-
   const isMediaMessage = !!(article.videoUrl || article.audioUrl || article.imageUrl);
-  const maxLen = isMediaMessage ? 1024 : 4096;
-  const headerLen = titleBlock.length + 2;
-  const footerLen = footer.length + 4;
-  const availableForContent = maxLen - headerLen - footerLen;
-
-  let finalContent = safeContent;
-  if (finalContent.length > availableForContent) {
-    finalContent = finalContent.slice(0, Math.max(0, availableForContent - 3)) + "...";
-  }
-
-  const caption = `${titleBlock}\n\n${finalContent}${footer}`;
+  const caption = await buildChannelPostMarkup(article, { maxLength: isMediaMessage ? 1024 : 4096 });
 
   try {
     if (!user.target_channel) {

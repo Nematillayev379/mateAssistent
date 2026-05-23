@@ -66,13 +66,14 @@ function copyAIPostText() {
 async function sendAIPostToChannel() {
     var text = document.getElementById('ai-res-text').textContent;
     var img = document.getElementById('ai-res-img');
+    var prompt = document.getElementById('ai-prompt')?.value || '';
     var imageBase64 = img.style.display === 'block' && img.src?.startsWith('data:') ? img.src : window.lastSmmImageBase64;
     var imageUrl = img.style.display === 'block' && img.src?.startsWith('http') ? img.src : null;
     if (!text) return;
     var btn = document.getElementById('btn-send-ai');
     btn.disabled = true;
     try {
-        var res = await apiFetch('/api/ai/post-to-channel', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ text: text, imageUrl: imageUrl, imageBase64: imageBase64 }) });
+        var res = await apiFetch('/api/ai/post-to-channel', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ text: text, prompt: prompt, imageUrl: imageUrl, imageBase64: imageBase64 }) });
         if (res.ok) showToast('Post kanalga yuborildi!', 'success'); else showToast('Xatolik yuz berdi', 'error');
     } catch (e) { showToast(e.message, 'error'); }
     finally { btn.disabled = false; }
