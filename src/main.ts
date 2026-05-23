@@ -1,3 +1,8 @@
+import WebSocket from 'ws';
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = WebSocket;
+}
+
 const _startTime = Date.now();
 process.stdout.write(`[BOOT] Process started at ${new Date().toISOString()}, PID ${process.pid}\n`);
 process.stderr.write(`[BOOT.STDERR] Process started\n`);
