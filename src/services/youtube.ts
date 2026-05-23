@@ -10,6 +10,7 @@ try { ffmpegStatic = require('ffmpeg-static'); } catch {}
 
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_yt');
 try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch {}
+const MAX_MEDIA_SIZE = 49 * 1024 * 1024;
 
 function detectExtensionFromContentType(contentType?: string, fallback: string = 'bin'): string {
   const value = String(contentType || '').toLowerCase();
@@ -18,6 +19,25 @@ function detectExtensionFromContentType(contentType?: string, fallback: string =
   if (value.includes('audio/webm')) return 'webm';
   if (value.includes('video/mp4')) return 'mp4';
   return fallback;
+}
+
+function validateDownloadedFile(filePath: string, minBytes = 8 * 1024): boolean {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const size = fs.statSync(filePath).size;
+    return size >= minBytes && size <= MAX_MEDIA_SIZE;
+  } catch {
+    return false;
+  }
+}
+
+function findDownloadedMedia(basePrefix: string, preferredExts: string[]): string | null {
+  for (const ext of preferredExts) {
+    const exact = findNewestFile(TEMP_DIR, basePrefix, ext);
+    if (exact && validateDownloadedFile(exact)) return exact;
+  }
+  const fallback = findNewestFile(TEMP_DIR, basePrefix);
+  return fallback && validateDownloadedFile(fallback) ? fallback : null;
 }
 
 export const YoutubeService = {
@@ -155,7 +175,7 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
         typeParam === 'audio'
           ? [
               '-f',
-              'bestaudio[ext=m4a]/bestaudio/best',
+              'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio[ext=webm]/bestaudio/best',
               '-o',
               `${baseOut}.%(ext)s`,
               safeUrl,
@@ -165,6 +185,8 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
               '49M',
               '--socket-timeout',
               '30',
+              '--retries',
+              '3',
             ]
           : [
               '-f',
@@ -178,6 +200,8 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
               '49M',
               '--socket-timeout',
               '30',
+              '--retries',
+              '3',
             ];
 
       const ffmpegPath = ffmpegStatic || '';
@@ -209,10 +233,9 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
         });
       });
 
-      const ext = typeParam === 'audio' ? '.m4a' : '.mp4';
-      let filePath = findNewestFile(TEMP_DIR, `yt_${stamp}`, ext);
-      if (!filePath) filePath = findNewestFile(TEMP_DIR, `yt_${stamp}`);
-      if (filePath && fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+      const preferredExts = typeParam === 'audio' ? ['.m4a', '.mp3', '.webm', '.opus'] : ['.mp4', '.webm', '.mkv'];
+      const filePath = findDownloadedMedia(`yt_${stamp}`, preferredExts);
+      if (filePath) {
         return filePath;
       }
     } catch (e: any) {
@@ -237,13 +260,17 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
         });
         const contentTypeHeader = response.headers?.['content-type'];
+        if (typeof contentTypeHeader === 'string' && contentTypeHeader.includes('application/json')) {
+          throw new Error('Cobalt JSON response returned instead of media file');
+        }
         const ext = detectExtensionFromContentType(
           typeof contentTypeHeader === 'string' ? contentTypeHeader : undefined,
           typeParam === 'audio' ? 'mp3' : 'mp4'
         );
         const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
         fs.writeFileSync(filePath, Buffer.from(response.data));
-        if (fs.existsSync(filePath) && fs.statSync(filePath).size > 1024) return filePath;
+        if (validateDownloadedFile(filePath)) return filePath;
+        try { fs.unlinkSync(filePath); } catch {}
       } catch (dlErr: any) {
         logger.warn(`Failed to persist Cobalt media locally: ${dlErr.message}`);
       }
@@ -253,5 +280,5 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
     logger.warn(`Cobalt fallback failed: ${reason}`);
   }
 
-  throw new Error('Yuklash muvaffaqiyatsiz. yt-dlp yoki Cobalt ishlamadi. Keyinroq urinib ko‘ring yoki buni muvofiq qiling.');
+  throw new Error('Audio/video yuklab bo‘lmadi. Manba servis javob bermadi yoki format qo‘llanmadi. Keyinroq yana urinib ko‘ring.');
 }

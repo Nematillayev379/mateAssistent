@@ -47,7 +47,7 @@ export function registerMediaRoutes(app: express.Application) {
       await serveFileDownload(res, filePath, filename, { userId, notifyBot: webOnly ? undefined : 'audio' });
     } catch (e: any) {
       logger.warn(`Music download failed for ${videoId}: ${e.message}`);
-      res.status(502).json({ error: 'Download failed' });
+      res.status(502).json({ error: e.message || 'Musiqa yuklab bo‘lmadi' });
     }
   });
 
@@ -65,7 +65,7 @@ export function registerMediaRoutes(app: express.Application) {
       await serveFileDownload(res, filePath, filename, { userId, notifyBot: webOnly ? undefined : (type === 'video' ? 'video' : 'audio') });
     } catch (e: any) {
       logger.warn(`Media download failed: ${e.message}`);
-      res.status(502).json({ error: 'Download failed' });
+      res.status(502).json({ error: e.message || 'Media yuklab bo‘lmadi' });
     }
   });
 

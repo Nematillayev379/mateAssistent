@@ -563,18 +563,28 @@ export type SmmImageResult = { imageUrl: string; imageBase64: string | null };
 
 export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
   const cleanTopic = topic.trim().slice(0, 200);
-  const imagePrompt =
-    `Editorial social media image strictly about: ${cleanTopic}. ` +
-    `Main subject must clearly match this topic: ${cleanTopic}. ` +
-    'Single coherent scene, realistic or premium illustrative style, strong focal subject, 16:9 composition, high detail, no text, no letters, no watermark, no unrelated objects, avoid generic stock scenes.';
+  let visualBrief = cleanTopic;
+  try {
+    const brief = await getSmartAIResponse(
+      "You are a visual director for social media. Convert the topic into one precise image brief. Output one sentence only, in English, naming the main subject, setting, action, mood, and 2-4 concrete visual details. No hashtags. No list.",
+      cleanTopic
+    );
+    if (brief && brief.trim().length > 20) {
+      visualBrief = brief.trim().replace(/\s+/g, ' ').slice(0, 260);
+    }
+  } catch (e: any) {
+    logger.warn(`SMM visual brief fallback used: ${e.message}`);
+  }
 
-  const seed = Date.now() % 1_000_000;
-  const urls = [
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux`,
-    `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1024&height=576&nologo=true&seed=${seed + 1}`,
+  const promptVariants = [
+    `Editorial social media image about ${cleanTopic}. ${visualBrief}. Main subject must exactly match the topic. Realistic, strong focal subject, 16:9 composition, rich detail, cinematic lighting, no text, no letters, no watermark, no unrelated objects.`,
+    `Create a news-style promotional visual for ${cleanTopic}. Scene: ${visualBrief}. Make the topic unmistakable at first glance. Clean background separation, bold composition, realistic or premium illustrative style, no text, no logos, no watermark.`,
+    `High-quality Telegram post illustration for ${cleanTopic}. Focus on ${visualBrief}. Show one coherent scene only, with specific objects tied to the topic, dramatic but credible atmosphere, no generic stock elements, no text.`
   ];
 
-  const tryFetchImage = async (imageUrl: string): Promise<SmmImageResult | null> => {
+  const seed = Date.now() % 1_000_000;
+  const tryFetchImage = async (imagePrompt: string, variantIndex: number): Promise<SmmImageResult | null> => {
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1280&height=720&nologo=true&seed=${seed + variantIndex}&model=flux`;
     try {
       const res = await fetch(imageUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 mateAssistentBot/1.0' },
@@ -584,7 +594,7 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
       const contentType = (res.headers.get('content-type') || '').toLowerCase();
       if (!contentType.startsWith('image/')) return null;
       const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length < 2000) return null;
+      if (buf.length < 8 * 1024) return null;
       return { imageUrl, imageBase64: `data:image/jpeg;base64,${buf.toString('base64')}` };
     } catch (e: any) {
       logger.warn(`SMM image fetch failed: ${e.message}`);
@@ -592,11 +602,15 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
     }
   };
 
-  const settled = await Promise.all(urls.map((imageUrl) => tryFetchImage(imageUrl)));
+  const settled = await Promise.all(promptVariants.map((variant, index) => tryFetchImage(variant, index)));
   const firstOk = settled.find(Boolean);
   if (firstOk) return firstOk;
 
-  return { imageUrl: urls[0], imageBase64: null };
+  const fallbackPrompt = promptVariants[0];
+  return {
+    imageUrl: `https://image.pollinations.ai/prompt/${encodeURIComponent(fallbackPrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux`,
+    imageBase64: null
+  };
 }
 
 export async function generateAudioSummary(title: string, content: string, lang: string = 'uz'): Promise<string> {

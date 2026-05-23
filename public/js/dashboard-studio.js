@@ -17,6 +17,15 @@ function triggerBrowserDownload(blob, filename) {
     setTimeout(function () { URL.revokeObjectURL(href); }, 2000);
 }
 
+function getExtensionFromContentType(contentType, fallbackExt) {
+    var value = String(contentType || '').toLowerCase();
+    if (value.indexOf('audio/mpeg') >= 0) return 'mp3';
+    if (value.indexOf('audio/mp4') >= 0 || value.indexOf('audio/x-m4a') >= 0) return 'm4a';
+    if (value.indexOf('audio/webm') >= 0) return 'webm';
+    if (value.indexOf('video/mp4') >= 0) return 'mp4';
+    return fallbackExt;
+}
+
 async function generateAIPost() {
     var prompt = document.getElementById('ai-prompt').value;
     if (!prompt) { showToast('Iltimos mavzu kiriting!', 'error'); return; }
@@ -92,7 +101,8 @@ async function downloadM(videoId, title, btnEl) {
         var res = await apiFetch('/api/music/download/' + id + '?web=1', { headers: { 'x-bot-token': token } });
         if (!res.ok) { var err = await res.json().catch(function () { return {}; }); throw new Error(err.error || 'Yuklab olish muvaffaqiyatsiz'); }
         var blob = await res.blob();
-        triggerBrowserDownload(blob, (title || 'music') + '.m4a');
+        var ext = getExtensionFromContentType(res.headers.get('content-type'), 'm4a');
+        triggerBrowserDownload(blob, (title || 'music') + '.' + ext);
     } catch (e) { showToast('Xatolik: ' + e.message, 'error'); }
     finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-download"></i>'; } }
 }
