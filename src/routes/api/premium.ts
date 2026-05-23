@@ -33,15 +33,11 @@ export function registerPremiumRoutes(app: express.Application) {
       const invoice = await bot.createInvoiceLink(isYearly ? 'mateAssistent Premium (1 Year)' : 'mateAssistent Premium (1 Month)', 'Premium access', `premium_sub_${uid}${isYearly ? '_yearly' : ''}`, '', 'XTR', [{ label: 'Premium', amount: isYearly ? starsPrice * 10 : starsPrice }]);
       return res.json({ success: true, url: invoice, method: 'stars' });
     }
-    if (method === 'usdt') {
-      const req = await CryptoPaymentService.createRequest(uid, isYearly ? 'yearly' : 'monthly');
-      if (!req) return res.status(503).json({ error: 'USDT sozlanmagan. Admin TON_WALLET ni o\'rnatsin.' });
-      return res.json({ success: true, request: req, method: 'usdt' });
-    }
-    if (method === 'ton') {
-      const req = await CryptoPaymentService.createTonRequest(uid, isYearly ? 'yearly' : 'monthly');
-      if (!req) return res.status(503).json({ error: 'TON sozlanmagan. Admin TON_WALLET ni o\'rnatsin.' });
-      return res.json({ success: true, request: req, method: 'ton' });
+    if (method === 'usdt' || method === 'ton') {
+      const fn = method === 'usdt' ? CryptoPaymentService.createRequest : CryptoPaymentService.createTonRequest;
+      const req = await fn(uid, isYearly ? 'yearly' : 'monthly');
+      if (!req) return res.status(503).json({ error: 'Crypto wallet sozlanmagan. Admin TON_WALLET ni o\'rnatsin.' });
+      return res.json({ success: true, request: req, method });
     }
     res.status(400).json({ error: 'Unsupported method' });
   });

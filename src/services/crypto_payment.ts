@@ -5,7 +5,7 @@ import { CONFIG } from '../config/config';
 import { logger } from '../utils/logger';
 
 const PAYMENTS_FILE = path.join(process.cwd(), 'data', 'crypto_payments.json');
-const USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+const USDT_JETTON_MASTER = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCzRVZ5F2pD2v4TO';
 
 interface PaymentRequest {
   id: string;
@@ -22,9 +22,7 @@ interface PaymentRequest {
 
 function loadPayments(): PaymentRequest[] {
   try {
-    if (fs.existsSync(PAYMENTS_FILE)) {
-      return JSON.parse(fs.readFileSync(PAYMENTS_FILE, 'utf-8'));
-    }
+    if (fs.existsSync(PAYMENTS_FILE)) return JSON.parse(fs.readFileSync(PAYMENTS_FILE, 'utf-8'));
   } catch (e) { logger.error(`crypto_payments.json load: ${(e as Error).message}`); }
   return [];
 }
@@ -44,35 +42,36 @@ async function refreshPrices() {
   lastPriceFetch = Date.now();
   try {
     const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=toncoin,tether&vs_currencies=usd', { signal: AbortSignal.timeout(5000) });
-    if (r.ok) {
-      const d: any = await r.json();
-      if (d.toncoin?.usd) tonPriceUsdt = d.toncoin.usd;
-    }
+    if (r.ok) { const d: any = await r.json(); if (d.toncoin?.usd) tonPriceUsdt = d.toncoin.usd; }
   } catch {}
   try {
     const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD', { signal: AbortSignal.timeout(5000) });
-    if (r.ok) {
-      const d: any = await r.json();
-      if (d.rates?.UZS) usdtPrice = d.rates.UZS;
-    }
+    if (r.ok) { const d: any = await r.json(); if (d.rates?.UZS) usdtPrice = d.rates.UZS; }
   } catch {}
+}
+
+function apiHeaders(): Record<string, string> {
+  return CONFIG.TONCENTER_KEY ? { 'X-API-Key': CONFIG.TONCENTER_KEY } : {};
+}
+
+async function fetchJson(url: string): Promise<any> {
+  const r = await fetch(url, { headers: apiHeaders(), signal: AbortSignal.timeout(8000) });
+  if (!r.ok) return null;
+  return r.json();
 }
 
 export const CryptoPaymentService = {
   async createRequest(userId: number, plan: string): Promise<PaymentRequest | null> {
-    const currency = 'USDT';
-    if (!CONFIG.USDT_WALLET && !CONFIG.TON_WALLET) return null;
+    if (!CONFIG.TON_WALLET) return null;
     await refreshPrices();
     const isYearly = plan === 'yearly';
     const amountUZS = isYearly ? 250000 : 25000;
     const cryptoAmount = (amountUZS / usdtPrice).toFixed(2);
-    const walletAddress = CONFIG.USDT_WALLET;
     const id = crypto.randomBytes(4).toString('hex').toUpperCase();
     const payments = loadPayments();
     const req: PaymentRequest = {
-      id, userId, amountUZS, currency: 'USDT',
-      cryptoAmount, walletAddress,
-      memo: `MATE${id}`,
+      id, userId, amountUZS, currency: 'USDT', cryptoAmount,
+      walletAddress: CONFIG.TON_WALLET, memo: `MATE${id}`,
       status: 'pending', createdAt: Date.now(), plan
     };
     payments.push(req);
@@ -89,9 +88,8 @@ export const CryptoPaymentService = {
     const id = crypto.randomBytes(4).toString('hex').toUpperCase();
     const payments = loadPayments();
     const req: PaymentRequest = {
-      id, userId, amountUZS, currency: 'TON',
-      cryptoAmount, walletAddress: CONFIG.TON_WALLET,
-      memo: `MATE${id}`,
+      id, userId, amountUZS, currency: 'TON', cryptoAmount,
+      walletAddress: CONFIG.TON_WALLET, memo: `MATE${id}`,
       status: 'pending', createdAt: Date.now(), plan
     };
     payments.push(req);
@@ -101,10 +99,6 @@ export const CryptoPaymentService = {
 
   getRequest(id: string): PaymentRequest | null {
     return loadPayments().find(p => p.id === id) || null;
-  },
-
-  getUserPendingRequests(userId: number): PaymentRequest[] {
-    return loadPayments().filter(p => p.userId === userId && p.status === 'pending');
   },
 
   async verifyPayment(id: string): Promise<'paid' | 'pending' | 'not_found'> {
@@ -119,7 +113,7 @@ export const CryptoPaymentService = {
     }
     const found = req.currency === 'TON'
       ? await checkTonTransaction(req)
-      : await checkUsdtTransaction(req);
+      : await checkUsdtJettonTransaction(req);
     if (found) {
       req.status = 'paid';
       savePayments(payments);
@@ -128,19 +122,10 @@ export const CryptoPaymentService = {
     return 'pending';
   },
 
-  markPaid(id: string): boolean {
-    const payments = loadPayments();
-    const req = payments.find(p => p.id === id);
-    if (!req || req.status === 'paid') return false;
-    req.status = 'paid';
-    savePayments(payments);
-    return true;
-  },
-
   getAvailableMethods() {
     return {
       stars: true,
-      usdt: !!CONFIG.USDT_WALLET,
+      usdt: !!CONFIG.TON_WALLET,
       ton: !!CONFIG.TON_WALLET,
     };
   }
@@ -148,13 +133,8 @@ export const CryptoPaymentService = {
 
 async function checkTonTransaction(req: PaymentRequest): Promise<boolean> {
   try {
-    const url = `https://toncenter.com/api/v2/getTransactions?address=${req.walletAddress}&limit=30`;
-    const headers: Record<string, string> = {};
-    if (CONFIG.TONCENTER_KEY) headers['X-API-Key'] = CONFIG.TONCENTER_KEY;
-    const r = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return false;
-    const data: any = await r.json();
-    if (!data.ok || !data.result) return false;
+    const data = await fetchJson(`https://toncenter.com/api/v2/getTransactions?address=${req.walletAddress}&limit=30`);
+    if (!data?.ok || !data.result) return false;
     for (const tx of data.result) {
       const msg = tx.in_msg;
       if (!msg || !msg.message || msg.destination !== req.walletAddress) continue;
@@ -165,30 +145,24 @@ async function checkTonTransaction(req: PaymentRequest): Promise<boolean> {
         if (Math.abs(value - expected) / expected < 0.05) return true;
       }
     }
-  } catch (e) { logger.warn(`TON check error: ${(e as Error).message}`); }
+  } catch (e) { logger.warn(`TON tx check: ${(e as Error).message}`); }
   return false;
 }
 
-async function checkUsdtTransaction(req: PaymentRequest): Promise<boolean> {
+async function checkUsdtJettonTransaction(req: PaymentRequest): Promise<boolean> {
   try {
-    const url = `https://api.trongrid.io/v1/accounts/${req.walletAddress}/transactions/trc20?limit=30&contract_address=${USDT_CONTRACT}&only_to=true`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return false;
-    const data: any = await r.json();
-    if (!data.data?.length) return false;
-    for (const tx of data.data) {
-      const value = parseFloat(tx.value) / 1e6;
-      const expected = parseFloat(req.cryptoAmount);
-      if (Math.abs(value - expected) / expected < 0.05) {
-        const txInfo = await fetch(`https://api.trongrid.io/v1/transactions/${tx.transaction_id}/events`, { signal: AbortSignal.timeout(5000) });
-        if (txInfo.ok) {
-          const events: any = await txInfo.json();
-          for (const ev of (events.data || [])) {
-            if (ev.result?.memo?.includes(req.memo)) return true;
-          }
-        }
+    const data = await fetchJson(
+      `https://toncenter.com/api/v2/getJettonTransfers?address=${req.walletAddress}&jetton_master=${USDT_JETTON_MASTER}&limit=30`
+    );
+    if (!data?.ok || !data.result) return false;
+    for (const tx of data.result) {
+      if (tx.to !== req.walletAddress) continue;
+      if (tx.comment?.trim() === req.memo) {
+        const value = parseFloat(tx.amount) / 1e6;
+        const expected = parseFloat(req.cryptoAmount);
+        if (Math.abs(value - expected) / expected < 0.05) return true;
       }
     }
-  } catch (e) { logger.warn(`USDT check error: ${(e as Error).message}`); }
+  } catch (e) { logger.warn(`USDT Jetton check: ${(e as Error).message}`); }
   return false;
 }
