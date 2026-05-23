@@ -14,12 +14,9 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
 WORKDIR /app
 
 COPY package*.json ./
-# BUG #150 Fix: Use npm ci for deterministic builds
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY . .
-# BUG #150 Fix: Install yt-dlp via script during build
-RUN node scripts/install-ytdlp.js
 RUN npm run build
 
 EXPOSE 3000
