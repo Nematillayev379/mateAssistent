@@ -43,3 +43,8 @@ downloads/
 .idea/
 *.swp
 *.swo
+*.swn
+
+# Active bug docs — should not be in repo
+FIX_INSTRUCTIONS.md
+FIX_INSTRUCTIONS*.md
