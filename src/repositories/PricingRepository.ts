@@ -53,7 +53,7 @@ export const ScheduleRepository = {
 
   async getPending() {
     const now = new Date().toISOString();
-    const { data, error } = await getSupabase().from('scheduled_posts').select('*').in('status', ['pending', 'failed']).lte('scheduled_at', now);
+    const { data, error } = await getSupabase().from('scheduled_posts').select('*').eq('status', 'pending').lte('scheduled_at', now);
     if (error) logger.error(`getPendingScheduledPosts error: ${error.message}`);
     return data || [];
   },

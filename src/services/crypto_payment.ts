@@ -34,8 +34,9 @@ function mapPaymentRecord(record: any): PaymentRequest | null {
 }
 
 let usdtPrice = 12800;
-let tonPriceUsdt = 5;
+let tonPriceUsdt = 6;
 let lastPriceFetch = 0;
+let priceFetchPromise: Promise<void> | null = null;
 
 function normalizeMemo(value: string): string {
   return value.replace(/\0/g, '').replace(/\s+/g, ' ').trim();
@@ -101,7 +102,7 @@ function memoMatches(candidateValues: Iterable<string>, expectedMemo: string): b
 
 function isAmountMatch(actual: number, expected: number): boolean {
   if (!Number.isFinite(actual) || !Number.isFinite(expected) || expected <= 0) return false;
-  return Math.abs(actual - expected) / expected < 0.05;
+  return Math.abs(actual - expected) / expected < 0.15;
 }
 
 function appendQuery(url: string, params: Record<string, string | number | undefined>): string {
@@ -115,17 +116,29 @@ function appendQuery(url: string, params: Record<string, string | number | undef
 
 async function refreshPrices() {
   if (Date.now() - lastPriceFetch < 300000) return;
-  lastPriceFetch = Date.now();
-  try {
-    const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=toncoin,tether&vs_currencies=usd', { signal: AbortSignal.timeout(5000) });
-    if (r.ok) { const d: any = await r.json(); if (d.toncoin?.usd) tonPriceUsdt = d.toncoin.usd; }
-  } catch {}
-  for (const url of ['https://api.exchangerate-api.com/v4/latest/USD', 'https://open.er-api.com/v6/latest/USD']) {
+  if (priceFetchPromise) return priceFetchPromise;
+  priceFetchPromise = (async () => {
+    const now = Date.now();
     try {
-      const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (r.ok) { const d: any = await r.json(); if (d.rates?.UZS) { usdtPrice = d.rates.UZS; break; } }
+      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=toncoin,tether&vs_currencies=usd', { signal: AbortSignal.timeout(5000) });
+      if (r.ok) { const d: any = await r.json(); if (d.toncoin?.usd) tonPriceUsdt = d.toncoin.usd; }
     } catch {}
-  }
+    if (!tonPriceUsdt || tonPriceUsdt === 6) {
+      try {
+        const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT', { signal: AbortSignal.timeout(5000) });
+        if (r.ok) { const d: any = await r.json(); if (d.price) tonPriceUsdt = parseFloat(d.price); }
+      } catch {}
+    }
+    for (const url of ['https://api.exchangerate-api.com/v4/latest/USD', 'https://open.er-api.com/v6/latest/USD']) {
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        if (r.ok) { const d: any = await r.json(); if (d.rates?.UZS) { usdtPrice = d.rates.UZS; break; } }
+      } catch {}
+    }
+    lastPriceFetch = now;
+    priceFetchPromise = null;
+  })();
+  return priceFetchPromise;
 }
 
 // Fetch prices on startup so fallback is never stale
@@ -242,12 +255,18 @@ async function checkTonTransaction(req: PaymentRequest): Promise<boolean> {
       const msg = tx?.in_msg;
       if (!msg || msg.destination !== req.walletAddress) continue;
 
+      const mc = msg.message_content || {};
       const candidates = collectStringLeaves([
         msg.message,
-        msg.message_content?.body,
-        msg.message_content?.decoded,
+        mc.body,
+        mc.decoded,
+        mc.body && typeof mc.body === 'string' && mc.body.startsWith('te6cc') ? mc.body : null,
         msg.decoded_opcode,
       ]);
+      if (!candidates.size && mc.body && typeof mc.body === 'string') {
+        const raw = mc.body.replace(/\0/g, '').trim();
+        if (raw) candidates.add(raw);
+      }
 
       if (memoMatches(candidates, req.memo)) {
         const value = parseFloat(msg.value) / 1e9;
@@ -261,32 +280,37 @@ async function checkTonTransaction(req: PaymentRequest): Promise<boolean> {
 
 async function checkUsdtJettonTransaction(req: PaymentRequest): Promise<boolean> {
   try {
-    const data = await fetchJson(appendQuery('https://toncenter.com/api/v3/jetton/transfers', {
-      owner_address: req.walletAddress,
-      jetton_master: USDT_JETTON_MASTER,
-      direction: 'in',
+    const data = await fetchJson(appendQuery('https://toncenter.com/api/v3/events', {
+      account: req.walletAddress,
       limit: 30,
       sort: 'desc',
       start_utime: Math.floor(req.createdAt / 1000) - 300,
     }));
-    const transfers = data?.jetton_transfers;
-    if (!Array.isArray(transfers)) return false;
+    const events = data?.events;
+    if (!Array.isArray(events)) return false;
 
-    for (const tx of transfers) {
-      if (tx.transaction_aborted) continue;
+    for (const event of events) {
+      const actions = event?.actions;
+      if (!Array.isArray(actions)) continue;
+      for (const action of actions) {
+        const transfer = action?.TonTransfer || action?.JettonTransfer || action?.JettonSwap;
+        if (!transfer || transfer.amount === undefined) continue;
+        const isUsdt = action.type === 'JettonTransfer' || action.type === 'JettonSwap';
+        if (!isUsdt) continue;
 
-      const candidates = collectStringLeaves([
-        tx.comment,
-        tx.forward_payload,
-        tx.custom_payload,
-        tx.decoded_forward_payload,
-        tx.decoded_custom_payload,
-      ]);
+        const candidates = collectStringLeaves([
+          transfer.comment,
+          transfer.forward_payload,
+          transfer.custom_payload,
+          action.details?.comment,
+          action.details?.memo,
+        ]);
 
-      if (memoMatches(candidates, req.memo)) {
-        const value = parseFloat(tx.amount) / 1e6;
-        const expected = parseFloat(req.cryptoAmount);
-        if (isAmountMatch(value, expected)) return true;
+        if (memoMatches(candidates, req.memo)) {
+          const value = parseFloat(transfer.amount) / 1e6;
+          const expected = parseFloat(req.cryptoAmount);
+          if (isAmountMatch(value, expected)) return true;
+        }
       }
     }
   } catch (e) { logger.warn(`USDT Jetton check: ${(e as Error).message}`); }

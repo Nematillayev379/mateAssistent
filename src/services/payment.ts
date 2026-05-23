@@ -85,7 +85,12 @@ export const PaymentService = {
     const rawUserId = data.params?.account?.user_id;
     let parsedUserId: number;
     if (typeof rawUserId === 'object' && rawUserId !== null) {
-      parsedUserId = parseInt(String(rawUserId.user_id || rawUserId.id || 0));
+      const nested = rawUserId.user_id || rawUserId.id;
+      if (nested) {
+        parsedUserId = parseInt(String(nested));
+      } else {
+        parsedUserId = 0;
+      }
     } else if (rawUserId !== undefined && rawUserId !== null) {
       parsedUserId = parseInt(String(rawUserId));
     } else {
@@ -117,31 +122,22 @@ export const PaymentService = {
         const requestedDays = parseInt(String(data.params?.account?.days || 30), 10);
         const days = Number.isNaN(requestedDays) ? 30 : (requestedDays >= 365 ? 365 : 30);
         let tx = await getTx(txId);
-        if (tx && tx.state === 1) {
-          tx.state = 2;
-          tx.perform_time = Math.floor(Date.now() / 1000);
-          tx.user_id = parsedUserId;
-          tx.days = days;
-          tx.amount = Number(data.params?.amount || 0) / 100;
-          tx.provider = 'payme';
-          await saveTx(txId, tx);
-          await DBService.setPremium(parsedUserId, days);
-          logger.info(`✅ Payme: Premium activated for user ${parsedUserId} (${days} days)`);
-        } else if (!tx) {
-          tx = {
-            state: 2,
-            create_time: Math.floor(Date.now() / 1000),
-            perform_time: Math.floor(Date.now() / 1000),
-            cancel_time: 0,
-            user_id: parsedUserId,
-            days,
-            amount: Number(data.params?.amount || 0) / 100,
-            provider: 'payme',
-          };
-          await saveTx(txId, tx);
-          await DBService.setPremium(parsedUserId, days);
-          logger.info(`✅ Payme: Premium activated for user ${parsedUserId} (${days} days)`);
+        if (tx && tx.state === 2) {
+          return { ...baseResult, result: { transaction: { id: txId, create_time: tx.create_time, perform_time: tx.perform_time, cancel_time: 0, state: 2 } } };
         }
+        if (!tx) {
+          tx = { state: 1, create_time: Math.floor(Date.now() / 1000), perform_time: 0, cancel_time: 0 };
+          await saveTx(txId, tx);
+        }
+        tx.state = 2;
+        tx.perform_time = Math.floor(Date.now() / 1000);
+        tx.user_id = parsedUserId;
+        tx.days = days;
+        tx.amount = Number(data.params?.amount || 0) / 100;
+        tx.provider = 'payme';
+        await saveTx(txId, tx);
+        await DBService.setPremium(parsedUserId, days);
+        logger.info(`✅ Payme: Premium activated for user ${parsedUserId} (${days} days)`);
         return { ...baseResult, result: { transaction: { id: txId, create_time: tx.create_time, perform_time: tx.perform_time, cancel_time: 0, state: 2 } } };
       }
       case 'CheckTransaction': {

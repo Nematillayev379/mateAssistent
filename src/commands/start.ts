@@ -188,7 +188,8 @@ export const startCommand: BotCommand = {
             logger.info(`New referral: ${chatId} invited by ${referrer.telegram_id}, 3d premium granted`);
             try {
               const refCount = (await DBService.getReferralStats(referrer.telegram_id)).active;
-              const msg = `🎉 ${referrer.telegram_id === chatId ? '' : 'Someone joined via your link!'}\nActive referrals: ${refCount}`;
+              const refLang = referrer.language || 'en';
+              const msg = `🎉 ${i18n.t('referral_joined', { lng: refLang })}\n${i18n.t('referral_active_count', { lng: refLang })} ${refCount}`;
               if (refCount > 0 && refCount % 10 === 0) {
                 await DBService.checkAndGivePremium(referrer.telegram_id);
               }
