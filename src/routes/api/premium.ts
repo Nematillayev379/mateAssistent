@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { PaymentService } from '../../services/payment';
@@ -7,6 +8,8 @@ import { logger } from '../../utils/logger';
 import { checkAuth } from '../../middleware/auth';
 
 export function registerPremiumRoutes(app: express.Application) {
+  const buyLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: 'Too many purchase attempts.' } });
+  const claimLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { error: 'Too many claim attempts.' } });
   app.get('/api/payments/methods', checkAuth, async (req: any, res: any) => {
     res.json(CryptoPaymentService.getAvailableMethods());
   });
@@ -22,7 +25,7 @@ export function registerPremiumRoutes(app: express.Application) {
     res.json({ monthlyPrice: priceMonthly, yearlyPrice: priceYearly, starsPrice, starsYearlyPrice: starsPrice * 10, isActive, expiresAt, benefits: ['10 ta RSS manba', 'Cheksiz kanal monitoring', 'Cheksiz schedule post', 'AI prioritet (30/min)', 'Kunlik digest', 'Premium badge va oltin tema'] });
   });
 
-  app.post('/api/premium/buy', checkAuth, async (req: any, res: any) => {
+  app.post('/api/premium/buy', buyLimiter, checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId);
     const { method, plan } = req.body;
     const isYearly = plan === 'yearly';
@@ -69,7 +72,7 @@ export function registerPremiumRoutes(app: express.Application) {
     res.json({ status: result });
   });
 
-  app.post('/api/premium/wallet-claim', checkAuth, async (req: any, res: any) => {
+  app.post('/api/premium/wallet-claim', claimLimiter, checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId);
     const { walletAddress } = req.body;
     const normalizedWalletAddress = typeof walletAddress === 'string' ? walletAddress.trim() : '';
@@ -108,5 +111,25 @@ export function registerPremiumRoutes(app: express.Application) {
 
     logger.info(`TON wallet premium granted: user ${uid}, wallet ${normalizedWalletAddress.slice(0, 8)}...`);
     res.json({ success: true, days: claim.bonus_days, message: '7-day premium granted for connecting your wallet!' });
+  });
+
+  // ── Affiliate Dashboard ──
+  app.get('/api/affiliate', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const stats = await DBService.getReferralStats(uid);
+    const code = await DBService.ensureReferralCode(uid);
+    const user = await DBService.getUser(uid);
+    const botUsername = process.env.BOT_USERNAME || 'bot';
+    const refLink = code ? `https://t.me/${botUsername}?start=ref_${code}` : null;
+    res.json({
+      code,
+      link: refLink,
+      total: stats.total,
+      active: stats.active,
+      needed: stats.needed,
+      premiumCount: user?.referral_count || 0,
+      rewardPerActive: 10,
+      daysPerReward: 30,
+    });
   });
 }

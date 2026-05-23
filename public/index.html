@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>mateAssistent Web3 Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preload" href="/css/dashboard.css" as="style">
+    <link rel="preload" href="/js/i18n-client.js" as="script">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="/js/i18n-client.js"></script>
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js" defer></script>
     <link rel="stylesheet" href="/css/dashboard.css">
 </head>
 <body>
@@ -293,6 +297,8 @@
                             <option value="ja">Japanese</option>
                             <option value="ko">Korean</option>
                             <option value="fa">Persian</option>
+                            <option value="kk">Kazakh</option>
+                            <option value="az">Azerbaijani</option>
                         </select>
                     </div>
                     <button class="btn btn-primary" onclick="saveSettings()">Tilni saqlash</button>
@@ -406,15 +412,30 @@
                     <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadTrends(true)">Yangilash (Google Trends)</button>
                 </div>
 
+                <!-- Workspaces -->
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-layer-group"></i> <span data-i18n="workspaces">Workspaces</span></div>
+                    <div id="workspace-list">
+                        <p style="color: var(--secondary); font-size:0.85rem;">Yuklanmoqda...</p>
+                    </div>
+                    <div class="input-group" style="margin-top:10px;">
+                        <input type="text" id="new-workspace-name" placeholder="New workspace name...">
+                        <button class="btn btn-primary" style="margin-top:6px;" onclick="createWorkspace()"><i class="fas fa-plus"></i> Qo'shish</button>
+                    </div>
+                </div>
+
                 <!-- Premium Status -->
                 <div class="card">
                     <div class="card-title"><i class="fas fa-crown"></i> <span data-i18n="premium_status">Premium status</span></div>
                     <div id="premium-status">Yuklanmoqda...</div>
                 </div>
 
-                <div class="card">
-                    <div class="card-title"><i class="fas fa-gift"></i> <span data-i18n="referral_system">Referral System</span></div>
-                    <div id="referral-info"></div>
+                <div class="card" style="border: 1px solid var(--gold); background: rgba(245, 158, 11, 0.03);">
+                    <div class="card-title" style="color:var(--gold);"><i class="fas fa-gift"></i> <span data-i18n="affiliate_dashboard">Affiliate Dashboard</span></div>
+                    <div id="affiliate-info" style="font-size:0.85rem;color:var(--secondary);line-height:1.6;">
+                        <p>Yuklanmoqda...</p>
+                    </div>
+                    <div id="referral-info" style="display:none;"></div>
                     <button class="btn btn-ghost" style="margin-top: 15px;" onclick="copyReferralLink()">Havolani nusxalash</button>
                 </div>
 
@@ -497,6 +518,10 @@
                     <div class="input-group">
                         <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Yillik Premium Narxi (UZS)</label>
                         <input type="number" id="admin-yearly-price" placeholder="250000">
+                    </div>
+                    <div class="input-group" style="flex-direction:row;align-items:center;gap:10px;">
+                        <input type="checkbox" id="admin-require-approval" style="width:18px;height:18px;">
+                        <label for="admin-require-approval" style="font-size:0.85rem;">Yangi foydalanuvchilar tasdiqlashni talab qilsin</label>
                     </div>
                     <button class="btn btn-primary" onclick="saveAdminSettings()">Saqlash</button>
                 </div>

@@ -31,4 +31,29 @@ export const WorkspaceRepository = {
     if (error) { logger.error(`removeWorkspaceChannel error: ${error.message}`); return false; }
     return true;
   },
+
+  // ── Team Members ──
+  async getMembers(workspaceId: number): Promise<any[]> {
+    const { data, error } = await getSupabase().from('workspace_members').select('*').eq('workspace_id', workspaceId);
+    if (error) { logger.error(`getWorkspaceMembers error: ${error.message}`); return []; }
+    return data || [];
+  },
+
+  async addMember(workspaceId: number, userId: number, role: string = 'editor'): Promise<boolean> {
+    const { error } = await getSupabase().from('workspace_members').insert({ workspace_id: workspaceId, user_id: userId, role });
+    if (error) { logger.error(`addWorkspaceMember error: ${error.message}`); return false; }
+    return true;
+  },
+
+  async removeMember(workspaceId: number, userId: number): Promise<boolean> {
+    const { error } = await getSupabase().from('workspace_members').delete().eq('workspace_id', workspaceId).eq('user_id', userId);
+    if (error) { logger.error(`removeWorkspaceMember error: ${error.message}`); return false; }
+    return true;
+  },
+
+  async updateMemberRole(workspaceId: number, userId: number, role: string): Promise<boolean> {
+    const { error } = await getSupabase().from('workspace_members').update({ role }).eq('workspace_id', workspaceId).eq('user_id', userId);
+    if (error) { logger.error(`updateWorkspaceMemberRole error: ${error.message}`); return false; }
+    return true;
+  },
 };

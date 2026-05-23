@@ -11,6 +11,8 @@ import { registerChannelsRoutes } from './api/channels';
 import { registerContentRoutes } from './api/content';
 import { registerPremiumRoutes } from './api/premium';
 import { registerSystemRoutes } from './api/system';
+import { registerWorkspaceRoutes } from './api/workspace';
+import { registerPublicApiRoutes } from './api/public_api';
 
 export function registerRoutes(app: express.Application) {
   const apiLimiter = rateLimit({
@@ -31,4 +33,6 @@ export function registerRoutes(app: express.Application) {
   registerContentRoutes(app);
   registerPremiumRoutes(app);
   registerSystemRoutes(app);
+  registerWorkspaceRoutes(app);
+  registerPublicApiRoutes(app);
 }

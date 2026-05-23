@@ -15,7 +15,10 @@ import { startWorkers } from "./workers";
 import { setupRSSCron } from "./crons/rss_cron";
 import { setupSystemCrons } from "./crons";
 import { resolveYtDlpPath } from './utils/ytdlp';
+import { initSentry, captureError } from './services/sentry';
 import pkg from '../package.json';
+
+initSentry();
 
 async function bootstrap() {
   process.stdout.write(`[BOOT] bootstrap() started, elapsed ${Date.now() - _startTime}ms\n`);
@@ -61,6 +64,7 @@ async function bootstrap() {
       bot.sendMessage(CONFIG.OWNER_ID, `✅ Bot started\nVersion: ${pkg.version}\nUptime: ${Math.round(process.uptime())}s`).catch(() => {});
     }
   } catch (err: any) {
+    captureError(err, { type: 'bootstrap' });
     process.stderr.write(`[BOOT] Fatal: ${err.message}\n${err.stack}\n`);
     logger.error(`Fatal Initialization Error: ${err.message}`);
     process.exit(1);
@@ -74,12 +78,14 @@ bootstrap().catch(err => {
 
 // Global error handlers
 process.on("uncaughtException", (err) => {
+  captureError(err, { type: 'uncaughtException' });
   process.stderr.write(`[FATAL] Uncaught Exception: ${err.message}\n${err.stack}\n`);
   logger.error(`🔥 Uncaught Exception: ${err.message}`);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason: any) => {
+  captureError(reason instanceof Error ? reason : new Error(String(reason)), { type: 'unhandledRejection' });
   process.stderr.write(`[FATAL] Unhandled Rejection: ${reason?.message || reason}\n`);
   logger.error(`🌐 Unhandled Rejection: ${reason?.message || reason}`);
 });

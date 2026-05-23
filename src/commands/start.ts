@@ -210,9 +210,16 @@ export const startCommand: BotCommand = {
       user.role = "owner";
     }
 
-    if (!user.is_approved && !isOwner && user.role !== "admin" && user.role !== "owner") {
+    const requireApproval = (await DBService.getSetting('require_approval')) === '1';
+    if (!requireApproval && !user.is_approved && !isOwner && user.role !== "admin" && user.role !== "owner") {
       await DBService.updateUser(chatId, { is_approved: 1 }).catch(() => {});
       user.is_approved = 1;
+    }
+    if (requireApproval && !user.is_approved && !isOwner && user.role !== "admin" && user.role !== "owner") {
+      try {
+        await bot.sendMessage(chatId, "⏳ Siz hali tasdiqlanmadingiz. Admin tasdiqlashini kuting.");
+      } catch {}
+      return;
     }
 
     await sendNextOnboardingStep(bot, chatId, user);

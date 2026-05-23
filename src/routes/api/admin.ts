@@ -19,14 +19,20 @@ export function registerAdminRoutes(app: express.Application) {
   });
 
   app.get('/api/admin/settings', checkAdmin, async (req, res) => {
-    res.json({ premium_stars_price: await DBService.getSetting('premium_stars_price') || '500', price_monthly: await DBService.getPrice('monthly'), price_yearly: await DBService.getPrice('yearly') });
+    res.json({
+      premium_stars_price: await DBService.getSetting('premium_stars_price') || '500',
+      price_monthly: await DBService.getPrice('monthly'),
+      price_yearly: await DBService.getPrice('yearly'),
+      require_approval: (await DBService.getSetting('require_approval')) !== '0',
+    });
   });
 
   app.post('/api/admin/settings', checkAdmin, async (req, res) => {
-    const { premium_stars_price, price_monthly, price_yearly } = req.body;
+    const { premium_stars_price, price_monthly, price_yearly, require_approval } = req.body;
     if (premium_stars_price) await DBService.setSetting('premium_stars_price', String(premium_stars_price));
     if (price_monthly) await DBService.setPrice('monthly', Number(price_monthly));
     if (price_yearly) await DBService.setPrice('yearly', Number(price_yearly));
+    if (require_approval !== undefined) await DBService.setSetting('require_approval', require_approval ? '1' : '0');
     res.json({ success: true });
   });
 

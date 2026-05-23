@@ -37,11 +37,11 @@ export const ApiKeyRepository = {
   },
 
   async getValid() {
-    const { data, error } = await getSupabase().from('api_keys').select('api_key, api_type').eq('is_active', true);
+    const { data, error } = await getSupabase().from('api_keys').select('api_key, api_type, user_id').eq('is_active', true);
     if (error) { logger.error(`getValidApiKeys error: ${error.message}`); return []; }
     return (data || []).map(k => {
-      try { return { key: decrypt(k.api_key), type: k.api_type }; }
-      catch { return { key: k.api_key, type: k.api_type }; }
+      try { return { key: decrypt(k.api_key), type: k.api_type, user_id: k.user_id }; }
+      catch { return { key: k.api_key, type: k.api_type, user_id: k.user_id }; }
     });
   },
 

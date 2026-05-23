@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@andresaya/edge-tts": "^1.8.0",
+    "@sentry/node": "^10.53.1",
     "@supabase/supabase-js": "^2.105.4",
     "axios": "^1.9.0",
     "axios-cookiejar-support": "^6.0.5",

@@ -447,6 +447,8 @@ function renderUI() {
             } else sch.innerHTML = `<p style="color:var(--secondary); font-size:0.8rem">${tt('home_no_scheduled', 'Navbatda postlar yo\'q.')}</p>`;
 
             fetchSources();
+            loadWorkspaces();
+            loadAffiliateInfo();
             if (window.WebAppI18n) {
                 WebAppI18n.init(u.language || localStorage.getItem('webapp_lang') || 'uz');
                 WebAppI18n.apply();
@@ -1010,6 +1012,72 @@ function renderUI() {
             if (link) { navigator.clipboard.writeText(link); showToast('Havola nusxalandi!', 'success'); }
         }
 
+        async function loadAffiliateInfo() {
+            try {
+                const r = await apiFetch('/api/affiliate', { headers: { 'x-bot-token': token } });
+                const d = await r.json();
+                const el = document.getElementById('affiliate-info');
+                if (!el) return;
+                if (d.link) {
+                    el.innerHTML = '<div class="item-row"><span>' + (typeof t === 'function' ? t('referral_total') : 'Jami') + '</span><span>' + escapeHtml(d.total) + '</span></div>' +
+                        '<div class="item-row"><span>' + (typeof t === 'function' ? t('referral_active') : 'Aktiv') + '</span><span>' + escapeHtml(d.active) + '</span></div>' +
+                        '<div class="item-row"><span>' + (typeof t === 'function' ? t('referral_rewards') : 'Mukofotlar') + '</span><span>' + escapeHtml(d.premiumCount) + '</span></div>' +
+                        '<div style="margin-top:8px;font-size:0.75rem;color:var(--gold);"><b>Har ' + escapeHtml(d.rewardPerActive) + ' ta aktiv referalga ' + escapeHtml(d.daysPerReward) + ' kun Premium</b></div>' +
+                        '<div style="margin-top:6px;font-size:0.75rem;word-break:break-all;"><code>' + escapeHtml(d.link) + '</code></div>';
+                    const refInfo = document.getElementById('referral-info');
+                    if (refInfo) {
+                        refInfo.innerHTML = '<div class="item-row"><span>' + (typeof t === 'function' ? t('referral_total') : 'Jami') + '</span><span>' + escapeHtml(d.total) + '</span></div>' +
+                            '<div class="item-row"><span>' + (typeof t === 'function' ? t('referral_active') : 'Aktiv') + '</span><span>' + escapeHtml(d.active) + '</span></div>' +
+                            '<div class="item-row"><span>' + (typeof t === 'function' ? t('referral_needed') : 'Premiumgacha') + '</span><span>' + escapeHtml(d.needed) + '</span></div>';
+                    }
+                } else {
+                    el.innerHTML = '<p style="color:var(--secondary);">' + (typeof t === 'function' ? t('referral_not_found') : 'Referral kodi topilmadi') + '</p>';
+                }
+            } catch (e) { showToast('Affiliate ma\'lumot yuklanmadi', 'error'); }
+        }
+
+        async function loadWorkspaces() {
+            try {
+                const r = await apiFetch('/api/workspaces', { headers: { 'x-bot-token': token } });
+                const workspaces = await r.json();
+                const el = document.getElementById('workspace-list');
+                if (!el) return;
+                if (!Array.isArray(workspaces) || workspaces.length === 0) {
+                    el.innerHTML = '<p style="color:var(--secondary);font-size:0.85rem;">' + (typeof t === 'function' ? t('no_workspaces') : 'Hozircha workspace lar yo\'q') + '</p>';
+                    return;
+                }
+                let html = '';
+                for (const ws of workspaces) {
+                    const chCount = (ws.channels || []).length;
+                    const mCount = (ws.members || []).length;
+                    html += '<div style="background:rgba(255,255,255,0.03);padding:10px;border-radius:8px;margin-bottom:8px;font-size:0.85rem;">' +
+                        '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                        '<b>' + escapeHtml(ws.name) + '</b>' +
+                        '<button class="btn btn-ghost" style="padding:2px 8px;font-size:0.75rem;" onclick="deleteWorkspace(' + ws.id + ')"><i class="fas fa-trash"></i></button></div>' +
+                        '<div style="color:var(--secondary);margin-top:4px;">' + chCount + ' kanal, ' + mCount + ' a\'zo</div></div>';
+                }
+                el.innerHTML = html;
+            } catch (e) { /* ignore */ }
+        }
+
+        async function createWorkspace() {
+            const name = document.getElementById('new-workspace-name')?.value?.trim();
+            if (!name) { showToast('Workspace nomini kiriting', 'error'); return; }
+            const r = await apiFetch('/api/workspaces', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const d = await r.json();
+            if (d.success) { showToast('Workspace yaratildi!', 'success'); document.getElementById('new-workspace-name').value = ''; loadWorkspaces(); }
+            else { showToast(d.error || 'Xatolik', 'error'); }
+        }
+
+        async function deleteWorkspace(id) {
+            if (!confirm('Workspace ni o\'chirishni xohlaysizmi?')) return;
+            const r = await apiFetch('/api/workspaces/' + id, { method: 'DELETE' });
+            if (r.ok) { showToast('Workspace o\'chirildi', 'success'); loadWorkspaces(); }
+        }
+
         async function fetchPremiumStatus() {
             if (!userData || !userData.user) return;
             const u = userData.user;
@@ -1201,7 +1269,8 @@ function renderUI() {
             const starsPrice = document.getElementById('admin-stars-price').value;
             const monthlyPrice = document.getElementById('admin-monthly-price')?.value;
             const yearlyPrice = document.getElementById('admin-yearly-price')?.value;
-            const res = await apiFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ premium_stars_price: starsPrice, price_monthly: monthlyPrice, price_yearly: yearlyPrice }) });
+            const requireApproval = document.getElementById('admin-require-approval')?.checked;
+            const res = await apiFetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ premium_stars_price: starsPrice, price_monthly: monthlyPrice, price_yearly: yearlyPrice, require_approval: requireApproval }) });
             if (res.ok) showToast('Sozlamalar saqlandi!', 'success');
         }
 
@@ -1212,9 +1281,11 @@ function renderUI() {
                 const starsInput = document.getElementById('admin-stars-price');
                 const monthlyInput = document.getElementById('admin-monthly-price');
                 const yearlyInput = document.getElementById('admin-yearly-price');
+                const requireApproval = document.getElementById('admin-require-approval');
                 if (starsInput) starsInput.value = data.premium_stars_price || '';
                 if (monthlyInput) monthlyInput.value = data.price_monthly || '';
                 if (yearlyInput) yearlyInput.value = data.price_yearly || '';
+                if (requireApproval) requireApproval.checked = data.require_approval === true;
             }
         }
 

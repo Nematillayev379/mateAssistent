@@ -206,7 +206,7 @@ const ru = {
 };
 
 const shortSets: Record<string, Record<string, string>> = {
-  tr: { settings: "Ayarlar", status: "İstatistikler", menu_help: "Yardım", menu_sources: "Kaynaklar", menu_intro: "Bot Hakkında" },
+  tr: { settings: "Ayarlar", status: "İstatistikler", menu_help: "Yardım", menu_sources: "Kaynaklar", menu_intro: "Bot Hakkında", menu_dashboard: "Panel", menu_studio: "AI Stüdyo", menu_channel: "Kanal", menu_automation: "Otomasyon", menu_analytics: "Analitik", menu_admin: "Yönetici", menu_buy_premium: "Premium Satın Al", menu_referral: "Referans", daily_digest_header: "Günlük Haber Özeti", welcome_user: "mateAssistent botuna hoş geldiniz.", onboarding_menu_ready: "Kurulum tamamlandı. Panel ve bot araçları hazır." },
   de: { settings: "Einstellungen", status: "Statistiken", menu_help: "Hilfe", menu_sources: "Quellen", menu_intro: "Über Bot" },
   fr: { settings: "Paramètres", status: "Statistiques", menu_help: "Aide", menu_sources: "Sources", menu_intro: "À propos" },
   es: { settings: "Ajustes", status: "Estadísticas", menu_help: "Ayuda", menu_sources: "Fuentes", menu_intro: "Sobre el Bot" },
@@ -218,6 +218,8 @@ const shortSets: Record<string, Record<string, string>> = {
   ja: { settings: "設定", status: "統計", menu_help: "ヘルプ", menu_sources: "ソース", menu_intro: "ボットについて" },
   ko: { settings: "설정", status: "통계", menu_help: "도움말", menu_sources: "소스", menu_intro: "봇 소개" },
   fa: { settings: "تنظیمات", status: "آمار", menu_help: "راهنما", menu_sources: "منابع", menu_intro: "درباره ربات" },
+  kk: { settings: "Баптаулар", status: "Статистика", menu_help: "Көмек", menu_sources: "Дереккөздер", menu_intro: "Бот туралы", menu_dashboard: "Панель", menu_studio: "AI Студия", menu_channel: "Арна", menu_automation: "Автоматтандыру", menu_analytics: "Аналитика", menu_admin: "Админ", menu_buy_premium: "Premium Сатып Алу", menu_referral: "Реферал", daily_digest_header: "Күнделікті жаңалықтар", welcome_user: "mateAssistent ботына қош келдіңіз.", onboarding_menu_ready: "Орнату аяқталды. Панель және бот құралдары дайын." },
+  az: { settings: "Parametrlər", status: "Statistika", menu_help: "Kömək", menu_sources: "Mənbələr", menu_intro: "Bot haqqında", menu_dashboard: "Panel", menu_studio: "AI Studio", menu_channel: "Kanal", menu_automation: "Avtomatlaşdırma", menu_analytics: "Analitika", menu_admin: "Admin", menu_buy_premium: "Premium Al", menu_referral: "Referal", daily_digest_header: "Gündəlik Xülasə", welcome_user: "mateAssistent botuna xoş gəlmisiniz.", onboarding_menu_ready: "Quraşdırma tamamlandı. Panel və bot alətləri hazırdır." },
 };
 
 const resources: Record<string, { translation: Record<string, string> }> = {
@@ -246,6 +248,8 @@ export const WEBAPP_LANGS = [
   "ja",
   "ko",
   "fa",
+  "kk",
+  "az",
 ] as const;
 
 export async function initI18n() {

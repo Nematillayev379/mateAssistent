@@ -120,6 +120,10 @@ export const DBService = {
   getWorkspaceChannels: (id: number) => WorkspaceRepository.getChannels(id),
   addWorkspaceChannel: (w: number, c: string, n: string) => WorkspaceRepository.addChannel(w, c, n),
   removeWorkspaceChannel: (c: string, w: number) => WorkspaceRepository.removeChannel(c, w),
+  getWorkspaceMembers: (w: number) => WorkspaceRepository.getMembers(w),
+  addWorkspaceMember: (w: number, u: number, r: string) => WorkspaceRepository.addMember(w, u, r),
+  removeWorkspaceMember: (w: number, u: number) => WorkspaceRepository.removeMember(w, u),
+  updateWorkspaceMemberRole: (w: number, u: number, r: string) => WorkspaceRepository.updateMemberRole(w, u, r),
 
   // ── Rules ──
   getUserRules: (id: number) => RuleRepository.getByUser(id),
