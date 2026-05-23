@@ -8,6 +8,10 @@ import { checkAuth } from '../../middleware/auth';
 const walletClaims = new Map<number, boolean>();
 
 export function registerPremiumRoutes(app: express.Application) {
+  app.get('/api/payments/methods', checkAuth, async (req: any, res: any) => {
+    res.json(PaymentService.getAvailableMethods());
+  });
+
   app.get('/api/premium-info', checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId);
     const priceMonthly = await DBService.getPrice('monthly');
