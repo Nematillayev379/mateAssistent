@@ -48,10 +48,9 @@ async function sendWelcomeMenu(
   const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [];
 
   if (dashboardUrl) {
-    inline_keyboard.push(
-      [{ text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }],
-      [{ text: "Web3 App (Browser)", url: dashboardUrl }]
-    );
+    inline_keyboard.push([
+      { text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }
+    ]);
   }
 
   inline_keyboard.push(
