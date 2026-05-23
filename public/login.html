@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Uzbekistan Newsroom</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0a0a0f; color: #e2e8f0;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 2.5rem;
+    width: 100%; max-width: 400px;
+    margin: 1rem;
+    backdrop-filter: blur(12px);
+  }
+  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center; }
+  .sub { color: #94a3b8; font-size: 0.9rem; text-align: center; margin-bottom: 2rem; }
+  .tab-group { display: flex; gap: 0; margin-bottom: 1.5rem; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+  .tab { flex: 1; padding: 0.7rem; text-align: center; cursor: pointer; font-size: 0.9rem; font-weight: 500; background: transparent; color: #94a3b8; border: none; transition: 0.2s; }
+  .tab.active { background: rgba(34,211,238,0.1); color: #22d3ee; }
+  .form-group { margin-bottom: 1.2rem; }
+  label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.4rem; }
+  input {
+    width: 100%; padding: 0.9rem 1rem;
+    border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04); color: #e2e8f0;
+    font-size: 0.95rem; outline: none; transition: 0.2s;
+  }
+  input:focus { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.1); }
+  .btn {
+    width: 100%; padding: 0.9rem;
+    border-radius: 10px; border: none;
+    font-size: 1rem; font-weight: 600; cursor: pointer;
+    background: linear-gradient(135deg, #22d3ee, #06b6d4);
+    color: #0a0a0f; transition: 0.2s;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 0 30px rgba(34,211,238,0.2); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .error { color: #f87171; font-size: 0.85rem; margin-top: 0.8rem; text-align: center; display: none; }
+  .success-msg { color: #22d3ee; font-size: 0.85rem; margin-top: 0.8rem; text-align: center; display: none; }
+  .or-divider { text-align: center; color: #475569; font-size: 0.85rem; margin: 1rem 0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Web Console</h1>
+  <p class="sub">Login to your dashboard from any browser</p>
+
+  <div class="tab-group">
+    <button class="tab active" onclick="switchTab('login')">Login</button>
+    <button class="tab" onclick="switchTab('register')">Register</button>
+  </div>
+
+  <div id="login-form">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="Min 6 characters">
+    </div>
+    <button class="btn" id="login-btn" onclick="handleLogin()">Login</button>
+    <div class="error" id="login-error"></div>
+  </div>
+
+  <div id="register-form" style="display:none">
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="reg-password" placeholder="Min 6 characters">
+    </div>
+    <button class="btn" id="reg-btn" onclick="handleRegister()">Create Account</button>
+    <div class="error" id="reg-error"></div>
+    <div class="success-msg" id="reg-success">Account created! You can now login once an admin approves your account.</div>
+  </div>
+
+  <div class="or-divider">or</div>
+  <a class="btn" style="display:block; text-align:center; text-decoration:none;" href="/">Open in Telegram</a>
+</div>
+
+<script>
+(function() {
+  var t = localStorage.getItem('bot_token');
+  var u = localStorage.getItem('bot_user_id');
+  if (t && u) { window.location.href = '/?web=1'; return; }
+})();
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
+  event.target.classList.add('active');
+}
+
+function showError(id, msg) { var el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; }
+function hideError(id) { document.getElementById(id).style.display = 'none'; }
+
+async function handleLogin() {
+  var email = document.getElementById('login-email').value.trim();
+  var password = document.getElementById('login-password').value;
+  if (!email || !password) { showError('login-error', 'Fill in all fields'); return; }
+  hideError('login-error');
+  document.getElementById('login-btn').disabled = true;
+  try {
+    var r = await fetch('/api/auth/web-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, password: password }) });
+    var d = await r.json();
+    if (!r.ok) { showError('login-error', d.error || 'Login failed'); return; }
+    localStorage.setItem('bot_token', d.token);
+    localStorage.setItem('bot_user_id', String(d.userId));
+    window.location.href = '/?web=1';
+  } catch (e) { showError('login-error', 'Connection error'); }
+  finally { document.getElementById('login-btn').disabled = false; }
+}
+
+async function handleRegister() {
+  var email = document.getElementById('reg-email').value.trim();
+  var password = document.getElementById('reg-password').value;
+  if (!email || !password || password.length < 6) { showError('reg-error', 'Email and password (6+ chars) required'); return; }
+  hideError('reg-error');
+  document.getElementById('reg-btn').disabled = true;
+  try {
+    var r = await fetch('/api/auth/web-register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, password: password }) });
+    var d = await r.json();
+    if (!r.ok) { showError('reg-error', d.error || 'Registration failed'); return; }
+    document.getElementById('reg-success').style.display = 'block';
+  } catch (e) { showError('reg-error', 'Connection error'); }
+  finally { document.getElementById('reg-btn').disabled = false; }
+}
+</script>
+</body>
+</html>
