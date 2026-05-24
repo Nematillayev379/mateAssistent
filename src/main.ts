@@ -1,11 +1,4 @@
 import WebSocket from 'ws';
-if (typeof globalThis.WebSocket === 'undefined') {
-  (globalThis as any).WebSocket = WebSocket;
-}
-
-const _startTime = Date.now();
-logger.info(`Process started at ${new Date().toISOString()}, PID ${process.pid}`);
-
 import { CONFIG } from "./config/config";
 import { logger } from "./utils/logger";
 import { bot, startBot } from "./services/telegram";
@@ -16,6 +9,13 @@ import { setupSystemCrons } from "./crons";
 import { resolveYtDlpPath } from './utils/ytdlp';
 import { initSentry, captureError } from './services/sentry';
 import pkg from '../package.json';
+
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = WebSocket;
+}
+
+const _startTime = Date.now();
+logger.info(`Process started at ${new Date().toISOString()}, PID ${process.pid}`);
 
 initSentry();
 
