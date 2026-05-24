@@ -74,8 +74,7 @@ export function registerSystemRoutes(app: express.Application) {
   }
 
   app.get('/dashboard', (req, res) => {
-    const search = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-    res.redirect(`/dashboard/overview${search}`);
+    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
   });
 
   app.use((req, res, next) => {

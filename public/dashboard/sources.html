@@ -331,11 +331,19 @@
 </div>
 </div>
 </div>
-<button class="border-2 border-dashed border-outline-variant rounded-xl p-5 flex flex-col items-center justify-center gap-4 hover:border-primary hover:bg-primary/5 transition-all text-on-surface-variant hover:text-primary min-h-[180px]">
+<button class="border-2 border-dashed border-outline-variant rounded-xl p-5 flex flex-col items-center justify-center gap-4 hover:border-primary hover:bg-primary/5 transition-all text-on-surface-variant hover:text-primary min-h-[180px]" onclick="document.getElementById('add-source-form').classList.toggle('hidden')">
 <span class="material-symbols-outlined text-[48px]" data-icon="add_circle">add_circle</span>
 <span class="font-label-md text-label-md font-bold">Add New RSS Feed</span>
 </button>
 </div>
+<!-- Add Source Form -->
+<div id="add-source-form" class="hidden glass-panel p-stack-md rounded-xl mt-stack-lg">
+<h3 class="font-headline-md text-headline-md font-bold mb-stack-md">New RSS Source</h3>
+<input id="src-name" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-stack-md py-2 text-body-md mb-stack-sm" placeholder="Source name"/>
+<input id="src-url" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-stack-md py-2 text-body-md mb-stack-sm" placeholder="RSS Feed URL"/>
+<button class="bg-primary text-on-primary px-stack-lg py-stack-sm rounded-lg font-bold" onclick="saveSource()">Qo'shish</button>
+</div>
+<div id="sources-list" class="space-y-gutter mt-stack-lg"></div>
 <footer class="mt-stack-lg sticky bottom-6 z-30">
 <div class="bg-primary-container/20 border border-primary/30 backdrop-blur-md rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
 <div class="flex items-center gap-4">
@@ -550,4 +558,4 @@
         });
     </script>
 <script src="/js/dashboard-data-loader.js"></script>
-</body></html>
+<script src="/js/dashboard-functions.js"></script></body></html>

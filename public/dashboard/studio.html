@@ -221,11 +221,11 @@
 </select>
 </div>
 </div>
-<textarea class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md font-body-lg text-body-lg text-on-surface resize-none focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder:text-outline/50 transition-all" id="main-editor" placeholder="Type your message or prompt for AI here..."></textarea>
+<textarea class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md font-body-lg text-body-lg text-on-surface resize-none focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder:text-outline/50 transition-all" id="ai-prompt" placeholder="Type your message or prompt for AI here..."></textarea>
 <div class="mt-stack-md flex items-center justify-between">
 <div class="flex items-center gap-stack-lg">
 <label class="relative inline-flex items-center cursor-pointer">
-<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<input checked="" class="sr-only peer" type="checkbox" id="ai-image" value=""/>
 <div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
 <span class="ml-stack-sm font-label-md text-label-md text-on-surface-variant">Generate AI Image</span>
 </label>
@@ -238,7 +238,7 @@
 <button class="border border-outline-variant px-stack-lg py-stack-sm rounded-lg font-label-md text-label-md hover:bg-surface-container transition-colors">
                                 Save Draft
                             </button>
-<button class="bg-primary text-on-primary font-bold px-stack-lg py-stack-sm rounded-lg font-label-md text-label-md flex items-center gap-stack-sm hover:scale-[1.02] active:scale-95 transition-all" id="generate-btn">
+<button class="bg-primary text-on-primary font-bold px-stack-lg py-stack-sm rounded-lg font-label-md text-label-md flex items-center gap-stack-sm hover:scale-[1.02] active:scale-95 transition-all" id="btn-ai" onclick="generateAIPost()">
 <span class="material-symbols-outlined">rocket_launch</span>
                                 Generate Post
                             </button>
@@ -286,6 +286,61 @@
 <p class="text-center mt-stack-sm font-label-sm text-label-sm text-on-surface-variant italic">Real-time Telegram Preview</p>
 </section>
 </div>
+<!-- AI Result -->
+<div id="ai-result" style="display:none" class="glass-panel p-stack-md rounded-xl mt-stack-lg">
+<div class="flex justify-between items-center mb-stack-sm">
+<span class="text-primary font-bold">AI Generated</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant rounded-lg text-sm hover:bg-surface-container" onclick="copyAIPost()">Copy</button>
+<button class="px-3 py-1 bg-primary-container text-on-primary-container rounded-lg text-sm font-bold" onclick="sendAIPost()">Send to Channel</button>
+</div>
+</div>
+<img id="ai-res-img" style="display:none" class="w-full max-w-sm rounded-lg mb-3"/>
+<p id="ai-res-text" class="text-body-md"></p>
+</div>
+
+<!-- Voice News Generator -->
+<section class="glass-panel p-stack-md rounded-xl mt-stack-lg">
+<div class="flex items-center gap-stack-sm mb-stack-md">
+<span class="material-symbols-outlined text-secondary">record_voice_over</span>
+<h3 class="font-headline-md text-headline-md font-bold">Voice News Generator</h3>
+</div>
+<input id="voice-title" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-stack-md py-2 text-body-md mb-stack-sm" placeholder="Sarlavha"/>
+<textarea id="voice-text" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md text-body-md resize-none" rows="3" placeholder="Yangilik matni..."></textarea>
+<label class="flex items-center gap-2 my-stack-sm cursor-pointer">
+<input type="checkbox" id="voice-to-channel" class="w-4 h-4" checked/>
+<span class="font-body-md text-body-md">Kanalga yuborish</span>
+</label>
+<button class="bg-secondary-container text-on-secondary px-stack-lg py-stack-sm rounded-lg font-bold" onclick="generateVoiceNews()">Audio yaratish & yuborish</button>
+<p id="voice-status" class="text-label-sm text-secondary mt-stack-sm"></p>
+</section>
+
+<!-- Music Download -->
+<section class="glass-panel p-stack-md rounded-xl mt-stack-lg">
+<div class="flex items-center gap-stack-sm mb-stack-md">
+<span class="material-symbols-outlined text-tertiary">music_note</span>
+<h3 class="font-headline-md text-headline-md font-bold">Musiqa Yuklovchi</h3>
+</div>
+<div class="flex gap-2">
+<input id="music-q" class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-stack-md py-2 text-body-md" placeholder="Artist yoki qo'shiq..."/>
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg" onclick="searchMusic()">Qidirish</button>
+</div>
+<div id="music-list" class="mt-stack-md"></div>
+</section>
+
+<!-- Video/Audio Download -->
+<section class="glass-panel p-stack-md rounded-xl mt-stack-lg">
+<div class="flex items-center gap-stack-sm mb-stack-md">
+<span class="material-symbols-outlined text-primary">download</span>
+<h3 class="font-headline-md text-headline-md font-bold">Video Yuklovchi</h3>
+</div>
+<input id="dl-url" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-stack-md py-2 text-body-md mb-stack-sm" placeholder="YouTube, Instagram yoki TikTok linkini bering..."/>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg flex items-center gap-2" id="btn-dl-video" onclick="downloadMedia('video',this)"><span class="material-symbols-outlined text-[18px]">videocam</span> Video</button>
+<button class="px-4 py-2 border border-outline-variant rounded-lg flex items-center gap-2" id="btn-dl-audio" onclick="downloadMedia('audio',this)"><span class="material-symbols-outlined text-[18px]">music_note</span> Audio</button>
+</div>
+</section>
+
 <section class="mt-stack-lg">
 <div class="flex items-center justify-between mb-stack-md">
 <div class="flex items-center gap-stack-sm">
@@ -460,6 +515,38 @@
 <span class="font-label-sm text-label-sm">New Draft</span>
 </div>
 </div>
+<!-- Mobile: Voice News -->
+<section class="glass-panel p-stack-md rounded-xl mt-stack-lg">
+<div class="flex items-center gap-stack-sm mb-stack-md">
+<span class="material-symbols-outlined text-secondary">record_voice_over</span>
+<h3 class="font-headline-md text-headline-md font-bold">Voice News</h3>
+</div>
+<input id="voice-title" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-stack-md py-2 text-body-md mb-stack-sm" placeholder="Sarlavha"/>
+<textarea id="voice-text" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-stack-md text-body-md resize-none" rows="3" placeholder="Yangilik matni..."></textarea>
+<label class="flex items-center gap-2 my-stack-sm cursor-pointer">
+<input type="checkbox" id="voice-to-channel" class="w-4 h-4" checked/>
+<span class="font-body-md text-body-md">Kanalga yuborish</span>
+</label>
+<button class="bg-secondary-container text-on-secondary px-stack-lg py-stack-sm rounded-lg font-bold" onclick="generateVoiceNews()">Audio yaratish</button>
+<p id="voice-status" class="text-label-sm text-secondary mt-stack-sm"></p>
+</section>
+<!-- Mobile: Music -->
+<section class="glass-panel p-stack-md rounded-xl mt-stack-lg">
+<h3 class="font-headline-md text-headline-md font-bold mb-stack-md">Musiqa Yuklovchi</h3>
+<div class="flex gap-2">
+<input id="music-q" class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg px-stack-md py-2 text-body-md" placeholder="Artist yoki qo'shiq..."/>
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg" onclick="searchMusic()">Qidirish</button>
+</div>
+<div id="music-list" class="mt-stack-md"></div>
+</section>
+<!-- Mobile: Video -->
+<section class="glass-panel p-stack-md rounded-xl mt-stack-lg">
+<h3 class="font-headline-md text-headline-md font-bold mb-stack-md">Video Yuklovchi</h3>
+<input id="dl-url" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-stack-md py-2 text-body-md mb-stack-sm" placeholder="YouTube, Instagram yoki TikTok linkini bering..."/>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg" id="btn-dl-video" onclick="downloadMedia('video',this)">Video</button>
+<button class="px-4 py-2 border border-outline-variant rounded-lg" id="btn-dl-audio" onclick="downloadMedia('audio',this)">Audio</button>
+</div>
 </section>
 </main>
 <!-- BottomNavBar -->
@@ -487,7 +574,7 @@
 </nav>
 <script>
         // Reactive preview for main editor
-        const editorTextarea = document.getElementById('main-editor');
+        const editorTextarea = document.getElementById('ai-prompt');
         const preview = document.getElementById('preview-text');
         if (editorTextarea && preview) {
             editorTextarea.addEventListener('input', (e) => {
@@ -499,42 +586,17 @@
             });
         }
 
-        // Generate button micro-interaction
-        const generateBtn = document.getElementById('generate-btn');
-        if (generateBtn) {
-            generateBtn.addEventListener('click', () => {
-                generateBtn.classList.add('opacity-50', 'pointer-events-none');
-                const originalText = generateBtn.innerHTML;
-                generateBtn.innerHTML = `<span class="material-symbols-outlined animate-spin">refresh</span> Thinking...`;
-                setTimeout(() => {
-                    generateBtn.classList.remove('opacity-50', 'pointer-events-none');
-                    generateBtn.innerHTML = originalText;
-                    generateBtn.parentElement.classList.add('animate-pulse');
-                    setTimeout(() => generateBtn.parentElement.classList.remove('animate-pulse'), 1000);
-                }, 1500);
-            });
-        }
-
-        // Micro-interaction for toggle
+        // AI Image toggle
         const toggle = document.getElementById('ai-toggle');
         const circle = document.getElementById('toggle-circle');
         let isOn = true;
-
-        toggle.addEventListener('click', () => {
-            isOn = !isOn;
-            if(isOn) {
-                circle.style.transform = 'translateX(20px)';
-            } else {
-                circle.style.transform = 'translateX(0px)';
-            }
-        });
-
-        // Simple typing simulation for the mockup text
-        const textarea = document.querySelector('textarea');
-        textarea.addEventListener('input', (e) => {
-            const count = e.target.value.length;
-            document.querySelector('.absolute.bottom-3.right-3').innerText = `${count}/500`;
-        });
+        if (toggle) {
+            toggle.addEventListener('click', () => {
+                isOn = !isOn;
+                if(isOn) circle.style.transform = 'translateX(20px)';
+                else circle.style.transform = 'translateX(0px)';
+            });
+        }
     </script>
 <script src="/js/dashboard-data-loader.js"></script>
-</body></html>
+<script src="/js/dashboard-functions.js"></script></body></html>
