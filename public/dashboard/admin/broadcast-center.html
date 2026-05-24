@@ -189,7 +189,7 @@
 <span class="font-label-sm text-label-sm text-primary">HTML Supported</span>
 </div>
 <div class="relative group">
-<textarea class="w-full h-40 bg-surface-container-lowest border border-outline-variant rounded-xl p-4 font-body-md text-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-all resize-none placeholder:text-outline-variant" id="broadcast-input" oninput="updatePreview()" placeholder="Enter your message (HTML supported)...">&lt;b&gt;New Update!&lt;/b&gt; 👋 
+<textarea class="w-full h-40 bg-surface-container-lowest border border-outline-variant rounded-xl p-4 font-body-md text-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-all resize-none placeholder:text-outline-variant" id="broadcast-msg" oninput="updatePreview()" placeholder="Enter your message (HTML supported)...">&lt;b&gt;New Update!&lt;/b&gt; 👋 
 
 Check out our latest analytics dashboard with real-time tracking.</textarea>
 </div>
@@ -220,7 +220,7 @@ Check out our latest analytics dashboard with real-time tracking.</textarea>
 <span class="font-body-md text-body-md text-on-surface">Sending to <span class="font-bold text-secondary">1,247</span> users</span>
 </div>
 <!-- Action Button -->
-<button class="w-full h-14 bg-primary-container text-on-primary-container rounded-xl font-headline-md text-headline-md font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform shadow-lg shadow-primary-container/20">
+<button class="w-full h-14 bg-primary-container text-on-primary-container rounded-xl font-headline-md text-headline-md font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform shadow-lg shadow-primary-container/20" onclick="sendBroadcast()">
 <span class="material-symbols-outlined">send</span>
             Send Broadcast
         </button>
@@ -313,7 +313,7 @@ Check out our latest analytics dashboard with real-time tracking.</textarea>
 </nav>
 <script>
         function updatePreview() {
-            const input = document.getElementById('broadcast-input');
+            const input = document.getElementById('broadcast-msg');
             const preview = document.getElementById('preview-content');
             // Basic HTML preview (only safe tags for demo)
             let content = input.value;

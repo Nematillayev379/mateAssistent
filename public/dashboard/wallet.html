@@ -274,10 +274,11 @@
 <span class="font-label-md text-label-md text-primary">MONTHLY</span>
 <input checked="" class="accent-primary" id="plan-monthly" name="plan" type="radio"/>
 </div>
-<div class="mt-auto">
-<p class="font-display text-display text-on-surface">125,000 <span class="text-label-md font-label-md text-on-surface-variant">UZS</span></p>
-<p class="text-label-sm text-on-surface-variant mt-1">Per month, billed monthly</p>
-</div>
+    <div class="mt-auto">
+        <p class="font-display text-display text-on-surface">125,000 <span class="text-label-md font-label-md text-on-surface-variant">UZS</span></p>
+        <p class="text-label-sm text-on-surface-variant mt-1">Per month, billed monthly</p>
+        <button onclick="buyPremium('monthly')" class="mt-4 w-full bg-primary text-on-primary py-2.5 rounded-lg font-headline-md hover:brightness-110 active:scale-95 transition-all">Subscribe Monthly</button>
+    </div>
 </div>
 </div>
 <!-- Yearly -->
@@ -288,15 +289,15 @@
 <span class="font-label-md text-label-md text-on-surface-variant">YEARLY</span>
 <input class="accent-primary" id="plan-yearly" name="plan" type="radio"/>
 </div>
-<div class="mt-auto">
-<p class="font-display text-display text-on-surface">1,200,000 <span class="text-label-md font-label-md text-on-surface-variant">UZS</span></p>
-<p class="text-label-sm text-on-surface-variant mt-1">100k UZS / mo equivalent</p>
-</div>
-</div>
+    <div class="mt-auto">
+        <p class="font-display text-display text-on-surface">1,200,000 <span class="text-label-md font-label-md text-on-surface-variant">UZS</span></p>
+        <p class="text-label-sm text-on-surface-variant mt-1">100k UZS / mo equivalent</p>
+        <button onclick="buyPremium('yearly')" class="mt-4 w-full bg-secondary text-on-secondary py-2.5 rounded-lg font-headline-md hover:brightness-110 active:scale-95 transition-all">Subscribe Yearly</button>
+    </div>
 </div>
 </div>
 <!-- Payment Method Selector -->
-<div class="glass-card p-6 rounded-xl">
+<div class="glass-card p-6 rounded-xl" id="payment-methods">
 <h4 class="font-label-md text-label-md text-on-surface-variant mb-4 tracking-widest uppercase">Select Payment Method</h4>
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
 <button class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-surface-container border border-primary text-primary transition-all hover:bg-surface-container-high">
@@ -407,37 +408,43 @@
 <h3 class="font-label-md text-label-md text-on-surface-variant uppercase mb-stack-md tracking-wider">Choose a Plan</h3>
 <div class="flex flex-col gap-gutter mb-stack-lg">
 <!-- Monthly -->
-<div class="glass-card p-stack-md rounded-xl flex items-center justify-between border-2 border-transparent active:border-primary-container transition-all cursor-pointer group">
-<div class="flex items-center gap-stack-md">
-<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface-variant group-active:text-primary transition-colors">
-<span class="material-symbols-outlined" data-icon="calendar_month">calendar_month</span>
-</div>
-<div>
-<h4 class="font-headline-md text-headline-md text-on-surface">Monthly</h4>
-<p class="font-body-md text-body-md text-on-surface-variant">Billed monthly</p>
-</div>
-</div>
-<div class="text-right">
-<div class="font-headline-md text-headline-md font-bold text-on-surface">49 000</div>
-<div class="font-label-sm text-label-sm text-on-surface-variant">so'm / mo</div>
-</div>
+<div class="glass-card p-stack-md rounded-xl border-2 border-transparent active:border-primary-container transition-all cursor-pointer group">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-stack-md">
+            <div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface-variant group-active:text-primary transition-colors">
+                <span class="material-symbols-outlined" data-icon="calendar_month">calendar_month</span>
+            </div>
+            <div>
+                <h4 class="font-headline-md text-headline-md text-on-surface">Monthly</h4>
+                <p class="font-body-md text-body-md text-on-surface-variant">Billed monthly</p>
+            </div>
+        </div>
+        <div class="text-right">
+            <div class="font-headline-md text-headline-md font-bold text-on-surface">49 000</div>
+            <div class="font-label-sm text-label-sm text-on-surface-variant">so'm / mo</div>
+        </div>
+    </div>
+    <button onclick="buyPremium('monthly')" class="mt-stack-md w-full bg-primary text-on-primary py-3 rounded-lg font-headline-md hover:brightness-110 active:scale-95 transition-all">Subscribe Monthly</button>
 </div>
 <!-- Yearly -->
-<div class="glass-card p-stack-md rounded-xl flex items-center justify-between border-2 border-primary-container relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform">
-<div class="absolute -top-1 -right-1 bg-primary text-on-primary text-[9px] font-black px-4 py-1.5 rotate-[15deg] translate-x-2 -translate-y-1 shadow-lg">SAVINGS 17%</div>
-<div class="flex items-center gap-stack-md">
-<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center text-on-primary-container">
-<span class="material-symbols-outlined" data-icon="auto_awesome">auto_awesome</span>
-</div>
-<div>
-<h4 class="font-headline-md text-headline-md text-on-surface">Yearly</h4>
-<p class="font-body-md text-body-md text-on-surface-variant">Annual billing</p>
-</div>
-</div>
-<div class="text-right">
-<div class="font-headline-md text-headline-md font-bold text-on-surface">490 000</div>
-<div class="font-label-sm text-label-sm text-on-surface-variant">so'm / yr</div>
-</div>
+<div class="glass-card p-stack-md rounded-xl border-2 border-primary-container relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform">
+    <div class="absolute -top-1 -right-1 bg-primary text-on-primary text-[9px] font-black px-4 py-1.5 rotate-[15deg] translate-x-2 -translate-y-1 shadow-lg">SAVINGS 17%</div>
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-stack-md">
+            <div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center text-on-primary-container">
+                <span class="material-symbols-outlined" data-icon="auto_awesome">auto_awesome</span>
+            </div>
+            <div>
+                <h4 class="font-headline-md text-headline-md text-on-surface">Yearly</h4>
+                <p class="font-body-md text-body-md text-on-surface-variant">Annual billing</p>
+            </div>
+        </div>
+        <div class="text-right">
+            <div class="font-headline-md text-headline-md font-bold text-on-surface">490 000</div>
+            <div class="font-label-sm text-label-sm text-on-surface-variant">so'm / yr</div>
+        </div>
+    </div>
+    <button onclick="buyPremium('yearly')" class="mt-stack-md w-full bg-secondary text-on-secondary py-3 rounded-lg font-headline-md hover:brightness-110 active:scale-95 transition-all">Subscribe Yearly</button>
 </div>
 </div>
 <!-- Payment Methods -->

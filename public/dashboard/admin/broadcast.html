@@ -270,7 +270,7 @@
 </button>
 </div>
 </div>
-<textarea class="w-full flex-1 bg-surface-dim border border-outline-variant rounded-xl p-4 font-label-md text-label-md text-on-surface focus:ring-1 focus:ring-primary outline-none min-h-[200px] transition-all resize-none" id="broadcastInput" placeholder="Enter your HTML message here..."></textarea>
+<textarea class="w-full flex-1 bg-surface-dim border border-outline-variant rounded-xl p-4 font-label-md text-label-md text-on-surface focus:ring-1 focus:ring-primary outline-none min-h-[200px] transition-all resize-none" id="broadcast-msg" placeholder="Enter your HTML message here..."></textarea>
 </div>
 <!-- Send Button -->
 <div class="pt-4 flex items-center justify-between">
@@ -278,7 +278,7 @@
 <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
 <span class="text-[10px] text-on-surface-variant font-bold uppercase tracking-tighter">Ready to Deploy</span>
 </div>
-<button class="bg-primary-container text-on-primary-container font-label-md text-label-md px-8 py-3 rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all flex items-center gap-2" id="broadcastTrigger">
+<button class="bg-primary-container text-on-primary-container font-label-md text-label-md px-8 py-3 rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all flex items-center gap-2" id="broadcastTrigger" onclick="sendBroadcast()">
 <span class="material-symbols-outlined text-sm">send</span>
                                 Send Broadcast
                             </button>
@@ -454,7 +454,7 @@
 </div>
 <script>
         // Real-time Preview logic
-        const input = document.getElementById('broadcastInput');
+        const input = document.getElementById('broadcast-msg');
         const preview = document.getElementById('previewText');
         
         input.addEventListener('input', (e) => {

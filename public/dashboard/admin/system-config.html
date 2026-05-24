@@ -162,18 +162,25 @@
 <div class="flex flex-col gap-2">
 <label class="font-label-md text-label-md text-on-surface-variant px-1">Monthly Price (UZS)</label>
 <div class="relative">
-<input class="w-full bg-[#0A0A0B] border border-[#1E1E22] focus:border-[#6C47FF] focus:ring-0 rounded-lg py-3 px-4 font-body-md text-on-surface transition-all outline-none" type="text" value="49 000 UZS"/>
+<input id="premium-monthly" class="w-full bg-[#0A0A0B] border border-[#1E1E22] focus:border-[#6C47FF] focus:ring-0 rounded-lg py-3 px-4 font-body-md text-on-surface transition-all outline-none" type="text" value="49 000 UZS"/>
 <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[18px]">edit</span>
 </div>
 </div>
 <div class="flex flex-col gap-2">
 <label class="font-label-md text-label-md text-on-surface-variant px-1">Yearly Price (UZS)</label>
 <div class="relative">
-<input class="w-full bg-[#0A0A0B] border border-[#1E1E22] focus:border-[#6C47FF] focus:ring-0 rounded-lg py-3 px-4 font-body-md text-on-surface transition-all outline-none" type="text" value="490 000 UZS"/>
+<input id="premium-yearly" class="w-full bg-[#0A0A0B] border border-[#1E1E22] focus:border-[#6C47FF] focus:ring-0 rounded-lg py-3 px-4 font-body-md text-on-surface transition-all outline-none" type="text" value="490 000 UZS"/>
 <span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[18px]">edit</span>
 </div>
 </div>
-<button class="w-full bg-[#6C47FF] text-[#ECECEC] font-headline-md text-headline-md py-3 rounded-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-lg shadow-primary-container/10">
+<div class="flex flex-col gap-2">
+<label class="font-label-md text-label-md text-on-surface-variant px-1">Telegram Stars Price</label>
+<div class="relative">
+<input id="premium-stars" class="w-full bg-[#0A0A0B] border border-[#1E1E22] focus:border-[#6C47FF] focus:ring-0 rounded-lg py-3 px-4 font-body-md text-on-surface transition-all outline-none" type="text" value="500"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-[18px]">edit</span>
+</div>
+</div>
+<button class="w-full bg-[#6C47FF] text-[#ECECEC] font-headline-md text-headline-md py-3 rounded-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-2 shadow-lg shadow-primary-container/10" onclick="saveAdminSettings()">
 <span class="material-symbols-outlined text-[20px]">save</span>
                     Save Prices
                 </button>
@@ -193,7 +200,7 @@
 <span class="font-body-md text-body-md text-on-surface-variant text-sm">Review new channel registrations</span>
 </div>
 <label class="relative inline-flex items-center cursor-pointer">
-<input checked="" class="sr-only peer custom-toggle" type="checkbox"/>
+<input id="require-approval" checked="" class="sr-only peer custom-toggle" type="checkbox"/>
 <div class="w-11 h-6 bg-[#0A0A0B] border border-[#1E1E22] rounded-full peer-checked:bg-primary-container peer-checked:border-primary transition-colors"></div>
 <div class="absolute left-[2px] top-[2px] w-5 h-5 bg-on-surface-variant rounded-full transition-all peer-checked:translate-x-full peer-checked:bg-on-primary-container"></div>
 </label>
