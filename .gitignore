@@ -48,3 +48,6 @@ downloads/
 # Active bug docs — should not be in repo
 FIX_INSTRUCTIONS.md
 FIX_INSTRUCTIONS*.md
+
+# Backup directories
+public.old/
