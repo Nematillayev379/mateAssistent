@@ -73,8 +73,9 @@ export function registerSystemRoutes(app: express.Application) {
     });
   }
 
-  app.use('/dashboard', (req, res) => {
-    res.sendFile(path.join(process.cwd(), 'public', 'index.html'), (err) => { if (err && !res.headersSent) res.status(404).json({ error: 'Dashboard not found' }); });
+  app.get('/dashboard', (req, res) => {
+    const search = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    res.redirect(`/dashboard/overview${search}`);
   });
 
   app.use((req, res, next) => {
