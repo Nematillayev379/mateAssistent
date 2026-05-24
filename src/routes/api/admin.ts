@@ -69,7 +69,7 @@ export function registerAdminRoutes(app: express.Application) {
     let redisStatus = false;
     let poolInfo = null;
     if (pool) {
-      try { await pool.active.ping(); redisStatus = true; } catch {}
+      try { await pool.active.ping(); redisStatus = true; } catch (e: any) { logger.warn(`Redis ping failed: ${e?.message || 'unknown error'}`); }
       poolInfo = { active: pool.exhaustedCount + 1, total: pool.totalCount, exhausted: pool.exhaustedCount, url: pool.activeUrl.replace(/:\/\/.*@/, '://***@') };
     }
     const envPool = buildKeyPoolFromEnv();

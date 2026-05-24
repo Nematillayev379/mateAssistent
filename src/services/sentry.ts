@@ -1,10 +1,11 @@
 import * as Sentry from '@sentry/node';
 import { logger } from '../utils/logger';
+import { SecretManager } from './secret_manager';
 
 let initialized = false;
 
 export function initSentry() {
-  const dsn = process.env.SENTRY_DSN;
+  const dsn = SecretManager.get('SENTRY_DSN');
   if (!dsn) {
     logger.info('Sentry not configured (SENTRY_DSN not set)');
     return;

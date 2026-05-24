@@ -180,7 +180,10 @@ async function handleMediaDownload(
     userStates.delete(chatId);
   } catch (err: any) {
     logger.error(`Media download error: ${err.message}`);
-    await bot.editMessageText(`Error occurred while downloading media.`, { chat_id: chatId, message_id: waitMsg.message_id });
+    const userMsg = err.message.includes("yuklab bo'lmadi")
+      ? err.message
+      : `Yuklab olishda xatolik: ${err.message.slice(0, 200)}`;
+    await bot.editMessageText(userMsg, { chat_id: chatId, message_id: waitMsg.message_id });
   }
 }
 

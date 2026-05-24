@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Geist', sans-serif;
+            background-color: #0A0A0B;
+            color: #e6e0ef;
+            -webkit-font-smoothing: antialiased;
+        }
+        .chart-bar {
+            transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card {
+            background: #111113;
+            border: 1px solid #1E1E22;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed-variant": "#00513f",
+                      "on-secondary-container": "#005441",
+                      "tertiary-fixed": "#ffdbcb",
+                      "surface": "#14121c",
+                      "surface-container": "#201e29",
+                      "surface-container-high": "#2b2933",
+                      "tertiary-container": "#b34d00",
+                      "inverse-primary": "#5e35f1",
+                      "primary": "#c9beff",
+                      "inverse-surface": "#e6e0ef",
+                      "on-tertiary-fixed": "#341100",
+                      "secondary-fixed": "#55fcd0",
+                      "on-surface": "#e6e0ef",
+                      "secondary": "#41eec2",
+                      "on-tertiary": "#552100",
+                      "primary-container": "#6c47ff",
+                      "outline": "#938ea2",
+                      "on-tertiary-container": "#ffeae1",
+                      "surface-tint": "#c9beff",
+                      "primary-fixed": "#e6deff",
+                      "inverse-on-surface": "#312f3a",
+                      "on-secondary": "#00382b",
+                      "primary-fixed-dim": "#c9beff",
+                      "surface-container-highest": "#36333e",
+                      "on-primary": "#2f009b",
+                      "surface-container-low": "#1c1a25",
+                      "tertiary": "#ffb691",
+                      "on-secondary-fixed": "#002118",
+                      "secondary-container": "#00d1a7",
+                      "error": "#ffb4ab",
+                      "on-surface-variant": "#c9c3d9",
+                      "outline-variant": "#484556",
+                      "on-tertiary-fixed-variant": "#783100",
+                      "surface-bright": "#3a3843",
+                      "on-error": "#690005",
+                      "surface-container-lowest": "#0e0d17",
+                      "tertiary-fixed-dim": "#ffb691",
+                      "on-primary-fixed": "#1b0063",
+                      "on-background": "#e6e0ef",
+                      "surface-variant": "#36333e",
+                      "error-container": "#93000a",
+                      "secondary-fixed-dim": "#28dfb5",
+                      "on-primary-container": "#f1ebff",
+                      "surface-dim": "#14121c",
+                      "on-primary-fixed-variant": "#4500d8",
+                      "on-error-container": "#ffdad6",
+                      "background": "#14121c"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "unit": "4px",
+                      "container-padding": "16px",
+                      "stack-sm": "8px",
+                      "stack-lg": "24px",
+                      "gutter": "12px",
+                      "stack-md": "16px"
+              },
+              "fontFamily": {
+                      "label-md": ["JetBrains Mono"],
+                      "body-md": ["Geist"],
+                      "label-sm": ["JetBrains Mono"],
+                      "body-lg": ["Geist"],
+                      "display": ["Geist"],
+                      "headline-md": ["Geist"],
+                      "headline-lg": ["Geist"]
+              },
+              "fontSize": {
+                      "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                      "label-sm": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                      "display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.04em", "fontWeight": "600"}],
+                      "headline-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                      "headline-lg": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-24">
+<!-- SideNavBar Shell -->
+<aside class="w-64 h-full fixed left-0 top-0 flex flex-col h-full py-stack-md px-container-padding bg-surface-container-lowest dark:bg-surface-container-lowest border-r border-outline-variant z-50">
+<div class="mb-stack-lg">
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface">TeleAuto Pro</h1>
+<p class="font-body-md text-body-md opacity-70">SaaS Platform</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors duration-200 bg-surface-container-high text-primary font-bold border-l-4 border-primary group" href="/dashboard/analytics.html">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-body-md text-body-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200 group active:scale-95 transition-transform" href="/dashboard/overview.html">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200 group" href="/dashboard/sources.html">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+<span class="font-body-md text-body-md">Sources</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200 group" href="/dashboard/studio.html">
+<span class="material-symbols-outlined" data-icon="edit_square">edit_square</span>
+<span class="font-body-md text-body-md">Studio</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200 group" href="/dashboard/distribution.html">
+<span class="material-symbols-outlined" data-icon="campaign">campaign</span>
+<span class="font-body-md text-body-md">Distribution</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200 group" href="/dashboard/automation.html">
+<span class="material-symbols-outlined" data-icon="robot_2">robot_2</span>
+<span class="font-body-md text-body-md">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200 group" href="/dashboard/wallet.html">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Wallet</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200 group" href="/dashboard/settings.html">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined" data-icon="shield_person">shield_person</span>
+<span class="font-body-md text-body-md">Admin</span>
+</a>
+</nav>
+<div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-3">
+<img alt="User Profile" class="w-10 h-10 rounded-full border border-outline-variant object-cover" data-alt="A close-up, high-quality professional headshot of a person with a modern, clean aesthetic. The lighting is soft and cinematic with cool tones, reflecting a high-end tech environment. The background is a blurred, dark office space with subtle hints of glowing purple and teal LEDs, matching the SaaS platform's premium professional color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLYv6ifECqgjziPEz5Y0Rm6jZVYw3HxyIqSto4GPa0GbDF1ZPD8IJ1A7ukuVrkTlOpMhwao26fisL7E0W6gbplyHnV4eT5Q7ELUAlTGHwyOZVaV0uUpOFAR_NxLurpZvG_A8LcE8cVYJHGAtEOCke3muRFdn2ijjyA7ehGw-GPoc6rf8qNcUdcRjT9lKTi8H3prwseqhgcdkEWZgdRZG7yk6UR7ENK_y-EFhQgc9og-AblV7U41Xt6a6IIuhzLtLnu8SXRA_GGDzMq"/>
+<div>
+<p class="font-label-md text-label-md font-bold text-on-surface">Alex Rivera</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Admin Tier</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Shell -->
+<main class="hidden lg:block ml-64 flex-1 h-full overflow-y-auto no-scrollbar relative flex flex-col bg-background">
+<!-- TopAppBar Shell -->
+<header class="fixed top-0 left-64 w-[calc(100%-16rem)] z-40 flex justify-between items-center px-gutter h-14 bg-surface-container-low border-b border-outline-variant">
+<div class="flex items-center gap-stack-md">
+<div class="bg-surface-container px-3 py-1.5 rounded-lg border border-outline-variant flex items-center gap-2 w-64">
+<span class="material-symbols-outlined text-outline text-[18px]" data-icon="search">search</span>
+<input class="bg-transparent border-none outline-none text-label-md font-label-md text-on-surface placeholder:text-outline w-full" placeholder="Search analytics..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-stack-lg">
+<nav class="hidden lg:flex items-center gap-6">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="#">Overview</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="#">Subscribers</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="#">Logs</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="#">Permissions</a>
+</nav>
+<div class="h-6 w-[1px] bg-outline-variant"></div>
+<div class="flex items-center gap-4">
+<button class="relative hover:text-primary transition-all active:opacity-80">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-secondary rounded-full border-2 border-surface-container-low"></span>
+</button>
+<button class="hover:text-primary transition-all active:opacity-80">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Canvas Area -->
+<div class="pt-20 px-8 pb-12 w-full max-w-7xl mx-auto space-y-8">
+<!-- Page Header -->
+<div class="flex justify-between items-end">
+<div>
+<h2 class="font-display text-display text-on-surface">Performance Analytics</h2>
+<p class="text-on-surface-variant font-body-md mt-1">Real-time engagement and distribution metrics across your channels.</p>
+</div>
+<div class="flex gap-3">
+<button class="px-4 py-2 bg-surface-container-high border border-outline-variant rounded-lg text-label-md font-label-md flex items-center gap-2 hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="calendar_today">calendar_today</span>
+                        Last 7 Days
+                    </button>
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg text-label-md font-label-md flex items-center gap-2 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-[18px]" data-icon="download">download</span>
+                        Export CSV
+                    </button>
+</div>
+</div>
+<!-- Top Row: Metric Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Card 1 -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-5 hover:border-primary/50 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</div>
+<div class="bg-secondary/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary" data-icon="trending_up">trending_up</span>
+<span class="text-secondary font-label-sm text-[10px]">12.5%</span>
+</div>
+</div>
+<p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Posts this week</p>
+<h3 class="text-3xl font-display font-bold text-on-surface">1,284</h3>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-5 hover:border-primary/50 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary group-hover:bg-tertiary group-hover:text-on-tertiary transition-colors">
+<span class="material-symbols-outlined" data-icon="content_copy">content_copy</span>
+</div>
+<div class="bg-primary/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary" data-icon="remove">remove</span>
+<span class="text-primary font-label-sm text-[10px]">Stable</span>
+</div>
+</div>
+<p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Duplicates blocked</p>
+<h3 class="text-3xl font-display font-bold text-on-surface">432</h3>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-5 hover:border-primary/50 transition-colors group">
+<div class="flex justify-between items-start mb-4">
+<div class="w-10 h-10 rounded-lg bg-error/10 flex items-center justify-center text-error group-hover:bg-error group-hover:text-on-error transition-colors">
+<span class="material-symbols-outlined" data-icon="error">error</span>
+</div>
+<div class="bg-error/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-error" data-icon="trending_down">trending_down</span>
+<span class="text-error font-label-sm text-[10px]">2.1%</span>
+</div>
+</div>
+<p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Errors logged</p>
+<h3 class="text-3xl font-display font-bold text-on-surface">12</h3>
+</div>
+</div>
+<!-- Middle Row: Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Bar Chart -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-6">
+<div class="flex justify-between items-center mb-8">
+<h4 class="font-headline-md text-on-surface">Daily Post Activity</h4>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-label-sm text-on-surface-variant">Automated</span>
+</div>
+</div>
+</div>
+<div class="h-64 flex items-end justify-between gap-2 px-2 border-b border-outline-variant/30">
+<div class="flex flex-col items-center gap-2 flex-1 group">
+<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 45%;">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">142</div>
+</div>
+<span class="text-label-sm text-on-surface-variant">Mon</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1 group">
+<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 65%;">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">198</div>
+</div>
+<span class="text-label-sm text-on-surface-variant">Tue</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1 group">
+<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 85%;">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">256</div>
+</div>
+<span class="text-label-sm text-on-surface-variant">Wed</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1 group">
+<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 70%;">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">210</div>
+</div>
+<span class="text-label-sm text-on-surface-variant">Thu</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1 group">
+<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 95%;">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">288</div>
+</div>
+<span class="text-label-sm text-on-surface-variant">Fri</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1 group">
+<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 40%;">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">120</div>
+</div>
+<span class="text-label-sm text-on-surface-variant">Sat</span>
+</div>
+<div class="flex flex-col items-center gap-2 flex-1 group">
+<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 30%;">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">94</div>
+</div>
+<span class="text-label-sm text-on-surface-variant">Sun</span>
+</div>
+</div>
+</div>
+<!-- Donut Chart -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-6">
+<h4 class="font-headline-md text-on-surface mb-8">Source Distribution</h4>
+<div class="flex items-center justify-around h-64">
+<div class="relative w-48 h-48">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#2b2933" stroke-dasharray="100, 100" stroke-width="4"></path>
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#6C47FF" stroke-dasharray="45, 100" stroke-width="4"></path>
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#41EEC2" stroke-dasharray="25, 100" stroke-dashoffset="-45" stroke-width="4"></path>
+<path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#FFB691" stroke-dasharray="30, 100" stroke-dashoffset="-70" stroke-width="4"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-2xl font-bold">120+</span>
+<span class="text-[10px] uppercase text-on-surface-variant font-label-sm">Sources</span>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 rounded-sm bg-primary-container"></span>
+<div class="flex flex-col">
+<span class="text-label-md text-on-surface">News APIs</span>
+<span class="text-[10px] text-on-surface-variant">45% Volume</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 rounded-sm bg-secondary"></span>
+<div class="flex flex-col">
+<span class="text-label-md text-on-surface">Webhooks</span>
+<span class="text-[10px] text-on-surface-variant">25% Volume</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 rounded-sm bg-tertiary"></span>
+<div class="flex flex-col">
+<span class="text-label-md text-on-surface">Social RSS</span>
+<span class="text-[10px] text-on-surface-variant">30% Volume</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Row: Source Performance Table -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden">
+<div class="p-6 border-b border-outline-variant flex justify-between items-center">
+<h4 class="font-headline-md text-on-surface">Source Performance</h4>
+<div class="flex gap-2">
+<span class="bg-secondary/10 text-secondary text-[10px] px-2 py-1 rounded border border-secondary/20 font-label-sm">LIVE MONITORING</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high/30">
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant border-b border-outline-variant">
+<div class="flex items-center gap-2 cursor-pointer hover:text-on-surface">
+                                        Source Name
+                                        <span class="material-symbols-outlined text-[16px]" data-icon="unfold_more">unfold_more</span>
+</div>
+</th>
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant border-b border-outline-variant">
+<div class="flex items-center gap-2 cursor-pointer hover:text-on-surface">
+                                        Frequency
+                                        <span class="material-symbols-outlined text-[16px]" data-icon="unfold_more">unfold_more</span>
+</div>
+</th>
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant border-b border-outline-variant">
+<div class="flex items-center gap-2 cursor-pointer hover:text-on-surface">
+                                        Success Rate
+                                        <span class="material-symbols-outlined text-[16px]" data-icon="expand_more">expand_more</span>
+</div>
+</th>
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant border-b border-outline-variant text-right">
+                                    Actions
+                                </th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container-highest flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="rss_feed">rss_feed</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md font-bold text-on-surface">TechCrunch Main</span>
+<span class="text-[10px] text-on-surface-variant">rss.techcrunch.com/feed</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-on-surface-variant font-body-md">5m intervals</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="flex-1 h-1.5 bg-surface-container-high rounded-full overflow-hidden max-w-[100px]">
+<div class="h-full bg-secondary" style="width: 98%"></div>
+</div>
+<span class="text-label-md font-bold text-secondary">98.2%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container-highest flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="api">api</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md font-bold text-on-surface">CryptoTicker API</span>
+<span class="text-[10px] text-on-surface-variant">api.binance.v3/prices</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-on-surface-variant font-body-md">30s intervals</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="flex-1 h-1.5 bg-surface-container-high rounded-full overflow-hidden max-w-[100px]">
+<div class="h-full bg-secondary" style="width: 100%"></div>
+</div>
+<span class="text-label-md font-bold text-secondary">100%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container-highest flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="webhook">webhook</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md font-bold text-on-surface">GitHub Webhooks</span>
+<span class="text-[10px] text-on-surface-variant">teleauto.pro/hooks/gh-prod</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-on-surface-variant font-body-md">Real-time</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="flex-1 h-1.5 bg-surface-container-high rounded-full overflow-hidden max-w-[100px]">
+<div class="h-full bg-primary" style="width: 82%"></div>
+</div>
+<span class="text-label-md font-bold text-primary">82.4%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-surface-container-highest flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-[18px]" data-icon="alternate_email">alternate_email</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md font-bold text-on-surface">X/Twitter Scraper</span>
+<span class="text-[10px] text-on-surface-variant">profile.scraper/main-list</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-on-surface-variant font-body-md">15m intervals</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="flex-1 h-1.5 bg-surface-container-high rounded-full overflow-hidden max-w-[100px]">
+<div class="h-full bg-error" style="width: 45%"></div>
+</div>
+<span class="text-label-md font-bold text-error">45.0%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant">
+<span class="material-symbols-outlined text-[20px]" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-outline-variant flex items-center justify-between">
+<p class="text-label-sm text-on-surface-variant">Showing 4 of 124 active sources</p>
+<div class="flex gap-2">
+<button class="px-3 py-1 rounded border border-outline-variant text-label-md disabled:opacity-50" disabled="">Previous</button>
+<button class="px-3 py-1 rounded border border-outline-variant text-label-md bg-surface-container-high">Next</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Floating Quick Action for Mobile (Hidden on Desktop) -->
+<button class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-primary-container text-on-primary-container rounded-full shadow-lg flex items-center justify-center z-50">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+</main>
+<!-- Mobile Wrapper -->
+<div class="lg:hidden">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center w-full px-container-padding h-14 z-50 sticky top-0 bg-surface border-b border-outline-variant">
+<div class="flex items-center gap-stack-md">
+<span class="material-symbols-outlined text-primary" data-icon="analytics">analytics</span>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface">Analytics</h1>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high transition-colors p-2 rounded-full" data-icon="notifications">notifications</button>
+</header>
+<main class="px-container-padding pt-stack-lg space-y-gutter">
+<!-- Metric Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="glass-card p-stack-md rounded-xl space-y-unit">
+<div class="flex justify-between items-start">
+<p class="font-label-md text-label-md text-on-surface-variant">Posts this week</p>
+<span class="bg-secondary-container/10 text-secondary text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center">
+<span class="material-symbols-outlined !text-[12px] mr-1" data-icon="trending_up">trending_up</span>
+                        +47%
+                    </span>
+</div>
+<h2 class="font-display text-display">47</h2>
+<div class="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary-container w-2/3"></div>
+</div>
+</div>
+<div class="glass-card p-stack-md rounded-xl space-y-unit">
+<p class="font-label-md text-label-md text-on-surface-variant">Duplicates Blocked</p>
+<h2 class="font-display text-display">12</h2>
+<p class="font-label-sm text-label-sm text-outline">Cleanliness: 98.4%</p>
+</div>
+<div class="glass-card p-stack-md rounded-xl space-y-unit">
+<p class="font-label-md text-label-md text-on-surface-variant">Errors</p>
+<div class="flex items-baseline gap-2">
+<h2 class="font-display text-display text-on-surface">0</h2>
+<span class="font-label-sm text-label-sm text-secondary">System Healthy</span>
+</div>
+<div class="flex gap-1">
+<div class="h-1 flex-1 bg-secondary rounded-full"></div>
+<div class="h-1 flex-1 bg-secondary rounded-full"></div>
+<div class="h-1 flex-1 bg-secondary rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="glass-card p-stack-md rounded-xl space-y-stack-md">
+<div class="flex justify-between items-center">
+<h3 class="font-headline-md text-headline-md">Posts Published</h3>
+<div class="flex gap-2">
+<button class="font-label-sm text-label-sm px-3 py-1 rounded bg-surface-container-high text-on-surface border border-outline-variant">7D</button>
+<button class="font-label-sm text-label-sm px-3 py-1 rounded text-on-surface-variant">30D</button>
+</div>
+</div>
+<div class="h-48 flex items-end justify-between gap-2 px-2 pt-4">
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="chart-bar w-full bg-primary-container rounded-t-sm" style="height: 40%"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Mon</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="chart-bar w-full bg-primary-container rounded-t-sm" style="height: 65%"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Tue</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="chart-bar w-full bg-primary-container rounded-t-sm" style="height: 35%"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Wed</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="chart-bar w-full bg-primary-container rounded-t-sm" style="height: 85%"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Thu</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="chart-bar w-full bg-primary-container rounded-t-sm" style="height: 55%"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Fri</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="chart-bar w-full bg-primary-container rounded-t-sm" style="height: 95%"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Sat</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="chart-bar w-full bg-primary-container rounded-t-sm" style="height: 70%"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Sun</span>
+</div>
+</div>
+</div>
+<div class="glass-card rounded-xl overflow-hidden">
+<div class="px-stack-md py-stack-sm border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+<h3 class="font-label-md text-label-md uppercase tracking-wider text-outline">Source Performance</h3>
+<span class="material-symbols-outlined text-outline cursor-pointer" data-icon="filter_list">filter_list</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="font-label-sm text-label-sm text-on-surface-variant border-b border-outline-variant">
+<th class="p-stack-md font-medium">Source</th>
+<th class="p-stack-md font-medium text-right">Posts</th>
+<th class="p-stack-md font-medium text-right">Duplicates</th>
+<th class="p-stack-md font-medium text-right">Avg/Day</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container transition-colors">
+<td class="p-stack-md flex items-center gap-2">
+<div class="w-6 h-6 rounded bg-primary-container/20 flex items-center justify-center">
+<span class="material-symbols-outlined !text-[14px] text-primary" data-icon="rss_feed">rss_feed</span>
+</div>
+                                TechCrunch
+                            </td>
+<td class="p-stack-md text-right font-label-md">142</td>
+<td class="p-stack-md text-right text-error font-label-md">4</td>
+<td class="p-stack-md text-right font-label-md">20.3</td>
+</tr>
+<tr class="border-b border-outline-variant/30 hover:bg-surface-container transition-colors">
+<td class="p-stack-md flex items-center gap-2">
+<div class="w-6 h-6 rounded bg-secondary-container/20 flex items-center justify-center">
+<span class="material-symbols-outlined !text-[14px] text-secondary" data-icon="terminal">terminal</span>
+</div>
+                                GitHub Labs
+                            </td>
+<td class="p-stack-md text-right font-label-md">88</td>
+<td class="p-stack-md text-right text-on-surface-variant font-label-md">0</td>
+<td class="p-stack-md text-right font-label-md">12.5</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors">
+<td class="p-stack-md flex items-center gap-2">
+<div class="w-6 h-6 rounded bg-tertiary-container/20 flex items-center justify-center">
+<span class="material-symbols-outlined !text-[14px] text-tertiary" data-icon="news">news</span>
+</div>
+                                The Verge
+                            </td>
+<td class="p-stack-md text-right font-label-md">215</td>
+<td class="p-stack-md text-right text-error font-label-md">8</td>
+<td class="p-stack-md text-right font-label-md">30.7</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="glass-card p-stack-md rounded-xl flex items-start gap-stack-md border-primary-container/30 bg-primary-container/5">
+<span class="material-symbols-outlined text-primary p-2 bg-primary-container/10 rounded-lg" data-icon="lightbulb" data-weight="fill" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+<div class="space-y-1">
+<h4 class="font-label-md text-label-md text-primary">Optimization Tip</h4>
+<p class="font-body-md text-body-md text-on-surface-variant">Duplicate rates are 4% higher on weekends. Consider adjusting the 'The Verge' fetch interval to 60m.</p>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[56px] px-2 bg-surface border-t border-outline-variant lg:hidden">
+<a class="flex flex-col items-center justify-center text-primary font-bold bg-transparent group" href="/dashboard/overview.html">
+<span class="material-symbols-outlined group-active:scale-95 transition-transform duration-150" data-icon="grid_view" data-weight="fill" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+<span class="font-label-sm text-label-sm">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors group" href="/dashboard/sources.html">
+<span class="material-symbols-outlined group-active:scale-95 transition-transform duration-150" data-icon="database">database</span>
+<span class="font-label-sm text-label-sm">Sources</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors group" href="/dashboard/studio.html">
+<span class="material-symbols-outlined group-active:scale-95 transition-transform duration-150" data-icon="movie_edit">movie_edit</span>
+<span class="font-label-sm text-label-sm">Studio</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors group" href="/dashboard/automation.html">
+<span class="material-symbols-outlined group-active:scale-95 transition-transform duration-150" data-icon="bolt">bolt</span>
+<span class="font-label-sm text-label-sm">Automation</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors group" href="/dashboard/settings.html">
+<span class="material-symbols-outlined group-active:scale-95 transition-transform duration-150" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+</nav>
+</div>
+<script>
+        // Micro-interaction for bar charts (desktop)
+        document.addEventListener('DOMContentLoaded', () => {
+            const bars = document.querySelectorAll('.chart-bar');
+            bars.forEach(bar => {
+                const height = bar.style.height;
+                bar.style.height = '0';
+                setTimeout(() => {
+                    bar.style.height = height;
+                }, 100);
+            });
+        });
+    </script>
+<script>
+        // Subtle micro-interaction: Animate chart bars on load (mobile)
+        window.addEventListener('DOMContentLoaded', () => {
+            const bars = document.querySelectorAll('.chart-bar');
+            bars.forEach(bar => {
+                const targetHeight = bar.style.height;
+                bar.style.height = '0%';
+                setTimeout(() => {
+                    bar.style.height = targetHeight;
+                }, 100);
+            });
+        });
+    </script>
+</body></html>

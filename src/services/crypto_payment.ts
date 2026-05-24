@@ -122,18 +122,18 @@ async function refreshPrices() {
     try {
       const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=toncoin,tether&vs_currencies=usd', { signal: AbortSignal.timeout(5000) });
       if (r.ok) { const d: any = await r.json(); if (d.toncoin?.usd) tonPriceUsdt = d.toncoin.usd; }
-    } catch {}
+    } catch { logger.warn(`CoinGecko price fetch failed`); }
     if (!tonPriceUsdt || tonPriceUsdt === 6) {
       try {
         const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT', { signal: AbortSignal.timeout(5000) });
         if (r.ok) { const d: any = await r.json(); if (d.price) tonPriceUsdt = parseFloat(d.price); }
-      } catch {}
+      } catch { logger.warn(`Binance price fetch failed`); }
     }
     for (const url of ['https://api.exchangerate-api.com/v4/latest/USD', 'https://open.er-api.com/v6/latest/USD']) {
       try {
         const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
         if (r.ok) { const d: any = await r.json(); if (d.rates?.UZS) { usdtPrice = d.rates.UZS; break; } }
-      } catch {}
+      } catch { logger.warn(`Exchange rate fetch failed`); }
     }
     lastPriceFetch = now;
     priceFetchPromise = null;
@@ -274,7 +274,7 @@ async function checkTonTransaction(req: PaymentRequest): Promise<boolean> {
         if (isAmountMatch(value, expected)) return true;
       }
     }
-  } catch (e) { logger.warn(`TON tx check: ${(e as Error).message}`); }
+  } catch (e: any) { logger.warn(`TON tx check: ${e?.message || 'unknown'}`); }
   return false;
 }
 
@@ -313,6 +313,6 @@ async function checkUsdtJettonTransaction(req: PaymentRequest): Promise<boolean>
         }
       }
     }
-  } catch (e) { logger.warn(`USDT Jetton check: ${(e as Error).message}`); }
+  } catch (e: any) { logger.warn(`USDT Jetton check: ${e?.message || 'unknown'}`); }
   return false;
 }

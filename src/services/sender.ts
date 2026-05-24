@@ -99,7 +99,7 @@ export async function safeSend(user: any, article: any): Promise<void> {
       return;
     }
 
-    const targets = DBService.getUserOutputChannels(user);
+    const targets = await DBService.getAllUserChannels(user);
     const sent = await safeSendToChannels(user, targets.length ? targets : [user.target_channel], async (targetChannel) => {
       if (article.videoUrl && ScraperService.isMediaUrl(article.videoUrl)) {
         await bot.sendVideo(targetChannel, article.videoUrl, { caption, parse_mode: "HTML" });

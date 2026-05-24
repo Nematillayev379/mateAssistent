@@ -131,7 +131,7 @@ export async function gracefulShutdown(timeoutMs = 10000): Promise<void> {
     await new Promise(r => setTimeout(r, 200));
   }
   for (const cb of shutdownCallbacks) {
-    try { await cb(); } catch {}
+    try { await cb(); } catch (e: any) { logger.warn(`Shutdown callback failed: ${e?.message || 'unknown error'}`); }
   }
   logger.info('[MemoryQueue] Shutdown complete');
 }

@@ -18,7 +18,7 @@ export function setupSystemCrons() {
 function scheduleSelfPing() {
   cron.schedule("*/10 * * * *", async () => {
     if (!CONFIG.PUBLIC_URL) return;
-    try { await axios.get(CONFIG.PUBLIC_URL, { timeout: 10000 }); } catch {}
+    try { await axios.get(CONFIG.PUBLIC_URL, { timeout: 10000 }); } catch (e: any) { logger.warn(`Self-ping failed: ${e?.message || 'unknown error'}`); }
   });
 }
 

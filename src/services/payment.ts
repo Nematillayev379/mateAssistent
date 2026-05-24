@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger';
 import { DBService } from './database';
+import { SecretManager } from './secret_manager';
 import crypto from 'crypto';
 
 interface TxState {
@@ -17,19 +18,19 @@ async function getTx(txId: string): Promise<TxState | null> {
   try {
     const raw = await DBService.getSetting(`pay_tx_${txId}`);
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch { logger.warn(`Failed to get tx: parse or read error`); }
   return null;
 }
 
 async function saveTx(txId: string, state: TxState) {
   try {
     await DBService.setSetting(`pay_tx_${txId}`, JSON.stringify(state));
-  } catch {}
+  } catch { logger.warn(`Failed to save tx`); }
 }
 
 export const PaymentService = {
   async generatePaymeLink(userId: number, amount: number, plan: 'monthly' | 'yearly' = 'monthly') {
-    const merchantId = process.env.PAYME_MERCHANT_ID;
+    const merchantId = SecretManager.get('PAYME_MERCHANT_ID');
     if (!merchantId) {
       logger.warn('PAYME_MERCHANT_ID not configured');
       return null;
@@ -41,8 +42,8 @@ export const PaymentService = {
   },
 
   async generateClickLink(userId: number, amount: number, plan: 'monthly' | 'yearly' = 'monthly') {
-    const serviceId = process.env.CLICK_SERVICE_ID;
-    const merchantId = process.env.CLICK_MERCHANT_ID;
+    const serviceId = SecretManager.get('CLICK_SERVICE_ID');
+    const merchantId = SecretManager.get('CLICK_MERCHANT_ID');
     if (!serviceId || !merchantId) {
       logger.warn('CLICK_SERVICE_ID or CLICK_MERCHANT_ID not configured');
       return null;
@@ -64,9 +65,9 @@ export const PaymentService = {
   },
 
   async handlePaymeWebhook(data: any, headers?: any) {
-    const paymeKey = process.env.PAYME_KEY;
+    const paymeKey = SecretManager.get('PAYME_KEY');
     if (!paymeKey) {
-      logger.error('🚫 Payme: PAYME_KEY not configured. Webhook rejected.');
+      logger.error('PAYME_KEY not configured. Webhook rejected.');
       return { error: { code: -32504, message: 'Server not configured' } };
     }
 
@@ -167,14 +168,14 @@ export const PaymentService = {
   getAvailableMethods() {
     return {
       stars: true,
-      payme: !!process.env.PAYME_MERCHANT_ID,
-      click: !!(process.env.CLICK_SERVICE_ID && process.env.CLICK_MERCHANT_ID),
+      payme: !!SecretManager.get('PAYME_MERCHANT_ID'),
+      click: !!(SecretManager.get('CLICK_SERVICE_ID') && SecretManager.get('CLICK_MERCHANT_ID')),
     };
   },
 
   async handleClickWebhook(payload: any) {
-    const secret = process.env.CLICK_SECRET_KEY;
-    const serviceId = process.env.CLICK_SERVICE_ID;
+    const secret = SecretManager.get('CLICK_SECRET_KEY');
+    const serviceId = SecretManager.get('CLICK_SERVICE_ID');
     if (!secret || !serviceId) {
       return { error: -9, error_note: 'Payment provider not configured', click_trans_id: payload?.click_trans_id || 0, merchant_trans_id: payload?.merchant_trans_id || '' };
     }

@@ -1,4 +1,5 @@
 import { getSupabase } from "./BaseRepository";
+import { WorkspaceRepository } from "./WorkspaceRepository";
 import { logger } from "../utils/logger";
 
 export const UserRepository = {
@@ -73,6 +74,22 @@ export const UserRepository = {
     if (user?.target_channel) list.push(String(user.target_channel).trim());
     if (user?.extra_channels) {
       user.extra_channels.split(',').forEach((c: string) => { const t = c.trim(); if (t) list.push(t); });
+    }
+    return [...new Set(list)];
+  },
+
+  async getAllChannels(user: any): Promise<string[]> {
+    const list = UserRepository.outputChannels(user);
+    if (user?.telegram_id) {
+      try {
+        const userWs = await WorkspaceRepository.getByUser(user.telegram_id);
+        for (const ws of userWs) {
+          const channels = await WorkspaceRepository.getChannels(ws.id);
+          for (const ch of channels) {
+            if (ch.channel_id?.trim()) list.push(String(ch.channel_id).trim());
+          }
+        }
+      } catch { /* workspace channels are best-effort extras */ }
     }
     return [...new Set(list)];
   },

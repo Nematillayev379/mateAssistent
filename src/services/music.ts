@@ -10,7 +10,7 @@ import { promisify } from 'util';
 
 const execPromise = promisify(exec);
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_music');
-try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e) {}
+try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: any) { logger.warn(`Failed to create TEMP_DIR: ${e?.message || 'unknown error'}`); }
 
 const MAX_FILE_SIZE = 49 * 1024 * 1024; // 49MB (Telegram limit = 50MB)
 
@@ -122,37 +122,26 @@ export const MusicService = {
               results.push({ title: title.trim(), path: filePath });
               logger.info(`✅ Music downloaded: ${sanitizeLogInput(title.trim())} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
             } else {
-              try { fs.unlinkSync(filePath); } catch {}
+              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
             }
           }
-          const altExtensions = ['.webm', '.opus', '.mp3'];
-          for (const altExt of altExtensions) {
-            const altPath = filePath.replace(/\.[a-zA-Z0-9]+$/, '') + altExt;
-            if (fs.existsSync(altPath)) {
-              const stats = fs.statSync(altPath);
-              if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
-                results.push({ title: title.trim(), path: altPath });
-                logger.info(`✅ Music downloaded: ${sanitizeLogInput(title.trim())} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
-                break;
-              }
-            }
-          }
-        } catch (dlErr: any) {
-          logger.warn(`yt-dlp download error for "${sanitizeLogInput(title)}": ${dlErr.message?.slice(0, 100)}`);
-          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+        } catch (e: any) {
+          logger.warn(`yt-dlp download error: ${e.message?.slice(0, 200)}`);
         }
       }
+
+      const uniqueResults = new Map<string, { title: string, path: string }>();
+      for (const result of results) {
+        const normalizedTitle = result.title.toLowerCase().trim();
+        if (!uniqueResults.has(normalizedTitle)) {
+          uniqueResults.set(normalizedTitle, result);
+        }
+      }
+      return Array.from(uniqueResults.values());
     } catch (e: any) {
       logger.warn(`yt-dlp search error: ${e.message?.slice(0, 200)}`);
     }
-    const uniqueResults = new Map<string, { title: string, path: string }>();
-    for (const result of results) {
-      const normalizedTitle = result.title.toLowerCase().trim();
-      if (!uniqueResults.has(normalizedTitle)) {
-        uniqueResults.set(normalizedTitle, result);
-      }
-    }
-    return Array.from(uniqueResults.values());
+    return results;
   },
 
   /**
@@ -243,7 +232,7 @@ export const MusicService = {
               logger.info(`✅ Cobalt download: ${sanitizeLogInput(video.title)} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
               break; // Success, move to next video
             } else {
-              try { fs.unlinkSync(filePath); } catch {}
+              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup failed: ${e?.message || 'unknown'}`); }
             }
           }
         } catch (e: any) {
@@ -283,11 +272,11 @@ export const MusicService = {
             if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
               results.push({ title: video.title, path: filePath });
             } else {
-              try { fs.unlinkSync(filePath); } catch {}
+              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
             }
           }
         } catch (e: any) {
-          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
         }
       }
     }
@@ -418,9 +407,9 @@ export const MusicService = {
             fs.unlinkSync(filePath);
             cleaned++;
           }
-        } catch {}
+        } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
       }
-      if (cleaned > 0) logger.info(`🧹 MusicService: ${cleaned} temp files cleaned.`);
-    } catch {}
+      if (cleaned > 0) logger.info(`MusicService: ${cleaned} temp files cleaned.`);
+    } catch (e: any) { logger.warn(`Cleanup failed: ${e?.message || 'unknown error'}`); }
   }
 };

@@ -4,6 +4,7 @@ import { adminCommand } from "./admin";
 import { setChannelCommand } from "./setchannel";
 import { statusCommand } from "./status";
 import { trackCommand } from "./track";
+import { workspaceCommand } from "./workspace";
 import { sendNextOnboardingStep, startCommand } from "./start";
 import { langCommand } from "./lang";
 import { BotCommand } from "../types";
@@ -21,6 +22,7 @@ export const commands: BotCommand[] = [
   startCommand,
   statusCommand,
   trackCommand,
+  workspaceCommand,
   adminCommand,
   setChannelCommand,
   helpCommand,

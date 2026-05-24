@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Automation Rules Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&amp;family=Geist:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#00513f",
+                        "on-secondary-container": "#005441",
+                        "tertiary-fixed": "#ffdbcb",
+                        "surface": "#14121c",
+                        "surface-container": "#201e29",
+                        "surface-container-high": "#2b2933",
+                        "tertiary-container": "#b34d00",
+                        "inverse-primary": "#5e35f1",
+                        "primary": "#c9beff",
+                        "inverse-surface": "#e6e0ef",
+                        "on-tertiary-fixed": "#341100",
+                        "secondary-fixed": "#55fcd0",
+                        "on-surface": "#e6e0ef",
+                        "secondary": "#41eec2",
+                        "on-tertiary": "#552100",
+                        "primary-container": "#6c47ff",
+                        "outline": "#938ea2",
+                        "on-tertiary-container": "#ffeae1",
+                        "surface-tint": "#c9beff",
+                        "primary-fixed": "#e6deff",
+                        "inverse-on-surface": "#312f3a",
+                        "on-secondary": "#00382b",
+                        "primary-fixed-dim": "#c9beff",
+                        "surface-container-highest": "#36333e",
+                        "on-primary": "#2f009b",
+                        "surface-container-low": "#1c1a25",
+                        "tertiary": "#ffb691",
+                        "on-secondary-fixed": "#002118",
+                        "secondary-container": "#00d1a7",
+                        "error": "#ffb4ab",
+                        "on-surface-variant": "#c9c3d9",
+                        "outline-variant": "#484556",
+                        "on-tertiary-fixed-variant": "#783100",
+                        "surface-bright": "#3a3843",
+                        "on-error": "#690005",
+                        "surface-container-lowest": "#0e0d17",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "on-primary-fixed": "#1b0063",
+                        "on-background": "#e6e0ef",
+                        "surface-variant": "#36333e",
+                        "error-container": "#93000a",
+                        "secondary-fixed-dim": "#28dfb5",
+                        "on-primary-container": "#f1ebff",
+                        "surface-dim": "#14121c",
+                        "on-primary-fixed-variant": "#4500d8",
+                        "on-error-container": "#ffdad6",
+                        "background": "#14121c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "4px",
+                        "lg": "8px",
+                        "xl": "12px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "container-padding": "16px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px",
+                        "gutter": "12px",
+                        "stack-md": "16px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Geist"],
+                        "label-sm": ["JetBrains Mono"],
+                        "body-lg": ["Geist"],
+                        "display": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "headline-lg": ["Geist"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-sm": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.04em", "fontWeight": "600"}],
+                        "headline-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "headline-lg": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0B;
+            color: #e6e0ef;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: 80px;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #14121c;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #484556;
+            border-radius: 2px;
+        }
+        .rule-card-active {
+            border-left: 3px solid #6C47FF;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md custom-scrollbar">
+<!-- DESKTOP SIDEBAR -->
+<aside class="w-64 h-full fixed left-0 top-0 border-r border-outline-variant bg-surface-container-lowest flex flex-col py-stack-md px-container-padding z-50">
+<div class="mb-stack-lg">
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface tracking-tighter">TeleAuto Pro</h1>
+<p class="font-body-md text-body-md text-on-surface-variant opacity-70">SaaS Platform</p>
+</div>
+<nav class="flex-1 space-y-unit">
+<a class="flex items-center gap-stack-sm px-stack-md py-stack-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/overview.html">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md">Overview</span>
+</a>
+<a class="flex items-center gap-stack-sm px-stack-md py-stack-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/sources.html">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+<span class="font-body-md text-body-md">Sources</span>
+</a>
+<a class="flex items-center gap-stack-sm px-stack-md py-stack-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/studio.html">
+<span class="material-symbols-outlined" data-icon="edit_square">edit_square</span>
+<span class="font-body-md text-body-md">Studio</span>
+</a>
+<a class="flex items-center gap-stack-sm px-stack-md py-stack-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/distribution.html">
+<span class="material-symbols-outlined" data-icon="campaign">campaign</span>
+<span class="font-body-md text-body-md">Distribution</span>
+</a>
+<a class="flex items-center gap-stack-sm px-stack-md py-stack-sm rounded-lg bg-surface-container-high text-primary font-bold border-l-4 border-primary transition-colors duration-200" href="/dashboard/automation.html">
+<span class="material-symbols-outlined" data-icon="robot_2">robot_2</span>
+<span class="font-body-md text-body-md">Automation</span>
+</a>
+<a class="flex items-center gap-stack-sm px-stack-md py-stack-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/analytics.html">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-body-md text-body-md">Analytics</span>
+</a>
+<a class="flex items-center gap-stack-sm px-stack-md py-stack-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/wallet.html">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Wallet</span>
+</a>
+<a class="flex items-center gap-stack-sm px-stack-md py-stack-sm rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/settings.html">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-stack-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold">JD</div>
+<div class="flex-1 min-w-0">
+<p class="text-label-md font-label-md truncate">Admin User</p>
+<p class="text-label-sm font-label-sm text-on-surface-variant truncate">Pro Plan</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]" data-icon="shield_person">shield_person</span>
+</div>
+</aside>
+<!-- DESKTOP TOPBAR -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-14 bg-surface-container-low border-b border-outline-variant z-40 flex justify-between items-center px-gutter">
+<div class="flex items-center gap-stack-md">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="bg-surface-container-lowest border border-outline-variant rounded-lg pl-10 pr-4 py-1.5 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none w-64 transition-all" placeholder="Search rules..." type="text"/>
+</div>
+<nav class="hidden lg:flex items-center gap-stack-lg ml-stack-lg">
+<a class="text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all" href="#">Overview</a>
+<a class="text-primary border-b-2 border-primary pb-2 font-label-md text-label-md" href="#">Automation</a>
+<a class="text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all" href="#">Logs</a>
+<a class="text-on-surface-variant hover:text-on-surface font-label-md text-label-md transition-all" href="#">Permissions</a>
+</nav>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-all text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container transition-all text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant mx-unit"></div>
+<img alt="Administrator" class="w-8 h-8 rounded-full object-cover border border-outline-variant" data-alt="A professional headshot of a software engineer in a high-tech office environment. The lighting is crisp and blue-toned, emphasizing a clean, dark mode aesthetic. He is wearing a minimalist black turtleneck, and the background is softly blurred showing high-end server racks and glowing interfaces. The overall mood is intelligent, sleek, and high-performance." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4uVkRjfMDKsIE3-aBTMO1VgbdJd2rts-RasfwileXLaWhzEbo3SS3GtQgcLyFWHt7Q7kQXObXh0KFwAQlfk7n32gY4GKXYGHkcrkSyZs_we5Tj7S9IPkEPQjnfqmdDjMRKgM9F96gPmSQTAWl2CAJHszn63iTiHGi7qMfgEfMiCFpQnDNiIjnoxVm-YJ97q98IQV52D_mKIFAScx8ZrQi4ZfJ0e6aEojNzdajHdO3H3gtjhuGZrseQ5wUOdXydMqdM4m3lERXuV73"/>
+</div>
+</header>
+<!-- DESKTOP MAIN -->
+<main class="hidden lg:block ml-64 mt-14 p-stack-lg max-w-[1200px]">
+<div class="flex justify-between items-end mb-stack-lg">
+<div>
+<h2 class="font-display text-display mb-unit">Automation Rules</h2>
+<p class="text-body-lg text-on-surface-variant">Manage keyword triggers and automated workflows for your Telegram channels.</p>
+</div>
+<button class="bg-primary-container text-on-primary-container px-stack-lg py-stack-sm rounded-lg font-bold flex items-center gap-unit hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                Create Rule
+            </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-md mb-stack-lg">
+<div class="glass-card p-stack-md rounded-xl group hover:border-primary transition-all duration-300">
+<div class="flex justify-between items-start mb-stack-md">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">Keyword Monitor</h3>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Updated 2h ago</p>
+</div>
+</div>
+<div class="flex gap-stack-sm">
+<span class="bg-secondary/10 text-secondary px-stack-sm py-[2px] rounded-full text-label-sm font-label-sm flex items-center gap-unit">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                            ACTIVE
+                        </span>
+</div>
+</div>
+<div class="space-y-stack-sm bg-surface-container-lowest/50 p-stack-sm rounded-lg border border-outline-variant/30">
+<div class="flex items-center gap-stack-sm">
+<span class="text-label-sm font-label-sm text-primary uppercase">If</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-0.5 rounded border border-outline-variant">Keyword contains "iPhone 15"</span>
+</div>
+<div class="flex items-center gap-stack-sm">
+<span class="text-label-sm font-label-sm text-secondary uppercase">Then</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-0.5 rounded border border-outline-variant">Forward to @Buy_Tech_Group</span>
+</div>
+</div>
+<div class="mt-stack-md flex justify-between items-center">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center text-[10px] font-bold">842</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant ml-4">matches today</div>
+</div>
+<div class="flex items-center gap-stack-sm opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-stack-sm hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span></button>
+<button class="p-stack-sm hover:text-error transition-colors"><span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span></button>
+</div>
+</div>
+</div>
+<div class="glass-card p-stack-md rounded-xl group hover:border-primary transition-all duration-300">
+<div class="flex justify-between items-start mb-stack-md">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">Spam Shield</h3>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Updated 1d ago</p>
+</div>
+</div>
+<div class="flex gap-stack-sm">
+<span class="bg-secondary/10 text-secondary px-stack-sm py-[2px] rounded-full text-label-sm font-label-sm flex items-center gap-unit">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                            ACTIVE
+                        </span>
+</div>
+</div>
+<div class="space-y-stack-sm bg-surface-container-lowest/50 p-stack-sm rounded-lg border border-outline-variant/30">
+<div class="flex items-center gap-stack-sm">
+<span class="text-label-sm font-label-sm text-primary uppercase">If</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-0.5 rounded border border-outline-variant">Link contains "t.me/invite"</span>
+</div>
+<div class="flex items-center gap-stack-sm">
+<span class="text-label-sm font-label-sm text-secondary uppercase">Then</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-0.5 rounded border border-outline-variant">Delete message &amp; Ban user</span>
+</div>
+</div>
+<div class="mt-stack-md flex justify-between items-center">
+<div class="flex -space-x-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-high border border-outline-variant flex items-center justify-center text-[10px] font-bold">12</div>
+<div class="text-label-sm font-label-sm text-on-surface-variant ml-4">bans last hour</div>
+</div>
+<div class="flex items-center gap-stack-sm opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-stack-sm hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span></button>
+<button class="p-stack-sm hover:text-error transition-colors"><span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span></button>
+</div>
+</div>
+</div>
+<div class="glass-card p-stack-md rounded-xl group hover:border-primary transition-all duration-300 opacity-60 grayscale hover:grayscale-0 hover:opacity-100">
+<div class="flex justify-between items-start mb-stack-md">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="schedule">schedule</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md">Nightly Cleanup</h3>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Paused 3d ago</p>
+</div>
+</div>
+<div class="flex gap-stack-sm">
+<span class="bg-surface-variant text-on-surface-variant px-stack-sm py-[2px] rounded-full text-label-sm font-label-sm flex items-center gap-unit">
+                            PAUSED
+                        </span>
+</div>
+</div>
+<div class="space-y-stack-sm bg-surface-container-lowest/50 p-stack-sm rounded-lg border border-outline-variant/30">
+<div class="flex items-center gap-stack-sm">
+<span class="text-label-sm font-label-sm text-primary uppercase">If</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-0.5 rounded border border-outline-variant">Time is 03:00 AM UTC</span>
+</div>
+<div class="flex items-center gap-stack-sm">
+<span class="text-label-sm font-label-sm text-secondary uppercase">Then</span>
+<span class="font-label-md text-label-md bg-surface-container-high px-2 py-0.5 rounded border border-outline-variant">Archive inactive threads</span>
+</div>
+</div>
+<div class="mt-stack-md flex justify-between items-center">
+<div class="text-label-sm font-label-sm text-on-surface-variant italic">Last run: Oct 24, 2023</div>
+<div class="flex items-center gap-stack-sm opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-stack-sm hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]" data-icon="play_arrow">play_arrow</span></button>
+<button class="p-stack-sm hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]" data-icon="edit">edit</span></button>
+<button class="p-stack-sm hover:text-error transition-colors"><span class="material-symbols-outlined text-[20px]" data-icon="delete">delete</span></button>
+</div>
+</div>
+</div>
+<div class="border-2 border-dashed border-outline-variant rounded-xl flex flex-col items-center justify-center p-stack-lg hover:border-primary/50 cursor-pointer transition-all hover:bg-surface-container-low group">
+<div class="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant group-hover:bg-primary group-hover:text-on-primary group-hover:border-primary transition-all">
+<span class="material-symbols-outlined text-[28px]" data-icon="add_task">add_task</span>
+</div>
+<p class="mt-stack-sm font-headline-md text-headline-md text-on-surface-variant">New Automation Rule</p>
+<p class="text-label-sm font-label-sm text-on-surface-variant/60">Choose from templates or start from scratch</p>
+</div>
+</div>
+<div class="mt-stack-lg border-t border-outline-variant pt-stack-lg">
+<div class="flex items-center justify-between mb-stack-md">
+<div class="flex items-center gap-stack-sm">
+<span class="material-symbols-outlined text-primary" data-icon="trending_down">trending_down</span>
+<h3 class="font-headline-lg text-headline-lg">Market Price Tracker</h3>
+</div>
+<div class="flex gap-stack-sm">
+<input class="bg-surface-container-low border border-outline-variant rounded-lg px-stack-md py-1.5 text-body-md focus:border-primary outline-none w-80" placeholder="Paste OLX or Uzum URL..." type="text"/>
+<button class="bg-surface-container-high border border-outline-variant text-on-surface px-stack-md py-1.5 rounded-lg font-label-md text-label-md hover:bg-surface-container-highest transition-all">Track URL</button>
+</div>
+</div>
+<div class="glass-card rounded-xl overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="px-stack-md py-stack-sm font-label-md text-label-md text-on-surface-variant">Product Details</th>
+<th class="px-stack-md py-stack-sm font-label-md text-label-md text-on-surface-variant">Source</th>
+<th class="px-stack-md py-stack-sm font-label-md text-label-md text-on-surface-variant text-right">Current Price</th>
+<th class="px-stack-md py-stack-sm font-label-md text-label-md text-on-surface-variant text-right">Change</th>
+<th class="px-stack-md py-stack-sm font-label-md text-label-md text-on-surface-variant text-center">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-stack-md py-stack-md">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A macro close-up of a sleek, space grey smartphone resting on a dark reflective surface. The product lighting is dramatic and professional, with a focus on its metallic edge and glass screen. The overall aesthetic is high-end electronics photography, dominated by deep shadows and sharp highlights, consistent with a dark-themed UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC2S7bl_kVz5v5EvFIXl2SMQlOTGUAxv7R9D1dRdXjc-3rp0YHaFnEHxOLTlvgVnhd5TEfsBE9D_bN2Rzk711ALilPo3rBJr_C5UcBWLCL5WfaVLI-07Mo-ook8GxJooQXH0XRZIjuHVPKEMFz8FGy1j0uMIIdehXyv4mDsk9xQ8QVv-HugpeeF957LTPuatwtdesFN-ROoaFyxqGIUGcAjK3CPfDVs4_Z8d6r0JDmOPj9oC0hT8U3akC0uxqau2j9M-LqqIIg1Mn3M"/>
+</div>
+<div>
+<p class="font-body-md text-body-md font-bold">iPhone 15 Pro Max 256GB</p>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Last checked: 5 mins ago</p>
+</div>
+</div>
+</td>
+<td class="px-stack-md py-stack-md">
+<span class="bg-surface-container-high px-stack-sm py-unit rounded text-label-sm font-label-sm">UZUM.UZ</span>
+</td>
+<td class="px-stack-md py-stack-md text-right font-label-md text-label-md">
+                                14,250,000 UZS
+                            </td>
+<td class="px-stack-md py-stack-md text-right">
+<span class="text-secondary text-label-md font-label-md flex items-center justify-end gap-unit">
+<span class="material-symbols-outlined text-[16px]" data-icon="arrow_drop_down">arrow_drop_down</span>
+                                    -3%
+                                </span>
+</td>
+<td class="px-stack-md py-stack-md text-center">
+<span class="material-symbols-outlined text-secondary" data-icon="notifications_active" style="font-variation-settings: 'FILL' 1;">notifications_active</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-stack-md py-stack-md">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A high-performance laptop open on a minimalist desk at night. The screen glow provides the primary light source, illuminating the keys and the brushed aluminum finish. The setting is a modern tech workstation with a focus on hardware quality and professional tools. The colors are muted, relying on grey, silver, and deep black tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXdKEGtQKUq5fYB8dc4vsPF_CAysUOY6S5dK-kDO1cG-XXtE1h02J2yKnOhGfHq-5_ow4jIHD9MrwH7s1DQrJL8u_sJN-o-SX0wDQ07Nh7fDyz-vwFOGyM0L7r_wHb9u7xzRa8cKdan95Ja9GEPLd3X3MF6opuUjcT0DoqDYne-yif1gidwrgBdl-QfSH_RgHeVbyxQaQqUF2lvpLviARpXzSG0qHOVKgDw5L6Z3tvZFdHe3NQgkgMRp-GgeDXXmPybtrE_c3tD-dS"/>
+</div>
+<div>
+<p class="font-body-md text-body-md font-bold">MacBook Air M2 13"</p>
+<p class="text-label-sm font-label-sm text-on-surface-variant">Last checked: 1h ago</p>
+</div>
+</div>
+</td>
+<td class="px-stack-md py-stack-md">
+<span class="bg-surface-container-high px-stack-sm py-unit rounded text-label-sm font-label-sm">OLX.UZ</span>
+</td>
+<td class="px-stack-md py-stack-md text-right font-label-md text-label-md">
+                                12,900,000 UZS
+                            </td>
+<td class="px-stack-md py-stack-md text-right">
+<span class="text-on-surface-variant text-label-md font-label-md flex items-center justify-end gap-unit">
+                                    0%
+                                </span>
+</td>
+<td class="px-stack-md py-stack-md text-center">
+<span class="material-symbols-outlined text-on-surface-variant/30" data-icon="notifications_off">notifications_off</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-stack-md py-stack-md">
+<div class="flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="A modern tablet with a digital stylus resting on its screen. The artwork on the screen features vibrant purple and violet gradients, echoing the UI's primary color palette. The scene is shot from a top-down perspective, emphasizing clean lines and technological sophistication. High contrast and a clean dark-mode environment define the aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDf5sB45O2aMufzn_ZW5zC9zUGFaa7xOB2CDF---Pu7y-MPksV1rwtmRK_FmV7tocCykOG95xzD1edtCn2DSnoNkUMrSpzLwpFqhjfGG_oiIzIY0nWmyJAxDxsc8BZGQzMM7h4n0qzJcgvgW7YUwxtxhxKcLxj6bgcP4nmHF0Gx99svRsS7V1hSeLXIssnwYt6r-hI9b4KvDiJjplQgsqIykkJZO7A_3wmb14oMxFWn_V-IYrJzlI-kXM8i0ie4frZeqseK96iKFMYy"/>
+</div>
+<div>
+<p class="font-body-md text-body-md font-bold">iPad Pro 11-inch M4</p>
+<p class="text-label-sm text-label-sm text-on-surface-variant">Last checked: 12h ago</p>
+</div>
+</div>
+</td>
+<td class="px-stack-md py-stack-md">
+<span class="bg-surface-container-high px-stack-sm py-unit rounded text-label-sm font-label-sm">UZUM.UZ</span>
+</td>
+<td class="px-stack-md py-stack-md text-right font-label-md text-label-md">
+                                18,400,000 UZS
+                            </td>
+<td class="px-stack-md py-stack-md text-right">
+<span class="text-error text-label-md font-label-md flex items-center justify-end gap-unit">
+<span class="material-symbols-outlined text-[16px]" data-icon="arrow_drop_up">arrow_drop_up</span>
+                                    +5%
+                                </span>
+</td>
+<td class="px-stack-md py-stack-md text-center">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="p-stack-md bg-surface-container-low/30 flex justify-center">
+<button class="text-label-md font-label-md text-primary hover:underline transition-all">View all tracked products (14)</button>
+</div>
+</div>
+</div>
+</main>
+
+<!-- MOBILE LAYOUT (lg:hidden) -->
+<!-- TopAppBar -->
+<header class="lg:hidden flex justify-between items-center w-full px-container-padding h-14 z-50 fixed top-0 bg-surface border-b border-outline-variant lg:left-64 lg:w-[calc(100%-16rem)]">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 0;">bolt</span>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface">Automation</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-surface-container-high transition-colors p-2 rounded-full">notifications</button>
+</div>
+</header>
+<main class="lg:hidden mt-20 px-container-padding max-w-lg mx-auto lg:ml-64">
+<!-- Action Header -->
+<section class="mb-stack-lg">
+<button class="w-full h-[48px] bg-primary-container text-on-primary-container font-headline-md text-headline-md font-bold rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">add_circle</span>
+                Create Rule
+            </button>
+</section>
+<!-- Rules List Section -->
+<section class="mb-stack-lg">
+<div class="flex items-center justify-between mb-stack-md">
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Active Rules</h2>
+<span class="font-label-md text-label-md bg-on-secondary-fixed-variant text-secondary px-2 py-1 rounded">2 RUNNING</span>
+</div>
+<div class="space-y-gutter">
+<!-- Rule Item 1 -->
+<div class="bg-[#111113] border border-outline-variant rounded-xl p-stack-md rule-card-active">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">translate</span>
+<span class="font-label-md text-label-md text-on-surface-variant">TRANSLATION ENGINE</span>
+</div>
+<div class="w-10 h-5 bg-primary/20 rounded-full relative flex items-center px-1">
+<div class="w-3 h-3 bg-primary rounded-full translate-x-5"></div>
+</div>
+</div>
+<p class="font-headline-md text-headline-md text-on-surface leading-snug">
+                        IF <span class="text-primary">sport</span> → Translate <span class="text-secondary">UZ</span> → <span class="underline">@sportchannel</span>
+</p>
+<div class="mt-3 pt-3 border-t border-outline-variant/30 flex justify-between items-center text-on-surface-variant">
+<span class="text-label-sm font-label-sm">Last trigger: 4m ago</span>
+<span class="text-label-sm font-label-sm">Total: 1,242</span>
+</div>
+</div>
+<!-- Rule Item 2 -->
+<div class="bg-[#111113] border border-outline-variant rounded-xl p-stack-md rule-card-active">
+<div class="flex justify-between items-start mb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">filter_alt</span>
+<span class="font-label-md text-label-md text-on-surface-variant">CLEANER BOT</span>
+</div>
+<div class="w-10 h-5 bg-primary/20 rounded-full relative flex items-center px-1">
+<div class="w-3 h-3 bg-primary rounded-full translate-x-5"></div>
+</div>
+</div>
+<p class="font-headline-md text-headline-md text-on-surface">Filter out duplicates</p>
+<div class="mt-3 pt-3 border-t border-outline-variant/30 flex justify-between items-center text-on-surface-variant">
+<span class="text-label-sm font-label-sm">Sensitivity: High</span>
+<span class="text-label-sm font-label-sm">Saved Storage: 4.2GB</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Price Tracker Section -->
+<section class="mb-stack-lg">
+<div class="flex items-center gap-2 mb-stack-md">
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Price Tracker</h2>
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">monetization_on</span>
+</div>
+<!-- Tracker Input -->
+<div class="relative mb-gutter">
+<input class="w-full bg-[#0A0A0B] border border-outline-variant rounded-lg h-12 px-4 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-on-surface-variant/50" placeholder="Track a product price (OLX/Uzum URL)" type="text"/>
+<button class="absolute right-2 top-2 h-8 w-8 bg-surface-container-high rounded flex items-center justify-center hover:bg-outline-variant transition-colors">
+<span class="material-symbols-outlined text-primary">add</span>
+</button>
+</div>
+<!-- Tracked Items -->
+<div class="bg-[#111113] border border-outline-variant rounded-xl overflow-hidden">
+<div class="p-stack-md flex gap-4 items-center">
+<div class="w-16 h-16 bg-surface-container rounded-lg overflow-hidden flex-shrink-0">
+<img alt="iPhone 15 Pro" class="w-full h-full object-cover" data-alt="A professional product shot of an iPhone 15 Pro in natural titanium, resting on a dark slate surface. The lighting is dramatic and moody, with sharp rim highlights that emphasize its sleek industrial design and textured finish. The overall aesthetic is high-end technology, set against a deep monochromatic background with subtle purple lens flares to match a premium UI palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvhKzUQCu71GErd1UsD6OPfg-GvmD448NiE_rVlan2uc6n_RXPV5NS9_7d7FWOd709t-eoVVo_lTq6xQzIxfgRguWRd3J61DX_IAjhh7Fn9TJfGI0HYVkwHTMuIkkYon9QwWdjNbeviljdImGakSsLHCG2lXCWlY8hodjpC6qhjg6Z5W375ecMoZMQ0pPYOq-eM2PiZ5lUxDFNaKI_mTFwLohpaARLzU5xB212onYTLRxAJoQpOEc3wd4iiPr_2Hq7ZL6QM1uL-FAC"/>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start">
+<h3 class="font-body-lg text-body-lg font-bold text-on-surface">iPhone 15 Pro</h3>
+<span class="text-secondary font-label-md text-label-md flex items-center">
+<span class="material-symbols-outlined text-[14px] mr-1">trending_down</span>
+                                -2%
+                            </span>
+</div>
+<p class="text-primary font-headline-md text-headline-md font-bold mt-1">12 500 000 UZS</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="material-symbols-outlined text-on-surface-variant text-[12px]">schedule</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Last checked 1h ago</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low px-stack-md py-2 border-t border-outline-variant flex justify-between">
+<button class="text-label-md font-label-md text-on-surface-variant hover:text-primary flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">history</span> History
+                    </button>
+<button class="text-label-md font-label-md text-error hover:opacity-80 flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[14px]">delete</span> Stop
+                    </button>
+</div>
+</div>
+</section>
+<!-- Insights Banner -->
+<section class="bg-primary-container/10 border border-primary/20 rounded-xl p-stack-md flex items-start gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+<div>
+<h4 class="text-on-primary-container font-bold text-body-md">Automation Pro-Tip</h4>
+<p class="text-on-surface-variant text-body-md mt-1">You can bridge your Price Tracker to a Rule. Create a rule to auto-post price drops to your main Telegram channel.</p>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[56px] px-2 bg-surface border-t border-outline-variant lg:hidden">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95 duration-150" href="/dashboard/overview.html">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-label-sm text-label-sm">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95 duration-150" href="/dashboard/sources.html">
+<span class="material-symbols-outlined">database</span>
+<span class="font-label-sm text-label-sm">Sources</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95 duration-150" href="/dashboard/studio.html">
+<span class="material-symbols-outlined">movie_edit</span>
+<span class="font-label-sm text-label-sm">Studio</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold bg-transparent transition-colors active:scale-95 duration-150" href="/dashboard/automation.html">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<span class="font-label-sm text-label-sm">Automation</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95 duration-150" href="/dashboard/settings.html">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+</nav>
+<script>
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.boxShadow = '0 10px 30px -10px rgba(108, 71, 255, 0.1)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+                card.style.boxShadow = 'none';
+            });
+        });
+
+        const searchInput = document.querySelector('input[type="text"]');
+        if (searchInput) {
+            searchInput.addEventListener('focus', () => {
+                searchInput.parentElement.classList.add('scale-[1.02]');
+            });
+            searchInput.addEventListener('blur', () => {
+                searchInput.parentElement.classList.remove('scale-[1.02]');
+            });
+        }
+    </script>
+</body></html>

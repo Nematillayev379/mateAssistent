@@ -3,6 +3,7 @@ import { DBService } from '../../services/database';
 import { PriceTrackerService } from '../../services/pricetracker';
 import { ScraperService } from '../../services/scraper';
 import { checkAuth } from '../../middleware/auth';
+import { logger } from '../../utils/logger';
 
 export function registerTrackerRoutes(app: express.Application) {
   app.get('/api/tracker/search', checkAuth, async (req: any, res: any) => {
@@ -21,7 +22,7 @@ export function registerTrackerRoutes(app: express.Application) {
         try {
           const scraped = await ScraperService.searchProducts(q.trim());
           results = (scraped || []).map((item: any) => ({ title: item.name || item.title || 'Mahsulot', price: Number(item.price) || 0, url: item.url, source: item.store || item.source || 'Marketplace' })).filter((item: any) => item.url && Number.isFinite(item.price) && item.price > 0).sort((a: any, b: any) => a.price - b.price);
-        } catch {}
+        } catch (e: any) { logger.warn(`API call failed: ${e?.message || 'unknown error'}`); }
       }
       const cheapest = results[0] || null;
       const bySource = Array.from(results.reduce((acc: Map<string, any>, item: any) => { const current = acc.get(item.source); if (!current || item.price < current.price) acc.set(item.source, item); return acc; }, new Map())).map(([, v]) => v).sort((a, b) => a.price - b.price);

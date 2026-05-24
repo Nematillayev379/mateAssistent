@@ -1,6 +1,7 @@
 import * as dotenv from "dotenv";
 import * as path from "path";
 import * as crypto from "crypto";
+import { SecretManager } from "../services/secret_manager";
 
 dotenv.config({ override: false }); // Kubernetes/Render env-vars win over local .env
 export const MAX_TOKENS_BY_PROVIDER: Record<string, number> = {
@@ -15,9 +16,9 @@ export const MAX_TOKENS_BY_PROVIDER: Record<string, number> = {
 export const CONFIG = {
   TELEGRAM_TOKEN: (() => {
     if (process.env.TELEGRAM_BOT_TOKEN && !process.env.TELEGRAM_TOKEN) {
-      console.warn('⚠️ TELEGRAM_BOT_TOKEN is deprecated. Use TELEGRAM_TOKEN instead.');
+      console.warn('TELEGRAM_BOT_TOKEN is deprecated. Use TELEGRAM_TOKEN instead.');
     }
-    return process.env.TELEGRAM_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '';
+    return SecretManager.get('TELEGRAM_TOKEN') || process.env.TELEGRAM_BOT_TOKEN || '';
   })(),
   MAX_TOKENS:      2000,
   TEMPERATURE:     0.6,
@@ -58,6 +59,7 @@ export const CONFIG = {
   REDIS_URLS: process.env.REDIS_URLS || "",
   TON_WALLET: process.env.TON_WALLET || "",
   TONCENTER_KEY: process.env.TONCENTER_KEY || "",
+  SECRET_BACKEND: (process.env.SECRET_BACKEND || "env") as "env" | "vault",
   API_KEY_SOURCES: ['groq', 'cerebras', 'openrouter', 'gemini', 'openai', 'google'] as const
 };
 
@@ -96,12 +98,12 @@ function collectProviderKeys(
   singleEnvNames: string[]
 ): AiKeyEntry[] {
   const found: AiKeyEntry[] = [];
-  const bulk = process.env[`${envPrefix}_KEYS`];
+  const bulk = SecretManager.get(`${envPrefix}_KEYS`);
   for (const k of parseKeyList(bulk)) {
     found.push({ key: k, type });
   }
   for (const name of singleEnvNames) {
-    const v = process.env[name];
+    const v = SecretManager.get(name);
     if (!v?.trim()) continue;
     // Some users put comma-separated list in GROQ_API_KEY instead of GROQ_KEYS
     if (v.includes(',') || v.includes('\n')) {
@@ -113,7 +115,8 @@ function collectProviderKeys(
   }
   // GROQ_KEY_1, GEMINI_KEY_2, GROQ_01, etc.
   const prefixUpper = envPrefix.toUpperCase();
-  for (const [name, value] of Object.entries(process.env)) {
+  const allSecrets = SecretManager.getAllMatching(prefixUpper);
+  for (const [name, value] of Object.entries(allSecrets)) {
     if (!value?.trim()) continue;
     const upper = name.toUpperCase();
     if (
@@ -154,24 +157,9 @@ export function countKeysByProvider(pool: AiKeyEntry[]): Record<string, number> 
   return counts;
 }
 
-/** How many keys were read from each Render env var (for logs / admin, no secrets). */
+/** How many keys were read from each source (for logs / admin, no secrets). */
 export function getEnvKeySourceReport(): Record<string, number> {
-  const report: Record<string, number> = {};
-  const track = (name: string, raw: string | undefined) => {
-    const n = parseKeyList(raw).length;
-    if (n > 0) report[name] = n;
-  };
-
-  track('GROQ_KEYS', process.env.GROQ_KEYS);
-  track('GROQ_API_KEY', process.env.GROQ_API_KEY);
-  track('GEMINI_KEYS', process.env.GEMINI_KEYS);
-  track('GOOGLE_KEYS', process.env.GOOGLE_KEYS);
-  track('CEREBRAS_KEYS', process.env.CEREBRAS_KEYS);
-  track('OPENROUTER_KEYS', process.env.OPENROUTER_KEYS);
-  track('OPENAI_KEYS', process.env.OPENAI_KEYS);
-  track('OPENAI_API_KEY', process.env.OPENAI_API_KEY);
-
-  return report;
+  return SecretManager.getKeyReport();
 }
 
 export const KEY_POOL: AiKeyEntry[] = buildKeyPoolFromEnv();

@@ -168,10 +168,15 @@ async function getSmartAIResponseInternal(
     const maxTokens = MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || CONFIG.MAX_TOKENS;
     return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000);
   } catch (error) {
+    const errMsg = (error as any)?.message ?? '';
     const status = (error as any)?.status ?? (error as any)?.response?.status;
     if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
       blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000);
       logger.warn(`[${scope.toUpperCase()} ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
+      return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
+    }
+    if (errMsg.includes('does not support image') || errMsg.includes('image.png')) {
+      logger.warn(`[${scope.toUpperCase()}] Groq image-input error on key #${idx}. Content contains image references. Falling through.`);
       return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
     }
     throw error;
@@ -266,7 +271,7 @@ export async function isDuplicateAI(userId: number, title: string, content: stri
     return isDup;
   } catch (err: any) {
     logger.error(`Dublikat tekshirishda AI xatosi: ${err.message}`);
-    return true; // BUG-007 Fix: Fail-safe to avoid spamming if AI fails
+    return true;
   }
 }
 export async function checkSemanticDuplicate(userId: number, title: string, content: string): Promise<boolean> {

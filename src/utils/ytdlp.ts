@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
 import { exec, execFile } from 'child_process';
+import { logger } from './logger';
 
 const execPromise = promisify(exec);
 const execFilePromise = promisify(execFile);
@@ -56,6 +57,11 @@ export async function resolveYtDlpCommand(): Promise<{ command: string; args: st
     path.join(__dirname, '..', '..', 'yt-dlp.exe'),
     path.join(process.cwd(), 'yt-dlp'),
     path.join(process.cwd(), 'yt-dlp.exe'),
+    ...(process.platform === 'win32' ? [
+      path.join(process.env.USERPROFILE || 'C:', 'yt-dlp.exe'),
+      path.join(process.env.LOCALAPPDATA || process.env.USERPROFILE || 'C:', 'Programs', 'yt-dlp', 'yt-dlp.exe'),
+      path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'yt-dlp', 'yt-dlp.exe'),
+    ] : []),
     'yt-dlp',
   ];
 
@@ -65,7 +71,7 @@ export async function resolveYtDlpCommand(): Promise<{ command: string; args: st
         if (process.platform !== 'win32' && p !== 'yt-dlp') {
           try {
             fs.chmodSync(p, '755');
-          } catch {}
+          } catch (e: any) { logger.warn(`Failed to chmod yt-dlp: ${e?.message || 'unknown error'}`); }
         }
         await execFilePromise(p, ['--version'], { timeout: 8000 });
         cachedYtDlpPath = p;
@@ -100,25 +106,38 @@ export async function resolveYtDlpCommand(): Promise<{ command: string; args: st
     }
   }
 
-  // Windows fallback: use Python module if binary is blocked/missing
+  // Windows fallback: find yt-dlp via `where`, then Python module
   if (!cachedYtDlpPath && process.platform === 'win32') {
-    const pythonLaunchers: Array<{ cmd: string; args: string[] }> = [
-      { cmd: 'py', args: ['-m', 'yt_dlp'] },
-      { cmd: 'python', args: ['-m', 'yt_dlp'] },
-      { cmd: 'python3', args: ['-m', 'yt_dlp'] },
-    ];
-    for (const launcher of pythonLaunchers) {
-      try {
-        await execFilePromise(launcher.cmd, [...launcher.args, '--version'], { timeout: 8000 });
-        cachedYtDlpPath = `${launcher.cmd} ${launcher.args.join(' ')}`;
-        cachedYtDlpCommand = { command: launcher.cmd, args: launcher.args };
-        break;
-      } catch {
-        // try next launcher
+    try {
+      const { stdout } = await execPromise('where yt-dlp 2>nul');
+      const wherePath = stdout.split('\n')[0].trim();
+      if (wherePath && fs.existsSync(wherePath)) {
+        await execFilePromise(wherePath, ['--version'], { timeout: 8000 });
+        cachedYtDlpPath = wherePath;
+        cachedYtDlpCommand = { command: wherePath, args: [] };
+      }
+    } catch {
+      const pythonLaunchers: Array<{ cmd: string; args: string[] }> = [
+        { cmd: 'py', args: ['-m', 'yt_dlp'] },
+        { cmd: 'python', args: ['-m', 'yt_dlp'] },
+        { cmd: 'python3', args: ['-m', 'yt_dlp'] },
+      ];
+      for (const launcher of pythonLaunchers) {
+        try {
+          await execFilePromise(launcher.cmd, [...launcher.args, '--version'], { timeout: 8000 });
+          cachedYtDlpPath = `${launcher.cmd} ${launcher.args.join(' ')}`;
+          cachedYtDlpCommand = { command: launcher.cmd, args: launcher.args };
+          break;
+        } catch {
+          // try next launcher
+        }
       }
     }
   }
 
+  if (!cachedYtDlpPath) {
+    logger.warn('yt-dlp not found after checking all candidates. Install with: npm install yt-dlp or winget install yt-dlp');
+  }
   ytDlpChecked = true;
   return cachedYtDlpCommand;
 }

@@ -4,6 +4,7 @@ import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { PaymentService } from '../../services/payment';
 import { CryptoPaymentService } from '../../services/crypto_payment';
+import { SecretManager } from '../../services/secret_manager';
 import { logger } from '../../utils/logger';
 import { checkAuth } from '../../middleware/auth';
 
@@ -46,7 +47,7 @@ export function registerPremiumRoutes(app: express.Application) {
 
   app.post('/api/payments/payme', async (req, res) => {
     try {
-      if (!process.env.PAYME_KEY) { res.status(200).json({ error: { code: -32504, message: 'Payment not configured' } }); return; }
+      if (!SecretManager.get('PAYME_KEY')) { res.status(200).json({ error: { code: -32504, message: 'Payment not configured' } }); return; }
       res.json(await PaymentService.handlePaymeWebhook(req.body, req.headers));
     } catch (e: any) { logger.warn(`Payme webhook failed: ${e.message}`); res.status(500).json({ error: e.message }); }
   });

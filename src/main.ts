@@ -4,8 +4,7 @@ if (typeof globalThis.WebSocket === 'undefined') {
 }
 
 const _startTime = Date.now();
-process.stdout.write(`[BOOT] Process started at ${new Date().toISOString()}, PID ${process.pid}\n`);
-process.stderr.write(`[BOOT.STDERR] Process started\n`);
+logger.info(`Process started at ${new Date().toISOString()}, PID ${process.pid}`);
 
 import { CONFIG } from "./config/config";
 import { logger } from "./utils/logger";
@@ -21,7 +20,7 @@ import pkg from '../package.json';
 initSentry();
 
 async function bootstrap() {
-  process.stdout.write(`[BOOT] bootstrap() started, elapsed ${Date.now() - _startTime}ms\n`);
+  logger.info(`Bootstrap started, elapsed ${Date.now() - _startTime}ms`);
   logger.info(`Bot deployed at ${new Date().toISOString()}, version ${pkg.version}`);
   logger.info("Bootstrapping Bot Ecosystem...");
 
@@ -35,6 +34,10 @@ async function bootstrap() {
   }
 
   try {
+    const { SecretManager } = await import("./services/secret_manager");
+    await SecretManager.init();
+    logger.info(`Secret backend: ${SecretManager.getBackend()}`);
+
     const { initI18n } = await import("./services/i18n");
     const { refreshKeyPool, getActiveKeyStats } = await import("./services/ai");
     const { getEnvKeySourceReport } = await import("./config/config");
@@ -65,8 +68,7 @@ async function bootstrap() {
     }
   } catch (err: any) {
     captureError(err, { type: 'bootstrap' });
-    process.stderr.write(`[BOOT] Fatal: ${err.message}\n${err.stack}\n`);
-    logger.error(`Fatal Initialization Error: ${err.message}`);
+    logger.error(`Fatal Initialization Error: ${err.message}`, { stack: err.stack });
     process.exit(1);
   }
 }
@@ -79,15 +81,13 @@ bootstrap().catch(err => {
 // Global error handlers
 process.on("uncaughtException", (err) => {
   captureError(err, { type: 'uncaughtException' });
-  process.stderr.write(`[FATAL] Uncaught Exception: ${err.message}\n${err.stack}\n`);
-  logger.error(`🔥 Uncaught Exception: ${err.message}`);
+  logger.error(`Uncaught Exception: ${err.message}`, { stack: err.stack });
   process.exit(1);
 });
 
 process.on("unhandledRejection", (reason: any) => {
   captureError(reason instanceof Error ? reason : new Error(String(reason)), { type: 'unhandledRejection' });
-  process.stderr.write(`[FATAL] Unhandled Rejection: ${reason?.message || reason}\n`);
-  logger.error(`🌐 Unhandled Rejection: ${reason?.message || reason}`);
+  logger.error(`Unhandled Rejection: ${reason?.message || reason}`);
 });
 
 let shuttingDown = false;
@@ -100,7 +100,7 @@ process.on('SIGTERM', async () => {
     bot.stopPolling();
     const { gracefulShutdown } = await import('./services/memory_queue');
     await gracefulShutdown(8000);
-  } catch {}
+  } catch { logger.warn(`SIGTERM shutdown error`); }
   process.exit(0);
 });
 
@@ -112,6 +112,6 @@ process.on('SIGINT', async () => {
     bot.stopPolling();
     const { gracefulShutdown } = await import('./services/memory_queue');
     await gracefulShutdown(5000);
-  } catch {}
+  } catch { logger.warn(`SIGINT shutdown error`); }
   process.exit(0);
 });

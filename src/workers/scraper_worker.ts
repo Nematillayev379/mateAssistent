@@ -87,7 +87,7 @@ export async function processArticleInline(userId: number, article: any, sourceL
         const full = await ScraperService.scrapeArticle(article.url);
         if (full?.content) article.content = full.content;
         if (!article.imageUrl && full?.imageUrl) article.imageUrl = full.imageUrl;
-      } catch {}
+      } catch { logger.warn(`ScrapeArticle fallback failed`); }
     }
 
     const moderation = await moderateContent(article.title, article.content || "");

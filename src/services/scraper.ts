@@ -259,7 +259,6 @@ export const ScraperService = {
           const originalHost = new URL(websiteUrl).hostname.replace('www.', '');
           const discoveredHost = new URL(discovered).hostname.replace('www.', '');
           
-          // BUG-H7 Fix: Require same domain or subdomain, completely blocking different domains
           if (discoveredHost !== originalHost && !discoveredHost.endsWith('.' + originalHost)) {
             logger.warn(`🚫 SSRF/Phishing Protection: AI returned different domain URL: ${sanitizeLogInput(discovered)}`);
             return null;
@@ -344,7 +343,7 @@ export const ScraperService = {
             };
             if (Array.isArray(data)) data.forEach(checkProduct);
             else checkProduct(data);
-          } catch {}
+          } catch { logger.warn(`JSON-LD parse error`); }
         });
 
         if (!foundLd || !priceText) {
@@ -392,7 +391,7 @@ export const ScraperService = {
   async searchProducts(query: string): Promise<any[]> {
     const results: any[] = [];
     
-    // 1. OLX API (BUG-054: May fail silently - that's OK)
+    // 1. OLX API
     try {
       const olxRes = await axios.get(`https://www.olx.uz/api/v1/offers/?query=${encodeURIComponent(query)}`, {
         headers: { "User-Agent": USER_AGENT },

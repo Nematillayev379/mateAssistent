@@ -218,7 +218,7 @@ export const startCommand: BotCommand = {
     if (requireApproval && !user.is_approved && !isOwner && user.role !== "admin" && user.role !== "owner") {
       try {
         await bot.sendMessage(chatId, "⏳ Siz hali tasdiqlanmadingiz. Admin tasdiqlashini kuting.");
-      } catch {}
+      } catch { logger.warn(`Failed to send approval message to ${chatId}`); }
       return;
     }
 

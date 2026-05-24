@@ -61,7 +61,7 @@ export const DownloaderService = {
         ], { timeout: 30000 });
         if (fs.existsSync(filePath)) return filePath;
       }
-    } catch (e) {}
+    } catch (e: any) { logger.warn(`Instagram yt-dlp fallback: ${e?.message || 'unknown'}`); }
 
     // Strategy 2: ddinstagram proxy (Returns URL)
     try {
@@ -72,7 +72,7 @@ export const DownloaderService = {
       });
       const match = res.data.match(/property="og:video"\s+content="([^"]+)"/);
       if (match) return match[1];
-    } catch (e: any) {}
+    } catch { /* ddinstagram proxy is best-effort; continue to Cobalt */ }
 
     // Strategy 3: Cobalt API
     return this.getCobaltMedia(url);
@@ -127,7 +127,7 @@ export const DownloaderService = {
         if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
           return res.data.picker[0].url;
         }
-      } catch {}
+      } catch { logger.warn(`Cobalt v10 API failed`); }
 
       // 2. Try Cobalt v7/v8 API parameters (POST to base URL)
       try {
@@ -154,7 +154,7 @@ export const DownloaderService = {
         if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
           return res.data.picker[0].url;
         }
-      } catch {}
+      } catch { logger.warn(`Cobalt v7/v8 API failed`); }
 
       // 3. Try /api/json endpoint (Some older instances)
       try {
@@ -176,7 +176,7 @@ export const DownloaderService = {
         if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
           return res.data.picker[0].url;
         }
-      } catch {}
+      } catch { logger.warn(`Cobalt /api/json endpoint failed`); }
 
       throw new Error('All attempts failed on this instance');
     };
@@ -203,8 +203,8 @@ export const DownloaderService = {
           if (now - stat.mtimeMs > 3600000) {
             await fs.promises.unlink(filePath);
           }
-        } catch {}
+        } catch { logger.warn(`Cleanup: failed to remove temp file`); }
       }
-    } catch (e) {}
+    } catch (e: any) { logger.warn(`Cleanup error: ${e?.message || 'unknown'}`); }
   }
 };

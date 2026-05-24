@@ -6,10 +6,10 @@ import path from 'path';
 import { logger } from '../utils/logger';
 import { findNewestFile, resolveYtDlpCommand } from '../utils/ytdlp';
 let ffmpegStatic: string | null = null;
-try { ffmpegStatic = require('ffmpeg-static'); } catch {}
+try { ffmpegStatic = require('ffmpeg-static'); } catch (e: any) { logger.warn(`Failed to require ffmpeg-static: ${e?.message || 'unknown error'}`); }
 
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_yt');
-try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch {}
+try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: any) { logger.warn(`Failed to create TEMP_DIR: ${e?.message || 'unknown error'}`); }
 const MAX_MEDIA_SIZE = 49 * 1024 * 1024;
 
 function detectExtensionFromContentType(contentType?: string, fallback: string = 'bin'): string {
@@ -270,7 +270,7 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
         const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
         fs.writeFileSync(filePath, Buffer.from(response.data));
         if (validateDownloadedFile(filePath)) return filePath;
-        try { fs.unlinkSync(filePath); } catch {}
+        try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
       } catch (dlErr: any) {
         logger.warn(`Failed to persist Cobalt media locally: ${dlErr.message}`);
       }
@@ -280,5 +280,10 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
     logger.warn(`Cobalt fallback failed: ${reason}`);
   }
 
-  throw new Error('Audio/video yuklab bo‘lmadi. Manba servis javob bermadi yoki format qo‘llanmadi. Keyinroq yana urinib ko‘ring.');
+  const reason = !ytdlpCommand
+    ? 'yt-dlp topilmadi (serverda o\'rnatilmagan)'
+    : ytdlpFailed
+    ? 'yt-dlp ishlamadi va Cobalt API javob bermadi'
+    : 'Cobalt API javob bermadi';
+  throw new Error(`Audio/video yuklab bo‘lmadi: ${reason}. Iltimos qayta urinib ko‘ring yoki boshqa link yuboring.`);
 }

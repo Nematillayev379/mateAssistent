@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TeleAuto Admin - Broadcast</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#14121c",
+                    "tertiary-fixed-dim": "#ffb691",
+                    "on-primary-fixed-variant": "#4500d8",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-highest": "#36333e",
+                    "primary-fixed": "#e6deff",
+                    "on-background": "#e6e0ef",
+                    "tertiary-container": "#b34d00",
+                    "on-secondary": "#00382b",
+                    "outline-variant": "#484556",
+                    "primary": "#c9beff",
+                    "background": "#14121c",
+                    "tertiary-fixed": "#ffdbcb",
+                    "secondary": "#41eec2",
+                    "on-primary-container": "#f1ebff",
+                    "error-container": "#93000a",
+                    "surface-tint": "#c9beff",
+                    "on-secondary-fixed": "#002118",
+                    "on-tertiary": "#552100",
+                    "on-surface-variant": "#c9c3d9",
+                    "secondary-fixed": "#55fcd0",
+                    "on-primary-fixed": "#1b0063",
+                    "surface": "#14121c",
+                    "secondary-container": "#00d1a7",
+                    "on-secondary-container": "#005441",
+                    "secondary-fixed-dim": "#28dfb5",
+                    "primary-fixed-dim": "#c9beff",
+                    "surface-variant": "#36333e",
+                    "surface-container-high": "#2b2933",
+                    "on-secondary-fixed-variant": "#00513f",
+                    "surface-container-lowest": "#0e0d17",
+                    "on-tertiary-fixed": "#341100",
+                    "surface-bright": "#3a3843",
+                    "outline": "#938ea2",
+                    "on-surface": "#e6e0ef",
+                    "on-error": "#690005",
+                    "inverse-surface": "#e6e0ef",
+                    "on-tertiary-container": "#ffeae1",
+                    "primary-container": "#6c47ff",
+                    "tertiary": "#ffb691",
+                    "inverse-on-surface": "#312f3a",
+                    "surface-container": "#201e29",
+                    "on-primary": "#2f009b",
+                    "error": "#ffb4ab",
+                    "on-tertiary-fixed-variant": "#783100",
+                    "inverse-primary": "#5e35f1"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "gutter": "12px",
+                    "container-padding": "16px",
+                    "stack-lg": "24px",
+                    "stack-sm": "8px",
+                    "stack-md": "16px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Geist"],
+                    "body-lg": ["Geist"],
+                    "label-sm": ["JetBrains Mono"],
+                    "body-md": ["Geist"],
+                    "display": ["Geist"],
+                    "headline-lg": ["Geist"],
+                    "label-md": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                    "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "label-sm": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                    "display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.04em", "fontWeight": "600"}],
+                    "headline-lg": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .tg-preview-bubble {
+            position: relative;
+            background: #182533;
+            border-radius: 12px 12px 12px 0;
+            max-width: 85%;
+        }
+        .tg-preview-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -8px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 0 10px 10px;
+            border-color: transparent transparent #182533 transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #484556; border-radius: 10px; }
+        
+        @media (max-width: 768px) {
+            .desktop-only { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container lg:pl-64">
+<!-- Sidebar Navigation -->
+<aside class="w-64 h-full fixed left-0 top-0 border-r border-outline-variant bg-surface-container-lowest flex flex-col py-stack-md px-container-padding hidden lg:flex">
+<div class="mb-stack-lg px-2">
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface tracking-tight">TeleAuto Pro</h1>
+<p class="font-body-md text-body-md text-on-surface-variant opacity-70">SaaS Platform</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/overview.html">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/sources.html">
+<span class="material-symbols-outlined">database</span>
+<span>Sources</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/studio.html">
+<span class="material-symbols-outlined">edit_square</span>
+<span>Studio</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/broadcast.html">
+<span class="material-symbols-outlined">campaign</span>
+<span>Distribution</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/automation.html">
+<span class="material-symbols-outlined">robot_2</span>
+<span>Automation</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined">monitoring</span>
+<span>Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span>Wallet</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/settings.html">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-container-high text-primary font-bold border-l-4 border-primary transition-transform active:scale-95" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+<span>Admin</span>
+</a>
+</nav>
+<div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-3 px-2">
+<img alt="User Profile" class="w-10 h-10 rounded-full bg-surface-container-highest border border-outline-variant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxTckYoTRhT_uFxKT37NVqfN8mHeRAQNbJQIILSN8Ai_Drmwz8VYho_y1NG1bpHDgOE60hkx5gWIsTWVZaB7sWQuwe7oLZ2oXO65f5mlhxzIT44aNULep7T7saxhY0gTruEBHwUBugf5xCx9fAUlP15cR1wJtp3G0UcM7zQtA85dN_0lD9K_GWQHz9rDAFrWjxJxAWjDd0K2cVjN8jFkVTbMXqJzihBoYm184pTdzF98eSPEe_V7R5WdDfxM0am-LBwJcd6MvtLYaq"/>
+<div class="overflow-hidden">
+<p class="font-label-md text-label-md text-on-surface truncate">Alex Rivera</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Root Admin</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="lg:ml-64 min-h-screen flex flex-col">
+<!-- Top App Bar -->
+<header class="h-14 fixed top-0 right-0 w-full lg:left-64 lg:w-[calc(100%-16rem)] z-40 bg-surface-container-low border-b border-outline-variant flex justify-between items-center px-gutter">
+<div class="flex items-center gap-stack-lg">
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">TeleAuto Admin</h2>
+<nav class="hidden lg:flex gap-6 items-center h-full">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/overview.html">Overview</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/index.html">Subscribers</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/index.html">Logs</a>
+<a class="font-label-md text-label-md text-primary border-b-2 border-primary pb-2" href="/dashboard/admin/index.html">Permissions</a>
+</nav>
+</div>
+<div class="flex items-center gap-stack-md">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-dim border border-outline-variant rounded-full pl-9 pr-4 py-1.5 text-xs focus:ring-1 focus:ring-primary outline-none w-48 transition-all focus:w-64" placeholder="Search commands..." type="text"/>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all active:opacity-80">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all active:opacity-80">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+</header>
+<!-- Broadcast Content -->
+<div class="pt-20 px-6 pb-20 lg:pb-0 max-w-7xl mx-auto w-full">
+<div class="flex flex-col gap-8">
+<!-- Broadcast Header -->
+<section>
+<div class="flex items-center gap-2 mb-2">
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase tracking-wider">System Tool</span>
+</div>
+<h1 class="font-display text-display text-on-surface">Broadcast Center</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">Deploy immediate or scheduled messages across your entire Telegram network. HTML formatting and rich media supported.</p>
+</section>
+<!-- Bento Grid: Form & Preview -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-gutter">
+<!-- Main Form Section -->
+<div class="xl:col-span-8 bg-surface-container-low border border-outline-variant rounded-xl p-stack-lg flex flex-col gap-stack-lg">
+<!-- Audience Selection -->
+<div>
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest block mb-4">Target Audience</label>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+<label class="cursor-pointer group">
+<input checked="" class="hidden peer" name="audience" type="radio"/>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface-container-lowest peer-checked:border-primary peer-checked:bg-primary/5 transition-all flex flex-col items-center text-center gap-2 group-hover:border-primary/50">
+<span class="material-symbols-outlined text-on-surface-variant peer-checked:text-primary">groups</span>
+<span class="font-label-md text-label-md">All Users</span>
+<span class="text-[10px] text-on-surface-variant">14,204 members</span>
+</div>
+</label>
+<label class="cursor-pointer group">
+<input class="hidden peer" name="audience" type="radio"/>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface-container-lowest peer-checked:border-primary peer-checked:bg-primary/5 transition-all flex flex-col items-center text-center gap-2 group-hover:border-primary/50">
+<span class="material-symbols-outlined text-on-surface-variant peer-checked:text-primary">star</span>
+<span class="font-label-md text-label-md">Premium</span>
+<span class="text-[10px] text-on-surface-variant">2,840 members</span>
+</div>
+</label>
+<label class="cursor-pointer group">
+<input class="hidden peer" name="audience" type="radio"/>
+<div class="p-4 border border-outline-variant rounded-lg bg-surface-container-lowest peer-checked:border-primary peer-checked:bg-primary/5 transition-all flex flex-col items-center text-center gap-2 group-hover:border-primary/50">
+<span class="material-symbols-outlined text-on-surface-variant peer-checked:text-primary">timer</span>
+<span class="font-label-md text-label-md">Inactive</span>
+<span class="text-[10px] text-on-surface-variant">1,102 members</span>
+</div>
+</label>
+</div>
+</div>
+<!-- Message Content -->
+<div class="flex-1 flex flex-col gap-4">
+<div class="flex justify-between items-center">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Message Payload</label>
+<div class="flex gap-2">
+<button class="p-1.5 rounded bg-surface-container hover:text-primary transition-colors" title="Bold">
+<span class="material-symbols-outlined text-sm">format_bold</span>
+</button>
+<button class="p-1.5 rounded bg-surface-container hover:text-primary transition-colors" title="Italic">
+<span class="material-symbols-outlined text-sm">format_italic</span>
+</button>
+<button class="p-1.5 rounded bg-surface-container hover:text-primary transition-colors" title="Link">
+<span class="material-symbols-outlined text-sm">link</span>
+</button>
+</div>
+</div>
+<textarea class="w-full flex-1 bg-surface-dim border border-outline-variant rounded-xl p-4 font-label-md text-label-md text-on-surface focus:ring-1 focus:ring-primary outline-none min-h-[200px] transition-all resize-none" id="broadcastInput" placeholder="Enter your HTML message here..."></textarea>
+</div>
+<!-- Send Button -->
+<div class="pt-4 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span class="text-[10px] text-on-surface-variant font-bold uppercase tracking-tighter">Ready to Deploy</span>
+</div>
+<button class="bg-primary-container text-on-primary-container font-label-md text-label-md px-8 py-3 rounded-lg font-bold hover:brightness-110 active:scale-95 transition-all flex items-center gap-2" id="broadcastTrigger">
+<span class="material-symbols-outlined text-sm">send</span>
+                                Send Broadcast
+                            </button>
+</div>
+</div>
+<!-- Sidebar: Preview & Settings -->
+<div class="xl:col-span-4 flex flex-col gap-gutter">
+<!-- Telegram Preview -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden flex flex-col h-[340px]">
+<div class="bg-surface-container-high px-4 py-3 border-b border-outline-variant flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">visibility</span>
+<span class="font-label-md text-label-md">Instant Preview</span>
+</div>
+<div class="flex-1 bg-[#0e1621] p-6 overflow-y-auto custom-scrollbar flex flex-col-reverse">
+<div class="tg-preview-bubble p-3 text-white text-sm">
+<div class="whitespace-pre-wrap leading-relaxed" id="previewText">Your message will appear here in real-time as you type...</div>
+<div class="text-[10px] text-white/50 text-right mt-1">12:45 PM</div>
+</div>
+</div>
+</div>
+<!-- Quick Stats Card -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-5">
+<h3 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest mb-4">Estimated Delivery</h3>
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<span class="text-on-surface-variant text-xs">Total Batches</span>
+<span class="font-label-md text-label-md text-on-surface">15</span>
+</div>
+<div class="flex justify-between items-end">
+<span class="text-on-surface-variant text-xs">Concurrency Limit</span>
+<span class="font-label-md text-label-md text-on-surface">200 req/min</span>
+</div>
+<div class="flex justify-between items-end">
+<span class="text-on-surface-variant text-xs">Projected Completion</span>
+<span class="font-label-md text-label-md text-secondary">~4.2 mins</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-2">
+<div class="bg-secondary w-full h-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Broadcast History Table -->
+<section class="mt-8">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-headline-md text-headline-md font-bold text-on-surface">Broadcast History</h3>
+<button class="text-on-surface-variant hover:text-primary flex items-center gap-2 text-xs transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+                            Filter Logs
+                        </button>
+</div>
+<div class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high border-b border-outline-variant">
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Date &amp; Time</th>
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Target</th>
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Content Snippet</th>
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Reach</th>
+<th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-on-surface font-medium">Oct 24, 2023</span>
+<span class="text-[10px] text-on-surface-variant">14:02 UTC</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface text-[10px] font-bold">ALL_USERS</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-on-surface-variant line-clamp-1 max-w-xs italic">"Special offer for the new week! Use code..."</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md">13,991</span>
+<span class="text-[10px] text-secondary">98.5%</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-xs text-secondary font-bold">COMPLETED</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-on-surface font-medium">Oct 22, 2023</span>
+<span class="text-[10px] text-on-surface-variant">09:15 UTC</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface text-[10px] font-bold">PREMIUM</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-on-surface-variant line-clamp-1 max-w-xs italic">"Beta testing for the automation suite starts now."</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md">2,840</span>
+<span class="text-[10px] text-secondary">100%</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-xs text-secondary font-bold">COMPLETED</span>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="px-6 py-4">
+<div class="flex flex-col">
+<span class="text-on-surface font-medium">Oct 19, 2023</span>
+<span class="text-[10px] text-on-surface-variant">23:55 UTC</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface text-[10px] font-bold">ALL_USERS</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<span class="text-on-surface-variant line-clamp-1 max-w-xs italic">"Maintenance window scheduled for tomorrow."</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="font-label-md text-label-md">11,202</span>
+<span class="text-[10px] text-error">79.0%</span>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+<span class="text-xs text-error font-bold">FAILED</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- Modal: Confirmation Logic -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-6 bg-background/80 backdrop-blur-sm hidden transition-opacity" id="confirmationModal">
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-8 max-w-md w-full shadow-2xl scale-95 transition-transform" id="modalContent">
+<div class="bg-error-container w-12 h-12 rounded-lg flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-on-error-container">warning</span>
+</div>
+<h3 class="font-headline-lg text-headline-lg text-on-surface mb-3">Confirm Broadcast</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-8">You are about to send this message to <strong class="text-on-surface">14,204 members</strong>. This action cannot be undone once deployment begins.</p>
+<div class="flex gap-4">
+<button class="flex-1 px-4 py-3 border border-outline-variant rounded-lg font-label-md text-label-md text-on-surface hover:bg-surface-container transition-colors" id="cancelModal">Cancel</button>
+<button class="flex-1 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg font-label-md text-label-md font-bold hover:brightness-110" id="confirmSend">Launch Message</button>
+</div>
+</div>
+</div>
+<!-- Background Decoration -->
+<div class="fixed top-0 right-0 -z-10 opacity-5 pointer-events-none">
+<img class="w-[800px] h-[800px]" data-alt="A sophisticated digital pattern featuring repeating geometric circuitry and telegram-like paper plane icons floating in a deep monochromatic dark space. The lighting is low and atmospheric with subtle violet and cyan glows coming from the edges. The aesthetic is focused on high-density information and professional administrative tooling." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWX1fgfEVXTGhhzc1JnEet_ADOYsn4l1Cc9uPPpgii02CWyvDnksDEkkh8j48u6YfgRJAaLmEzECzlPnygQgd-hq_Pu_KRQxnKnXsAdknBvLfOpiYtwQuFshmIPREPYKU3hwji5YaQPuLJJ8O89ttGAwSsGxq6GK0MI6uCigmdKrT0w3FbkSXVK8iTPQKDiizcm24obyLNoIW9ksdq__L3chWGo5Oz6BOYJSFzOyALXhQojv6NDoPVp4JQYvD7EkDmIQThoYp0L5CT"/>
+</div>
+<script>
+        // Real-time Preview logic
+        const input = document.getElementById('broadcastInput');
+        const preview = document.getElementById('previewText');
+        
+        input.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            if (val.length === 0) {
+                preview.textContent = "Your message will appear here in real-time as you type...";
+            } else {
+                // Simplified "HTML support" for preview
+                preview.innerHTML = val.replace(/\n/g, '<br>');
+            }
+        });
+
+        // Modal Logic
+        const trigger = document.getElementById('broadcastTrigger');
+        const modal = document.getElementById('confirmationModal');
+        const modalContent = document.getElementById('modalContent');
+        const cancel = document.getElementById('cancelModal');
+        const confirm = document.getElementById('confirmSend');
+
+        trigger.addEventListener('click', () => {
+            if (input.value.trim().length === 0) {
+                input.classList.add('border-error');
+                setTimeout(() => input.classList.remove('border-error'), 500);
+                return;
+            }
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.add('opacity-100');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        });
+
+        const closeModal = () => {
+            modal.classList.remove('opacity-100');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        };
+
+        cancel.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        confirm.addEventListener('click', () => {
+            const btnText = confirm.innerText;
+            confirm.disabled = true;
+            confirm.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm">refresh</span> Sending...`;
+            
+            setTimeout(() => {
+                closeModal();
+                alert('Broadcast initialized successfully!');
+                confirm.disabled = false;
+                confirm.innerText = btnText;
+                input.value = '';
+                preview.textContent = "Your message will appear here in real-time as you type...";
+            }, 1500);
+        });
+    </script>
+<!-- Mobile Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 bg-surface border-t border-outline-variant lg:hidden">
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/overview.html"><span class="material-symbols-outlined">grid_view</span><span class="font-label-sm text-label-sm mt-0.5">Overview</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/sources.html"><span class="material-symbols-outlined">database</span><span class="font-label-sm text-label-sm mt-0.5">Sources</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/studio.html"><span class="material-symbols-outlined">movie_edit</span><span class="font-label-sm text-label-sm mt-0.5">Studio</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/automation.html"><span class="material-symbols-outlined">bolt</span><span class="font-label-sm text-label-sm mt-0.5">Automation</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/settings.html"><span class="material-symbols-outlined">settings</span><span class="font-label-sm text-label-sm mt-0.5">Settings</span></a>
+</nav>
+</body></html>

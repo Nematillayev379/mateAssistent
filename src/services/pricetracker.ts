@@ -192,7 +192,7 @@ export const PriceTrackerService = {
                 `${item.url}`,
                 { parse_mode: 'HTML' }
               );
-            } catch {}
+              } catch (e: any) { logger.warn(`API call failed: ${e?.message || 'unknown error'}`); }
           } else if (result.price > item.price && item.price > 0) {
             const diff = result.price - item.price;
             try {
@@ -206,7 +206,7 @@ export const PriceTrackerService = {
                 `${item.url}`,
                 { parse_mode: 'HTML' }
               );
-            } catch {}
+              } catch (e: any) { logger.warn(`API call failed: ${e?.message || 'unknown error'}`); }
           }
           if (result.price !== item.price) {
             await DBService.updatePrice(item.id, result.price);

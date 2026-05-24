@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TeleAuto Pro Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Geist:wght@400;500;600;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #14121c;
+            color: #e6e0ef;
+            font-family: 'Geist', sans-serif;
+            overflow-x: hidden;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 12px;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1c1a25;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #36333e;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-dim": "#14121c",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "on-primary-fixed-variant": "#4500d8",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-highest": "#36333e",
+                        "primary-fixed": "#e6deff",
+                        "on-background": "#e6e0ef",
+                        "tertiary-container": "#b34d00",
+                        "on-secondary": "#00382b",
+                        "outline-variant": "#484556",
+                        "primary": "#c9beff",
+                        "background": "#14121c",
+                        "tertiary-fixed": "#ffdbcb",
+                        "secondary": "#41eec2",
+                        "on-primary-container": "#f1ebff",
+                        "error-container": "#93000a",
+                        "surface-tint": "#c9beff",
+                        "on-secondary-fixed": "#002118",
+                        "on-tertiary": "#552100",
+                        "on-surface-variant": "#c9c3d9",
+                        "secondary-fixed": "#55fcd0",
+                        "on-primary-fixed": "#1b0063",
+                        "surface": "#14121c",
+                        "secondary-container": "#00d1a7",
+                        "on-secondary-container": "#005441",
+                        "secondary-fixed-dim": "#28dfb5",
+                        "primary-fixed-dim": "#c9beff",
+                        "surface-variant": "#36333e",
+                        "surface-container-high": "#2b2933",
+                        "on-secondary-fixed-variant": "#00513f",
+                        "surface-container-lowest": "#0e0d17",
+                        "on-tertiary-fixed": "#341100",
+                        "surface-container-low": "#1c1a25",
+                        "surface-bright": "#3a3843",
+                        "outline": "#938ea2",
+                        "on-surface": "#e6e0ef",
+                        "on-error": "#690005",
+                        "inverse-surface": "#e6e0ef",
+                        "on-tertiary-container": "#ffeae1",
+                        "primary-container": "#6c47ff",
+                        "tertiary": "#ffb691",
+                        "inverse-on-surface": "#312f3a",
+                        "surface-container": "#201e29",
+                        "on-primary": "#2f009b",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed-variant": "#783100",
+                        "inverse-primary": "#5e35f1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "gutter": "12px",
+                        "container-padding": "16px",
+                        "stack-lg": "24px",
+                        "stack-sm": "8px",
+                        "stack-md": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist"],
+                        "body-lg": ["Geist"],
+                        "label-sm": ["JetBrains Mono"],
+                        "body-md": ["Geist"],
+                        "display": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "label-md": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-sm": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.04em", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface-dim lg:pl-64">
+<!-- SideNavBar Shell -->
+<aside class="hidden lg:flex flex-col h-full py-stack-md px-container-padding w-64 fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant z-50">
+<div class="mb-10">
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface">TeleAuto Pro</h1>
+<p class="font-body-md text-body-md text-on-surface-variant opacity-70">SaaS Platform</p>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/overview.html">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/sources.html">
+<span class="material-symbols-outlined">database</span>
+<span class="font-body-md text-body-md">Sources</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/studio.html">
+<span class="material-symbols-outlined">edit_square</span>
+<span class="font-body-md text-body-md">Studio</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">campaign</span>
+<span class="font-body-md text-body-md">Distribution</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/automation.html">
+<span class="material-symbols-outlined">robot_2</span>
+<span class="font-body-md text-body-md">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="font-body-md text-body-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Wallet</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/settings.html">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+<!-- Active: Admin -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-container-high text-primary font-bold border-l-4 border-primary transition-colors duration-200 mt-4 border-t border-outline-variant pt-6" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+<span class="font-body-md text-body-md">Admin</span>
+</a>
+</nav>
+<div class="mt-auto flex items-center gap-3 pt-6">
+<img alt="User Profile" class="w-10 h-10 rounded-full border border-outline-variant" data-alt="A professional studio headshot of a modern software administrator in their 30s with a clean-cut look. The lighting is moody and cinematic with purple and blue rim lights reflecting the high-tech SaaS environment. The background is a blurred server room with glowing LED indicators in a monochromatic dark palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOI7fGtQZfwWFxbvadJvHwreH8yY0Qfw56wEC6rv78SF5BYpVKXGjyDQvdCU3QzmO8WkOOFNVtPT7BqZQEk8SFmUX8AQ8XRbzlo6xYeRhwj-rMNSUF2-BllhnGK-EgpJwYLBVEhCE_nl-U1c4F5Vo3EmoxNZWdepf6fiBK2SMkRcr6wipvM9_JdD8yc14_LQC20CV2v7m1lm4N4TDf0q-2RZqPjKg2EiNZ9hIbUMqP4oXbOSCaxcyZYRJGqvAm6OodIsXn-kWNp9hS"/>
+<div>
+<p class="font-label-md text-label-md font-bold">Admin Alex</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Super Admin</p>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="lg:ml-64 min-h-screen relative">
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-full lg:left-64 lg:w-[calc(100%-16rem)] h-14 bg-surface-container-low border-b border-outline-variant z-40 flex justify-between items-center px-gutter">
+<div class="flex items-center gap-stack-lg">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">TeleAuto Admin</span>
+<nav class="flex gap-stack-md">
+<a class="font-label-md text-label-md text-primary border-b-2 border-primary pb-2" href="/dashboard/admin/overview.html">Overview</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="/dashboard/admin/users.html">Subscribers</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="/dashboard/admin/logs.html">Logs</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="/dashboard/admin/permissions.html">Permissions</a>
+</nav>
+</div>
+<div class="flex items-center gap-stack-md">
+<div class="relative">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer transition-all">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-secondary rounded-full"></span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer transition-all">help_outline</span>
+<div class="h-6 w-[1px] bg-outline-variant mx-2"></div>
+<div class="flex items-center gap-2 bg-surface-container-high px-3 py-1 rounded-full border border-outline-variant cursor-pointer active:opacity-80 transition-all">
+<span class="font-label-md text-label-md">Status: Live</span>
+<span class="w-2 h-2 bg-secondary rounded-full animate-pulse"></span>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<section class="mt-14 p-container-padding space-y-stack-lg max-w-[1600px] mx-auto pb-20 lg:pb-0">
+<!-- Top Row: 5 Stat Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-stack-md">
+<!-- Card 1 -->
+<div class="bg-surface-container-low border border-outline-variant p-stack-md rounded-xl hover:border-primary transition-all duration-300">
+<div class="flex justify-between items-start mb-2">
+<span class="text-on-surface-variant font-label-md text-label-md">Total Users</span>
+<span class="material-symbols-outlined text-primary text-[20px]">group</span>
+</div>
+<p class="font-display text-display">1247</p>
+<div class="mt-2 flex items-center gap-1">
+<span class="text-secondary font-label-sm text-label-sm">+12%</span>
+<span class="text-on-surface-variant font-label-sm text-label-sm">vs last mo</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-surface-container-low border border-outline-variant p-stack-md rounded-xl hover:border-primary transition-all duration-300">
+<div class="flex justify-between items-start mb-2">
+<span class="text-on-surface-variant font-label-md text-label-md">Premium Users</span>
+<span class="material-symbols-outlined text-primary text-[20px]">workspace_premium</span>
+</div>
+<p class="font-display text-display">89</p>
+<div class="mt-2">
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[14%]"></div>
+</div>
+</div>
+</div>
+<!-- Card 3: Pending Approval -->
+<div class="bg-surface-container-low border border-tertiary-container p-stack-md rounded-xl relative overflow-hidden group">
+<div class="absolute inset-0 bg-tertiary-container/5 pointer-events-none"></div>
+<div class="flex justify-between items-start mb-2">
+<span class="text-tertiary font-label-md text-label-md">Pending Approval</span>
+<span class="material-symbols-outlined text-tertiary text-[20px]">pending_actions</span>
+</div>
+<p class="font-display text-display text-tertiary">12</p>
+<a class="mt-2 font-label-sm text-label-sm underline text-tertiary-fixed-dim hover:text-tertiary inline-block" href="/dashboard/admin/approval-queue.html">Review Queue</a>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container-low border border-outline-variant p-stack-md rounded-xl hover:border-primary transition-all duration-300">
+<div class="flex justify-between items-start mb-2">
+<span class="text-on-surface-variant font-label-md text-label-md">Revenue</span>
+<span class="material-symbols-outlined text-primary text-[20px]">payments</span>
+</div>
+<p class="font-display text-display">4.3M <span class="text-body-md font-label-md">UZS</span></p>
+<div class="mt-2 bg-secondary/10 px-2 py-0.5 rounded text-secondary font-label-sm text-label-sm inline-block">TARGET HIT</div>
+</div>
+<!-- Card 5 -->
+<div class="bg-surface-container-low border border-outline-variant p-stack-md rounded-xl hover:border-primary transition-all duration-300">
+<div class="flex justify-between items-start mb-2">
+<span class="text-on-surface-variant font-label-md text-label-md">Bot Uptime</span>
+<span class="material-symbols-outlined text-secondary text-[20px]">bolt</span>
+</div>
+<p class="font-display text-display">99.8%</p>
+<div class="mt-2 flex items-center gap-2">
+<span class="w-2 h-2 bg-secondary rounded-full"></span>
+<span class="text-on-surface-variant font-label-sm text-label-sm">All systems nominal</span>
+</div>
+</div>
+</div>
+<!-- Middle Row: Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-stack-md">
+<!-- Line Chart: New Registrations -->
+<div class="lg:col-span-2 bg-surface-container-low border border-outline-variant p-stack-lg rounded-xl">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h3 class="font-headline-md text-headline-md">New Registrations</h3>
+<p class="text-on-surface-variant font-body-md text-body-md">User acquisition over the last 7 days</p>
+</div>
+<select class="bg-surface-container-high border-outline-variant text-on-surface text-label-md rounded-lg px-3 py-1 outline-none">
+<option>Last 7 Days</option>
+<option>Last 30 Days</option>
+</select>
+</div>
+<div class="h-64 flex items-end justify-between px-4 relative">
+<!-- Simulated Chart Grid -->
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
+<div class="border-t border-on-surface w-full"></div>
+<div class="border-t border-on-surface w-full"></div>
+<div class="border-t border-on-surface w-full"></div>
+<div class="border-t border-on-surface w-full"></div>
+</div>
+<!-- Simulated SVG Path for Purple Line -->
+<div class="absolute inset-x-0 bottom-0 h-48 pointer-events-none">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 800 200">
+<path d="M0,180 Q100,160 200,100 T400,120 T600,40 T800,60" fill="none" stroke="#6C47FF" stroke-width="4"></path>
+<path d="M0,180 Q100,160 200,100 T400,120 T600,40 T800,60 L800,200 L0,200 Z" fill="url(#grad1)" opacity="0.1"></path>
+<defs>
+<lineargradient id="grad1" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#6C47FF;stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:#6C47FF;stop-opacity:0"></stop>
+</lineargradient>
+</defs>
+</svg>
+</div>
+<!-- X-Axis Labels -->
+<div class="absolute -bottom-6 w-full flex justify-between px-4 text-on-surface-variant font-label-sm text-label-sm">
+<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+</div>
+</div>
+</div>
+<!-- Donut Chart: Free vs Premium -->
+<div class="bg-surface-container-low border border-outline-variant p-stack-lg rounded-xl flex flex-col items-center justify-center">
+<h3 class="font-headline-md text-headline-md self-start mb-6">User Distribution</h3>
+<div class="relative w-48 h-48">
+<svg class="w-full h-full" viewbox="0 0 36 36">
+<path class="text-surface-container-highest" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="100, 100" stroke-width="3"></path>
+<path class="text-primary-container" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="14, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-display text-headline-lg">1,247</span>
+<span class="text-on-surface-variant font-label-sm text-label-sm">Total</span>
+</div>
+</div>
+<div class="mt-8 w-full space-y-2">
+<div class="flex justify-between items-center px-4">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 bg-surface-container-highest rounded-full"></span>
+<span class="font-body-md text-body-md">Free Plan</span>
+</div>
+<span class="font-label-md text-label-md">1,158</span>
+</div>
+<div class="flex justify-between items-center px-4">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 bg-primary-container rounded-full"></span>
+<span class="font-body-md text-body-md">Premium</span>
+</div>
+<span class="font-label-md text-label-md">89</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Row: Recent Activity Table -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl overflow-hidden">
+<div class="p-container-padding border-b border-outline-variant flex justify-between items-center">
+<h3 class="font-headline-md text-headline-md">Recent Activity</h3>
+<button class="bg-surface-container-high hover:bg-surface-variant text-on-surface font-label-md text-label-md px-4 py-2 rounded-lg transition-all">Export Logs</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">
+<tr>
+<th class="px-6 py-4">Time</th>
+<th class="px-6 py-4">Action</th>
+<th class="px-6 py-4">Detail</th>
+<th class="px-6 py-4 text-right">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-high/50 transition-all group">
+<td class="px-6 py-4 font-label-md text-label-md text-on-surface-variant">14:22:10</td>
+<td class="px-6 py-4 font-body-md text-body-md font-semibold">User Login</td>
+<td class="px-6 py-4 font-body-md text-body-md">Admin @sarvar_dev logged in from IP 178.214.1.9</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-secondary/10 text-secondary px-2 py-1 rounded text-label-sm font-label-sm">Success</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-all group">
+<td class="px-6 py-4 font-label-md text-label-md text-on-surface-variant">13:45:02</td>
+<td class="px-6 py-4 font-body-md text-body-md font-semibold">Payment Received</td>
+<td class="px-6 py-4 font-body-md text-body-md">User @uz_crypto upgraded to Premium (45,000 UZS)</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-secondary/10 text-secondary px-2 py-1 rounded text-label-sm font-label-sm">Verified</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-all group">
+<td class="px-6 py-4 font-label-md text-label-md text-on-surface-variant">12:10:55</td>
+<td class="px-6 py-4 font-body-md text-body-md font-semibold text-tertiary">Access Denied</td>
+<td class="px-6 py-4 font-body-md text-body-md">Unauthorized attempt to API endpoint /admin/wallet</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-error-container text-on-error-container px-2 py-1 rounded text-label-sm font-label-sm">Blocked</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-all group">
+<td class="px-6 py-4 font-label-md text-label-md text-on-surface-variant">11:58:30</td>
+<td class="px-6 py-4 font-body-md text-body-md font-semibold">Bot Config Updated</td>
+<td class="px-6 py-4 font-body-md text-body-md">Automation trigger 'FastReply' latency reduced to 200ms</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-primary/10 text-primary px-2 py-1 rounded text-label-sm font-label-sm">Deployed</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-all group">
+<td class="px-6 py-4 font-label-md text-label-md text-on-surface-variant">11:30:12</td>
+<td class="px-6 py-4 font-body-md text-body-md font-semibold">System Backup</td>
+<td class="px-6 py-4 font-body-md text-body-md">Cloud storage sync completed (2.4 GB)</td>
+<td class="px-6 py-4 text-right">
+<span class="bg-secondary/10 text-secondary px-2 py-1 rounded text-label-sm font-label-sm">Success</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</main>
+<script>
+        // Simple micro-interaction for cards
+        document.querySelectorAll('.bg-surface-container-low').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0px)';
+            });
+        });
+    </script>
+<!-- Mobile Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 bg-surface border-t border-outline-variant lg:hidden">
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/overview.html"><span class="material-symbols-outlined">grid_view</span><span class="font-label-sm text-label-sm mt-0.5">Overview</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/sources.html"><span class="material-symbols-outlined">database</span><span class="font-label-sm text-label-sm mt-0.5">Sources</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/studio.html"><span class="material-symbols-outlined">movie_edit</span><span class="font-label-sm text-label-sm mt-0.5">Studio</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/automation.html"><span class="material-symbols-outlined">bolt</span><span class="font-label-sm text-label-sm mt-0.5">Automation</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/settings.html"><span class="material-symbols-outlined">settings</span><span class="font-label-sm text-label-sm mt-0.5">Settings</span></a>
+</nav>
+</body></html>

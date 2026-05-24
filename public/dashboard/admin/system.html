@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-dim": "#14121c",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "on-primary-fixed-variant": "#4500d8",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-highest": "#36333e",
+                        "primary-fixed": "#e6deff",
+                        "on-background": "#e6e0ef",
+                        "tertiary-container": "#b34d00",
+                        "on-secondary": "#00382b",
+                        "outline-variant": "#484556",
+                        "primary": "#c9beff",
+                        "background": "#14121c",
+                        "tertiary-fixed": "#ffdbcb",
+                        "secondary": "#41eec2",
+                        "on-primary-container": "#f1ebff",
+                        "error-container": "#93000a",
+                        "surface-tint": "#c9beff",
+                        "on-secondary-fixed": "#002118",
+                        "on-tertiary": "#552100",
+                        "on-surface-variant": "#c9c3d9",
+                        "secondary-fixed": "#55fcd0",
+                        "on-primary-fixed": "#1b0063",
+                        "surface": "#14121c",
+                        "secondary-container": "#00d1a7",
+                        "on-secondary-container": "#005441",
+                        "secondary-fixed-dim": "#28dfb5",
+                        "primary-fixed-dim": "#c9beff",
+                        "surface-variant": "#36333e",
+                        "surface-container-high": "#2b2933",
+                        "on-secondary-fixed-variant": "#00513f",
+                        "surface-container-lowest": "#0e0d17",
+                        "on-tertiary-fixed": "#341100",
+                        "surface-container-low": "#1c1a25",
+                        "surface-bright": "#3a3843",
+                        "outline": "#938ea2",
+                        "on-surface": "#e6e0ef",
+                        "on-error": "#690005",
+                        "inverse-surface": "#e6e0ef",
+                        "on-tertiary-container": "#ffeae1",
+                        "primary-container": "#6c47ff",
+                        "tertiary": "#ffb691",
+                        "inverse-on-surface": "#312f3a",
+                        "surface-container": "#201e29",
+                        "on-primary": "#2f009b",
+                        "error": "#ffb4ab",
+                        "on-tertiary-fixed-variant": "#783100",
+                        "inverse-primary": "#5e35f1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "gutter": "12px",
+                        "container-padding": "16px",
+                        "stack-lg": "24px",
+                        "stack-sm": "8px",
+                        "stack-md": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist"],
+                        "body-lg": ["Geist"],
+                        "label-sm": ["JetBrains Mono"],
+                        "body-md": ["Geist"],
+                        "display": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "label-md": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-sm": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.04em", "fontWeight": "600"}],
+                        "headline-lg": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: #0A0A0B; color: #e6e0ef; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .tech-card { background: #111113; border: 1px solid #1E1E22; border-radius: 12px; }
+        .tech-input { background: #0A0A0B; border: 1px solid #1E1E22; transition: border-color 0.2s; }
+        .tech-input:focus { border-color: #6C47FF; outline: none; }
+        .glass-effect { backdrop-filter: blur(8px); background: rgba(17, 17, 19, 0.8); }
+        .active-nav-border { border-left: 4px solid #6c47ff; }
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md overflow-x-hidden lg:pl-64">
+<!-- Sidebar Navigation -->
+<aside class="w-64 h-full fixed left-0 top-0 bg-surface-container-lowest flex flex-col py-stack-md px-container-padding border-r border-outline-variant hidden lg:flex">
+<div class="flex items-center gap-gutter mb-10">
+<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface leading-none">TeleAuto Pro</h1>
+<span class="font-label-md text-label-md text-primary opacity-80 uppercase tracking-widest">SaaS Platform</span>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<!-- Nav Mapping based on JSON Logic -->
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/overview.html">
+<span class="material-symbols-outlined">dashboard</span> Overview
+            </a>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/sources.html">
+<span class="material-symbols-outlined">database</span> Sources
+            </a>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/studio.html">
+<span class="material-symbols-outlined">edit_square</span> Studio
+            </a>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/broadcast.html">
+<span class="material-symbols-outlined">campaign</span> Distribution
+            </a>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/automation.html">
+<span class="material-symbols-outlined">robot_2</span> Automation
+            </a>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined">monitoring</span> Analytics
+            </a>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined">account_balance_wallet</span> Wallet
+            </a>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/settings.html">
+<span class="material-symbols-outlined">settings</span> Settings
+            </a>
+<!-- Active State: Admin (Contextual Mapping) -->
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg bg-surface-container-high text-primary font-bold active-nav-border transition-transform active:scale-95" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield_person</span> Admin
+            </a>
+</nav>
+<div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-3">
+<img alt="User Profile" class="w-10 h-10 rounded-full border border-outline" data-alt="A professional headshot of a corporate administrator in a modern office, using soft, directional lighting that emphasizes high-end professional reliability. The background is a clean, slightly out-of-focus tech environment with deep navy and charcoal tones to match a dark-themed professional UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7xX_fX9-dA8COULxhoCoGtVXV78_qlpgYxwvOZcB3SvT2PaCB2-7qzBivIxn2W14fbpOc_b85xbciPPhFjmiq_x9fD6Dhr2UtC6xtLq-Mjawj12V-rIhiwcDYVjZLAVKL04ktfuOvT_NAudgsf3Sg7HqX12_HJohC4SEf7D-XQ5geG26EnvqcUafA7LSsx1xPgrvXT-olP-Kml0QxssmSV9T9K49_60jywbva8dfWPzzq06DOWHv4TtjfVBMYsGLeuGHJsPwMf8HT"/>
+<div>
+<p class="font-headline-md text-headline-md text-sm font-bold">Admin Root</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase">Superuser</p>
+</div>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 w-full lg:left-64 lg:w-[calc(100%-16rem)] z-40 bg-surface-container-low flex justify-between items-center px-gutter h-14 border-b border-outline-variant">
+<div class="flex items-center gap-stack-lg">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">System Tab</span>
+<div class="flex items-center gap-4">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/overview.html">Overview</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/index.html">Subscribers</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/index.html">Logs</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/index.html">Permissions</a>
+</div>
+</div>
+<div class="flex items-center gap-gutter">
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant mx-2"></div>
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container-highest rounded-full border border-outline-variant">
+<div class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#41eec2]"></div>
+<span class="font-label-md text-label-md text-secondary">System Online</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="lg:ml-64 pt-20 px-container-padding pb-20 lg:pb-0">
+<!-- Section 1: System Health Cards (Bento Style) -->
+<div class="grid grid-cols-4 gap-gutter mb-stack-lg">
+<div class="tech-card p-5 col-span-1">
+<div class="flex justify-between items-start mb-4">
+<span class="material-symbols-outlined text-primary">timer</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">UPTIME</span>
+</div>
+<p class="font-display text-display text-on-surface">14d 06h</p>
+<p class="text-secondary text-xs mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">check_circle</span> Stable
+                </p>
+</div>
+<div class="tech-card p-5 col-span-2">
+<div class="flex justify-between items-center mb-4">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Memory Allocation</span>
+<span class="font-label-sm text-label-sm text-on-surface">1.4GB / 4.0GB</span>
+</div>
+<div class="w-full h-3 bg-surface-container-lowest rounded-full overflow-hidden border border-outline-variant">
+<div class="h-full bg-primary-container w-[35%] rounded-full shadow-[0_0_15px_rgba(108,71,255,0.4)]"></div>
+</div>
+<div class="flex justify-between mt-4">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded bg-primary-container"></div>
+<span class="text-xs text-on-surface-variant">Used (35%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded bg-surface-container-highest"></div>
+<span class="text-xs text-on-surface-variant">Available</span>
+</div>
+</div>
+</div>
+<div class="tech-card p-5 col-span-1 flex flex-col justify-between">
+<div class="flex justify-between items-center">
+<span class="material-symbols-outlined text-tertiary">javascript</span>
+<span class="px-2 py-0.5 bg-surface-container-highest text-primary font-label-sm text-[10px] rounded">LTS</span>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">NODE.JS VERSION</p>
+<p class="font-headline-lg text-headline-lg text-on-surface">v20.11.0</p>
+</div>
+</div>
+</div>
+<!-- Section 2: Redis Pool -->
+<div class="grid grid-cols-3 gap-gutter mb-stack-lg">
+<div class="tech-card p-6 col-span-2 flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<div class="flex items-center gap-3">
+<div class="p-2 bg-on-error-container/10 rounded-lg">
+<span class="material-symbols-outlined text-error" style="font-variation-settings: 'FILL' 1;">database</span>
+</div>
+<h3 class="font-headline-md text-headline-md">Redis Pool Cluster</h3>
+</div>
+<div class="flex items-center gap-4">
+<div class="text-right">
+<p class="text-xs text-on-surface-variant">Latency</p>
+<p class="font-label-md text-label-md text-secondary">2.4ms</p>
+</div>
+<button class="px-4 py-2 bg-transparent border border-outline-variant text-on-surface font-label-md text-label-md rounded-lg hover:border-primary transition-all active:scale-95 flex items-center gap-2" onclick="pingRedis(this)">
+<span class="material-symbols-outlined text-[18px]">bolt</span> Ping Redis
+                        </button>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-stack-md flex-1">
+<div class="bg-surface-container-low p-4 rounded-lg border border-outline-variant">
+<p class="text-xs text-on-surface-variant mb-1">Active Connections</p>
+<p class="text-xl font-bold font-display">128</p>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-outline-variant">
+<p class="text-xs text-on-surface-variant mb-1">Hits/sec</p>
+<p class="text-xl font-bold font-display">2.1k</p>
+</div>
+<div class="bg-surface-container-low p-4 rounded-lg border border-outline-variant">
+<p class="text-xs text-on-surface-variant mb-1">Evictions</p>
+<p class="text-xl font-bold font-display">0</p>
+</div>
+</div>
+</div>
+<!-- Section 4: Webhook Utility -->
+<div class="tech-card p-6 flex flex-col justify-between">
+<div>
+<h3 class="font-headline-md text-headline-md mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">webhook</span> Bot Webhook
+                    </h3>
+<div class="space-y-3">
+<label class="text-xs text-on-surface-variant font-label-sm uppercase tracking-wider">Target Endpoint</label>
+<input class="w-full tech-input p-3 rounded-lg font-label-md text-label-md text-on-surface opacity-80" readonly="" type="text" value="https://api.teleauto.pro/v1/webhook/bot_772"/>
+</div>
+</div>
+<button class="w-full mt-4 py-3 bg-primary-container text-on-primary-container font-bold rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" id="healthBtn" onclick="runHealthCheck()">
+<span class="material-symbols-outlined">health_and_safety</span> Run Health Check
+                </button>
+</div>
+</div>
+<!-- Section 3: AI Key Pool Health -->
+<div class="tech-card overflow-hidden">
+<div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-low">
+<h3 class="font-headline-md text-headline-md">AI Key Pool Health</h3>
+<div class="flex gap-2">
+<span class="px-2 py-1 rounded bg-secondary/10 text-secondary text-[10px] font-bold border border-secondary/20">9 ACTIVE</span>
+<span class="px-2 py-1 rounded bg-error/10 text-error text-[10px] font-bold border border-error/20">1 REVOKED</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-md border-collapse">
+<thead class="bg-surface-container-lowest text-on-surface-variant">
+<tr>
+<th class="px-6 py-3 font-label-md text-label-md border-b border-outline-variant">PROVIDER</th>
+<th class="px-6 py-3 font-label-md text-label-md border-b border-outline-variant">KEY ID</th>
+<th class="px-6 py-3 font-label-md text-label-md border-b border-outline-variant">STATUS</th>
+<th class="px-6 py-3 font-label-md text-label-md border-b border-outline-variant">USAGE (24H)</th>
+<th class="px-6 py-3 font-label-md text-label-md border-b border-outline-variant">LATENCY</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-6 py-4 flex items-center gap-2">
+<img alt="OpenAI" class="w-6 h-6 rounded grayscale brightness-150" data-alt="A minimalist tech logo for an artificial intelligence provider, showcasing abstract crystalline shapes in a monochromatic palette of silver and white against a deep black background. The style is ultra-modern, high-tech, and clinical." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAO4Vgp5YRiQX4jMSqb0UcwSPE2SyqdIcEr0YYd2p-XsZEt_HOA0tvM_NXEOe2ymO62XLhTt0n2Fth4vVbwpLfchwBxlsa4FJDnrf5lU0f4NSHtQGO4n15utZvV8RzZuCigsRm_2tW3IBjBLKbcY7FZEbwoMdJRPhk2gi7KRrh60uMg6LPG4ssZR1A5KwfDrF4Cs1m5b5mw4mFfhDKQMqwohvh3NQXPWP9TkHUFzN-rp47rioT4POmplFoOKlzl9wPMPYslCLfJHlfa"/>
+                                OpenAI
+                            </td>
+<td class="px-6 py-4 font-label-md text-on-surface-variant">sk-...492k</td>
+<td class="px-6 py-4">
+<span class="flex items-center gap-1.5 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Healthy
+                                </span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-16 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[72%]"></div>
+</div>
+<span class="text-xs">72%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-xs font-label-sm">114ms</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-6 py-4 flex items-center gap-2">
+<img alt="Anthropic" class="w-6 h-6 rounded grayscale" data-alt="An abstract technology emblem featuring interlocking geometric paths in shades of dark violet and electric indigo. The image represents complex data flow and neural networks within a futuristic computing environment, maintaining a dark-mode professional aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6cI0Y1-vihCxpDKUjJAeuhue25mCzRKE-BtuYXF9s51eqR6nS81weWzVKIQEKmXbB-m9KD3WnoLfSSVjDxQFY50zmgLZAqxH09n-8sXBMydrMEkIwKQRFSWSTMDaTTCtbpDaBSyM1P2nWBw5VjUNqAjUGrCHAUg0L8SKqSvq9EJwSKu5x-CE1mqerOTJY_8EMr8jO-Zg0l-UK8cwPwj31kBkKLQWai8EVK_t25t3hQBgarRCfThARU01_ezKbGneXL8MmtKowuR4P"/>
+                                Anthropic
+                            </td>
+<td class="px-6 py-4 font-label-md text-on-surface-variant">ant-...901x</td>
+<td class="px-6 py-4">
+<span class="flex items-center gap-1.5 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Healthy
+                                </span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2">
+<div class="w-16 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[21%]"></div>
+</div>
+<span class="text-xs">21%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-xs font-label-sm">248ms</td>
+</tr>
+<tr class="hover:bg-surface-container transition-colors">
+<td class="px-6 py-4 flex items-center gap-2">
+<img alt="Google" class="w-6 h-6 rounded grayscale" data-alt="A clean, scientific visualization of light refraction through a prism, creating a subtle spectrum of colors against a pitch-black background. The imagery is sharp, precise, and sophisticated, reflecting high-tier cloud computing and AI infrastructure." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC93JObnwf0QLyOVxyfNd3G2_rNOjvjyyzS-J8uA4vhW0yGcbHTILzP2k5tt9LJ40IrgG_7QkSOl6mGWg2Z1Sh9ZUILV9qOEmUntHBxS9B2YLQqs6AGLjOqJeXaJKfD0lOBojSvLbZi9sBgHhEAP9yK7Ve84JQNbT_uD03OyVK-BuOKHESM-TmIIrIWd9McqyS11B59G3PduRWINpqCdhYU4W7BCA4oU_w1C62ZADPV64Evz2wNfgyMlklJi9C6W5hSTMQRq0oxS7ga"/>
+                                Gemini Pro
+                            </td>
+<td class="px-6 py-4 font-label-md text-on-surface-variant">gem-...112p</td>
+<td class="px-6 py-4">
+<span class="flex items-center gap-1.5 text-error">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span> Revoked
+                                </span>
+</td>
+<td class="px-6 py-4 opacity-30">
+<div class="flex items-center gap-2">
+<div class="w-16 h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-0"></div>
+</div>
+<span class="text-xs">0%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-xs font-label-sm opacity-30">N/A</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</main>
+<script>
+        function pingRedis(btn) {
+            const originalContent = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[18px]">sync</span> Pinging...';
+            
+            setTimeout(() => {
+                btn.innerHTML = '<span class="material-symbols-outlined text-secondary text-[18px]">check</span> Pong! 1.2ms';
+                btn.classList.add('border-secondary', 'text-secondary');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                    btn.classList.remove('border-secondary', 'text-secondary');
+                }, 2000);
+            }, 800);
+        }
+
+        function runHealthCheck() {
+            const btn = document.getElementById('healthBtn');
+            btn.innerHTML = '<span class="material-symbols-outlined animate-bounce">searching</span> Checking...';
+            btn.classList.add('opacity-50');
+            
+            setTimeout(() => {
+                btn.innerHTML = '<span class="material-symbols-outlined">verified</span> Endpoint Secure';
+                btn.style.backgroundColor = '#00d1a7';
+                btn.style.color = '#002118';
+                
+                setTimeout(() => {
+                    btn.innerHTML = '<span class="material-symbols-outlined">health_and_safety</span> Run Health Check';
+                    btn.style.backgroundColor = '';
+                    btn.style.color = '';
+                    btn.classList.remove('opacity-50');
+                }, 3000);
+            }, 1500);
+        }
+    </script>
+<!-- Mobile Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 bg-surface border-t border-outline-variant lg:hidden">
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/overview.html"><span class="material-symbols-outlined">grid_view</span><span class="font-label-sm text-label-sm mt-0.5">Overview</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/sources.html"><span class="material-symbols-outlined">database</span><span class="font-label-sm text-label-sm mt-0.5">Sources</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/studio.html"><span class="material-symbols-outlined">movie_edit</span><span class="font-label-sm text-label-sm mt-0.5">Studio</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/automation.html"><span class="material-symbols-outlined">bolt</span><span class="font-label-sm text-label-sm mt-0.5">Automation</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/settings.html"><span class="material-symbols-outlined">settings</span><span class="font-label-sm text-label-sm mt-0.5">Settings</span></a>
+</nav>
+</body></html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-dim": "#14121c",
+                    "tertiary-fixed-dim": "#ffb691",
+                    "on-primary-fixed-variant": "#4500d8",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-highest": "#36333e",
+                    "primary-fixed": "#e6deff",
+                    "on-background": "#e6e0ef",
+                    "tertiary-container": "#b34d00",
+                    "on-secondary": "#00382b",
+                    "outline-variant": "#484556",
+                    "primary": "#c9beff",
+                    "background": "#14121c",
+                    "tertiary-fixed": "#ffdbcb",
+                    "secondary": "#41eec2",
+                    "on-primary-container": "#f1ebff",
+                    "error-container": "#93000a",
+                    "surface-tint": "#c9beff",
+                    "on-secondary-fixed": "#002118",
+                    "on-tertiary": "#552100",
+                    "on-surface-variant": "#c9c3d9",
+                    "secondary-fixed": "#55fcd0",
+                    "on-primary-fixed": "#1b0063",
+                    "surface": "#14121c",
+                    "secondary-container": "#00d1a7",
+                    "on-secondary-container": "#005441",
+                    "secondary-fixed-dim": "#28dfb5",
+                    "primary-fixed-dim": "#c9beff",
+                    "surface-variant": "#36333e",
+                    "surface-container-high": "#2b2933",
+                    "on-secondary-fixed-variant": "#00513f",
+                    "surface-container-lowest": "#0e0d17",
+                    "on-tertiary-fixed": "#341100",
+                    "surface-container-low": "#1c1a25",
+                    "surface-bright": "#3a3843",
+                    "outline": "#938ea2",
+                    "on-surface": "#e6e0ef",
+                    "on-error": "#690005",
+                    "inverse-surface": "#e6e0ef",
+                    "on-tertiary-container": "#ffeae1",
+                    "primary-container": "#6c47ff",
+                    "tertiary": "#ffb691",
+                    "inverse-on-surface": "#312f3a",
+                    "surface-container": "#201e29",
+                    "on-primary": "#2f009b",
+                    "error": "#ffb4ab",
+                    "on-tertiary-fixed-variant": "#783100",
+                    "inverse-primary": "#5e35f1"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "gutter": "12px",
+                    "container-padding": "16px",
+                    "stack-lg": "24px",
+                    "stack-sm": "8px",
+                    "stack-md": "16px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Geist"],
+                    "body-lg": ["Geist"],
+                    "label-sm": ["JetBrains Mono"],
+                    "body-md": ["Geist"],
+                    "display": ["Geist"],
+                    "headline-lg": ["Geist"],
+                    "label-md": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "headline-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                    "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                    "label-sm": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                    "display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.04em", "fontWeight": "600"}],
+                    "headline-lg": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0B;
+            color: #e6e0ef;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0e0d17;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #36333e;
+            border-radius: 10px;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #6c47ff;
+        }
+        .toggle-checkbox:checked + .toggle-label div {
+            transform: translateX(1.25rem);
+        }
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md lg:pl-64">
+<!-- SideNavBar -->
+<aside class="w-64 h-full fixed left-0 top-0 bg-surface-container-lowest dark:bg-surface-container-lowest border-r border-outline-variant flex flex-col h-full py-stack-md px-container-padding hidden lg:flex">
+<div class="mb-stack-lg">
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface">TeleAuto Pro</h1>
+<p class="font-body-md text-body-md text-on-surface-variant opacity-60">SaaS Platform</p>
+</div>
+<nav class="flex-1 space-y-1 custom-scrollbar overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/overview.html">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/sources.html">
+<span class="material-symbols-outlined">database</span>
+<span>Sources</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/studio.html">
+<span class="material-symbols-outlined">edit_square</span>
+<span>Studio</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/broadcast.html">
+<span class="material-symbols-outlined">campaign</span>
+<span>Distribution</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/automation.html">
+<span class="material-symbols-outlined">robot_2</span>
+<span>Automation</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined">monitoring</span>
+<span>Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span>Wallet</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/settings.html">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-container-high text-primary font-bold border-l-4 border-primary transition-colors duration-200" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+<span>Admin</span>
+</a>
+</nav>
+<div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyxJ0F67ikh_ygZlDpQSTCWC61NsAShFntq_Z5HPeX1asjLNqN2B8xFDdJHszdDGahZliW1-hGViBmLSRR1twOHTgZObyxFJzxgfDda8qir4KTuUO3K2RjZWNmL49wB8tUSsgz1qn_8L-8sMPT_iZh_7QSsheAgTZHG2O7jRq1J20mvEMz2AIrNKTBo2ZVH60aWbKcmq2hHgCAO1SO3c69y1ks3QqA4FLXwi2f6c89tK_INTgUvQ1mho7jOaw3Kn-6jGeZOT9jpfoJ"/>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Admin User</span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Super Admin</span>
+</div>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-full lg:left-64 lg:w-[calc(100%-16rem)] z-40 bg-surface-container-low dark:bg-surface-container-low border-b border-outline-variant flex justify-between items-center px-gutter h-14">
+<div class="flex items-center gap-stack-md">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">TeleAuto Admin</span>
+<div class="h-6 w-px bg-outline-variant mx-2"></div>
+<nav class="flex gap-4">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/overview.html">Overview</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/index.html">Subscribers</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/index.html">Logs</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/index.html">Permissions</a>
+<a class="font-label-md text-label-md text-primary border-b-2 border-primary pb-2" href="/dashboard/admin/pricing.html">Pricing</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-all">notifications</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-secondary rounded-full"></span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-all">help_outline</span>
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest border border-outline-variant flex items-center justify-center overflow-hidden">
+<img alt="Administrator" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnSGXuUTGPzq_eTLQ4OsvaosKsjl7O7YJrlp-6KOrrvjqU0LQ4p77EGHsTpFrj9gOupKYaLNPHzPiHVC3fmauQ-pv-TvCwfx1D7Fv9oVevwKTfI3Mhixx4xpyuXpkQ3k9aHyyqiBphA1eYEMkh6jta-YuP1OBA1FIQzRcmbe5Tbrnq6ifuEDGQoQNWg3N7XsQmphY8U2KbA4JC6IBap00zjTf8gBWMrxdcNPA5AhGSVFRxg2qQR2fL62Q7kZarWobsQ9Th7Wh-crOB"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="lg:ml-64 pt-14 p-stack-lg min-h-screen pb-20 lg:pb-0">
+<div class="max-w-5xl mx-auto space-y-stack-lg">
+<!-- Breadcrumbs / Header -->
+<section>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Pricing &amp; Monetization</h2>
+<p class="text-on-surface-variant font-body-md">Configure subscription plans and platform-wide accessibility settings.</p>
+</section>
+<!-- Section 1: Price Inputs -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Monthly Price -->
+<div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-5 hover:border-primary/50 transition-all group">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined text-primary p-2 bg-primary/10 rounded-lg">calendar_month</span>
+<span class="text-label-sm font-label-sm text-secondary bg-secondary/10 px-2 py-1 rounded-full uppercase">Active</span>
+</div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-2">Monthly Price</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
+<input class="w-full bg-[#0A0A0B] border border-[#1E1E22] rounded-lg pl-8 pr-4 py-3 text-on-surface font-headline-md focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" type="text" value="29.00"/>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-3 italic">Billed every 30 days automatically.</p>
+</div>
+<!-- Yearly Price -->
+<div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-5 hover:border-primary/50 transition-all">
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined text-primary p-2 bg-primary/10 rounded-lg">event_repeat</span>
+<span class="text-label-sm font-label-sm text-tertiary bg-tertiary/10 px-2 py-1 rounded-full uppercase">Popular</span>
+</div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-2">Yearly Price</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
+<input class="w-full bg-[#0A0A0B] border border-[#1E1E22] rounded-lg pl-8 pr-4 py-3 text-on-surface font-headline-md focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" type="text" value="290.00"/>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-3 italic">Save 17% compared to monthly billing.</p>
+</div>
+<!-- Telegram Stars Price -->
+<div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-5 hover:border-primary/50 transition-all overflow-hidden relative">
+<div class="absolute -right-4 -top-4 opacity-10">
+<span class="material-symbols-outlined text-[100px]" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<div class="flex items-center justify-between mb-4">
+<span class="material-symbols-outlined text-primary p-2 bg-primary/10 rounded-lg">grade</span>
+<span class="text-label-sm font-label-sm text-on-surface-variant bg-surface-container-highest px-2 py-1 rounded-full uppercase">Native</span>
+</div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-2">Telegram Stars Price</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">⭐</span>
+<input class="w-full bg-[#0A0A0B] border border-[#1E1E22] rounded-lg pl-8 pr-4 py-3 text-on-surface font-headline-md focus:ring-1 focus:ring-primary focus:border-primary outline-none transition-all" type="text" value="500"/>
+</div>
+<p class="text-[11px] text-on-surface-variant mt-3 italic">Calculated based on Telegram's Star value.</p>
+</div>
+</section>
+<!-- Save Prices Action -->
+<div class="flex justify-end pt-2">
+<button class="px-8 py-3 bg-primary-container text-on-primary-container font-headline-md rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 shadow-lg shadow-primary-container/20">
+<span class="material-symbols-outlined">save</span>
+                    Save Prices
+                </button>
+</div>
+<!-- Section 2: Platform Toggles -->
+<section class="bg-[#111113] border border-[#1E1E22] rounded-xl overflow-hidden">
+<div class="p-6 border-b border-[#1E1E22] flex justify-between items-center">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Platform Governance</h3>
+<p class="text-on-surface-variant text-body-md">Manage user access and system status.</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant opacity-30 text-[40px]">security</span>
+</div>
+<div class="p-6 space-y-6">
+<!-- Toggle 1 -->
+<div class="flex items-center justify-between group">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary border border-outline-variant">
+<span class="material-symbols-outlined">how_to_reg</span>
+</div>
+<div>
+<h4 class="font-body-lg text-body-lg text-on-surface">Require Approval</h4>
+<p class="text-on-surface-variant text-body-md">New subscribers must be manually vetted by an admin before channel access.</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only toggle-checkbox" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest rounded-full toggle-label transition-colors">
+<div class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"></div>
+</div>
+</label>
+</div>
+<!-- Divider -->
+<div class="h-px bg-[#1E1E22]"></div>
+<!-- Toggle 2 -->
+<div class="flex items-center justify-between group">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-error border border-outline-variant">
+<span class="material-symbols-outlined">construction</span>
+</div>
+<div>
+<h4 class="font-body-lg text-body-lg text-on-surface">Maintenance Mode</h4>
+<p class="text-on-surface-variant text-body-md">Temporarily disable all frontend interactions and show a custom maintenance screen.</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only toggle-checkbox" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest rounded-full toggle-label transition-colors">
+<div class="absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform"></div>
+</div>
+</label>
+</div>
+</div>
+<!-- Save Settings Footer -->
+<div class="bg-surface-container-low p-4 flex justify-end gap-3">
+<button class="px-6 py-2 border border-[#1E1E22] text-on-surface-variant rounded-lg font-label-md text-label-md hover:bg-surface-container-highest transition-all">Cancel Changes</button>
+<button class="px-6 py-2 bg-on-surface text-background rounded-lg font-label-md text-label-md hover:opacity-90 active:scale-95 transition-all">Save Settings</button>
+</div>
+</section>
+<!-- Bottom Insight Card -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-6 flex items-start gap-4">
+<span class="material-symbols-outlined text-secondary">info</span>
+<div>
+<h5 class="font-label-md text-label-md text-on-surface uppercase mb-1">Pricing Logic</h5>
+<p class="text-on-surface-variant text-[13px]">Updates to pricing will only affect new subscribers. Existing subscriptions will retain their original legacy pricing until they expire or are manually modified.</p>
+</div>
+</div>
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-6 flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary">warning</span>
+<div>
+<h5 class="font-label-md text-label-md text-on-surface uppercase mb-1">Approval Queue</h5>
+<p class="text-on-surface-variant text-[13px]">There are currently <strong class="text-tertiary">14 pending approvals</strong> in the queue. Enabling "Require Approval" will hold all future requests here.</p>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Floating Background Decor -->
+<div class="fixed top-0 left-0 w-full h-full pointer-events-none opacity-20 z-[-1] overflow-hidden">
+<div class="absolute top-[10%] right-[5%] w-[400px] h-[400px] bg-primary/20 blur-[120px] rounded-full"></div>
+<div class="absolute bottom-[20%] left-[20%] w-[300px] h-[300px] bg-secondary/10 blur-[100px] rounded-full"></div>
+</div>
+<script>
+        // Micro-interaction for price formatting
+        const inputs = document.querySelectorAll('input[type="text"]');
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.parentElement.classList.add('border-primary');
+            });
+            input.addEventListener('blur', () => {
+                input.parentElement.parentElement.classList.remove('border-primary');
+            });
+        });
+
+        // Basic toggle interaction simulation
+        document.querySelectorAll('.toggle-checkbox').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                const label = this.closest('div').querySelector('h4').textContent;
+                console.log(`${label} changed to: ${this.checked}`);
+            });
+        });
+    </script>
+<!-- Mobile Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 bg-surface border-t border-outline-variant lg:hidden">
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/overview.html"><span class="material-symbols-outlined">grid_view</span><span class="font-label-sm text-label-sm mt-0.5">Overview</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/sources.html"><span class="material-symbols-outlined">database</span><span class="font-label-sm text-label-sm mt-0.5">Sources</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/studio.html"><span class="material-symbols-outlined">movie_edit</span><span class="font-label-sm text-label-sm mt-0.5">Studio</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/automation.html"><span class="material-symbols-outlined">bolt</span><span class="font-label-sm text-label-sm mt-0.5">Automation</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/settings.html"><span class="material-symbols-outlined">settings</span><span class="font-label-sm text-label-sm mt-0.5">Settings</span></a>
+</nav>
+</body></html>

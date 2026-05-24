@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/geist@1.3.0/dist/font.min.js"></script>
+<style>
+        body {
+            font-family: 'Geist', sans-serif;
+            background-color: #0A0A0B;
+            color: #e6e0ef;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .premium-gradient {
+            background: linear-gradient(135deg, rgba(108, 71, 255, 0.1) 0%, rgba(0, 209, 167, 0.05) 100%);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#00513f",
+                        "on-secondary-container": "#005441",
+                        "tertiary-fixed": "#ffdbcb",
+                        "surface": "#14121c",
+                        "surface-container": "#201e29",
+                        "surface-container-high": "#2b2933",
+                        "tertiary-container": "#b34d00",
+                        "inverse-primary": "#5e35f1",
+                        "primary": "#c9beff",
+                        "inverse-surface": "#e6e0ef",
+                        "on-tertiary-fixed": "#341100",
+                        "secondary-fixed": "#55fcd0",
+                        "on-surface": "#e6e0ef",
+                        "secondary": "#41eec2",
+                        "on-tertiary": "#552100",
+                        "primary-container": "#6c47ff",
+                        "outline": "#938ea2",
+                        "on-tertiary-container": "#ffeae1",
+                        "surface-tint": "#c9beff",
+                        "primary-fixed": "#e6deff",
+                        "inverse-on-surface": "#312f3a",
+                        "on-secondary": "#00382b",
+                        "primary-fixed-dim": "#c9beff",
+                        "surface-container-highest": "#36333e",
+                        "on-primary": "#2f009b",
+                        "surface-container-low": "#1c1a25",
+                        "tertiary": "#ffb691",
+                        "on-secondary-fixed": "#002118",
+                        "secondary-container": "#00d1a7",
+                        "error": "#ffb4ab",
+                        "on-surface-variant": "#c9c3d9",
+                        "outline-variant": "#484556",
+                        "on-tertiary-fixed-variant": "#783100",
+                        "surface-bright": "#3a3843",
+                        "on-error": "#690005",
+                        "surface-container-lowest": "#0e0d17",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "on-primary-fixed": "#1b0063",
+                        "on-background": "#e6e0ef",
+                        "surface-variant": "#36333e",
+                        "error-container": "#93000a",
+                        "secondary-fixed-dim": "#28dfb5",
+                        "on-primary-container": "#f1ebff",
+                        "surface-dim": "#14121c",
+                        "on-primary-fixed-variant": "#4500d8",
+                        "on-error-container": "#ffdad6",
+                        "background": "#14121c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "container-padding": "16px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px",
+                        "gutter": "12px",
+                        "stack-md": "16px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Geist"],
+                        "label-sm": ["JetBrains Mono"],
+                        "body-lg": ["Geist"],
+                        "display": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "headline-lg": ["Geist"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-sm": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.04em", "fontWeight": "600"}],
+                        "headline-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "headline-lg": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col">
+<!-- DESKTOP SIDEBAR -->
+<aside class="w-64 h-full fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant flex flex-col py-stack-md px-container-padding z-50">
+<div class="mb-stack-lg">
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface">TeleAuto Pro</h1>
+<p class="font-body-md text-body-md text-on-surface-variant opacity-70">SaaS Platform</p>
+</div>
+<nav class="flex-1 space-y-1 custom-scrollbar overflow-y-auto">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/overview.html">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-container-high text-primary font-bold border-l-4 border-primary transition-colors duration-200" href="/dashboard/sources.html">
+<span class="material-symbols-outlined" data-icon="database" style="font-variation-settings: 'FILL' 1;">database</span>
+<span class="font-body-md text-body-md">Sources</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/studio.html">
+<span class="material-symbols-outlined" data-icon="edit_square">edit_square</span>
+<span class="font-body-md text-body-md">Studio</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/distribution.html">
+<span class="material-symbols-outlined" data-icon="campaign">campaign</span>
+<span class="font-body-md text-body-md">Distribution</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/automation.html">
+<span class="material-symbols-outlined" data-icon="robot_2">robot_2</span>
+<span class="font-body-md text-body-md">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/analytics.html">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-body-md text-body-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/wallet.html">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Wallet</span>
+</a>
+</nav>
+<div class="mt-auto pt-stack-md border-t border-outline-variant space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/settings.html">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+<div class="flex items-center gap-3 px-3 py-4">
+<img alt="User Profile" class="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant" data-alt="A professional close-up headshot of a young tech executive with a neutral expression, set against a dark, slightly blurred office environment with purple neon accents. The lighting is crisp and modern, matching a high-end SaaS dashboard aesthetic with deep blacks and vibrant highlight tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUCFhepoF7ywPa9dvRXG5ogiEf-nH3WzTeqiLLxKfqiP-L1q_qQNG4wrBuurXCRWspjWxBRgdKMx7MkeAH0zJ33-xj2xdHO2fys-tYj0SbvCMIrU6toDwFkPzHhUwjoVtDtcqhchKJUOJ8-tnq6ajkQ6p5E6NMbofbFupQBIrf57jM-odAe__5XVPGfKGPzxgwjKpIRP4plA3oAjU2gkUK_LD4_1TVFCDPECUSz4hw-svcINeTZNFmIhQqLWTRhswNmjkjxXwf7VRn"/>
+<div class="overflow-hidden">
+<p class="font-label-md text-label-md truncate">Admin User</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant opacity-60">Pro Account</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- DESKTOP TOPBAR -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-14 bg-surface-container-low border-b border-outline-variant flex justify-between items-center px-gutter z-40">
+<div class="flex items-center gap-stack-lg flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]" data-icon="search">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-1.5 pl-10 pr-4 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Search sources, feeds, or channels..." type="text"/>
+</div>
+<nav class="hidden lg:flex items-center gap-stack-md ml-stack-md">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="#">Overview</a>
+<a class="font-label-md text-label-md text-primary border-b-2 border-primary pb-2 transition-all" href="#">Sources</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="#">Subscribers</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface transition-all" href="#">Logs</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all p-2" data-icon="notifications">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all p-2" data-icon="help_outline">help_outline</button>
+<div class="h-8 w-px bg-outline-variant mx-2"></div>
+<button class="bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-label-md text-label-md flex items-center gap-2 hover:opacity-90 transition-opacity active:scale-95">
+<span class="material-symbols-outlined text-[18px]" data-icon="add">add</span>
+                Add RSS Source
+            </button>
+</div>
+</header>
+<!-- DESKTOP MAIN -->
+<main class="hidden lg:block ml-64 mt-14 p-container-padding min-h-[calc(100vh-3.5rem)] flex flex-col">
+<div class="flex items-center gap-stack-lg mb-stack-lg border-b border-outline-variant">
+<button class="pb-3 border-b-2 border-primary text-primary font-bold font-body-md text-body-md flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]" data-icon="rss_feed">rss_feed</span>
+                RSS Feeds
+            </button>
+<button class="pb-3 border-b-2 border-transparent text-on-surface-variant hover:text-on-surface font-body-md text-body-md flex items-center gap-2 transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="bolt">bolt</span>
+                Monitored Channels
+            </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-gutter mb-auto">
+<div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-5 hover:border-primary/50 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center border border-outline-variant">
+<img alt="Favicon" class="w-6 h-6 rounded-sm" data-alt="A crisp, high-contrast logo for a major news outlet, designed with bold serif typography in white against a deep purple background. The style is professional and minimalist, fitting a premium SaaS dashboard environment with sharp edges and clear branding." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwSYN5841o9yq-DcPzvKgazYd5xF3hRXGgsGVXnaueeGcRsMarlLPjDtK9p2LiR95uoFwrvt2aB7GwO3WRjjIEMgU5EnnR1jsc8X4zVDNi5DOgkF71dATFPTH5fl_AiDQZn532TPXVnZO15mwFpHVu7HCAGcXI9ri2O4T_3pmm2ntspwH69GwJQWxdntB5v4V5-y5LxYAYzo7ZFNloQGJpeQw_e0FOB0YtrQbcMItStGOwToDFF1ZnA-zuVihIzAlXEJxoz1Dv24Yp"/>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface group-hover:text-primary transition-colors">NYT Tech</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">nyt.com/tech/rss</p>
+</div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface p-1" data-icon="more_vert">more_vert</button>
+</div>
+<div class="flex items-center gap-2 mb-6">
+<span class="bg-secondary/10 text-secondary px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">English</span>
+<span class="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">Global</span>
+</div>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/30">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Last Update</span>
+<span class="font-label-md text-label-md">2 mins ago</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Status</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
+</label>
+</div>
+</div>
+</div>
+<div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-5 hover:border-primary/50 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center border border-outline-variant">
+<img alt="Favicon" class="w-6 h-6 rounded-sm" data-alt="A sleek, modern technology blog logo with vibrant green accents. The icon is minimalist and sharp, rendered in high-resolution for a professional web interface. The lighting is bright and even, reinforcing a high-end, clean tech aesthetic suitable for a dashboard context." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcFFFyKJ3kuz95c-somE5as4fu0Zbye16x_0vPqM_r6Va5QEBhdZ9kXDAmnmHqZSn6TfBpxsD4TZ0FBL-wuVG7Oa5GSTNxJ7GpPIXZTG2SRrdXJS9Nze2GGPDijokOgzrg8E2oxPyEhLGNTzwZwPXfDuFGSSjnK-BIoM-9l_TB6-_hx-PoL5BjtTC-p1calKhHjCp1Cpuh8rAKpX_fMgMxWpqFY9RPWsfmoQ4orKvYVGdAJPnTdViShmlfPuJv9hteUdfBHchcyQFG"/>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface group-hover:text-primary transition-colors">TechCrunch</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">techcrunch.com/feed</p>
+</div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface p-1" data-icon="more_vert">more_vert</button>
+</div>
+<div class="flex items-center gap-2 mb-6">
+<span class="bg-secondary/10 text-secondary px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">English</span>
+<span class="bg-tertiary/10 text-tertiary px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">Finance</span>
+</div>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/30">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Last Update</span>
+<span class="font-label-md text-label-md">15 mins ago</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Status</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
+</label>
+</div>
+</div>
+</div>
+<div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-5 hover:border-primary/50 transition-all group opacity-80">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center border border-outline-variant grayscale">
+<img alt="Favicon" class="w-6 h-6 rounded-sm" data-alt="A stylized social media mascot icon with bright orange features against a dark, monochromatic circle background. The image is clean, vector-style, and designed for small UI elements. The aesthetic is contemporary and playful yet retains a professional edge for a SaaS management tool." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5Fyt4X58eVgc_TAZmNkeXX2PDGCCA-9viYBZ7jpsv5cSltfiCMk6xm26BNIz6CxnZdTY93DpG7Q9uProMXjLDZlbUO30fgVcVAFS2QzsYeFBmOSDZkINlTItpVAsKBQpQcf3j4dKZRbdVcn206T9hnI1H_r5G_vfP_JmAFysjA_yQ2kah_D57ow-6oQ3Y06Fa8BD0OU-LzZFxaF97wb-Br7xNGOXUyfG45zkJFUXhdAfHxrAsIbczJYU6r3Ex1pTGta13W7wSAkm0"/>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface group-hover:text-primary transition-colors">Reddit Crypto</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">reddit.com/r/crypto/rss</p>
+</div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface p-1" data-icon="more_vert">more_vert</button>
+</div>
+<div class="flex items-center gap-2 mb-6">
+<span class="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">English</span>
+<span class="bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">Social</span>
+</div>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/30">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Last Update</span>
+<span class="font-label-md text-label-md text-error">Sync Error</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Status</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
+</label>
+</div>
+</div>
+</div>
+<div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-5 hover:border-primary/50 transition-all group">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center border border-outline-variant">
+<img alt="Favicon" class="w-6 h-6 rounded-sm" data-alt="A sophisticated, minimalist logo for a digital publishing platform, featuring a single, clean black letterform on a stark white circular background. The style is timeless and elegant, contrasting beautifully with the surrounding dark dashboard theme and neon-accented UI elements." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBclK3ov9l0Y9QALG5PlmCTZoF0lY5mfSdJqPLqR3ApaMLfSyhRvES538x6ngCYqrpkvMXyD1IOyn5ogKlHMPKH_KF-jgVCuipoqej6qNMsAOPE64VeQZotts22KXiJ5m52xhuo74ljrI4peb2qP-AinWsliPsupsWOcoV0RauXIWyFuZw0B6wNTbKGXu0u2I78SIKJWMOL-O9KiphL0lXZ-4HccVSjwSBlgmVGUD1wvfgE2SdFpBMTmdrKo8iT0woz9ddH-xt-FZKz"/>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface group-hover:text-primary transition-colors">Medium AI</h3>
+<p class="font-label-sm text-label-sm text-on-surface-variant">medium.com/topic/ai/rss</p>
+</div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface p-1" data-icon="more_vert">more_vert</button>
+</div>
+<div class="flex items-center gap-2 mb-6">
+<span class="bg-secondary/10 text-secondary px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">English</span>
+<span class="bg-secondary/10 text-secondary px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase">Tech</span>
+</div>
+<div class="flex justify-between items-center pt-4 border-t border-outline-variant/30">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Last Update</span>
+<span class="font-label-md text-label-md">1 hour ago</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Status</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-10 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
+</label>
+</div>
+</div>
+</div>
+<button class="border-2 border-dashed border-outline-variant rounded-xl p-5 flex flex-col items-center justify-center gap-4 hover:border-primary hover:bg-primary/5 transition-all text-on-surface-variant hover:text-primary min-h-[180px]">
+<span class="material-symbols-outlined text-[48px]" data-icon="add_circle">add_circle</span>
+<span class="font-label-md text-label-md font-bold">Add New RSS Feed</span>
+</button>
+</div>
+<footer class="mt-stack-lg sticky bottom-6 z-30">
+<div class="bg-primary-container/20 border border-primary/30 backdrop-blur-md rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="workspace_premium" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+</div>
+<div>
+<h4 class="font-headline-md text-headline-md text-primary">Source Limit: 4/5</h4>
+<p class="font-body-md text-body-md text-on-primary-container/70">You're nearing the limit for your current Pro plan. Upgrade to Enterprise for unlimited sources.</p>
+</div>
+</div>
+<div class="flex items-center gap-4 w-full md:w-auto">
+<div class="flex-1 md:w-48 bg-surface-container-high h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[80%]"></div>
+</div>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-lg font-bold font-label-md text-label-md whitespace-nowrap hover:shadow-[0_0_20px_rgba(108,71,255,0.4)] transition-all">
+                        Upgrade Now
+                    </button>
+</div>
+</div>
+</footer>
+</main>
+
+<!-- MOBILE LAYOUT (lg:hidden) -->
+<!-- TopAppBar -->
+<header class="lg:hidden fixed top-0 z-50 w-full flex justify-between items-center h-14 px-container-padding bg-surface border-b border-outline-variant lg:left-64 lg:w-[calc(100%-16rem)]">
+<div class="flex items-center gap-stack-md">
+<span class="material-symbols-outlined text-primary" data-icon="analytics">analytics</span>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface">Sources</h1>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="p-2 hover:bg-surface-container-high transition-colors rounded-full active:opacity-80">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+</button>
+</div>
+</header>
+<!-- Content Canvas -->
+<main class="lg:hidden flex-1 mt-14 mb-[56px] px-container-padding py-stack-lg overflow-y-auto lg:ml-64">
+<!-- Tab Switching -->
+<div class="flex items-center gap-stack-lg border-b border-outline-variant mb-stack-lg">
+<button class="pb-3 border-b-2 border-primary text-primary font-bold font-body-md text-body-md">RSS Feeds</button>
+<button class="pb-3 text-on-surface-variant font-body-md text-body-md hover:text-on-surface transition-colors">Monitored Channels</button>
+</div>
+<!-- Search and Add -->
+<div class="flex gap-gutter mb-stack-lg">
+<div class="relative flex-1 group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]" data-icon="search">search</span>
+<input class="w-full h-11 bg-surface-container-low border border-outline-variant rounded-lg pl-10 pr-4 font-body-md text-body-md focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none" placeholder="Search sources..." type="text"/>
+</div>
+<button class="w-11 h-11 bg-primary-container text-on-primary-container flex items-center justify-center rounded-lg active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+</div>
+<!-- Source List -->
+<div class="space-y-gutter mb-stack-lg">
+<!-- Card: Kun.uz -->
+<div class="bg-surface-container border border-outline-variant rounded-xl p-stack-md flex items-center justify-between">
+<div class="flex items-center gap-stack-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="Modern geometric logo for a news agency named Kun.uz featuring clean lines and a professional blue accent on a dark technological background. The style is minimalist and vector-inspired fitting a high-end SaaS interface. Lighting is flat and modern with high contrast" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqxiOIRSvCbhG0KK7fjwv4nyaK_EjhxAAu8Iyc6HPnJ_VFHv390jg2s5YOsn-Bos084rtjVxFJXCrb_fatdroeCkMJh-QkMaHXHp8N1xF7k5ER95XXN0mfYOa6CwcXJjJCjvk5oVZPetc_cBGfbI4zgX0S_FcaOkcutrhR1-o2GOqWid03KZ_bNMaRxK6GQ8WGrI2yRTUiKgJ3pftyXbky2ks6VaPVImHz69Cew4XtMTZOd1730oaBZikdkaj7bGsnlC1Nbn_XUu_O"/>
+</div>
+<div>
+<div class="flex items-center gap-stack-sm">
+<h3 class="font-headline-md text-body-lg font-bold">Kun.uz</h3>
+<span class="px-1.5 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">uz</span>
+</div>
+<p class="font-body-md text-label-sm text-secondary">Active</p>
+</div>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="relative inline-flex h-6 w-11 items-center rounded-full bg-secondary-container transition-colors focus:outline-none">
+<span class="translate-x-6 inline-block h-4 w-4 transform rounded-full bg-on-secondary shadow-sm transition-transform"></span>
+</button>
+<button class="p-1 text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Card: Gazeta.uz -->
+<div class="bg-surface-container border border-outline-variant rounded-xl p-stack-md flex items-center justify-between">
+<div class="flex items-center gap-stack-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center overflow-hidden border border-outline-variant">
+<img class="w-full h-full object-cover" data-alt="Corporate news identifier for Gazeta.uz with a stylized newspaper icon minimalist monochrome palette with silver accents. High tech aesthetic suitable for a management dashboard. The mood is serious authoritative and clean with crisp edges and balanced composition" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhGhXqL0EWaFhwZtIN2jYI7PJ1bANfcXlYaAKGHQlDWCH0Lw1am460iX1G4eD-pZ9lsXMew_X-j3iYgs7xSQRkSrKHCnFeMxOPDu9Fqe1vKRrpREu3Ky0FG7Bs2fImCMjiQjKQVfLQnlOA2CE_wuJ20cQ5-BXDZ5yZFjcsL04-lRpq-5_xnx4utZ5CabNdceF7VS0lkANhtzY2dw8fnoGLOiJTOL6ZYBJqnMVjvPh0E4cKWqokbDScsO3RslzlchnqKQyrsL5iaYln"/>
+</div>
+<div>
+<div class="flex items-center gap-stack-sm">
+<h3 class="font-headline-md text-body-lg font-bold">Gazeta.uz</h3>
+<span class="px-1.5 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">ru</span>
+</div>
+<p class="font-body-md text-label-sm text-secondary">Active</p>
+</div>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="relative inline-flex h-6 w-11 items-center rounded-full bg-secondary-container transition-colors focus:outline-none">
+<span class="translate-x-6 inline-block h-4 w-4 transform rounded-full bg-on-secondary shadow-sm transition-transform"></span>
+</button>
+<button class="p-1 text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Card: TechCrunch -->
+<div class="bg-surface-container border border-outline-variant rounded-xl p-stack-md flex items-center justify-between opacity-80">
+<div class="flex items-center gap-stack-md">
+<div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center overflow-hidden border border-outline-variant grayscale">
+<img class="w-full h-full object-cover" data-alt="TechCrunch iconic brand mark presented in a dark mode dashboard tile environment with subtle green lighting effects. Technologically advanced vibe with clean pro-tool finish. The lighting is dimmed to represent a paused state in a high-performance UI" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCaF-4Wjz7S-eV26CsKY5JjqKWcFYqVEZI9h7rXTbTHigyywhNuarAGs1z2HxZ-Hj3XfuoDnlXdjsFszlmr0B_N1b--glAYAVovafaVX_LVyDOStgXIHrVUk_1aiuCEp758hqwszFBeKcOtqCDsJ4RXlvnQFQO67f6Km1ybsmQb2nCebjwJngoNsj5DT_i_9QkXgow8djyVQnYAmBjUiFAspGUWWKMQbq-hcJTLHYiqQTdiVE5VE2Hp1G3p7GS5yULsnTY2pBJjkxqF"/>
+</div>
+<div>
+<div class="flex items-center gap-stack-sm">
+<h3 class="font-headline-md text-body-lg font-bold">TechCrunch</h3>
+<span class="px-1.5 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm uppercase tracking-wider">en</span>
+</div>
+<p class="font-body-md text-label-sm text-outline">Paused</p>
+</div>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="relative inline-flex h-6 w-11 items-center rounded-full bg-outline-variant transition-colors focus:outline-none">
+<span class="translate-x-1 inline-block h-4 w-4 transform rounded-full bg-surface shadow-sm transition-transform"></span>
+</button>
+<button class="p-1 text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Premium Limit Banner -->
+<div class="premium-gradient border border-primary-container/30 rounded-xl p-stack-md relative overflow-hidden">
+<div class="relative z-10 flex flex-col gap-unit">
+<div class="flex items-center gap-stack-sm text-primary mb-1">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-label-md text-label-md uppercase tracking-widest">Premium Plan</span>
+</div>
+<h4 class="font-headline-md text-body-lg font-bold text-on-surface">3/3 sources used</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Upgrade for 10 sources and AI auto-tagging.</p>
+<button class="w-full py-3 bg-primary-container text-on-primary-container font-headline-md text-body-md font-bold rounded-lg shadow-lg active:scale-[0.98] transition-all">
+                    Upgrade Now
+                </button>
+</div>
+<!-- Atmospheric background decoration -->
+<div class="absolute -right-4 -top-4 w-24 h-24 bg-primary-container/10 blur-3xl rounded-full"></div>
+<div class="absolute -left-4 -bottom-4 w-24 h-24 bg-secondary-container/10 blur-3xl rounded-full"></div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[56px] px-2 bg-surface border-t border-outline-variant lg:hidden">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95 transition-transform duration-150" href="/dashboard/overview.html">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span class="font-label-sm text-label-sm mt-1">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold bg-transparent hover:text-primary-container transition-colors active:scale-95 transition-transform duration-150" href="/dashboard/sources.html">
+<span class="material-symbols-outlined" data-icon="database" style="font-variation-settings: 'FILL' 1;">database</span>
+<span class="font-label-sm text-label-sm mt-1">Sources</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95 transition-transform duration-150" href="/dashboard/studio.html">
+<span class="material-symbols-outlined" data-icon="movie_edit">movie_edit</span>
+<span class="font-label-sm text-label-sm mt-1">Studio</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95 transition-transform duration-150" href="/dashboard/automation.html">
+<span class="material-symbols-outlined" data-icon="bolt">bolt</span>
+<span class="font-label-sm text-label-sm mt-1">Automation</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95 transition-transform duration-150" href="/dashboard/settings.html">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-sm text-label-sm mt-1">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interactions for tab switching
+        const tabs = document.querySelectorAll('button[class*="pb-3"]');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => {
+                    t.classList.remove('border-primary', 'text-primary', 'font-bold');
+                    t.classList.add('border-transparent', 'text-on-surface-variant');
+                });
+                tab.classList.remove('border-transparent', 'text-on-surface-variant');
+                tab.classList.add('border-primary', 'text-primary', 'font-bold');
+            });
+        });
+
+        // Toggle state micro-interaction
+        const toggles = document.querySelectorAll('input[type="checkbox"]');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('change', (e) => {
+                const card = e.target.closest('.rounded-xl');
+                if (!e.target.checked) {
+                    card.classList.add('opacity-80');
+                } else {
+                    card.classList.remove('opacity-80');
+                }
+            });
+        });
+
+        // Simple toggle interaction logic for UI demonstration
+        document.querySelectorAll('button[class*="rounded-full bg-"]').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                const dot = this.querySelector('span');
+                const isActive = dot.classList.contains('translate-x-6');
+                
+                if (isActive) {
+                    dot.classList.remove('translate-x-6');
+                    dot.classList.add('translate-x-1');
+                    this.classList.remove('bg-secondary-container');
+                    this.classList.add('bg-outline-variant');
+                } else {
+                    dot.classList.remove('translate-x-1');
+                    dot.classList.add('translate-x-6');
+                    this.classList.remove('bg-outline-variant');
+                    this.classList.add('bg-secondary-container');
+                }
+            });
+        });
+    </script>
+</body></html>

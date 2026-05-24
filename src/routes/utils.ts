@@ -10,7 +10,7 @@ export const serveFileDownload = async (res: any, filePath: string, filename: st
     } catch (e: any) { logger.warn(`Bot media send skipped for ${opts.userId}: ${e.message}`); }
   }
   res.download(filePath, filename, (err: any) => {
-    try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+    try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
     if (err && !res.headersSent) res.status(500).json({ error: 'Download failed' });
   });
 };

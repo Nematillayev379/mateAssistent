@@ -55,6 +55,24 @@ export function registerSystemRoutes(app: express.Application) {
     res.json({ success: true });
   });
 
+  const dashboardPages = ['overview', 'sources', 'studio', 'automation', 'settings', 'distribution', 'analytics', 'wallet'];
+  for (const page of dashboardPages) {
+    app.get(`/dashboard/${page}`, (req, res) => {
+      res.sendFile(path.join(process.cwd(), 'public', 'dashboard', `${page}.html`));
+    });
+  }
+
+  app.get('/dashboard/admin', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'dashboard', 'admin', 'index.html'));
+  });
+
+  const adminPages = ['overview', 'users', 'users-approvals', 'ai-keys', 'broadcast', 'broadcast-center', 'system', 'system-config', 'pricing', 'approval-queue'];
+  for (const page of adminPages) {
+    app.get(`/dashboard/admin/${page}`, (req, res) => {
+      res.sendFile(path.join(process.cwd(), 'public', 'dashboard', 'admin', `${page}.html`));
+    });
+  }
+
   app.use('/dashboard', (req, res) => {
     res.sendFile(path.join(process.cwd(), 'public', 'index.html'), (err) => { if (err && !res.headersSent) res.status(404).json({ error: 'Dashboard not found' }); });
   });

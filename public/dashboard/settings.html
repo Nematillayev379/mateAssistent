@@ -1,0 +1,561 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Settings — Telegram Channel Manager</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        @font-face {
+            font-family: 'Geist';
+            src: url('https://cdn.jsdelivr.net/npm/geist@1.0.3/dist/fonts/geist-sans/Geist-Regular.woff2') format('woff2');
+        }
+        @font-face {
+            font-family: 'JetBrains Mono';
+            src: url('https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.0.0/files/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+        }
+        body {
+            font-family: 'Geist', sans-serif;
+            background-color: #0A0A0B;
+            color: #e6e0ef;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for technical feel */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0A0A0B; }
+        ::-webkit-scrollbar-thumb { background: #1E1E22; border-radius: 2px; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#00513f",
+                        "on-secondary-container": "#005441",
+                        "tertiary-fixed": "#ffdbcb",
+                        "surface": "#14121c",
+                        "surface-container": "#201e29",
+                        "surface-container-high": "#2b2933",
+                        "tertiary-container": "#b34d00",
+                        "inverse-primary": "#5e35f1",
+                        "primary": "#c9beff",
+                        "inverse-surface": "#e6e0ef",
+                        "on-tertiary-fixed": "#341100",
+                        "secondary-fixed": "#55fcd0",
+                        "on-surface": "#e6e0ef",
+                        "secondary": "#41eec2",
+                        "on-tertiary": "#552100",
+                        "primary-container": "#6c47ff",
+                        "outline": "#938ea2",
+                        "on-tertiary-container": "#ffeae1",
+                        "surface-tint": "#c9beff",
+                        "primary-fixed": "#e6deff",
+                        "inverse-on-surface": "#312f3a",
+                        "on-secondary": "#00382b",
+                        "primary-fixed-dim": "#c9beff",
+                        "surface-container-highest": "#36333e",
+                        "on-primary": "#2f009b",
+                        "surface-container-low": "#1c1a25",
+                        "tertiary": "#ffb691",
+                        "on-secondary-fixed": "#002118",
+                        "secondary-container": "#00d1a7",
+                        "error": "#ffb4ab",
+                        "on-surface-variant": "#c9c3d9",
+                        "outline-variant": "#484556",
+                        "on-tertiary-fixed-variant": "#783100",
+                        "surface-bright": "#3a3843",
+                        "on-error": "#690005",
+                        "surface-container-lowest": "#0e0d17",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "on-primary-fixed": "#1b0063",
+                        "on-background": "#e6e0ef",
+                        "surface-variant": "#36333e",
+                        "error-container": "#93000a",
+                        "secondary-fixed-dim": "#28dfb5",
+                        "on-primary-container": "#f1ebff",
+                        "surface-dim": "#14121c",
+                        "on-primary-fixed-variant": "#4500d8",
+                        "on-error-container": "#ffdad6",
+                        "background": "#14121c"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "container-padding": "16px",
+                        "stack-sm": "8px",
+                        "stack-lg": "24px",
+                        "gutter": "12px",
+                        "stack-md": "16px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Geist"],
+                        "label-sm": ["JetBrains Mono"],
+                        "body-lg": ["Geist"],
+                        "display": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "headline-lg": ["Geist"]
+                    },
+                    "fontSize": {
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-sm": ["10px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.04em", "fontWeight": "600"}],
+                        "headline-md": ["20px", {"lineHeight": "1.4", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "headline-lg": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface pb-24">
+<!-- Sidebar Navigation Shell -->
+<aside class="w-64 h-full fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant flex flex-col h-full py-stack-md px-container-padding z-50">
+<div class="mb-stack-lg">
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface">TeleAuto Pro</h1>
+<p class="text-on-surface-variant font-body-md text-body-md opacity-60">SaaS Platform</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/overview.html">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="font-body-md text-body-md">Overview</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/sources.html">
+<span class="material-symbols-outlined text-[20px]">database</span>
+<span class="font-body-md text-body-md">Sources</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/studio.html">
+<span class="material-symbols-outlined text-[20px]">edit_square</span>
+<span class="font-body-md text-body-md">Studio</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/distribution.html">
+<span class="material-symbols-outlined text-[20px]">campaign</span>
+<span class="font-body-md text-body-md">Distribution</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/automation.html">
+<span class="material-symbols-outlined text-[20px]">robot_2</span>
+<span class="font-body-md text-body-md">Automation</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/analytics.html">
+<span class="material-symbols-outlined text-[20px]">monitoring</span>
+<span class="font-body-md text-body-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/wallet.html">
+<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Wallet</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-container-high text-primary font-bold border-l-4 border-primary transition-colors duration-200" href="/dashboard/settings.html">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-[20px]">shield_person</span>
+<span class="font-body-md text-body-md">Admin</span>
+</a>
+</nav>
+<div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-stack-sm">
+<div class="w-10 h-10 rounded-full bg-surface-variant overflow-hidden border border-outline-variant">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIY368HVJ3mQ5Dmb5xoxpaiL8mPridIbBSHvVPblcP9lT6RWWFtoeXNCvQuIVxh8URWPzd1pjJycFANadswjAz1XW22Tts3_HF6aQuFamwz-550QgGwO9WmxdNYDLznRJVYFSWNmce8D-Uw0bmIzudKbhv54iNI7uuFbWHrn6iYp0OzWYuJU2_NsObd5Z1OOXJqdFoVpmgTI82YjEZp8WJ5RN_T267xAHL3v584_NVpjCnLELCPSQaBMfW6OYiFHBpYg-GgDrurQa_"/>
+</div>
+<div class="flex-1 overflow-hidden">
+<p class="font-label-md text-label-md text-on-surface truncate">Admin Root</p>
+<p class="text-[10px] text-on-surface-variant opacity-60 truncate">Pro Account</p>
+</div>
+<button class="p-1 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+</button>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 left-64 w-[calc(100%-16rem)] h-14 bg-surface-container-low border-b border-outline-variant flex justify-between items-center px-gutter z-40">
+<div class="flex items-center gap-stack-md">
+<span class="font-headline-md text-headline-md font-bold text-on-surface">TeleAuto Admin</span>
+<div class="hidden md:flex gap-stack-md ml-stack-lg">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="#">Overview</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="#">Subscribers</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="#">Logs</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="#">Permissions</a>
+</div>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="hidden lg:block ml-64 mt-14 p-stack-lg min-h-screen">
+<div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-stack-lg">
+<!-- Category Sidebar (Internal Navigation) -->
+<div class="w-full md:w-64 flex-shrink-0">
+<div class="sticky top-20 space-y-1">
+<h2 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest mb-stack-md opacity-60">Config Categories</h2>
+<button class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-surface-container-high text-primary border border-outline-variant">
+<span class="font-body-md text-body-md font-medium">General</span>
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="font-body-md text-body-md">Bot Configuration</span>
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="font-body-md text-body-md">AI Model Settings</span>
+<span class="material-symbols-outlined text-[18px]">neurology</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="font-body-md text-body-md">Notifications</span>
+<span class="material-symbols-outlined text-[18px]">notifications_active</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="font-body-md text-body-md">API Management</span>
+<span class="material-symbols-outlined text-[18px]">key</span>
+</button>
+<button class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="font-body-md text-body-md">Account &amp; Billing</span>
+<span class="material-symbols-outlined text-[18px]">credit_card</span>
+</button>
+</div>
+</div>
+<!-- Right Form Panel -->
+<div class="flex-1 space-y-stack-md">
+<!-- Hero/Header Section -->
+<div class="relative h-48 rounded-2xl overflow-hidden glass-card mb-stack-lg group">
+<img class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" data-alt="A sophisticated abstract background featuring flowing ribbons of deep violet and neon purple light against a black void. The composition uses high-contrast linear shapes and smooth gradients to create a sense of digital speed and technical precision. The overall mood is futuristic, premium, and clean, perfectly aligning with a high-performance SaaS dashboard aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtjbnKnsxzupe4i9Ere3oCcB1DkT2uPSScQ1u0ae_luUCJpz7bGYeYRk_7BO9TJIXa85PlVjxYS4N6tLP3KmrAc7ySIJgRj8vTjw01yh5lQocp3pCAl0cgveucdbDJDdzcjU1LUht9vRcgzLTWIa19NYf8c8VriQ3udaAz_evcHWvsz0wfBqKgxnYsABF6lmcePpY4viAXdUNDfh37UsU8ooyRLSWH1Tn_-0TSr7UNjVv07kg3hml8ZpFPhXM8leSFFfe5RYHDMZKu"/>
+<div class="absolute inset-0 bg-gradient-to-t from-[#0A0A0B] to-transparent"></div>
+<div class="absolute bottom-6 left-6">
+<div class="flex items-center gap-stack-sm mb-2">
+<span class="bg-primary/20 text-primary px-3 py-1 rounded-full font-label-sm text-label-sm border border-primary/30">Configuration</span>
+<span class="bg-secondary/10 text-secondary px-3 py-1 rounded-full font-label-sm text-label-sm border border-secondary/20">v2.4.1</span>
+</div>
+<h2 class="font-display text-display font-bold text-on-surface">General Settings</h2>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md">Manage your primary channel identities, global automation rules, and regional synchronization presets.</p>
+</div>
+</div>
+<!-- Form Section: Bot Connectivity -->
+<div class="glass-card p-stack-lg rounded-xl space-y-stack-md">
+<div class="flex items-center justify-between">
+<div>
+<h3 class="font-headline-md text-headline-md font-bold text-on-surface">Core Infrastructure</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Configure the primary gateway for your Telegram automation.</p>
+</div>
+<span class="material-symbols-outlined text-primary text-[32px]">hub</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-md pt-4">
+<div class="space-y-2">
+<label class="font-label-md text-label-md text-on-surface-variant block">Primary Channel Handle</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant font-label-md">@</span>
+<input class="w-full pl-8 pr-4 py-3 bg-[#0A0A0B] border border-outline-variant rounded-lg focus:border-primary focus:ring-0 font-body-md text-body-md transition-all" placeholder="channel_name" type="text"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="font-label-md text-label-md text-on-surface-variant block">Deployment Region</label>
+<select class="w-full px-4 py-3 bg-[#0A0A0B] border border-outline-variant rounded-lg focus:border-primary focus:ring-0 font-body-md text-body-md appearance-none">
+<option>North America (East)</option>
+<option>Europe (Frankfurt)</option>
+<option>Asia Pacific (Singapore)</option>
+<option>Global Edge (Auto)</option>
+</select>
+</div>
+</div>
+<div class="pt-4 flex items-center justify-between border-t border-outline-variant mt-stack-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md font-medium">Automatic Health Checks</span>
+<span class="text-label-md text-on-surface-variant opacity-60">Ping the bot every 5 minutes to ensure connectivity.</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only toggle-switch" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container rounded-full toggle-bg transition-colors flex items-center px-1">
+<div class="w-4 h-4 bg-white rounded-full toggle-dot transition-transform"></div>
+</div>
+</label>
+</div>
+</div>
+<!-- Bento Grid Style Settings -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-stack-md">
+<!-- AI Status -->
+<div class="md:col-span-2 glass-card p-stack-lg rounded-xl flex flex-col">
+<div class="flex justify-between items-start mb-stack-md">
+<div>
+<h4 class="font-label-md text-label-md text-primary uppercase tracking-wider mb-1">AI Engine</h4>
+<h3 class="font-headline-md text-headline-md font-bold text-on-surface">GPT-4 Turbo Integration</h3>
+</div>
+<button class="bg-primary px-4 py-2 rounded-lg text-on-primary font-label-md text-label-md font-bold hover:opacity-90 transition-opacity">
+                                Verify Key
+                            </button>
+</div>
+<div class="space-y-stack-md">
+<div class="space-y-1">
+<div class="flex justify-between text-label-md">
+<span class="text-on-surface-variant">Tokens Remaining</span>
+<span class="text-on-surface">84,200 / 100k</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+<div class="w-[84%] h-full bg-primary rounded-full"></div>
+</div>
+</div>
+<div class="flex items-center gap-2 text-label-sm text-secondary">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+<span>API connection stable (142ms latency)</span>
+</div>
+</div>
+</div>
+<!-- Compact Quick Switch -->
+<div class="glass-card p-stack-lg rounded-xl flex flex-col justify-between">
+<div>
+<h4 class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-2">Safety Mode</h4>
+<p class="font-body-md text-body-md text-on-surface-variant leading-tight">Enable content filtering for automated posts.</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer mt-4">
+<input class="sr-only toggle-switch" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container rounded-full toggle-bg transition-colors flex items-center px-1">
+<div class="w-4 h-4 bg-white rounded-full toggle-dot transition-transform"></div>
+</div>
+<span class="ml-3 font-label-md text-label-md text-on-surface-variant">Disabled</span>
+</label>
+</div>
+</div>
+<!-- Advanced Security Form -->
+<div class="glass-card rounded-xl overflow-hidden">
+<div class="p-stack-lg border-b border-outline-variant bg-surface-container-low/50">
+<h3 class="font-headline-md text-headline-md font-bold text-on-surface">Security &amp; API Keys</h3>
+</div>
+<div class="p-stack-lg space-y-stack-md">
+<div class="flex flex-col md:flex-row gap-stack-md items-end">
+<div class="flex-1 space-y-2 w-full">
+<label class="font-label-md text-label-md text-on-surface-variant block">Primary Admin API Key</label>
+<div class="relative">
+<input class="w-full px-4 py-3 bg-[#0A0A0B] border border-outline-variant rounded-lg font-label-md text-label-md text-on-surface opacity-70" readonly="" type="password" value="sk-••••••••••••••••••••••••"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">content_copy</span>
+</button>
+</div>
+</div>
+<button class="px-6 py-3 bg-surface-container-high border border-outline-variant text-on-surface rounded-lg font-label-md text-label-md hover:bg-surface-variant transition-colors whitespace-nowrap">
+                                Rotate Key
+                            </button>
+</div>
+<div class="flex items-center gap-4 p-4 rounded-lg bg-error-container/10 border border-error/20">
+<span class="material-symbols-outlined text-error">warning</span>
+<div class="flex-1">
+<p class="text-label-md text-error font-bold">Risk Level: Elevated</p>
+<p class="text-[11px] text-error/80">Your API key hasn't been changed in 90 days. We recommend rotating keys periodically for better security.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="flex items-center justify-end gap-stack-md pt-stack-lg border-t border-outline-variant">
+<button class="px-6 py-3 text-on-surface-variant font-label-md text-label-md hover:text-on-surface transition-colors">
+                        Reset to Defaults
+                    </button>
+<button class="px-8 py-3 bg-primary-container text-on-primary-container rounded-lg font-label-md text-label-md font-bold shadow-lg shadow-primary/10 hover:brightness-110 active:scale-95 transition-all">
+                        Save Configuration
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Visual Polish: Ambient Glow -->
+<div class="fixed top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full -z-10 pointer-events-none"></div>
+<div class="fixed bottom-[-10%] left-[10%] w-[30%] h-[30%] bg-secondary/5 blur-[120px] rounded-full -z-10 pointer-events-none"></div>
+<!-- Mobile Wrapper -->
+<div class="lg:hidden">
+<!-- TopAppBar -->
+<header class="bg-surface fixed top-0 w-full z-50 flex justify-between items-center px-container-padding h-14 border-b border-outline-variant">
+<div class="flex items-center gap-stack-md">
+<span class="material-symbols-outlined text-primary" data-icon="analytics">analytics</span>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface">Settings</h1>
+</div>
+<button class="hover:bg-surface-container-high transition-colors p-2 rounded-full">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+</button>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-20 px-container-padding max-w-md mx-auto space-y-gutter">
+<!-- Categories Horizontal Scroll (Technical Chips) -->
+<section class="overflow-x-auto no-scrollbar flex gap-stack-sm py-2">
+<button class="bg-primary-container text-on-primary-container px-4 py-1.5 rounded-full font-label-md text-label-md transition-colors whitespace-nowrap">General</button>
+<button class="bg-surface-container-high text-on-surface px-4 py-1.5 rounded-full font-label-md text-label-md hover:bg-surface-container-highest transition-colors whitespace-nowrap">Bot Settings</button>
+<button class="bg-surface-container-high text-on-surface px-4 py-1.5 rounded-full font-label-md text-label-md hover:bg-surface-container-highest transition-colors whitespace-nowrap">AI Settings</button>
+<button class="bg-surface-container-high text-on-surface px-4 py-1.5 rounded-full font-label-md text-label-md hover:bg-surface-container-highest transition-colors whitespace-nowrap">Notifications</button>
+<button class="bg-surface-container-high text-on-surface px-4 py-1.5 rounded-full font-label-md text-label-md hover:bg-surface-container-highest transition-colors whitespace-nowrap">Account</button>
+</section>
+<!-- Detailed Bot Settings Card -->
+<section class="bg-surface-container border border-outline-variant rounded-xl p-stack-md">
+<div class="flex items-center gap-2 mb-stack-md">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="robot_2">robot_2</span>
+<h2 class="font-headline-md text-headline-md font-bold">Bot Settings</h2>
+</div>
+<div class="space-y-stack-md">
+<!-- Target Channel -->
+<div class="space-y-unit">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Target Channel</label>
+<div class="flex items-center gap-2 bg-background border border-outline-variant rounded-lg p-3 group focus-within:border-primary transition-all">
+<span class="text-on-surface-variant font-label-md text-label-md">@</span>
+<input class="bg-transparent border-none p-0 focus:ring-0 text-on-surface font-body-md text-body-md w-full" spellcheck="false" type="text" value="yourchannel">
+</div>
+</div>
+<!-- Interval & Verify Row -->
+<div class="grid grid-cols-2 gap-stack-md">
+<div class="space-y-unit">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Interval</label>
+<select class="w-full bg-background border border-outline-variant rounded-lg p-3 text-on-surface font-body-md text-body-md appearance-none focus:border-primary">
+<option>15 min</option>
+<option>30 min</option>
+<option>1 hour</option>
+<option>4 hours</option>
+</select>
+</div>
+<div class="flex flex-col justify-end">
+<button class="w-full h-[46px] border border-outline-variant rounded-lg font-label-md text-label-md hover:bg-surface-container-high transition-colors active:scale-95">
+                            Verify
+                        </button>
+</div>
+</div>
+<!-- Auto-start Toggle -->
+<div class="flex items-center justify-between pt-stack-sm">
+<div>
+<p class="font-body-md text-body-md text-on-surface">Auto-start Posting</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Enable bot as soon as settings save</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox">
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+</label>
+</div>
+</div>
+</section>
+<!-- AI Settings Card -->
+<section class="bg-surface-container border border-outline-variant rounded-xl p-stack-md">
+<div class="flex items-center gap-2 mb-stack-md">
+<span class="material-symbols-outlined text-secondary text-xl" data-icon="auto_awesome">auto_awesome</span>
+<h2 class="font-headline-md text-headline-md font-bold">AI Settings</h2>
+</div>
+<div class="space-y-stack-md">
+<!-- Tone Selection -->
+<div class="space-y-unit">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Tone</label>
+<div class="grid grid-cols-2 gap-2">
+<button class="border border-primary bg-primary/10 text-primary rounded-lg py-2 font-body-md text-body-md">Professional</button>
+<button class="border border-outline-variant text-on-surface-variant rounded-lg py-2 font-body-md text-body-md hover:bg-surface-container-high transition-colors">Creative</button>
+</div>
+</div>
+<!-- Language Selector -->
+<div class="space-y-unit">
+<label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Language</label>
+<div class="relative">
+<div class="bg-background border border-outline-variant rounded-lg p-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="language">language</span>
+<span class="font-body-md text-body-md text-on-surface">Uzbek</span>
+<span class="material-symbols-outlined ml-auto text-on-surface-variant" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Include Source Toggle -->
+<div class="flex items-center justify-between pt-stack-sm border-t border-outline-variant pt-stack-md">
+<div>
+<p class="font-body-md text-body-md text-on-surface">Include Source</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Add reference links to AI posts</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox">
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary-container"></div>
+</label>
+</div>
+</div>
+</section>
+<!-- Danger Zone -->
+<section class="pt-stack-lg flex flex-col items-center">
+<button class="group flex items-center gap-2 px-8 py-3 rounded-xl border border-error/30 text-error hover:bg-error/5 transition-all active:scale-95">
+<span class="material-symbols-outlined group-hover:rotate-12 transition-transform" data-icon="logout">logout</span>
+<span class="font-label-md text-label-md font-bold uppercase tracking-widest">Logout Session</span>
+</button>
+<p class="mt-stack-md font-label-sm text-label-sm text-outline">v2.4.0-pro-stable • Encrypted Session</p>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-[56px] px-2 bg-surface border-t border-outline-variant lg:hidden">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95" href="/dashboard/overview.html">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span class="font-label-sm text-label-sm mt-1">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95" href="/dashboard/sources.html">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+<span class="font-label-sm text-label-sm mt-1">Sources</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95" href="/dashboard/studio.html">
+<span class="material-symbols-outlined" data-icon="movie_edit">movie_edit</span>
+<span class="font-label-sm text-label-sm mt-1">Studio</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95" href="/dashboard/automation.html">
+<span class="material-symbols-outlined" data-icon="bolt">bolt</span>
+<span class="font-label-sm text-label-sm mt-1">Automation</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary font-bold bg-transparent active:scale-95 transition-transform duration-150" href="/dashboard/settings.html">
+<span class="material-symbols-outlined" data-icon="settings" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-sm text-label-sm mt-1">Settings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container transition-colors active:scale-95" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined">shield</span>
+<span class="font-label-sm text-label-sm mt-1">Admin</span>
+</a></nav>
+</div>
+<script>
+        // Micro-interactions for toggles and buttons
+        document.querySelectorAll('.toggle-switch').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                const label = this.nextElementSibling.nextElementSibling;
+                if(label) {
+                    label.textContent = this.checked ? 'Enabled' : 'Disabled';
+                    label.classList.toggle('text-primary', this.checked);
+                    label.classList.toggle('text-on-surface-variant', !this.checked);
+                }
+            });
+        });
+
+        // Simple button click effect
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => btn.classList.add('scale-95'));
+            btn.addEventListener('mouseup', () => btn.classList.remove('scale-95'));
+            btn.addEventListener('mouseleave', () => btn.classList.remove('scale-95'));
+        });
+    </script>
+<script>
+        // Micro-interaction for buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('touchstart', function() {
+                this.classList.add('opacity-80');
+            });
+            btn.addEventListener('touchend', function() {
+                this.classList.remove('opacity-80');
+            });
+        });
+
+        // Simple Toggle Feedback
+        const toggles = document.querySelectorAll('input[type="checkbox"]');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                if(this.checked) {
+                    // Logic for active state
+                }
+            });
+        });
+    </script>
+
+
+</body></html>

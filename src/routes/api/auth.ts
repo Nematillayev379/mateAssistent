@@ -103,8 +103,8 @@ export function registerAuthRoutes(app: express.Application) {
         return res.status(500).json({ error: 'Account creation failed' });
       }
       logger.info(`Web user created: ${normalizedEmail} -> id ${telegramId}`);
-    } catch (e) {
-      logger.error(`Web user DB creation failed for ${normalizedEmail}: ${(e as Error).message}`);
+    } catch (e: any) {
+      logger.error(`Web user DB creation failed for ${normalizedEmail}: ${e?.message || 'unknown'}`);
       return res.status(500).json({ error: 'Account creation failed' });
     }
     res.json({ success: true, message: 'Account created. You can now login.' });

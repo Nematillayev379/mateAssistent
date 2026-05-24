@@ -1,6 +1,7 @@
 import TelegramBot from "node-telegram-bot-api";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
+import { logger } from "../utils/logger";
 
 export const statusCommand: BotCommand = {
   pattern: /^\/(status|statistika)$/i,
@@ -35,8 +36,8 @@ export const statusCommand: BotCommand = {
       try {
         await bot.sendPhoto(chatId, chartUrl, { caption: text, parse_mode: 'HTML' });
         return;
-      } catch (e) {
-        // Fallback to text-only
+      } catch (e: any) {
+        logger.warn(`Chart generation failed: ${e?.message || 'unknown'}`);
       }
     }
     await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
