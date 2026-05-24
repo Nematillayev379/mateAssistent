@@ -130,7 +130,7 @@
         }
     </style>
 </head>
-<body class="bg-background text-on-background font-body-md overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container lg:pl-64">
+<body class="bg-background text-on-background font-body-md overflow-x-hidden selection:bg-primary-container selection:text-on-primary-container lg:pl-64" data-page="admin-broadcast">
 <!-- Sidebar Navigation -->
 <aside class="w-64 h-full fixed left-0 top-0 border-r border-outline-variant bg-surface-container-lowest flex flex-col py-stack-md px-container-padding hidden lg:flex">
 <div class="mb-stack-lg px-2">
@@ -178,8 +178,8 @@
 <div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-3 px-2">
 <img alt="User Profile" class="w-10 h-10 rounded-full bg-surface-container-highest border border-outline-variant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxTckYoTRhT_uFxKT37NVqfN8mHeRAQNbJQIILSN8Ai_Drmwz8VYho_y1NG1bpHDgOE60hkx5gWIsTWVZaB7sWQuwe7oLZ2oXO65f5mlhxzIT44aNULep7T7saxhY0gTruEBHwUBugf5xCx9fAUlP15cR1wJtp3G0UcM7zQtA85dN_0lD9K_GWQHz9rDAFrWjxJxAWjDd0K2cVjN8jFkVTbMXqJzihBoYm184pTdzF98eSPEe_V7R5WdDfxM0am-LBwJcd6MvtLYaq"/>
 <div class="overflow-hidden">
-<p class="font-label-md text-label-md text-on-surface truncate">Alex Rivera</p>
-<p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Root Admin</p>
+<p class="sidebar-user-name font-label-md text-label-md text-on-surface truncate"></p>
+<p class="sidebar-user-role text-[10px] text-on-surface-variant uppercase tracking-widest font-bold"></p>
 </div>
 </div>
 </aside>
@@ -523,4 +523,5 @@
   <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/automation.html"><span class="material-symbols-outlined">bolt</span><span class="font-label-sm text-label-sm mt-0.5">Automation</span></a>
   <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/settings.html"><span class="material-symbols-outlined">settings</span><span class="font-label-sm text-label-sm mt-0.5">Settings</span></a>
 </nav>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>

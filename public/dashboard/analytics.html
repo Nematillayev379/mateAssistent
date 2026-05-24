@@ -122,7 +122,7 @@
     }
   </style>
   </head>
-<body class="bg-background text-on-background min-h-screen pb-24">
+<body class="bg-background text-on-background min-h-screen pb-24" data-page="analytics">
 <!-- SideNavBar Shell -->
 <aside class="hidden lg:flex w-64 h-full fixed left-0 top-0 flex flex-col h-full py-stack-md px-container-padding bg-surface-container-lowest dark:bg-surface-container-lowest border-r border-outline-variant z-50">
 <div class="mb-stack-lg">
@@ -170,8 +170,8 @@
 <div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-3">
 <img alt="User Profile" class="w-10 h-10 rounded-full border border-outline-variant object-cover" data-alt="A close-up, high-quality professional headshot of a person with a modern, clean aesthetic. The lighting is soft and cinematic with cool tones, reflecting a high-end tech environment. The background is a blurred, dark office space with subtle hints of glowing purple and teal LEDs, matching the SaaS platform's premium professional color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDLYv6ifECqgjziPEz5Y0Rm6jZVYw3HxyIqSto4GPa0GbDF1ZPD8IJ1A7ukuVrkTlOpMhwao26fisL7E0W6gbplyHnV4eT5Q7ELUAlTGHwyOZVaV0uUpOFAR_NxLurpZvG_A8LcE8cVYJHGAtEOCke3muRFdn2ijjyA7ehGw-GPoc6rf8qNcUdcRjT9lKTi8H3prwseqhgcdkEWZgdRZG7yk6UR7ENK_y-EFhQgc9og-AblV7U41Xt6a6IIuhzLtLnu8SXRA_GGDzMq"/>
 <div>
-<p class="font-label-md text-label-md font-bold text-on-surface">Alex Rivera</p>
-<p class="font-label-sm text-label-sm text-on-surface-variant">Admin Tier</p>
+<p class="font-label-md text-label-md font-bold text-on-surface sidebar-user-name"></p>
+<p class="font-label-sm text-label-sm text-on-surface-variant sidebar-user-role"></p>
 </div>
 </div>
 </aside>
@@ -237,7 +237,7 @@
 </div>
 </div>
 <p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Posts this week</p>
-<h3 class="text-3xl font-display font-bold text-on-surface">1,284</h3>
+<h3 class="text-3xl font-display font-bold text-on-surface stat-total-posts"></h3>
 </div>
 <!-- Card 2 -->
 <div class="bg-surface-container-low border border-outline-variant rounded-xl p-5 hover:border-primary/50 transition-colors group">
@@ -251,7 +251,7 @@
 </div>
 </div>
 <p class="text-on-surface-variant font-label-md uppercase tracking-wider mb-1">Duplicates blocked</p>
-<h3 class="text-3xl font-display font-bold text-on-surface">432</h3>
+<h3 class="text-3xl font-display font-bold text-on-surface stat-total-duplicates"></h3>
 </div>
 <!-- Card 3 -->
 <div class="bg-surface-container-low border border-outline-variant rounded-xl p-5 hover:border-primary/50 transition-colors group">
@@ -516,7 +516,7 @@
 </table>
 </div>
 <div class="p-4 border-t border-outline-variant flex items-center justify-between">
-<p class="text-label-sm text-on-surface-variant">Showing 4 of 124 active sources</p>
+<p class="text-label-sm text-on-surface-variant">Showing <span class="stat-active-sources">124</span> active sources</p>
 <div class="flex gap-2">
 <button class="px-3 py-1 rounded border border-outline-variant text-label-md disabled:opacity-50" disabled="">Previous</button>
 <button class="px-3 py-1 rounded border border-outline-variant text-label-md bg-surface-container-high">Next</button>
@@ -550,14 +550,14 @@
                         +47%
                     </span>
 </div>
-<h2 class="font-display text-display">47</h2>
+<h2 class="font-display text-display stat-total-posts"></h2>
 <div class="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
 <div class="h-full bg-primary-container w-2/3"></div>
 </div>
 </div>
 <div class="glass-card p-stack-md rounded-xl space-y-unit">
 <p class="font-label-md text-label-md text-on-surface-variant">Duplicates Blocked</p>
-<h2 class="font-display text-display">12</h2>
+<h2 class="font-display text-display stat-total-duplicates"></h2>
 <p class="font-label-sm text-label-sm text-outline">Cleanliness: 98.4%</p>
 </div>
 <div class="glass-card p-stack-md rounded-xl space-y-unit">
@@ -723,4 +723,5 @@
             });
         });
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>

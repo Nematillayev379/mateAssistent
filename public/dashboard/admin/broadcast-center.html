@@ -140,7 +140,7 @@
     }
   </style>
   </head>
-<body class="bg-background min-h-screen pb-24 lg:pb-0 lg:pl-64">
+<body class="bg-background min-h-screen pb-24 lg:pb-0 lg:pl-64" data-page="admin-broadcast-center">
 <!-- Desktop Sidebar -->
 <aside class="hidden lg:flex flex-col fixed left-0 top-0 h-full w-64 bg-surface-container-lowest border-r border-outline-variant z-40 py-stack-md px-container-padding">
   <div class="mb-8">
@@ -157,7 +157,7 @@
   </nav>
   <div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-3 px-2">
     <span class="material-symbols-outlined text-primary">account_circle</span>
-    <span class="font-label-md text-label-md">Admin User</span>
+    <span class="sidebar-user-name font-label-md text-label-md"></span>
   </div>
 </aside>
 <!-- Top App Bar -->
@@ -337,4 +337,5 @@ Check out our latest analytics dashboard with real-time tracking.</textarea>
         // Initialize preview
         window.onload = updatePreview;
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>

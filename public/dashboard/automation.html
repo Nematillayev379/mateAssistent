@@ -129,7 +129,7 @@
     }
   </style>
   </head>
-<body class="font-body-md text-body-md custom-scrollbar">
+<body data-page="automation" class="font-body-md text-body-md custom-scrollbar">
 <!-- DESKTOP SIDEBAR -->
 <aside class="hidden lg:flex w-64 h-full fixed left-0 top-0 border-r border-outline-variant bg-surface-container-lowest flex flex-col py-stack-md px-container-padding z-50">
 <div class="mb-stack-lg">
@@ -173,8 +173,8 @@
 <div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center gap-stack-sm">
 <div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold">JD</div>
 <div class="flex-1 min-w-0">
-<p class="text-label-md font-label-md truncate">Admin User</p>
-<p class="text-label-sm font-label-sm text-on-surface-variant truncate">Pro Plan</p>
+<p class="text-label-md font-label-md truncate sidebar-user-name"></p>
+<p class="text-label-sm font-label-sm text-on-surface-variant truncate sidebar-user-role"></p>
 </div>
 <span class="material-symbols-outlined text-on-surface-variant text-[18px]" data-icon="shield_person">shield_person</span>
 </div>
@@ -616,4 +616,5 @@
             });
         }
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>

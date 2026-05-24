@@ -120,7 +120,7 @@
         }
     </script>
 </head>
-<body class="bg-surface-container-lowest overflow-hidden lg:pl-64">
+<body class="bg-surface-container-lowest overflow-hidden lg:pl-64" data-page="admin-users">
 <!-- SideNavBar -->
 <aside class="hidden lg:flex flex-col h-full py-stack-md px-container-padding w-64 fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant z-50">
 <div class="mb-stack-lg px-2">
@@ -169,8 +169,8 @@
 <div class="mt-auto flex items-center gap-3 pt-stack-md border-t border-outline-variant">
 <img alt="User Profile" class="w-10 h-10 rounded-full border border-outline-variant" data-alt="A professional headshot of a software administrator in a modern office, characterized by soft directional lighting and a clean, minimalist background. The style is high-end professional with a cool color temperature and sharp focus." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDDX7zAJkEH6fwVPIGT99apV1PU1nEO6PN-811Gq0x2PsKM3HgmVYxNbGCrEG3thLeQyCXK_NXMVP6aGkK-Ab7jj0jxbQ1-IpMOPDbZzWg2_5Et2M5BMPABDmhSLw4nKxorzkild0j9TYbvFLhFCAGtu0h2yH-U-ka1zYi_IrMJMzpnUf3Kl0A7MMQ5SqExMVkgWN9HZhRGOEwiwpuRE3PLux6yxGD3sgyMjqqL6y8q3odeKmwoYgn9PRGmMcn_4cZxWGbaLRCxBULr"/>
 <div class="overflow-hidden">
-<p class="font-label-md text-label-md text-on-surface truncate">Alex Volkov</p>
-<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Superadmin</p>
+<p class="sidebar-user-name font-label-md text-label-md text-on-surface truncate"></p>
+<p class="sidebar-user-role font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider"></p>
 </div>
 </div>
 </aside>
@@ -226,7 +226,7 @@
 <!-- Table Container -->
 <div class="flex-1 bg-[#111113] border border-[#1E1E22] rounded-xl overflow-hidden flex flex-col">
 <div class="overflow-x-auto custom-scrollbar">
-<table class="w-full text-left border-collapse">
+<table class="admin-users-table w-full text-left border-collapse">
 <thead class="bg-surface-container-high/50 border-b border-[#1E1E22]">
 <tr>
 <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Telegram ID</th>
@@ -443,6 +443,7 @@
             });
         });
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 <!-- Mobile Bottom Nav -->
 <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 bg-surface border-t border-outline-variant lg:hidden">
   <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/overview.html"><span class="material-symbols-outlined">grid_view</span><span class="font-label-sm text-label-sm mt-0.5">Overview</span></a>

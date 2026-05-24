@@ -120,7 +120,7 @@
         }
     </script>
 </head>
-<body class="bg-background text-on-surface pb-24">
+<body data-page="settings" class="bg-background text-on-surface pb-24">
 <!-- Sidebar Navigation Shell -->
 <aside class="hidden lg:flex w-64 h-full fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant flex flex-col h-full py-stack-md px-container-padding z-50">
 <div class="mb-stack-lg">
@@ -170,8 +170,8 @@
 <img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIY368HVJ3mQ5Dmb5xoxpaiL8mPridIbBSHvVPblcP9lT6RWWFtoeXNCvQuIVxh8URWPzd1pjJycFANadswjAz1XW22Tts3_HF6aQuFamwz-550QgGwO9WmxdNYDLznRJVYFSWNmce8D-Uw0bmIzudKbhv54iNI7uuFbWHrn6iYp0OzWYuJU2_NsObd5Z1OOXJqdFoVpmgTI82YjEZp8WJ5RN_T267xAHL3v584_NVpjCnLELCPSQaBMfW6OYiFHBpYg-GgDrurQa_"/>
 </div>
 <div class="flex-1 overflow-hidden">
-<p class="font-label-md text-label-md text-on-surface truncate">Admin Root</p>
-<p class="text-[10px] text-on-surface-variant opacity-60 truncate">Pro Account</p>
+<p class="font-label-md text-label-md text-on-surface truncate sidebar-user-name"></p>
+<p class="text-[10px] text-on-surface-variant opacity-60 truncate sidebar-user-role"></p>
 </div>
 <button class="p-1 hover:text-primary transition-colors">
 <span class="material-symbols-outlined text-[20px]">logout</span>
@@ -415,8 +415,8 @@
 <div class="grid grid-cols-2 gap-stack-md">
 <div class="space-y-unit">
 <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Interval</label>
-<select class="w-full bg-background border border-outline-variant rounded-lg p-3 text-on-surface font-body-md text-body-md appearance-none focus:border-primary">
-<option>15 min</option>
+<select class="w-full bg-background border border-outline-variant rounded-lg p-3 text-on-surface font-body-md text-body-md appearance-none focus:border-primary setting-interval">
+<option></option>
 <option>30 min</option>
 <option>1 hour</option>
 <option>4 hours</option>
@@ -434,10 +434,10 @@
 <p class="font-body-md text-body-md text-on-surface">Auto-start Posting</p>
 <p class="font-label-sm text-label-sm text-on-surface-variant">Enable bot as soon as settings save</p>
 </div>
-<label class="relative inline-flex items-center cursor-pointer">
-<input checked="" class="sr-only peer" type="checkbox">
-<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
-</label>
+<label class="relative inline-flex items-center cursor-pointer setting-digest-toggle">
+    <input checked="" class="sr-only peer" type="checkbox">
+    <div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container"></div>
+  </label>
 </div>
 </div>
 </section>
@@ -462,7 +462,7 @@
 <div class="relative">
 <div class="bg-background border border-outline-variant rounded-lg p-3 flex items-center gap-2">
 <span class="material-symbols-outlined text-on-surface-variant text-sm" data-icon="language">language</span>
-<span class="font-body-md text-body-md text-on-surface">Uzbek</span>
+<span class="font-body-md text-body-md text-on-surface setting-language"></span>
 <span class="material-symbols-outlined ml-auto text-on-surface-variant" data-icon="expand_more">expand_more</span>
 </div>
 </div>
@@ -558,5 +558,6 @@
         });
     </script>
 
+<script src="/js/dashboard-data-loader.js"></script>
 
 </body></html>

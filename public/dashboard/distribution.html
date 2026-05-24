@@ -140,7 +140,7 @@
     }
   </style>
   </head>
-<body class="bg-background text-on-surface min-h-screen pb-[80px]">
+<body class="bg-background text-on-surface min-h-screen pb-[80px]" data-page="distribution">
 <!-- Sidebar Navigation -->
 <aside class="hidden lg:flex w-64 h-full fixed left-0 top-0 border-r border-outline-variant bg-surface-container-lowest flex flex-col py-stack-md px-container-padding z-50">
 <div class="mb-stack-lg">
@@ -187,8 +187,8 @@
 <img alt="User Profile" class="w-full h-full object-cover" data-alt="A professional close-up headshot of a modern software administrator, styled with high-contrast cinematic lighting and a monochromatic background that matches the dark-themed UI palette. The image has a sharp, technical look with deep purple accents to align with the primary brand color." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA14aE9HIlc1nRMPPRR6mIIDSXFM_RogL7PJwclpVZEHXR-Q0-3AMIygYU-4cQgcVo5JSGeFhtJberwHYsZduoNy0MuY1h3kbrRD11LDFkstugYOip6SiR-cNQtftjXWfUHj-VPV3nFtCdz52j39w2PCrqcTN4nFnMqOjKJxpDxze32W8z351Vx9_JyeBC8tcE_kHGTGjeCHzmAQEVSxZ5QbYgvLjMvu4A36NLpP5y2qeyEdCy5UCYNTOfYJ8gtIG78O8mF5QroKf3V"/>
 </div>
 <div class="flex flex-col">
-<span class="text-label-md font-label-md text-on-surface">Alex River</span>
-<span class="text-[10px] text-on-surface-variant">Admin Level 4</span>
+<span class="text-label-md font-label-md text-on-surface sidebar-user-name"></span>
+<span class="text-[10px] text-on-surface-variant sidebar-user-role"></span>
 </div>
 </div>
 </div>
@@ -214,7 +214,7 @@
 <div class="max-w-6xl mx-auto">
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-stack-lg items-start">
 <!-- Section 1: Target Channel -->
-<section class="flex flex-col gap-stack-sm h-full">
+<section class="flex flex-col gap-stack-sm h-full channels-list">
 <div class="flex items-center justify-between px-1">
 <h2 class="font-label-md text-label-md uppercase tracking-wider text-on-surface-variant">Target Channel</h2>
 <span class="material-symbols-outlined text-[18px] text-primary">info</span>
@@ -318,7 +318,7 @@
 </div>
 <div class="relative bg-[#111113] border border-[#1E1E22] rounded-xl p-5 overflow-hidden min-h-[340px]">
 <!-- List of Workspaces (Visible but blurred/darkened) -->
-<div class="space-y-4 opacity-30 grayscale pointer-events-none">
+<div class="space-y-4 opacity-30 grayscale pointer-events-none workspaces-list">
 <div class="flex items-center justify-between p-3 border border-[#1E1E22] rounded-lg">
 <div class="flex items-center gap-3">
 <div class="w-8 h-8 rounded bg-surface-variant"></div>
@@ -388,7 +388,7 @@
 <div>
 <h2 class="font-label-md text-label-md text-on-surface-variant mb-1 uppercase tracking-wider">Target Channel</h2>
 <div class="flex items-center gap-2">
-<span class="font-headline-md-mobile text-headline-md-mobile font-semibold">@channelname</span>
+<span class="font-headline-md-mobile text-headline-md-mobile font-semibold mobile-channel-name"></span>
 <span class="material-symbols-outlined text-secondary text-[18px]" data-icon="verified" style="font-variation-settings: 'FILL' 1;">verified</span>
 </div>
 </div>
@@ -548,4 +548,5 @@
             observer.observe(section);
         });
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>

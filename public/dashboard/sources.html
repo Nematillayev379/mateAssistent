@@ -119,7 +119,7 @@
     }
   </style>
   </head>
-<body class="bg-background text-on-surface min-h-screen flex flex-col">
+<body data-page="sources" class="bg-background text-on-surface min-h-screen flex flex-col">
 <!-- DESKTOP SIDEBAR -->
 <aside class="hidden lg:flex w-64 h-full fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant flex flex-col py-stack-md px-container-padding z-50">
 <div class="mb-stack-lg">
@@ -164,8 +164,8 @@
 <div class="flex items-center gap-3 px-3 py-4">
 <img alt="User Profile" class="w-8 h-8 rounded-full bg-surface-container-high border border-outline-variant" data-alt="A professional close-up headshot of a young tech executive with a neutral expression, set against a dark, slightly blurred office environment with purple neon accents. The lighting is crisp and modern, matching a high-end SaaS dashboard aesthetic with deep blacks and vibrant highlight tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUCFhepoF7ywPa9dvRXG5ogiEf-nH3WzTeqiLLxKfqiP-L1q_qQNG4wrBuurXCRWspjWxBRgdKMx7MkeAH0zJ33-xj2xdHO2fys-tYj0SbvCMIrU6toDwFkPzHhUwjoVtDtcqhchKJUOJ8-tnq6ajkQ6p5E6NMbofbFupQBIrf57jM-odAe__5XVPGfKGPzxgwjKpIRP4plA3oAjU2gkUK_LD4_1TVFCDPECUSz4hw-svcINeTZNFmIhQqLWTRhswNmjkjxXwf7VRn"/>
 <div class="overflow-hidden">
-<p class="font-label-md text-label-md truncate">Admin User</p>
-<p class="font-label-sm text-label-sm text-on-surface-variant opacity-60">Pro Account</p>
+<p class="font-label-md text-label-md truncate sidebar-user-name"></p>
+<p class="font-label-sm text-label-sm text-on-surface-variant opacity-60 sidebar-user-role"></p>
 </div>
 </div>
 </div>
@@ -206,7 +206,7 @@
                 Monitored Channels
             </button>
 </div>
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-gutter mb-auto">
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-gutter mb-auto sources-table">
 <div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-5 hover:border-primary/50 transition-all group">
 <div class="flex justify-between items-start mb-4">
 <div class="flex items-center gap-3">
@@ -343,7 +343,7 @@
 <span class="material-symbols-outlined" data-icon="workspace_premium" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
 </div>
 <div>
-<h4 class="font-headline-md text-headline-md text-primary">Source Limit: 4/5</h4>
+<h4 class="font-headline-md text-headline-md text-primary stat-active-sources"></h4>
 <p class="font-body-md text-body-md text-on-primary-container/70">You're nearing the limit for your current Pro plan. Upgrade to Enterprise for unlimited sources.</p>
 </div>
 </div>
@@ -390,7 +390,7 @@
 </button>
 </div>
 <!-- Source List -->
-<div class="space-y-gutter mb-stack-lg">
+<div class="space-y-gutter mb-stack-lg sources-table">
 <!-- Card: Kun.uz -->
 <div class="bg-surface-container border border-outline-variant rounded-xl p-stack-md flex items-center justify-between">
 <div class="flex items-center gap-stack-md">
@@ -468,7 +468,7 @@
 <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
 <span class="font-label-md text-label-md uppercase tracking-widest">Premium Plan</span>
 </div>
-<h4 class="font-headline-md text-body-lg font-bold text-on-surface">3/3 sources used</h4>
+<h4 class="font-headline-md text-body-lg font-bold text-on-surface stat-active-sources"></h4>
 <p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Upgrade for 10 sources and AI auto-tagging.</p>
 <button class="w-full py-3 bg-primary-container text-on-primary-container font-headline-md text-body-md font-bold rounded-lg shadow-lg active:scale-[0.98] transition-all">
                     Upgrade Now
@@ -549,4 +549,5 @@
             });
         });
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>

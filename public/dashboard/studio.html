@@ -126,7 +126,7 @@
     }
   </style>
   </head>
-<body class="bg-background text-on-surface">
+<body data-page="studio" class="bg-background text-on-surface">
 <!-- DESKTOP SIDEBAR -->
 <aside class="hidden lg:flex w-64 h-full fixed left-0 top-0 border-r border-outline-variant bg-surface-container-lowest flex flex-col py-stack-md px-container-padding z-50">
 <div class="mb-stack-lg">
@@ -173,8 +173,8 @@
 <img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClt3OuSJtaGf9r0UNOYa7Ur3gXmzD_wKty_SNagulO93jGiAqRP2HWU2a7ZsiMgboyllJE4WXx57ZENuxVLPf4jMc_U6ywiQYQf_bCJ4HxxbvKI_odxplEr8CtQEpyt8lrYk-FpDzS395PUjK_gzZ3gCtcR9tks3lUiUGKLwUQG9Q83i2J0ZVcoynCZTeUueCh907Fir5Jej-jxtaH7kiE_w1GlZWm0FcAf2a-C_YLQjPq5W4S1Por92p6Xdspyxpa00EDKbrRBcZt"/>
 </div>
 <div class="flex flex-col">
-<span class="font-label-md text-label-md text-on-surface">Admin User</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant">Pro Plan</span>
+<span class="font-label-md text-label-md text-on-surface sidebar-user-name"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant sidebar-user-role"></span>
 </div>
 </div>
 </div>
@@ -294,7 +294,7 @@
 </div>
 <button class="text-primary hover:underline font-label-md text-label-md">View All</button>
 </div>
-<div class="flex gap-stack-lg overflow-x-auto pb-stack-md custom-scrollbar snap-x">
+    <div class="flex gap-stack-lg overflow-x-auto pb-stack-md custom-scrollbar snap-x drafts-list">
 <div class="min-w-[280px] bg-surface-container rounded-xl border border-outline-variant p-stack-md snap-start hover:border-primary transition-colors cursor-pointer group">
 <div class="flex justify-between items-start mb-stack-sm">
 <div class="bg-secondary/10 text-secondary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter">AI Ready</div>
@@ -390,7 +390,7 @@
 <div class="h-12 bg-[#242f3d] flex items-center px-4 gap-4">
 <span class="material-symbols-outlined text-on-surface-variant" data-icon="arrow_back">arrow_back</span>
 <div class="flex flex-col">
-<span class="font-bold text-sm leading-tight">@yourchannel</span>
+<span class="font-bold text-sm leading-tight mobile-channel-name"></span>
 <span class="text-[10px] text-secondary">online</span>
 </div>
 <span class="material-symbols-outlined ml-auto text-on-surface-variant" data-icon="more_vert">more_vert</span>
@@ -426,7 +426,7 @@
 <h2 class="font-label-md text-label-md text-outline tracking-widest uppercase">Saved Drafts</h2>
 <button class="text-primary text-label-sm font-label-md">View All</button>
 </div>
-<div class="flex gap-gutter overflow-x-auto pb-4 custom-scrollbar snap-x">
+<div class="flex gap-gutter overflow-x-auto pb-4 custom-scrollbar snap-x drafts-list">
 <!-- Draft Card 1 -->
 <div class="flex-shrink-0 w-40 snap-start space-y-2 group">
 <div class="aspect-square bg-surface-container-high rounded-xl border border-outline-variant overflow-hidden relative">
@@ -536,4 +536,5 @@
             document.querySelector('.absolute.bottom-3.right-3').innerText = `${count}/500`;
         });
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>

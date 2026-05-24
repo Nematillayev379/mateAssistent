@@ -124,7 +124,7 @@
         }
     </script>
 </head>
-<body class="bg-surface-dim lg:pl-64">
+<body class="bg-surface-dim lg:pl-64" data-page="admin-overview">
 <!-- SideNavBar Shell -->
 <aside class="hidden lg:flex flex-col h-full py-stack-md px-container-padding w-64 fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant z-50">
 <div class="mb-10">
@@ -173,8 +173,8 @@
 <div class="mt-auto flex items-center gap-3 pt-6">
 <img alt="User Profile" class="w-10 h-10 rounded-full border border-outline-variant" data-alt="A professional studio headshot of a modern software administrator in their 30s with a clean-cut look. The lighting is moody and cinematic with purple and blue rim lights reflecting the high-tech SaaS environment. The background is a blurred server room with glowing LED indicators in a monochromatic dark palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOI7fGtQZfwWFxbvadJvHwreH8yY0Qfw56wEC6rv78SF5BYpVKXGjyDQvdCU3QzmO8WkOOFNVtPT7BqZQEk8SFmUX8AQ8XRbzlo6xYeRhwj-rMNSUF2-BllhnGK-EgpJwYLBVEhCE_nl-U1c4F5Vo3EmoxNZWdepf6fiBK2SMkRcr6wipvM9_JdD8yc14_LQC20CV2v7m1lm4N4TDf0q-2RZqPjKg2EiNZ9hIbUMqP4oXbOSCaxcyZYRJGqvAm6OodIsXn-kWNp9hS"/>
 <div>
-<p class="font-label-md text-label-md font-bold">Admin Alex</p>
-<p class="font-label-sm text-label-sm text-on-surface-variant">Super Admin</p>
+<p class="sidebar-user-name font-label-md text-label-md font-bold"></p>
+<p class="sidebar-user-role font-label-sm text-label-sm text-on-surface-variant"></p>
 </div>
 </div>
 </aside>
@@ -214,8 +214,8 @@
 <span class="text-on-surface-variant font-label-md text-label-md">Total Users</span>
 <span class="material-symbols-outlined text-primary text-[20px]">group</span>
 </div>
-<p class="font-display text-display">1247</p>
-<div class="mt-2 flex items-center gap-1">
+<p class="admin-stat-users font-display text-display"></p>
+  <div class="mt-2 flex items-center gap-1">
 <span class="text-secondary font-label-sm text-label-sm">+12%</span>
 <span class="text-on-surface-variant font-label-sm text-label-sm">vs last mo</span>
 </div>
@@ -411,6 +411,7 @@
             });
         });
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 <!-- Mobile Bottom Nav -->
 <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 bg-surface border-t border-outline-variant lg:hidden">
   <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/overview.html"><span class="material-symbols-outlined">grid_view</span><span class="font-label-sm text-label-sm mt-0.5">Overview</span></a>

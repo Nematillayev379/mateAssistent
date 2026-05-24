@@ -129,7 +129,7 @@
     }
   </style>
   </head>
-<body class="pb-24 overflow-x-hidden">
+<body class="pb-24 overflow-x-hidden" data-page="wallet">
 <!-- SideNavBar (Authority: JSON) -->
 <aside class="hidden lg:flex w-64 h-full fixed left-0 top-0 border-r border-outline-variant bg-surface-container-lowest flex flex-col py-stack-md px-container-padding z-50">
 <div class="mb-stack-lg">
@@ -180,8 +180,8 @@
 <img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSSFhPlPIt9PU3XHnUZmbzGD-sJaOhSASHO9XgAXlhe7LWbFf7nKdjXEfeAIkJMIzauRkvwNWTxk-rhXiv5jeXaXIRtTgl9DjQIH0T8iMWcsVMhEJ5l4DBt2u5DWI-3BpLOiv3zswzfo1vveyoXaug6lgeYydXPRikZvtkFha6tjMMlPZBE1GvoKANa_aHneGnW8zyRlinnyTu_c1V_JnrUiVh-2mzOGwkeXm4Zg5QIKEs4EWXrkMJIBZhRbVqVYSg7KJaHAi727DI"/>
 </div>
 <div>
-<p class="font-label-md text-label-md text-on-surface">Alex Admin</p>
-<p class="text-[10px] text-on-surface-variant font-label-sm uppercase">Pro Member</p>
+<p class="font-label-md text-label-md text-on-surface sidebar-user-name"></p>
+<p class="text-[10px] text-on-surface-variant font-label-sm uppercase sidebar-user-role"></p>
 </div>
 </div>
 </aside>
@@ -206,7 +206,7 @@
 <button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all">help_outline</button>
 <div class="h-8 w-[1px] bg-outline-variant"></div>
 <div class="flex items-center gap-2">
-<span class="font-label-md text-label-md text-on-surface">TeleAuto Admin</span>
+<span class="font-label-md text-label-md text-on-surface page-user-name"></span>
 <div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-[10px]">AD</div>
 </div>
 </div>
@@ -228,8 +228,8 @@
 <div class="relative z-10">
 <div class="flex justify-between items-start mb-6">
 <div>
-<span class="inline-block px-3 py-1 rounded-full bg-secondary/10 text-secondary font-label-md text-label-md mb-2">ACTIVE PLAN</span>
-<h3 class="font-headline-lg text-headline-lg text-on-surface">Free Tier</h3>
+<span class="inline-block px-3 py-1 rounded-full bg-secondary/10 text-secondary font-label-md text-label-md mb-2 wallet-status"></span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface wallet-plan"></h3>
 </div>
 <span class="material-symbols-outlined text-4xl text-on-surface-variant">person_outline</span>
 </div>
@@ -260,7 +260,7 @@
 <span class="material-symbols-outlined text-tertiary">info</span>
                                 NEXT BILLING CYCLE
                             </h4>
-<p class="font-body-md text-body-md text-on-surface-variant">Your current free usage limits reset in <span class="text-on-surface font-bold">14 days</span>.</p>
+<p class="font-body-md text-body-md text-on-surface-variant">Your current free usage limits reset in <span class="text-on-surface font-bold wallet-expiry"></span>.</p>
 </div>
 </div>
 <!-- Right Column: Plans & Payment -->
@@ -385,9 +385,9 @@
 <div class="flex justify-between items-start mb-stack-md">
 <div>
 <span class="font-label-sm text-label-sm text-primary uppercase tracking-widest mb-1 block">Active Membership</span>
-<h2 class="font-headline-lg text-headline-lg font-bold text-on-surface">Free Plan</h2>
+<h2 class="font-headline-lg text-headline-lg font-bold text-on-surface wallet-plan"></h2>
 </div>
-<span class="bg-secondary/10 text-secondary font-label-md text-label-md px-2 py-1 rounded-lg">Trial</span>
+<span class="bg-secondary/10 text-secondary font-label-md text-label-md px-2 py-1 rounded-lg wallet-status"></span>
 </div>
 <div class="space-y-stack-sm mb-stack-md">
 <div class="flex justify-between items-center">
@@ -586,4 +586,5 @@
             });
         });
     </script>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>

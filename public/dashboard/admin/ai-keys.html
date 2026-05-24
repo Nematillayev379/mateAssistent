@@ -124,7 +124,7 @@
         }
     </script>
 </head>
-<body class="overflow-x-hidden lg:pl-64">
+<body class="overflow-x-hidden lg:pl-64" data-page="admin-ai-keys">
 <!-- SideNavBar (Shared Component) -->
 <aside class="hidden lg:flex flex-col h-full py-stack-md px-container-padding w-64 fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant z-50">
 <div class="mb-stack-lg">
@@ -175,8 +175,8 @@
 <img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3ROHag7mlnjC2lah9bsA3G-MBqujLqv2Htb4boJlhV-B7U8GAbae6dBE-5yZCsNzgvdT6LITvKAlgYPQrlmZ0tbJc2UKuzPOoqR_hmfylvEhhk3_dYW5xpfGPjXyHfBbkvkvoxBgAxNRbXqhufa_foCM4WclKKdeGJ7knz-NjvG1cAHp1B4Vq_v8ytcH_Hwo3f388a518d2K5H-2DHr64vXtW6X5-KGRoAfy-3BAGUzuMN8l3HnGCKYXtnULMTxiL_qBlWyanI1z6"/>
 </div>
 <div class="flex flex-col">
-<span class="font-label-md text-label-md text-on-surface">Admin User</span>
-<span class="text-[10px] text-on-surface-variant">Master Account</span>
+<span class="sidebar-user-name font-label-md text-label-md text-on-surface"></span>
+<span class="sidebar-user-role text-[10px] text-on-surface-variant"></span>
 </div>
 </div>
 </aside>
@@ -497,4 +497,5 @@
   <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/automation.html"><span class="material-symbols-outlined">bolt</span><span class="font-label-sm text-label-sm mt-0.5">Automation</span></a>
   <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/settings.html"><span class="material-symbols-outlined">settings</span><span class="font-label-sm text-label-sm mt-0.5">Settings</span></a>
 </nav>
+<script src="/js/dashboard-data-loader.js"></script>
 </body></html>
