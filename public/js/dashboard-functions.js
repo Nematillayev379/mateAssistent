@@ -117,7 +117,8 @@
 
   // ─── Studio: Media Download ──────────────────
   window.downloadMedia = async function (type, btn) {
-    var url = $('#dl-url')?.value?.trim();
+    var urlEl = $('#dl-url');
+    var url = urlEl ? urlEl.value.trim() : '';
     if (!url) { showToast('Havola kiriting','error'); return; }
     var btns = $$('#btn-dl-video, #btn-dl-audio');
     btns.forEach(function(b){ b.disabled=true; });
@@ -125,18 +126,21 @@
     try {
       var r = await apiFetch('/api/media/download?web=1', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ url:url, type:type, delivery:'web' }) });
       if (!r.ok) { var e = await r.json(); throw new Error(e.error||'Xatolik'); }
-      if ((r.headers.get('content-type')||'').includes('json')) { var e = await r.json(); throw new Error(e.error||'Xatolik'); }
       var blob = await r.blob();
       if (blob.size < 1000) throw new Error('Fayl juda kichik');
       var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'media_'+Date.now()+'.'+(type==='video'?'mp4':'m4a'); document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
     } catch(e) { showToast('Xatolik: '+e.message,'error'); }
     finally { btns.forEach(function(b){ b.disabled=false; }); if (btn) btn.innerHTML = type==='video'?'Video':'Audio'; }
   };
 
   // ─── Music Enter key ─────────────────────────
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && e.target?.id === 'music-q') searchMusic();
-    if (e.key === 'Enter' && e.target?.id === 'dl-url' && $('#btn-dl-video')) downloadMedia('video', $('#btn-dl-video'));
+    if (e.key === 'Enter' && e.target && e.target.id === 'music-q') searchMusic();
+    if (e.key === 'Enter' && e.target && e.target.id === 'dl-url') {
+      var dlBtn = $('#btn-dl-video');
+      if (dlBtn) downloadMedia('video', dlBtn);
+    }
   });
 
   // ─── Sources ────────────────────────────────
@@ -190,7 +194,7 @@
     } catch(e) { showToast('Error','error'); }
   };
 
-  window.removeChannel = async function () {
+  window.removeMainChannel = async function () {
     if (!confirm('Kanalni olib tashlaysizmi?')) return;
     try {
       var r = await apiFetch('/api/settings/'+userId+'/extended', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ target_channel:'' }) });

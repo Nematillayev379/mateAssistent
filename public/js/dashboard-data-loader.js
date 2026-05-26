@@ -1,6 +1,13 @@
 (function () {
+  if (typeof window.apiFetch !== 'function') {
+    console.error('dashboard-api.js not loaded or apiFetch unavailable');
+    return;
+  }
   var userId = window.__userId;
-  if (!userId) return;
+  if (!userId) {
+    console.warn('dashboard-data-loader: no userId, skipping data load');
+    return;
+  }
 
   function el(c) { var e = document.querySelector(c); return e; }
   function setText(c, v) { var e = el(c); if (e) e.textContent = v != null ? v : ''; }
@@ -98,7 +105,16 @@
         setText('.mobile-sources', c);
       }).catch(function () {});
     }
-  }).catch(function (e) { console.error('Dashboard data error:', e); });
+  }).catch(function (e) {
+    console.error('Dashboard data error:', e);
+    var pageTitle = document.querySelector('h1, h2, .font-display');
+    if (pageTitle) {
+      var errEl = document.createElement('p');
+      errEl.style.cssText = 'color:var(--error,#ffb4ab);text-align:center;padding:16px;font-size:14px;';
+      errEl.textContent = 'Ma\'lumotlarni yuklashda xatolik. Iltimos, qayta urinib ko\'ring.';
+      pageTitle.parentNode.insertBefore(errEl, pageTitle.nextSibling);
+    }
+  });
 
   /* --- Studio drafts --- */
   if (page === 'studio') {

@@ -1,10 +1,23 @@
 (function () {
-  var params = new URLSearchParams(window.location.search);
-  var token = params.get('token') || localStorage.getItem('bot_token');
-  var userId = params.get('user') || localStorage.getItem('bot_user_id');
+  var token, userId;
 
-  if (token && params.has('token')) localStorage.setItem('bot_token', token);
-  if (userId && params.has('user')) localStorage.setItem('bot_user_id', userId);
+  function getParam(name) {
+    var match = window.location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  function getLocal(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  function setLocal(key, val) {
+    try { localStorage.setItem(key, val); } catch (e) {}
+  }
+
+  token = getParam('token') || getLocal('bot_token');
+  userId = getParam('user') || getLocal('bot_user_id');
+
+  if (token && getParam('token')) setLocal('bot_token', token);
+  if (userId && getParam('user')) setLocal('bot_user_id', userId);
 
   window.__token = token;
   window.__userId = userId;
@@ -12,9 +25,16 @@
 
   window.apiFetch = function (resource, opts) {
     opts = opts || {};
-    var headers = { 'x-bot-token': token, ...(opts.headers || {}) };
-    if (userId) headers['x-user-id'] = userId;
-    return fetch(window.__apiBase + resource, { ...opts, headers });
+    var h = {};
+    h['x-bot-token'] = token;
+    if (userId) h['x-user-id'] = userId;
+    if (opts.headers) {
+      Object.keys(opts.headers).forEach(function (k) { h[k] = opts.headers[k]; });
+    }
+    var merged = {};
+    Object.keys(opts).forEach(function (k) { if (k !== 'headers') merged[k] = opts[k]; });
+    merged.headers = h;
+    return fetch(window.__apiBase + resource, merged);
   };
 
   window.showToast = function (msg, type) {

@@ -79,8 +79,8 @@ export const RssService = {
           };
 
           try {
-            await processArticleInline(userId, articleData, lang);
             await DBService.markSeen(userId, article.link, article.title);
+            await processArticleInline(userId, articleData, lang);
           } catch (articleErr: any) {
             logger.error(`Error inline processing article ${sanitizeLogInput(article.link)}: ${articleErr.message}`);
           }

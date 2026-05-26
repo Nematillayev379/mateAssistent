@@ -37,6 +37,7 @@ if (!connectionOptions) {
             continue;
           }
 
+          await DBService.markSeen(userId, article.link, article.title);
           await processArticleInline(userId, {
             title: article.title,
             url: article.link,
