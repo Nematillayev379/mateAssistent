@@ -313,9 +313,9 @@
                 <div class="card">
                     <div class="card-title"><i class="fas fa-wallet"></i> <span data-i18n="web3_wallet">Web3 Membership Wallet</span></div>
                     <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6;">
-                        <p id="wallet-copy" style="margin-bottom: 12px;">Premium va VIP darajadagi foydalanuvchilar uchun portal.</p>
-                        <div class="item-row"><span>Membership Status</span><span id="wallet-membership-state" style="color:var(--gold); font-weight:bold;">Creator</span></div>
-                        <div class="item-row"><span id="wallet-connection-label">Wallet connection</span><span id="wallet-connection-state">Integratsiya kutilmoqda</span></div>
+                        <p id="wallet-copy" data-i18n="wallet_section_body" style="margin-bottom: 12px;">Premium va VIP darajadagi foydalanuvchilar uchun portal.</p>
+                        <div class="item-row"><span data-i18n="membership_status">Membership Status</span><span id="wallet-membership-state" data-i18n="creator" style="color:var(--gold); font-weight:bold;">Creator</span></div>
+                        <div class="item-row"><span id="wallet-connection-label" data-i18n="wallet_connection_label">Wallet connection</span><span id="wallet-connection-state" data-i18n="integration_pending">Integratsiya kutilmoqda</span></div>
                         <div class="ton-connect-shell">
                             <div id="ton-connect"></div>
                             <div id="wallet-address" class="ton-wallet-address"></div>
@@ -325,7 +325,7 @@
 
                 <!-- Premium ELITE -->
                 <div class="card premium-intro" style="border: 1px solid var(--gold); background: rgba(245, 158, 11, 0.05);">
-                    <div class="card-title" style="color: var(--gold);"><i class="fas fa-crown"></i> <span data-i18n="premium_title">Upgrade to Premium ELITE</span></div>
+                    <div class="card-title" style="color: var(--gold);"><i class="fas fa-crown"></i> <span data-i18n="upgrade_premium">Upgrade to Premium ELITE</span></div>
                     <div id="premium-info" style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 15px; line-height: 1.6;">Yuklanmoqda...</div>
                 </div>
 
@@ -336,19 +336,19 @@
                     <div id="premium-plans" style="margin-top: 8px;">
                         <div class="item-row" style="margin-bottom: 15px;">
                             <div>
-                                <h4>1 Oylik</h4>
+                                <h4 data-i18n="premium_monthly">1 Oylik</h4>
                                 <p style="color: var(--gold); font-weight: bold;" id="price-monthly">--- UZS</p>
-                                <p style="color: var(--secondary);">Barcha imkoniyatlar</p>
+                                <p data-i18n="premium_monthly_desc" style="color: var(--secondary);">Barcha imkoniyatlar</p>
                             </div>
-                            <button class="btn btn-primary" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('monthly')">Sotib olish</button>
+                            <button class="btn btn-primary" data-i18n="premium_buy" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('monthly')">Sotib olish</button>
                         </div>
                         <div class="item-row">
                             <div>
-                                <h4>1 Yillik</h4>
+                                <h4 data-i18n="premium_yearly">1 Yillik</h4>
                                 <p style="color: var(--gold); font-weight: bold;" id="price-yearly">--- UZS</p>
-                                <p style="color: var(--secondary);">10% chegirma</p>
+                                <p data-i18n="premium_yearly_desc" style="color: var(--secondary);">10% chegirma</p>
                             </div>
-                            <button class="btn btn-primary" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('yearly')">Sotib olish</button>
+                            <button class="btn btn-primary" data-i18n="premium_buy" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('yearly')">Sotib olish</button>
                         </div>
                     </div>
                 </div>
@@ -436,7 +436,7 @@
                         <p>Yuklanmoqda...</p>
                     </div>
                     <div id="referral-info" style="display:none;"></div>
-                    <button class="btn btn-ghost" style="margin-top: 15px;" onclick="copyReferralLink()">Havolani nusxalash</button>
+                    <button class="btn btn-ghost" data-i18n="referral_copy" style="margin-top: 15px;" onclick="copyReferralLink()">Havolani nusxalash</button>
                 </div>
 
                 <div class="card">

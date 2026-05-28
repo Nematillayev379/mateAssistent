@@ -203,6 +203,7 @@
             if (window.WebAppI18n) WebAppI18n.setLang(language);
             applyLocalizedUi();
             if (userData?.user) userData.user.language = language;
+            if (userData) renderUI();
             if (userId && token) {
                 await apiFetch(`/api/settings/${userId}/extended`, {
                     method: 'POST',
