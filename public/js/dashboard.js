@@ -126,6 +126,34 @@
             if (postLang) postLang.value = quickLang;
         }
 
+        let languageSyncInFlight = false;
+        async function syncWebLanguageFromServer(force = false) {
+            if (!userId || !token || languageSyncInFlight) return;
+            const currentLang = document.getElementById('quick-lang')?.value || (window.WebAppI18n?.getLang?.() || userData?.user?.language || 'uz');
+            languageSyncInFlight = true;
+            try {
+                const res = await apiFetch(`/api/settings/${userId}/extended`, { headers: { 'x-bot-token': token } });
+                if (!res.ok) return;
+                const data = await res.json();
+                const serverLang = data.language || 'uz';
+                if (force || (serverLang && serverLang !== currentLang)) {
+                    setFieldValue('set-lang', serverLang);
+                    setFieldValue('quick-lang', serverLang);
+                    setFieldValue('post-lang', serverLang);
+                    if (window.WebAppI18n) {
+                        WebAppI18n.setLang(serverLang);
+                        WebAppI18n.apply(document);
+                    }
+                    if (userData?.user) userData.user.language = serverLang;
+                    applyLocalizedUi();
+                }
+            } catch (_) {
+                // silent sync fallback
+            } finally {
+                languageSyncInFlight = false;
+            }
+        }
+
         function updateWalletUi(account) {
             const stateEl = document.getElementById('wallet-connection-state');
             const addressEl = document.getElementById('wallet-address');
@@ -226,8 +254,10 @@
 
         async function changeQuickLanguage(language) {
             setFieldValue('set-lang', language);
+            setFieldValue('quick-lang', language);
             setFieldValue('post-lang', language);
             if (window.WebAppI18n) WebAppI18n.setLang(language);
+            if (window.WebAppI18n) WebAppI18n.apply(document);
             applyLocalizedUi();
             if (userData?.user) userData.user.language = language;
             if (userData) renderUI();
@@ -480,7 +510,7 @@
             loadAffiliateInfo();
             if (window.WebAppI18n) {
                 WebAppI18n.init(u.language || localStorage.getItem('webapp_lang') || 'uz');
-                WebAppI18n.apply();
+                WebAppI18n.apply(document);
             }
             applyLocalizedUi();
             initTonWalletUi();
@@ -735,18 +765,31 @@
             window.scrollTo(0,0);
         }
 
+        window.addEventListener('focus', () => {
+            syncWebLanguageFromServer();
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) syncWebLanguageFromServer();
+        });
+
         async function fetchExtendedSettings() {
             try {
                 const r = await apiFetch(`/api/settings/${userId}/extended`, { headers: { 'x-bot-token': token } });
                 if (!r.ok) throw new Error('Settings fetch failed: ' + r.status);
                 const data = await r.json();
                 setFieldValue('set-lang', data.language || 'uz');
+                setFieldValue('quick-lang', data.language || 'uz');
                 setFieldValue('set-channel', data.target_channel || '');
                 setFieldValue('set-keywords', data.keywords || '');
                 setFieldValue('set-interval', String(data.interval_minutes || 15));
                 setFieldValue('set-digest', data.daily_digest ? 'true' : 'false');
                 setFieldValue('set-digest-time', data.digest_time || '20:00');
                 setFieldChecked('bot-active-toggle', data.is_active !== 0 && data.is_active !== false);
+                if (window.WebAppI18n && data.language && data.language !== window.WebAppI18n.getLang()) {
+                    WebAppI18n.setLang(data.language);
+                    WebAppI18n.apply(document);
+                    applyLocalizedUi();
+                }
             } catch (e) {
                 console.error('fetchExtendedSettings error:', e);
             }

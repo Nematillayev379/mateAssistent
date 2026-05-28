@@ -566,25 +566,51 @@ export async function generateSmmPost(topic: string, lang: string = "uz"): Promi
 
 export type SmmImageResult = { imageUrl: string; imageBase64: string | null };
 
+function extractJsonBlock(text: string): Record<string, any> | null {
+  const cleaned = String(text || '').trim();
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    return null;
+  }
+}
+
 export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
   const cleanTopic = topic.trim().slice(0, 200);
-  let visualBrief = cleanTopic;
+  let visualSpec = {
+    subject: cleanTopic,
+    setting: 'clean editorial social media scene',
+    action: 'main subject presented clearly',
+    style: 'realistic, high-contrast, premium',
+    mustInclude: cleanTopic,
+    mustAvoid: 'text, watermark, unrelated objects, generic stock visuals',
+  };
   try {
     const brief = await getSmartAIResponse(
-      "You are a visual director for social media. Convert the topic into one precise image brief. Output one sentence only, in English, naming the main subject, setting, action, mood, and 2-4 concrete visual details. No hashtags. No list.",
+      "You are a visual director for social media. Return STRICT JSON only with keys: subject, setting, action, style, mustInclude, mustAvoid. Make the subject match the user topic exactly and keep the scene concrete, specific, and visually unambiguous. No markdown, no bullets, no extra text.",
       cleanTopic
     );
-    if (brief && brief.trim().length > 20) {
-      visualBrief = brief.trim().replace(/\s+/g, ' ').slice(0, 260);
+    const parsed = extractJsonBlock(brief || '');
+    if (parsed) {
+      visualSpec = {
+        subject: String(parsed.subject || visualSpec.subject).trim().slice(0, 120),
+        setting: String(parsed.setting || visualSpec.setting).trim().slice(0, 140),
+        action: String(parsed.action || visualSpec.action).trim().slice(0, 140),
+        style: String(parsed.style || visualSpec.style).trim().slice(0, 140),
+        mustInclude: String(parsed.mustInclude || visualSpec.mustInclude).trim().slice(0, 160),
+        mustAvoid: String(parsed.mustAvoid || visualSpec.mustAvoid).trim().slice(0, 160),
+      };
     }
   } catch (e: any) {
     logger.warn(`SMM visual brief fallback used: ${e.message}`);
   }
 
   const promptVariants = [
-    `Editorial social media image about ${cleanTopic}. ${visualBrief}. Main subject must exactly match the topic. Realistic, strong focal subject, 16:9 composition, rich detail, cinematic lighting, no text, no letters, no watermark, no unrelated objects.`,
-    `Create a news-style promotional visual for ${cleanTopic}. Scene: ${visualBrief}. Make the topic unmistakable at first glance. Clean background separation, bold composition, realistic or premium illustrative style, no text, no logos, no watermark.`,
-    `High-quality Telegram post illustration for ${cleanTopic}. Focus on ${visualBrief}. Show one coherent scene only, with specific objects tied to the topic, dramatic but credible atmosphere, no generic stock elements, no text.`
+    `Editorial social media image where the subject is exactly "${visualSpec.subject}". Scene: ${visualSpec.setting}. Action: ${visualSpec.action}. Style: ${visualSpec.style}. Must include: ${visualSpec.mustInclude}. Must avoid: ${visualSpec.mustAvoid}. Realistic, 16:9 composition, strong focal subject, no text, no watermark, no unrelated objects.`,
+    `Create a news-style visual strictly about "${visualSpec.subject}". Background: ${visualSpec.setting}. Main action: ${visualSpec.action}. Visual style: ${visualSpec.style}. The image must instantly communicate the exact topic and nothing else. No text, no logos, no watermark, no generic stock scene.`,
+    `High-quality Telegram post illustration for "${visualSpec.subject}". Use this exact topic as the central subject: ${visualSpec.mustInclude}. Scene details: ${visualSpec.setting}. Composition: ${visualSpec.action}. Style: ${visualSpec.style}. No text, no extra subjects, no unrelated props, no watermark.`
   ];
 
   const seed = Date.now() % 1_000_000;
