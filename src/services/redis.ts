@@ -252,6 +252,11 @@ function createPooledIORedis(pool: RedisPool): IORedis {
 
   const proxy = new Proxy(dummy, {
     get(target, prop) {
+      const currentValue = (currentConn as any)[prop];
+      if (typeof currentValue === 'function') {
+        return currentValue.bind(currentConn);
+      }
+
       if (prop === 'status') return currentConn.status;
       if (prop === 'connect') return async () => { if (currentConn.status !== 'ready') await currentConn.connect(); };
       if (prop === 'disconnect') return async () => { try { await currentConn.disconnect(); } catch {} };
@@ -289,7 +294,7 @@ function createPooledIORedis(pool: RedisPool): IORedis {
         return (...args: any[]) => execCmd(c => (c as any)[prop](...args));
       }
 
-      return (currentConn as any)[prop];
+      return currentValue;
     },
     set(_target, prop, value) {
       (currentConn as any)[prop] = value;
