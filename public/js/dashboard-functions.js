@@ -15,6 +15,16 @@
   function $$(s) { return document.querySelectorAll(s); }
   function setText(s, v) { var e = $(s); if (e) e.textContent = v != null ? v : ''; }
   function setAllText(s, v) { $$(s).forEach(function (e) { e.textContent = v != null ? v : ''; }); }
+  function allFields(id) { return Array.from(document.querySelectorAll('[id="' + id + '"]')); }
+  function fieldVisible(el) { return !!el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0); }
+  function getFieldValue(id, fallback) {
+    var fields = allFields(id);
+    if (!fields.length) return fallback;
+    var field = fields.find(fieldVisible) || fields[0];
+    return 'value' in field ? field.value : (field.textContent || fallback);
+  }
+  function setFieldValue(id, value) { allFields(id).forEach(function (field) { if ('value' in field) field.value = value; else field.textContent = value; }); }
+  function setFieldChecked(id, checked) { allFields(id).forEach(function (field) { if ('checked' in field) field.checked = checked; }); }
 
   // ─── Studio: AI Post ─────────────────────────
   window.generateAIPost = async function () {
@@ -186,15 +196,23 @@
 
   // ─── Settings ───────────────────────────────
   window.saveSettings = async function () {
-    var lang = $('#set-lang')?.value || 'uz';
-    var ch = $('#set-channel')?.value || '';
-    var kw = $('#set-keywords')?.value || '';
-    var interval = Math.max(1, Math.min(1440, parseInt($('#set-interval')?.value || '15', 10) || 15));
-    var digest = $('#set-digest')?.value === 'true';
-    var digestTime = $('#set-digest-time')?.value || '09:00';
+    var lang = getFieldValue('set-lang', 'uz');
+    var ch = getFieldValue('set-channel', '');
+    var kw = getFieldValue('set-keywords', '');
+    var interval = Math.max(1, Math.min(1440, parseInt(getFieldValue('set-interval', '15') || '15', 10) || 15));
+    var digest = getFieldValue('set-digest', 'false') === 'true';
+    var digestTime = getFieldValue('set-digest-time', '09:00') || '09:00';
     try {
       var r = await apiFetch('/api/settings/'+userId+'/extended', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ language:lang, target_channel:ch, keywords:kw, interval_minutes:interval, daily_digest:digest, digest_time:digestTime }) });
-      if (r.ok) { showToast('Saved!','success'); }
+      if (r.ok) {
+        setFieldValue('set-lang', lang);
+        setFieldValue('set-channel', ch);
+        setFieldValue('set-keywords', kw);
+        setFieldValue('set-interval', String(interval));
+        setFieldValue('set-digest', digest ? 'true' : 'false');
+        setFieldValue('set-digest-time', digestTime);
+        showToast('Saved!','success');
+      }
       else { var e = await r.json(); showToast(e.error||'Error','error'); }
     } catch(e) { showToast('Error','error'); }
   };
@@ -203,7 +221,7 @@
     if (!confirm('Kanalni olib tashlaysizmi?')) return;
     try {
       var r = await apiFetch('/api/settings/'+userId+'/extended', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ target_channel:'' }) });
-      if (r.ok) { $('#set-channel').value=''; showToast('Kanal olib tashlandi','success'); }
+      if (r.ok) { setFieldValue('set-channel', ''); showToast('Kanal olib tashlandi','success'); }
       else showToast('Xatolik','error');
     } catch(e) { showToast('Xatolik','error'); }
   };

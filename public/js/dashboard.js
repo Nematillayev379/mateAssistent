@@ -46,6 +46,35 @@
             return fallback || key;
         }
 
+        function allFields(id) {
+            return Array.from(document.querySelectorAll(`[id="${id}"]`));
+        }
+
+        function isVisibleField(el) {
+            return !!el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0);
+        }
+
+        function getFieldValue(id, fallback = '') {
+            const fields = allFields(id);
+            if (!fields.length) return fallback;
+            const visibleField = fields.find(isVisibleField) || fields[0];
+            if ('value' in visibleField) return visibleField.value;
+            return visibleField.textContent ?? fallback;
+        }
+
+        function setFieldValue(id, value) {
+            allFields(id).forEach((field) => {
+                if ('value' in field) field.value = value;
+                else field.textContent = value;
+            });
+        }
+
+        function setFieldChecked(id, checked) {
+            allFields(id).forEach((field) => {
+                if ('checked' in field) field.checked = checked;
+            });
+        }
+
         let userData = null;
         let token = localStorage.getItem('bot_token');
         let userId = localStorage.getItem('bot_user_id');
@@ -196,14 +225,14 @@
         }
 
         async function changeQuickLanguage(language) {
-            const setLang = document.getElementById('set-lang');
-            const postLang = document.getElementById('post-lang');
-            if (setLang) setLang.value = language;
-            if (postLang) postLang.value = language;
+            setFieldValue('set-lang', language);
+            setFieldValue('post-lang', language);
             if (window.WebAppI18n) WebAppI18n.setLang(language);
             applyLocalizedUi();
             if (userData?.user) userData.user.language = language;
             if (userData) renderUI();
+            if (document.getElementById('premium-info')) fetchPremiumStatus();
+            if (document.getElementById('pay-methods-container')) loadPaymentMethods();
             if (userId && token) {
                 await apiFetch(`/api/settings/${userId}/extended`, {
                     method: 'POST',
@@ -241,9 +270,9 @@
                 const res = await apiFetch('/api/payments/methods', { headers: { 'x-bot-token': token, 'x-user-id': userId || '' } });
                 const methods = res.ok ? await res.json() : { stars: true };
                 const defs = [
-                    { id: 'stars', key: 'pay_stars', label: '\u2B50 Stars' },
-                    { id: 'usdt', key: 'pay_usdt', label: 'USDT (TRC-20)' },
-                    { id: 'ton', key: 'pay_ton', label: 'TON' },
+                    { id: 'stars', key: 'pay_stars', label: tt('pay_stars', '\u2B50 Stars') },
+                    { id: 'usdt', key: 'pay_usdt', label: tt('pay_usdt', 'USDT (TRC-20)') },
+                    { id: 'ton', key: 'pay_ton', label: tt('pay_ton', 'TON') },
                 ];
                 container.innerHTML = '';
                 defs.forEach((d) => {
@@ -259,9 +288,9 @@
                 });
             } catch (_) {
                 container.innerHTML = `
-                    <button type="button" class="btn btn-ghost pay-method-btn active" data-method="stars" onclick="setPayMethod('stars')">\u2B50 Stars</button>
-                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="usdt" onclick="setPayMethod('usdt')">USDT (Not set)</button>
-                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="ton" onclick="setPayMethod('ton')">TON (Not set)</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn active" data-method="stars" onclick="setPayMethod('stars')">${tt('pay_stars', '\u2B50 Stars')}</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="usdt" onclick="setPayMethod('usdt')">${tt('pay_usdt', 'USDT (TRC-20)')} (Not set)</button>
+                    <button type="button" class="btn btn-ghost pay-method-btn" data-method="ton" onclick="setPayMethod('ton')">${tt('pay_ton', 'TON')} (Not set)</button>
                 `;
             }
         }
@@ -377,8 +406,9 @@
             s.onload = function() { document.dispatchEvent(new Event('studio-ready')); };
             document.head.appendChild(s);
         }
+        loadStudioScript();
 
-function renderUI() {
+        function renderUI() {
              const u = userData.user || {};
              const displayName = u.username || u.first_name || u.telegram_id || u.id || 'User';
              const roleLabel = u.role === 'owner' ? ' \uD83D\uDC51 Owner' : (u.role === 'admin' ? ' \uD83D\uDEE1\uFE0F Admin' : '');
@@ -406,20 +436,18 @@ function renderUI() {
             document.getElementById('stat-dupes').textContent = userData.stats?.total_duplicates || 0;
             document.getElementById('stat-refs').textContent = userData.referrals?.total || 0;
             
-            document.getElementById('set-channel').value = u.target_channel || '';
+            setFieldValue('set-channel', u.target_channel || '');
             const primaryChannelDisplay = document.getElementById('primary-target-channel-display');
             if (primaryChannelDisplay) primaryChannelDisplay.textContent = u.target_channel || tt('not_set', 'Sozlanmagan');
-            document.getElementById('set-lang').value = u.language || 'uz';
-            const quickLang = document.getElementById('quick-lang');
-            const postLang = document.getElementById('post-lang');
-            if (quickLang) quickLang.value = u.language || 'uz';
-            if (postLang) postLang.value = u.language || 'uz';
-            document.getElementById('set-interval').value = String(u.interval_minutes || 15);
+            setFieldValue('set-lang', u.language || 'uz');
+            setFieldValue('quick-lang', u.language || 'uz');
+            setFieldValue('post-lang', u.language || 'uz');
             const walletState = document.getElementById('wallet-membership-state');
             if (walletState) walletState.textContent = u.is_premium ? tt('elite', 'ELITE') : tt('free', 'Free');
 
             const homeTarget = document.getElementById('home-target-channel');
             if (homeTarget) homeTarget.textContent = u.target_channel || (tt('not_set', 'Sozlanmagan') + ' \u26A0\uFE0F');
+            setFieldChecked('bot-active-toggle', u.is_active !== 0 && u.is_active !== false);
 
             // UI-5 Fix: Display full user info - connected RSS and channel
             const userInfo = document.getElementById('user-info') || document.createElement('div');
@@ -515,12 +543,12 @@ function renderUI() {
         }
 
         async function saveSettings() {
-            const language = document.getElementById('set-lang').value;
-            const target_channel = document.getElementById('set-channel').value;
-            const keywords = document.getElementById('set-keywords').value;
-            const interval_minutes = Math.max(1, Math.min(1440, parseInt(document.getElementById('set-interval').value || '15', 10) || 15));
-            const daily_digest = document.getElementById('set-digest').value === 'true';
-            const digest_time = document.getElementById('set-digest-time').value;
+            const language = getFieldValue('set-lang', 'uz');
+            const target_channel = getFieldValue('set-channel', '');
+            const keywords = getFieldValue('set-keywords', '');
+            const interval_minutes = Math.max(1, Math.min(1440, parseInt(getFieldValue('set-interval', '15') || '15', 10) || 15));
+            const daily_digest = getFieldValue('set-digest', 'false') === 'true';
+            const digest_time = getFieldValue('set-digest-time', '20:00') || '20:00';
             const res = await apiFetch(`/api/settings/${userId}/extended`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ language, target_channel, keywords, interval_minutes, daily_digest, digest_time }) });
             if (res.ok) {
                 userData.user.language = language;
@@ -528,6 +556,14 @@ function renderUI() {
                 const primaryChannelDisplay = document.getElementById('primary-target-channel-display');
                 if (primaryChannelDisplay) primaryChannelDisplay.textContent = target_channel || tt('not_set', 'Sozlanmagan');
                 userData.user.interval_minutes = interval_minutes;
+                userData.user.daily_digest = daily_digest;
+                userData.user.digest_time = digest_time;
+                setFieldValue('set-lang', language);
+                setFieldValue('set-channel', target_channel);
+                setFieldValue('set-keywords', keywords);
+                setFieldValue('set-interval', String(interval_minutes));
+                setFieldValue('set-digest', daily_digest ? 'true' : 'false');
+                setFieldValue('set-digest-time', digest_time);
                 if (window.WebAppI18n) WebAppI18n.setLang(language);
                 showToast(typeof t === 'function' ? t('common_lang_changed') : 'Saved!', 'success');
                 renderUI();
@@ -550,13 +586,32 @@ function renderUI() {
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.error || 'Kanalni olib tashlab bo‘lmadi');
-                document.getElementById('set-channel').value = '';
+                setFieldValue('set-channel', '');
                 if (userData?.user) userData.user.target_channel = '';
                 const primaryChannelDisplay = document.getElementById('primary-target-channel-display');
                 if (primaryChannelDisplay) primaryChannelDisplay.textContent = tt('not_set', 'Sozlanmagan');
                 renderUI();
                 showToast('Asosiy kanal olib tashlandi', 'success');
             } catch (e) {
+                showToast('Xatolik: ' + e.message, 'error');
+            }
+        }
+
+        async function toggleBotActive(checked) {
+            try {
+                const res = await apiFetch(`/api/settings/${userId}/toggle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-bot-token': token }
+                });
+                if (!res.ok) throw new Error('Bot holatini yangilab bo\'lmadi');
+                const data = await res.json().catch(() => ({}));
+                const active = data.is_active !== 0 && data.is_active !== false;
+                userData.user.is_active = active;
+                setFieldChecked('bot-active-toggle', active);
+                showToast(active ? 'Bot yoqildi' : 'Bot o‘chirildi', 'success');
+                renderUI();
+            } catch (e) {
+                setFieldChecked('bot-active-toggle', !checked);
                 showToast('Xatolik: ' + e.message, 'error');
             }
         }
@@ -685,10 +740,13 @@ function renderUI() {
                 const r = await apiFetch(`/api/settings/${userId}/extended`, { headers: { 'x-bot-token': token } });
                 if (!r.ok) throw new Error('Settings fetch failed: ' + r.status);
                 const data = await r.json();
-                document.getElementById('set-keywords').value = data.keywords || '';
-                document.getElementById('set-interval').value = String(data.interval_minutes || 15);
-                document.getElementById('set-digest').value = data.daily_digest ? 'true' : 'false';
-                document.getElementById('set-digest-time').value = data.digest_time || '20:00';
+                setFieldValue('set-lang', data.language || 'uz');
+                setFieldValue('set-channel', data.target_channel || '');
+                setFieldValue('set-keywords', data.keywords || '');
+                setFieldValue('set-interval', String(data.interval_minutes || 15));
+                setFieldValue('set-digest', data.daily_digest ? 'true' : 'false');
+                setFieldValue('set-digest-time', data.digest_time || '20:00');
+                setFieldChecked('bot-active-toggle', data.is_active !== 0 && data.is_active !== false);
             } catch (e) {
                 console.error('fetchExtendedSettings error:', e);
             }
@@ -1100,10 +1158,10 @@ function renderUI() {
                     const data = await res.json();
                     const infoEl = document.getElementById('premium-info');
                     if (infoEl) {
-                        let text = '<b>Imtiyozlar:</b><br>';
+                        let text = `<b>${tt('premium_benefits', 'Benefits')}:</b><br>`;
                         data.benefits.forEach(b => text += '\u2022 ' + escapeHtml(b) + '<br>');
                         if (data.isActive && data.expiresAt) {
-                            text = `<b>Faol:</b> ${escapeHtml(new Date(data.expiresAt).toLocaleDateString())}<br><br>` + text;
+                            text = `<b>${tt('premium_active', 'Premium active')}:</b> ${escapeHtml(new Date(data.expiresAt).toLocaleDateString())}<br><br>` + text;
                         }
                         infoEl.innerHTML = text;
                     }

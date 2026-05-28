@@ -11,6 +11,13 @@
 
   function el(c) { var e = document.querySelector(c); return e; }
   function setText(c, v) { var e = el(c); if (e) e.textContent = v != null ? v : ''; }
+  function setAllText(c, v) { document.querySelectorAll(c).forEach(function (e) { e.textContent = v != null ? v : ''; }); }
+  function setAllValue(id, v) {
+    document.querySelectorAll('[id="' + id + '"]').forEach(function (e) {
+      if ('value' in e) e.value = v;
+      else e.textContent = v;
+    });
+  }
 
   var page = document.body && document.body.getAttribute('data-page');
 
@@ -50,14 +57,16 @@
     if (page === 'settings') {
       apiFetch('/api/settings/' + userId + '/extended').then(function (r) { return r.json(); }).then(function (st) {
         if (!st) return;
+        setAllValue('set-lang', st.language || 'uz');
+        setAllValue('set-channel', st.target_channel || '');
+        setAllValue('set-keywords', st.keywords || '');
+        setAllValue('set-interval', String(st.interval_minutes || 15));
+        setAllValue('set-digest', st.daily_digest ? 'true' : 'false');
+        setAllValue('set-digest-time', st.digest_time || '09:00');
         setText('.setting-interval', st.interval_minutes || '15');
         setText('.setting-keywords', st.keywords || '—');
         setText('.setting-digest-time', st.digest_time || '09:00');
         setText('.setting-language', st.language || 'uz');
-        if (st.digest_enabled !== undefined) {
-          var tog = el('.setting-digest-toggle');
-          if (tog) tog.textContent = st.digest_enabled ? "Yoqilgan" : "O'chirilgan";
-        }
       }).catch(function () {});
     }
 

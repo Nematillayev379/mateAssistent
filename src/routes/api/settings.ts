@@ -16,11 +16,20 @@ export function registerSettingsRoutes(app: express.Application) {
   app.get('/api/settings/:userId', checkAuth, async (req: any, res: any) => {
     const u = await DBService.getUser(parseInt(req.authenticatedUserId));
     if (!u) return res.status(404).json({ error: 'Not found' });
-    res.json({ language: u.language, target_channel: u.target_channel, is_active: u.is_active, is_premium: u.is_premium });
+    res.json({
+      language: u.language,
+      target_channel: u.target_channel,
+      is_active: u.is_active,
+      is_premium: u.is_premium,
+      daily_digest: u.daily_digest,
+      digest_time: u.digest_time,
+      interval_minutes: Math.max(Number(u.interval_minutes) || 15, 1),
+      keywords: (await DBService.getKeywords(parseInt(req.authenticatedUserId))).join(', '),
+    });
   });
 
   app.post('/api/settings/:userId', checkAuth, async (req: any, res: any) => {
-    const { language, target_channel } = req.body;
+    const { language, target_channel, keywords, daily_digest, digest_time, interval_minutes } = req.body;
     const userId = parseInt(req.authenticatedUserId);
     if (typeof target_channel === 'string' && target_channel.trim()) {
       const normalized = DBService.normalizeTargetChannel(target_channel);
@@ -32,8 +41,15 @@ export function registerSettingsRoutes(app: express.Application) {
         if (member.status !== 'administrator' && member.status !== 'creator') return res.status(400).json({ error: 'Bot target kanalda admin emas' });
       } catch (e: any) { return res.status(400).json({ error: 'Channel verification failed' }); }
     }
-    const ok = await DBService.updateUser(userId, { language, target_channel });
+    const updates: Record<string, any> = {};
+    if (language !== undefined) updates.language = language;
+    if (target_channel !== undefined) updates.target_channel = target_channel;
+    if (daily_digest !== undefined) updates.daily_digest = daily_digest;
+    if (digest_time !== undefined) updates.digest_time = digest_time;
+    if (interval_minutes !== undefined) updates.interval_minutes = Math.max(Math.min(Number(interval_minutes) || 15, 1440), 1);
+    const ok = Object.keys(updates).length ? await DBService.updateUser(userId, updates) : true;
     if (!ok) return res.status(500).json({ error: 'Settings update failed' });
+    if (keywords !== undefined) await DBService.setKeywords(userId, keywords);
     res.json({ success: true });
   });
 
