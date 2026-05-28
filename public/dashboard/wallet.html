@@ -268,21 +268,21 @@
 <!-- Plan Selector -->
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 <!-- Monthly -->
-<div class="gradient-border cursor-pointer group active:scale-95 transition-transform" onclick="selectPlan('monthly')">
+<div id="plan-monthly-card" class="gradient-border cursor-pointer group active:scale-95 transition-transform" onclick="selectPlan('monthly')">
 <div class="p-6 h-full flex flex-col">
 <div class="flex justify-between items-center mb-4">
 <span class="font-label-md text-label-md text-primary">MONTHLY</span>
 <input checked="" class="accent-primary" id="plan-monthly" name="plan" type="radio"/>
 </div>
     <div class="mt-auto">
-        <p class="font-display text-display text-on-surface">125,000 <span class="text-label-md font-label-md text-on-surface-variant">UZS</span></p>
+        <p class="font-display text-display text-on-surface wallet-monthly-price">125,000 <span class="text-label-md font-label-md text-on-surface-variant">UZS</span></p>
         <p class="text-label-sm text-on-surface-variant mt-1">Per month, billed monthly</p>
         <button onclick="buyPremium('monthly')" class="mt-4 w-full bg-primary text-on-primary py-2.5 rounded-lg font-headline-md hover:brightness-110 active:scale-95 transition-all">Subscribe Monthly</button>
     </div>
 </div>
 </div>
 <!-- Yearly -->
-<div class="glass-card cursor-pointer group active:scale-95 transition-transform hover:border-primary/50" onclick="selectPlan('yearly')">
+<div id="plan-yearly-card" class="glass-card cursor-pointer group active:scale-95 transition-transform hover:border-primary/50" onclick="selectPlan('yearly')">
 <div class="p-6 h-full flex flex-col relative overflow-hidden">
 <div class="absolute top-0 right-0 bg-secondary px-3 py-1 text-[10px] font-bold text-on-secondary rounded-bl-lg">SAVE 20%</div>
 <div class="flex justify-between items-center mb-4">
@@ -290,7 +290,7 @@
 <input class="accent-primary" id="plan-yearly" name="plan" type="radio"/>
 </div>
     <div class="mt-auto">
-        <p class="font-display text-display text-on-surface">1,200,000 <span class="text-label-md font-label-md text-on-surface-variant">UZS</span></p>
+        <p class="font-display text-display text-on-surface wallet-yearly-price">1,200,000 <span class="text-label-md font-label-md text-on-surface-variant">UZS</span></p>
         <p class="text-label-sm text-on-surface-variant mt-1">100k UZS / mo equivalent</p>
         <button onclick="buyPremium('yearly')" class="mt-4 w-full bg-secondary text-on-secondary py-2.5 rounded-lg font-headline-md hover:brightness-110 active:scale-95 transition-all">Subscribe Yearly</button>
     </div>
@@ -322,13 +322,13 @@
 <div class="glass-card p-6 rounded-xl border-primary/20 bg-primary/5">
 <div class="flex justify-between items-center mb-4">
 <span class="font-body-md text-body-md text-on-surface-variant">Total Amount:</span>
-<span class="font-headline-lg text-headline-lg text-on-surface">125,000 UZS</span>
+<span class="font-headline-lg text-headline-lg text-on-surface wallet-summary-price">125,000 UZS</span>
 </div>
 <p class="font-label-sm text-label-sm text-on-surface-variant mb-6 flex items-center gap-2">
 <span class="material-symbols-outlined text-xs">verified_user</span>
                                 Secure checkout encrypted via TLS 1.3
                             </p>
-<button class="w-full bg-on-surface text-surface py-3.5 rounded-lg font-headline-md hover:bg-white active:scale-95 transition-all">
+<button class="w-full bg-on-surface text-surface py-3.5 rounded-lg font-headline-md hover:bg-white active:scale-95 transition-all" onclick="buyPremium(window.__selectedPlan || 'monthly')">
                                 Complete Purchase
                             </button>
 </div>
@@ -347,7 +347,7 @@
 <div class="flex items-center gap-3">
 <div class="flex-1 bg-surface-container border border-outline-variant px-4 py-3 rounded-lg font-label-md text-on-surface-variant flex items-center justify-between">
 <span>teleauto.pro/ref/alex_892</span>
-<button class="material-symbols-outlined text-primary hover:scale-110 transition-transform" onclick="copyRef()">content_copy</button>
+<button class="material-symbols-outlined text-primary hover:scale-110 transition-transform" onclick="copyRef(this)">content_copy</button>
 </div>
 <button class="px-6 py-3 border border-secondary text-secondary rounded-lg font-label-md hover:bg-secondary/10 transition-colors">
                                     View Stats
@@ -420,7 +420,7 @@
             </div>
         </div>
         <div class="text-right">
-            <div class="font-headline-md text-headline-md font-bold text-on-surface">49 000</div>
+            <div class="font-headline-md text-headline-md font-bold text-on-surface wallet-monthly-price">49 000</div>
             <div class="font-label-sm text-label-sm text-on-surface-variant">so'm / mo</div>
         </div>
     </div>
@@ -440,7 +440,7 @@
             </div>
         </div>
         <div class="text-right">
-            <div class="font-headline-md text-headline-md font-bold text-on-surface">490 000</div>
+            <div class="font-headline-md text-headline-md font-bold text-on-surface wallet-yearly-price">490 000</div>
             <div class="font-label-sm text-label-sm text-on-surface-variant">so'm / yr</div>
         </div>
     </div>
@@ -524,24 +524,31 @@
 </nav>
 </div>
 <script>
+        window.__selectedPlan = window.__selectedPlan || 'monthly';
         function selectPlan(plan) {
-            const monthlyCard = document.querySelector('[onclick="selectPlan(\'monthly\')"]');
-            const yearlyCard = document.querySelector('[onclick="selectPlan(\'yearly\')"]');
+            const monthlyCard = document.getElementById('plan-monthly-card');
+            const yearlyCard = document.getElementById('plan-yearly-card');
+            window.__selectedPlan = plan;
             if(plan === 'monthly') {
-                monthlyCard.className = "gradient-border cursor-pointer group active:scale-95 transition-transform";
-                yearlyCard.className = "glass-card cursor-pointer group active:scale-95 transition-transform hover:border-primary/50";
+                if (monthlyCard) monthlyCard.className = "gradient-border cursor-pointer group active:scale-95 transition-transform";
+                if (yearlyCard) yearlyCard.className = "glass-card cursor-pointer group active:scale-95 transition-transform hover:border-primary/50";
                 document.getElementById('plan-monthly').checked = true;
             } else {
-                yearlyCard.className = "gradient-border cursor-pointer group active:scale-95 transition-transform";
-                monthlyCard.className = "glass-card cursor-pointer group active:scale-95 transition-transform hover:border-primary/50";
+                if (yearlyCard) yearlyCard.className = "gradient-border cursor-pointer group active:scale-95 transition-transform";
+                if (monthlyCard) monthlyCard.className = "glass-card cursor-pointer group active:scale-95 transition-transform hover:border-primary/50";
                 document.getElementById('plan-yearly').checked = true;
             }
+            const summary = document.querySelector('.wallet-summary-price');
+            const monthlyPrice = document.querySelector('.wallet-monthly-price')?.textContent || '125,000 UZS';
+            const yearlyPrice = document.querySelector('.wallet-yearly-price')?.textContent || '1,200,000 UZS';
+            if (summary) summary.textContent = plan === 'monthly' ? monthlyPrice : yearlyPrice;
         }
-        function copyRef() {
-            const btn = event.currentTarget;
+        function copyRef(btn) {
+            if (!btn) return;
+            const original = btn.innerText;
             btn.innerText = 'done';
             setTimeout(() => {
-                btn.innerText = 'content_copy';
+                btn.innerText = original || 'content_copy';
             }, 2000);
         }
         const canvas = document.createElement('canvas');

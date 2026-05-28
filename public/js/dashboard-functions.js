@@ -4,12 +4,17 @@
 
   var userId = window.__userId;
   var token = window.__token;
+  var cryptoPollInterval = null;
+  var walletPrices = { monthly: 0, yearly: 0 };
+  window.__selectedPlan = window.__selectedPlan || 'monthly';
+  window.__payMethod = window.__payMethod || 'stars';
 
   // ─── Helpers ─────────────────────────────────
   function esc(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function $(s) { return document.querySelector(s); }
   function $$(s) { return document.querySelectorAll(s); }
   function setText(s, v) { var e = $(s); if (e) e.textContent = v != null ? v : ''; }
+  function setAllText(s, v) { $$(s).forEach(function (e) { e.textContent = v != null ? v : ''; }); }
 
   // ─── Studio: AI Post ─────────────────────────
   window.generateAIPost = async function () {
@@ -249,10 +254,17 @@
       var r = await apiFetch('/api/premium-info');
       var d = await r.json();
       if (d) {
-        setText('.wallet-status', d.is_premium ? 'Premium Active' : 'Free');
-        setText('.wallet-plan', d.plan || '—');
-        setText('.wallet-expiry', d.premium_until ? new Date(d.premium_until).toLocaleDateString() : '—');
-        setText('.premium-badge', d.is_premium ? 'PREMIUM' : 'FREE');
+        var isActive = !!d.isActive;
+        var expiresAt = d.expiresAt || d.premium_until || null;
+        walletPrices.monthly = Number(d.monthlyPrice || 25000);
+        walletPrices.yearly = Number(d.yearlyPrice || 250000);
+        setText('.wallet-status', isActive ? 'Premium Active' : 'Free');
+        setText('.wallet-plan', isActive ? 'Premium' : 'Free');
+        setText('.wallet-expiry', expiresAt ? new Date(expiresAt).toLocaleDateString() : '—');
+        setText('.premium-badge', isActive ? 'PREMIUM' : 'FREE');
+        setAllText('.wallet-monthly-price', walletPrices.monthly.toLocaleString() + ' UZS');
+        setAllText('.wallet-yearly-price', walletPrices.yearly.toLocaleString() + ' UZS');
+        setText('.wallet-summary-price', (window.__selectedPlan === 'yearly' ? walletPrices.yearly : walletPrices.monthly).toLocaleString() + ' UZS');
       }
     } catch(e) {}
     try {
@@ -263,9 +275,16 @@
         container.innerHTML = '';
         [['stars','Stars','⭐'], ['usdt','USDT (TRC-20)','💎'], ['ton','TON','💎']].forEach(function(item){
           var btn = document.createElement('button');
-          btn.className = 'px-4 py-2 border border-outline-variant rounded-lg text-sm hover:bg-surface-container ' + (window.__payMethod==item[0]?'bg-primary-container text-on-primary-container':'');
+          btn.className = 'pay-method-btn px-4 py-2 border border-outline-variant rounded-lg text-sm hover:bg-surface-container ' + (window.__payMethod===item[0]?'bg-primary-container text-on-primary-container':'');
+          btn.type = 'button';
           btn.textContent = item[1] + (m[item[0]] ? '' : ' (—)');
-          btn.onclick = function(){ window.__payMethod=item[0]; $$('#payment-methods button').forEach(function(b){b.className='px-4 py-2 border border-outline-variant rounded-lg text-sm hover:bg-surface-container';}); btn.className='px-4 py-2 border border-outline-variant rounded-lg text-sm bg-primary-container text-on-primary-container'; };
+          btn.onclick = function(){
+            window.__payMethod = item[0];
+            $$('#payment-methods .pay-method-btn').forEach(function(b){
+              b.className = 'pay-method-btn px-4 py-2 border border-outline-variant rounded-lg text-sm hover:bg-surface-container';
+            });
+            btn.className = 'pay-method-btn px-4 py-2 border border-outline-variant rounded-lg text-sm bg-primary-container text-on-primary-container';
+          };
           container.appendChild(btn);
         });
       }
@@ -274,12 +293,89 @@
 
   window.buyPremium = async function (period) {
     try {
-      var r = await apiFetch('/api/premium/buy', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ period:period, method:window.__payMethod||'stars' }) });
+      var r = await apiFetch('/api/premium/buy', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ plan: period, method:window.__payMethod||'stars' }) });
       var d = await r.json();
-      if (d.url) window.open(d.url, '_blank');
-      else if (d.success) showToast('Premium aktiv!','success');
+      if (d.request) {
+        showCryptoPaymentModal(d.request);
+        return;
+      }
+      if (d.url) {
+        window.open(d.url, '_blank');
+        return;
+      }
+      if (d.success) showToast('Premium aktiv!','success');
       else showToast(d.error||'Xatolik','error');
     } catch(e) { showToast('Xatolik','error'); }
+  };
+
+  function closeCryptoModal() {
+    var el = document.getElementById('crypto-payment-modal');
+    if (el) el.remove();
+    if (cryptoPollInterval) {
+      clearInterval(cryptoPollInterval);
+      cryptoPollInterval = null;
+    }
+  }
+
+  function showCryptoPaymentModal(req) {
+    closeCryptoModal();
+    var overlay = document.createElement('div');
+    overlay.id = 'crypto-payment-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;">' +
+      '<h3 style="margin-bottom:12px;">' + req.currency + ' to\'lov</h3>' +
+      '<p style="color:var(--secondary);margin-bottom:6px;">Yuboriladigan summa</p>' +
+      '<div style="font-size:1.7rem;font-weight:700;color:var(--accent);margin-bottom:14px;">' + req.cryptoAmount + ' ' + req.currency + '</div>' +
+      '<p style="color:var(--secondary);margin-bottom:6px;">Hamyon manzili</p>' +
+      '<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;font-size:0.75rem;word-break:break-all;margin-bottom:10px;font-family:monospace;">' + req.walletAddress + '</div>' +
+      '<button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:0.75rem;margin-bottom:14px;" onclick="navigator.clipboard.writeText(\'' + req.walletAddress + '\').then(function(){showToast(\'Manzil nusxalandi!\',\'success\')})">📋 Nusxalash</button>' +
+      '<p style="color:var(--secondary);margin-bottom:6px;">Memo</p>' +
+      '<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;font-size:1rem;font-weight:600;margin-bottom:14px;font-family:monospace;">' + req.memo + '</div>' +
+      '<p style="font-size:0.8rem;color:var(--secondary);margin-bottom:16px;">Aynan shu memoni transfer commentiga yozing.</p>' +
+      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
+      '<button class="btn btn-primary" id="crypto-verify-btn" onclick="window.__verifyCryptoPayment(\'' + req.id + '\')">To\'lov qildim</button>' +
+      '<button class="btn btn-ghost" onclick="window.__closeCryptoModal()">Yopish</button>' +
+      '</div>' +
+      '<div id="crypto-status" style="margin-top:12px;font-size:0.85rem;color:var(--secondary);"></div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    cryptoPollInterval = setInterval(function () {
+      fetch('/api/crypto-payment/status/' + req.id, {
+        method: 'POST',
+        headers: { 'x-bot-token': token, 'x-user-id': userId, 'Content-Type': 'application/json' }
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        if (d.status === 'paid') {
+          showToast('Premium faollashtirildi!', 'success');
+          closeCryptoModal();
+          location.reload();
+        }
+      }).catch(function () {});
+    }, 10000);
+  }
+
+  window.__closeCryptoModal = closeCryptoModal;
+  window.__verifyCryptoPayment = async function (id) {
+    var btn = document.getElementById('crypto-verify-btn');
+    var statusEl = document.getElementById('crypto-status');
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Tekshirilmoqda...';
+    try {
+      var r = await fetch('/api/crypto-payment/status/' + id, {
+        method: 'POST',
+        headers: { 'x-bot-token': token, 'x-user-id': userId, 'Content-Type': 'application/json' }
+      });
+      var d = await r.json();
+      if (d.status === 'paid') {
+        showToast('Premium faollashtirildi!', 'success');
+        closeCryptoModal();
+        location.reload();
+      } else if (statusEl) {
+        statusEl.textContent = 'To\'lov hali topilmadi. Bir ozdan keyin qayta urinib ko\'ring.';
+      }
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'Xatolik: ' + e.message;
+    }
+    if (btn) btn.disabled = false;
   };
 
   // ─── Admin ─────────────────────────────────

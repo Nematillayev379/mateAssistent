@@ -169,9 +169,11 @@
   if (page === 'wallet') {
     apiFetch('/api/premium-info').then(function (r) { return r.json(); }).then(function (info) {
       if (!info) return;
-      setText('.wallet-status', info.is_premium ? 'Premium Active' : 'Free');
-      setText('.wallet-plan', info.plan || '—');
-      setText('.wallet-expiry', info.premium_until ? new Date(info.premium_until).toLocaleDateString() : '—');
+      var isActive = !!info.isActive;
+      var expiresAt = info.expiresAt || info.premium_until || null;
+      setText('.wallet-status', isActive ? 'Premium Active' : 'Free');
+      setText('.wallet-plan', isActive ? 'Premium' : 'Free');
+      setText('.wallet-expiry', expiresAt ? new Date(expiresAt).toLocaleDateString() : '—');
     }).catch(function () {});
   }
 
