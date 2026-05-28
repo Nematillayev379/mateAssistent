@@ -12,6 +12,7 @@
     "stop:cluster": "pm2 stop ecosystem.config.js",
     "reload:cluster": "pm2 reload ecosystem.config.js",
     "logs": "pm2 logs rss-bot",
+    "repair:duplicate-stats": "tsx scripts/repair-duplicate-stats.ts",
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/install-ytdlp.js"
