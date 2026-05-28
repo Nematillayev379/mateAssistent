@@ -254,7 +254,10 @@ function createPooledIORedis(pool: RedisPool): IORedis {
     get(target, prop) {
       const currentValue = (currentConn as any)[prop];
       if (typeof currentValue === 'function') {
-        return currentValue.bind(currentConn);
+        return (...args: any[]) => execCmd(c => {
+          const fn = (c as any)[prop];
+          return typeof fn === 'function' ? fn.apply(c, args) : fn;
+        });
       }
 
       if (prop === 'status') return currentConn.status;
@@ -288,11 +291,6 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       if (prop === 'emit') return (event: string, ...args: any[]) => ee.emit(event, ...args);
       if (prop === 'listenerCount') return (event?: string) => event ? (registered.get(event)?.size || 0) : registered.size;
       if (prop === 'eventNames') return () => Array.from(registered.keys());
-
-      // Redis commands -> execute with auto-rotate
-      if (typeof (target as any)[prop] === 'function') {
-        return (...args: any[]) => execCmd(c => (c as any)[prop](...args));
-      }
 
       return currentValue;
     },
