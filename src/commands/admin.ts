@@ -6,64 +6,67 @@ import { buildDashboardUrl } from "../services/bot_instance";
 
 export const adminCommand: BotCommand = {
   pattern: /^\/(admin|promote)\b/i,
-  description: 'ðŸ›¡ Admin Panel & Promotion',
+  description: "🛡 Admin Panel & Promotion",
   handler: async (bot: TelegramBot, msg: TelegramBot.Message) => {
     const chatId = msg.chat.id;
     const user = await DBService.getUser(chatId);
     const isOwner = isOwnerId(chatId);
 
-    if (user?.role !== 'owner' && user?.role !== 'admin' && !isOwner) {
-      await bot.sendMessage(chatId, "âŒ Bu buyruq faqat Adminlar uchun!");
+    if (user?.role !== "owner" && user?.role !== "admin" && !isOwner) {
+      await bot.sendMessage(chatId, "❌ Bu buyruq faqat adminlar uchun!");
       return;
     }
 
     const text = msg.text || "";
 
-    if (text.startsWith('/promote')) {
+    if (text.startsWith("/promote")) {
       if (!isOwner) {
-        await bot.sendMessage(chatId, "âŒ Promote qilish faqat haqiqiy Owner (.env dagi) uchun!");
+        await bot.sendMessage(chatId, "❌ Promote qilish faqat haqiqiy owner (.env dagi) uchun!");
         return;
       }
 
-      const parts = text.split(' ');
+      const parts = text.split(" ");
       if (parts.length < 3) {
-        await bot.sendMessage(chatId, "â“ Ishlatish: <code>/promote [userId] [role]</code>\n\nRollari: admin, premium, user", { parse_mode: 'HTML' });
+        await bot.sendMessage(chatId, "❓ Ishlatish: <code>/promote [userId] [role]</code>\n\nRollari: admin, premium, user", { parse_mode: "HTML" });
         return;
       }
+
       const targetId = parseInt(parts[1]);
       if (isNaN(targetId)) {
-        await bot.sendMessage(chatId, "âŒ Noto'g'ri foydalanuvchi ID!");
+        await bot.sendMessage(chatId, "❌ Noto'g'ri foydalanuvchi ID!");
         return;
       }
+
       const role = parts[2].toLowerCase();
-      const roles = ['admin', 'premium', 'user'];
+      const roles = ["admin", "premium", "user"];
       if (!roles.includes(role)) {
-        await bot.sendMessage(chatId, "âŒ Noto'g'ri rol! Faqat: " + roles.join(', '));
+        await bot.sendMessage(chatId, "❌ Noto'g'ri rol! Faqat: " + roles.join(", "));
         return;
       }
 
       await DBService.updateUserRole(targetId, role);
-      await bot.sendMessage(chatId, `âœ… Foydalanuvchi <code>${targetId}</code> roli <b>${role.toUpperCase()}</b> ga o'zgartirildi!`, { parse_mode: 'HTML' });
+      await bot.sendMessage(chatId, `✅ Foydalanuvchi <code>${targetId}</code> roli <b>${role.toUpperCase()}</b> ga o'zgartirildi!`, { parse_mode: "HTML" });
       return;
     }
 
     const allUsers = await DBService.getAllUsers();
     const dashboardUrl = buildDashboardUrl(chatId);
 
-    const report = `ðŸ›¡ <b>Admin Boshqaruv Paneli</b>\n\n` +
-                   `ðŸ‘¥ Jami foydalanuvchilar: <b>${allUsers.length}</b>\n` +
-                   `ðŸ›  Rolni o'zgartirish: <code>/promote [ID] [ROL]</code>\n\n` +
-                   `mateAssistent Dashboard orqali to'liq boshqarishingiz mumkin:`;
+    const report =
+      `🛡 <b>Admin Boshqaruv Paneli</b>\n\n` +
+      `👥 Jami foydalanuvchilar: <b>${allUsers.length}</b>\n` +
+      `🛠 Rolni o'zgartirish: <code>/promote [ID] [ROL]</code>\n\n` +
+      `mateAssistent Dashboard orqali to'liq boshqarishingiz mumkin:`;
 
     const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [];
     if (dashboardUrl) {
-      inline_keyboard.push([{ text: "ðŸ–¥ mateAssistent Dashboard (Admin Mode)", web_app: { url: dashboardUrl } }]);
+      inline_keyboard.push([{ text: "🖥 mateAssistent Dashboard (Admin Mode)", web_app: { url: dashboardUrl } }]);
     }
-    inline_keyboard.push([{ text: "ðŸ“¢ Xabar yuborish (Broadcast)", callback_data: "adm_broadcast" }]);
+    inline_keyboard.push([{ text: "📢 Xabar yuborish (Broadcast)", callback_data: "adm_broadcast" }]);
 
     await bot.sendMessage(chatId, report, {
-      parse_mode: 'HTML',
-      reply_markup: { inline_keyboard }
+      parse_mode: "HTML",
+      reply_markup: { inline_keyboard },
     });
-  }
+  },
 };
