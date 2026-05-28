@@ -54,7 +54,7 @@ export const CONFIG = {
   // Generate one with: openssl rand -hex 32 (Linux/Mac) or generate a long random string
   DASHBOARD_SECRET: process.env.DASHBOARD_SECRET || "",
   WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || crypto.randomBytes(32).toString('hex'),
-  DEFAULT_REDIS_URL: process.env.DEFAULT_REDIS_URL || "redis://127.0.0.1:6379",
+  DEFAULT_REDIS_URL: process.env.DEFAULT_REDIS_URL || "",
   REDIS_URL: process.env.REDIS_URL || "",
   REDIS_URLS: process.env.REDIS_URLS || "",
   TON_WALLET: process.env.TON_WALLET || "",
@@ -90,6 +90,13 @@ export function parseKeyList(raw: string | undefined): string[] {
     .split(/[,;\n\r]+/)
     .map((k) => k.trim().replace(/^["']+|["']+$/g, ''))
     .filter((k) => k.length >= 8);
+}
+
+function shouldUseDefaultRedisUrl(url: string): boolean {
+  if (!url.trim()) return false;
+  const normalized = url.trim().toLowerCase();
+  if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') return true;
+  return !normalized.includes('127.0.0.1') && !normalized.includes('localhost');
 }
 
 function collectProviderKeys(

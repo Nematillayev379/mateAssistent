@@ -82,6 +82,13 @@ function parseRedisUrls(): string[] {
       urls.unshift(CONFIG.REDIS_URL.trim());
     }
   }
+  if (!urls.length && CONFIG.DEFAULT_REDIS_URL && CONFIG.DEFAULT_REDIS_URL.trim()) {
+    const defaultUrl = CONFIG.DEFAULT_REDIS_URL.trim();
+    const isLocalDefault = /localhost|127\.0\.0\.1/i.test(defaultUrl);
+    if (!isLocalDefault || process.env.NODE_ENV === 'development') {
+      urls.push(defaultUrl);
+    }
+  }
   return urls;
 }
 
