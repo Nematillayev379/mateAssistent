@@ -395,13 +395,21 @@ export const DBService = {
 
   releaseUserSendSlot(userId: number) { userSendSlots.delete(userId); },
 
-  acquireRecentNewsLock(userId: number, url: string, title: string, ttlMs = 30 * 60 * 1000): boolean {
+  acquireRecentNewsLock(userId: number, url: string, title: string, ttlMs = 12 * 60 * 60 * 1000): boolean {
     const now = Date.now();
     for (const [key, expiry] of recentNewsLocks.entries()) { if (expiry <= now) recentNewsLocks.delete(key); }
-    const lockKey = `${userId}:${NewsService.normalizeUrl(url)}:${NewsService.normalizeTitle(title)}`;
-    const existing = recentNewsLocks.get(lockKey);
-    if (existing && existing > now) return false;
-    recentNewsLocks.set(lockKey, now + ttlMs);
+    const normalizedUrl = NewsService.normalizeUrl(url);
+    const normalizedTitle = NewsService.normalizeTitle(title);
+    const urlKey = `${userId}:url:${normalizedUrl}`;
+    const titleKey = normalizedTitle ? `${userId}:title:${normalizedTitle}` : '';
+    const urlExisting = recentNewsLocks.get(urlKey);
+    if (urlExisting && urlExisting > now) return false;
+    if (titleKey) {
+      const titleExisting = recentNewsLocks.get(titleKey);
+      if (titleExisting && titleExisting > now) return false;
+      recentNewsLocks.set(titleKey, now + ttlMs);
+    }
+    recentNewsLocks.set(urlKey, now + ttlMs);
     return true;
   },
 

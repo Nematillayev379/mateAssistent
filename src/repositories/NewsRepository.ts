@@ -17,7 +17,7 @@ export const NewsRepository = {
   async isSeenByTitle(userId: number, title: string): Promise<boolean> {
     const { data, error } = await getSupabase()
       .from('processed_news').select('title').eq('user_id', userId)
-      .order('created_at', { ascending: false }).limit(80);
+      .order('created_at', { ascending: false }).limit(200);
     if (error) logger.error(`isSeenByTitle error: ${error.message}`);
     if (!data || data.length === 0) return false;
     return data.some((row: any) => isLikelyDuplicate(row.title, title));

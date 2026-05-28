@@ -32,6 +32,13 @@ if (!connectionOptions) {
           return;
         }
 
+        const lockUrl = article.url || '';
+        const lockTitle = article.title || '';
+        if (!DBService.acquireRecentNewsLock(userId, lockUrl, lockTitle)) {
+          await DBService.incrementStat(userId, "total_duplicates");
+          return;
+        }
+
         const moderation = await moderateContent(article.title, article.content || "");
         if (moderation.status === "BLOCKED") {
           logger.warn(`Article blocked for user ${userId}: ${sanitizeLogInput(moderation.reason)}`);

@@ -25,12 +25,6 @@ if (!connectionOptions) {
         articles.sort((a: any, b: any) => new Date(b?.pubDate || 0).getTime() - new Date(a?.pubDate || 0).getTime());
 
         for (const article of articles) {
-          const locked = DBService.acquireRecentNewsLock(userId, article.link, article.title);
-          if (!locked) {
-            await DBService.incrementStat(userId, "total_duplicates");
-            continue;
-          }
-
           const isDuplicate = await DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
           if (isDuplicate) {
             await DBService.incrementStat(userId, "total_duplicates");
@@ -70,6 +64,13 @@ export async function processArticleInline(userId: number, article: any, sourceL
   try {
     const user = await DBService.getUser(userId);
     if (!user || !user.target_channel || user.is_active === 0) return;
+
+    const lockUrl = article.url || article.link || '';
+    const lockTitle = article.title || '';
+    if (!DBService.acquireRecentNewsLock(userId, lockUrl, lockTitle)) {
+      await DBService.incrementStat(userId, "total_duplicates");
+      return;
+    }
 
     const intervalMinutes = Math.max(Number(user.interval_minutes) || 15, 1);
     if (!DBService.tryReserveUserSendSlot(userId, intervalMinutes)) {

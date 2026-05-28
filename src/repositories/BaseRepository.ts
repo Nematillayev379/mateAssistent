@@ -53,5 +53,5 @@ export function isLikelyDuplicate(titleA: string, titleB: string): boolean {
   const tokensB = new Set(b.split(' ').filter((t) => t.length > 2));
   if (tokensA.length < 4 || tokensB.size < 4) return false;
   const common = tokensA.filter((t) => tokensB.has(t)).length;
-  return common / Math.min(tokensA.length, tokensB.size) >= 0.8;
+  return common / Math.min(tokensA.length, tokensB.size) >= 0.75;
 }
