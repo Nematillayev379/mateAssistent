@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>mateAssistent Web3 Console</title>
+    <title data-i18n="app_title"></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preload" href="/css/dashboard.css" as="style">
@@ -20,11 +20,11 @@
 
     <div id="auth-screen">
         <i class="fas fa-diamond" style="font-size: 3rem; color: var(--accent); margin-bottom: 20px;"></i>
-        <h2 style="margin-bottom: 8px;" data-i18n="app_title">mateAssistent</h2>
-        <p id="auth-status" data-i18n="auth_checking" style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 30px;">Xavfsiz ulanish tekshirilmoqda...</p>
+        <h2 style="margin-bottom: 8px;" data-i18n="app_title"></h2>
+        <p id="auth-status" data-i18n="auth_checking" style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 30px;"></p>
         <div id="manual-login" style="display: none; width: 100%; max-width: 320px; padding: 0 20px;">
-            <input type="password" id="auth-key" data-i18n-placeholder="auth_key_ph" placeholder="Maxfiy kalit" style="width: 100%; padding: 15px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: white; margin-bottom: 15px; outline: none;">
-            <button class="btn btn-primary" onclick="login()" data-i18n="auth_open">Dashboardni ochish</button>
+            <input type="password" id="auth-key" data-i18n-placeholder="auth_key_ph" style="width: 100%; padding: 15px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: white; margin-bottom: 15px; outline: none;">
+            <button class="btn btn-primary" onclick="login()" data-i18n="auth_open"></button>
         </div>
     </div>
 
@@ -33,7 +33,7 @@
             <header>
                 <div class="user-pill">
                     <div class="avatar" style="background: var(--accent)"><i class="fas fa-user"></i></div>
-                    <div style="font-size: 0.85rem; font-weight: 600;" id="user-name">Foydalanuvchi</div>
+                    <div style="font-size: 0.85rem; font-weight: 600;" id="user-name" data-i18n="user_default"></div>
                 </div>
                 <div class="top-actions">
                     <select id="quick-lang" class="lang-switch" onchange="changeQuickLanguage(this.value)" aria-label="Language">
@@ -43,49 +43,49 @@
                         <option value="tr">TR</option>
                         <option value="de">DE</option>
                     </select>
-                    <div id="user-premium-badge" class="badge-premium" style="display: none;"><i class="fas fa-crown"></i> ELITE</div>
+                    <div id="user-premium-badge" class="badge-premium" style="display: none;" data-i18n="elite"><i class="fas fa-crown"></i></div>
                 </div>
             </header>
 
             <!-- 1. Overview Page -->
             <section id="page-overview" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-sparkles"></i> <span data-i18n="nav_overview">Overview</span></div>
-                    <p style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 16px;">Web3 creator console for RSS automation, AI publishing, distribution and channel growth.</p>
+                    <div class="card-title"><i class="fas fa-sparkles"></i> <span data-i18n="nav_overview"></span></div>
+                    <p style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 16px;" data-i18n="overview_description"></p>
                     <div class="stat-grid">
                         <div class="stat-card">
                             <div class="stat-val" id="stat-posts">0</div>
-                            <div class="stat-lab" data-i18n="home_posts">Jami Postlar</div>
+                            <div class="stat-lab" data-i18n="home_posts"></div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-val" id="stat-dupes">0</div>
-                            <div class="stat-lab" data-i18n="home_dupes">Dublikatlar</div>
+                            <div class="stat-lab" data-i18n="home_dupes"></div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-val" id="stat-sources">0</div>
-                            <div class="stat-lab" data-i18n="home_sources">Manbalar</div>
+                            <div class="stat-lab" data-i18n="home_sources"></div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-val" id="stat-refs">0</div>
-                            <div class="stat-lab" data-i18n="home_refs">Referrallar</div>
+                            <div class="stat-lab" data-i18n="home_refs"></div>
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-diagram-project"></i> <span data-i18n="identity_snapshot">Identity Snapshot</span></div>
+                    <div class="card-title"><i class="fas fa-diagram-project"></i> <span data-i18n="identity_snapshot"></span></div>
                     <div id="home-identity-info">
-                        <div class="item-row"><span>Target Channel</span><span id="home-target-channel">Not connected âš ï¸</span></div>
+                        <div class="item-row"><span data-i18n="home_target"></span><span id="home-target-channel" data-i18n="not_set"></span></div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-rss"></i> <span data-i18n="active_sources_preview">Active Sources (Preview)</span></div>
+                    <div class="card-title"><i class="fas fa-rss"></i> <span data-i18n="active_sources_preview"></span></div>
                     <div id="home-sources-list"></div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-clock"></i> <span data-i18n="home_scheduled">Next Scheduled Posts</span></div>
+                    <div class="card-title"><i class="fas fa-clock"></i> <span data-i18n="home_scheduled"></span></div>
                     <div id="scheduled-list"></div>
                 </div>
             </section>
@@ -93,76 +93,76 @@
             <!-- 2. Sources Page -->
             <section id="page-sources" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-rss"></i> <span data-i18n="rss_sources">RSS Sources</span></div>
-                    <div class="input-group"><input type="text" id="src-name" data-i18n-placeholder="content_src_name" placeholder="Nomi"></div>
-                    <div class="input-group"><input type="text" id="src-url" data-i18n-placeholder="content_src_url" placeholder="RSS URL"></div>
-                    <button class="btn btn-primary" onclick="saveSource()" data-i18n="content_add_src">Manba qo'shish</button>
+                    <div class="card-title"><i class="fas fa-rss"></i> <span data-i18n="rss_sources"></span></div>
+                    <div class="input-group"><input type="text" id="src-name" data-i18n-placeholder="content_src_name"></div>
+                    <div class="input-group"><input type="text" id="src-url" data-i18n-placeholder="content_src_url"></div>
+                    <button class="btn btn-primary" onclick="saveSource()" data-i18n="content_add_src"></button>
                     <div id="sources-list" style="margin-top: 20px;"></div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-search"></i> <span data-i18n="cheapest_price">Eng arzon narxni qidirish</span></div>
+                    <div class="card-title"><i class="fas fa-search"></i> <span data-i18n="cheapest_price"></span></div>
                     <div class="input-group" style="display: flex; gap: 8px;">
-                        <input type="text" id="search-product-query" placeholder="Mahsulot nomini yozing (masalan: iPhone 13)" onkeydown="if(event.key==='Enter') searchMarketplaceProducts()">
-                        <button class="btn btn-primary" id="btn-search-product" style="width: auto; padding: 12px 20px;" onclick="searchMarketplaceProducts()"><i class="fas fa-search"></i> Qidirish</button>
+                        <input type="text" id="search-product-query" data-i18n-placeholder="search_placeholder" onkeydown="if(event.key==='Enter') searchMarketplaceProducts()">
+                    <button class="btn btn-primary" id="btn-search-product" style="width: auto; padding: 12px 20px;" onclick="searchMarketplaceProducts()"><i class="fas fa-search"></i> <span data-i18n="search_button"></span></button>
                     </div>
                     <div id="search-results-list" style="margin-top: 15px; display: none; max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: rgba(0,0,0,0.2);"></div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-bell"></i> <span data-i18n="tracked_products">Kuzatilayotgan tovarlar (Tracker)</span></div>
+                    <div class="card-title"><i class="fas fa-bell"></i> <span data-i18n="tracked_products"></span></div>
                     <div class="input-group" style="display: flex; gap: 8px;">
-                        <input type="text" id="track-url" placeholder="Uzum yoki OLX havolasi">
-                        <button class="btn btn-ghost" style="width: auto; padding: 12px 20px;" onclick="trackPrice()">Qo'shish</button>
+                        <input type="text" id="track-url" data-i18n-placeholder="track_url_ph">
+                    <button class="btn btn-ghost" style="width: auto; padding: 12px 20px;" onclick="trackPrice()" data-i18n="track_button"></button>
                     </div>
                     <div id="tracked-list" style="margin-top: 20px;"></div>
                 </div>
 
                 <!-- Automation Section -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-bolt"></i> <span data-i18n="posting_cadence">Posting Cadence & Automation</span></div>
+                    <div class="card-title"><i class="fas fa-bolt"></i> <span data-i18n="posting_cadence"></span></div>
                     <div class="input-group">
-                        <label>Post intervali (daqiqada)</label>
+                        <label data-i18n="post_interval_label"></label>
                         <input type="number" id="set-interval" min="1" max="1440" step="1" value="15">
                     </div>
                     <div class="input-group">
-                        <label>Kalit so'zlar filtri (Keywords)</label>
-                        <input type="text" id="set-keywords" placeholder="so'z1, so'z2, so'z3">
+                        <label data-i18n="keywords_filter_label"></label>
+                        <input type="text" id="set-keywords" data-i18n-placeholder="keywords_ph">
                     </div>
                     <div class="input-group">
-                        <label>Kunlik Digest</label>
+                        <label data-i18n="digest_label"></label>
                         <select id="set-digest">
-                            <option value="false">O'chirilgan</option>
-                            <option value="true">Yoqilgan</option>
+                            <option value="false" data-i18n="digest_disabled"></option>
+                            <option value="true" data-i18n="digest_enabled"></option>
                         </select>
                     </div>
                     <div class="input-group">
-                        <label>Digest Vaqti</label>
+                        <label data-i18n="digest_time_label"></label>
                         <input type="time" id="set-digest-time" value="20:00">
                     </div>
-                    <button class="btn btn-primary" onclick="saveSettings()">Avtomatlashtirishni saqlash</button>
+                    <button class="btn btn-primary" onclick="saveSettings()" data-i18n="save_automation"></button>
                 </div>
 
                 <!-- Distribution: Target Channel -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-location-arrow"></i> <span data-i18n="target_channel">Target Channel Output</span></div>
+                    <div class="card-title"><i class="fas fa-location-arrow"></i> <span data-i18n="target_channel"></span></div>
                     <div class="item-row" style="margin-bottom: 12px;">
-                        <span>Joriy kanal</span>
-                        <span id="primary-target-channel-display">Sozlanmagan</span>
+                        <span data-i18n="current_channel"></span>
+                        <span id="primary-target-channel-display" data-i18n="not_set"></span>
                     </div>
                     <div class="input-group">
-                        <label>Main Target Channel</label>
-                        <input type="text" id="set-channel" placeholder="@kanalingiz yoki -100...">
+                        <label data-i18n="main_target_channel"></label>
+                        <input type="text" id="set-channel" data-i18n-placeholder="channel_id_ph">
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                        <button class="btn btn-primary" onclick="saveSettings()">Kanalni saqlash</button>
-                        <button class="btn btn-ghost" style="color:var(--danger);border-color:var(--danger);" onclick="removeMainChannel()">Kanalni olib tashlash</button>
+                        <button class="btn btn-primary" onclick="saveSettings()" data-i18n="save_channel"></button>
+                        <button class="btn btn-ghost" style="color:var(--danger);border-color:var(--danger);" onclick="removeMainChannel()" data-i18n="remove_channel"></button>
                     </div>
                 </div>
 
                 <!-- Distribution: Extra Channels -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-tower-broadcast"></i> <span data-i18n="extra_channels">Extra Channels / Multichannel</span></div>
+                    <div class="card-title"><i class="fas fa-tower-broadcast"></i> <span data-i18n="extra_channels"></span></div>
                     <div class="input-group">
                         <select id="channel-platform" onchange="toggleTelegramOptions()" style="width:100%;padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:white;">
                             <option value="youtube">YouTube</option>
@@ -171,30 +171,30 @@
                         </select>
                     </div>
                     <div class="input-group">
-                        <div id="telegram-source-hint" style="font-size:0.75rem;color:var(--gold);margin-bottom:10px;padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;border:1px solid var(--gold); display:none;">âš ï¸ Botni <b>manba kanalga admin</b> qiling (@kanal yoki -100...)</div>
+                        <div id="telegram-source-hint" style="font-size:0.75rem;color:var(--gold);margin-bottom:10px;padding:10px;background:rgba(245,158,11,0.1);border-radius:8px;border:1px solid var(--gold); display:none;" data-i18n="source_channel_admin_hint"></div>
                         <div id="telegram-options" style="margin-bottom:12px; display:none;">
                             <select id="channel-forward-mode" style="width:100%;padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:white;margin-bottom:8px;">
                                 <option value="copy">Copy</option><option value="forward">Forward</option>
                             </select>
-                            <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;"><input type="checkbox" id="channel-use-ai"> AI qayta yozish</label>
+                            <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;"><input type="checkbox" id="channel-use-ai"> <span data-i18n="ai_rewrite"></span></label>
                         </div>
-                        <input type="text" id="channel-id" placeholder="@kanal yoki -100...">
+                        <input type="text" id="channel-id" data-i18n-placeholder="channel_id_ph">
                     </div>
                     <div class="input-group">
-                        <input type="text" id="channel-name" placeholder="Kanal nomi">
+                        <input type="text" id="channel-name" data-i18n-placeholder="channel_name_ph">
                     </div>
-                    <button class="btn btn-primary" onclick="addChannel()">Kanal qo'shish</button>
+                    <button class="btn btn-primary" onclick="addChannel()" data-i18n="content_ch_add"></button>
                     <div id="channels-list" style="margin-top: 20px;"></div>
                 </div>
 
                 <!-- Distribution: Monitored Channels -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-share-nodes"></i> <span data-i18n="monitored_channels">Monitored Output Channels</span></div>
+                    <div class="card-title"><i class="fas fa-share-nodes"></i> <span data-i18n="monitored_channels"></span></div>
                     <div class="input-group">
-                        <label>Boshqa yo'naltiriladigan kanallar (vergul bilan)</label>
-                        <input type="text" id="extra-channels" placeholder="@chan1, @chan2">
+                        <label data-i18n="extra_channels_hint"></label>
+                        <input type="text" id="extra-channels" data-i18n-placeholder="extra_channels_ph">
                     </div>
-                    <button class="btn btn-primary" onclick="saveExtraChannels()" style="margin-bottom: 15px;">Kanallarni saqlash</button>
+                    <button class="btn btn-primary" onclick="saveExtraChannels()" style="margin-bottom: 15px;" data-i18n="save_channels"></button>
                     <div id="output-channels-list"></div>
                 </div>
             </section>
@@ -202,9 +202,9 @@
             <!-- 3. Studio Page -->
             <section id="page-studio" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-robot"></i> <span data-i18n="ai_smm_studio">AI SMM Studio</span></div>
+                    <div class="card-title"><i class="fas fa-robot"></i> <span data-i18n="ai_smm_studio"></span></div>
                     <div class="input-group">
-                        <label id="post-language-label">Post tili</label>
+                        <label id="post-language-label" data-i18n="post_language"></label>
                         <select id="post-lang">
                             <option value="uz">O'zbek</option>
                             <option value="ru">Russian</option>
@@ -223,55 +223,55 @@
                             <option value="fa">Persian</option>
                         </select>
                     </div>
-                    <div class="input-group"><textarea id="ai-prompt" rows="3" placeholder="Mavzu..."></textarea></div>
+                    <div class="input-group"><textarea id="ai-prompt" rows="3" data-i18n-placeholder="ai_prompt_ph"></textarea></div>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
-                        <input type="checkbox" id="ai-image" style="width: 18px; height: 18px;"> <label for="ai-image">Rasm generatsiya qilinsin</label>
+                        <input type="checkbox" id="ai-image" style="width: 18px; height: 18px;"> <label for="ai-image" data-i18n="ai_image_label"></label>
                     </div>
-                    <button class="btn btn-primary" id="btn-ai" onclick="generateAIPost()">Post yaratish</button>
+                    <button class="btn btn-primary" id="btn-ai" onclick="generateAIPost()" data-i18n="create_post"></button>
                     <div id="ai-result" style="margin-top: 15px; display: none;">
                         <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--border);">
                             <img id="ai-res-img" style="width: 100%; border-radius: 8px; margin-bottom: 10px; display: none;">
                             <p id="ai-res-text" style="font-size: 0.9rem; white-space: pre-wrap;"></p>
-                            <button class="btn btn-ghost" style="margin-top: 10px; display: none;" id="ai-copy-btn" onclick="copyAIPostText()"><i class="fas fa-copy"></i> Post matnini nusxalash</button>
-                            <button class="btn btn-primary" style="margin-top: 15px;" id="btn-send-ai" onclick="sendAIPostToChannel()">Kanalga yuborish</button>
+                            <button class="btn btn-ghost" style="margin-top: 10px; display: none;" id="ai-copy-btn" onclick="copyAIPostText()"><i class="fas fa-copy"></i> <span data-i18n="copy_post_text"></span></button>
+                            <button class="btn btn-primary" style="margin-top: 15px;" id="btn-send-ai" onclick="sendAIPostToChannel()" data-i18n="send_to_channel"></button>
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-microphone"></i> <span data-i18n="voice_news_generator">Voice News Generator</span></div>
+                    <div class="card-title"><i class="fas fa-microphone"></i> <span data-i18n="voice_news_generator"></span></div>
                     <div class="input-group">
-                        <label id="voice-title-label">Sarlavha</label>
-                        <input type="text" id="voice-title" placeholder="Yangilik sarlavhasi...">
+                        <label id="voice-title-label" data-i18n="title_label"></label>
+                        <input type="text" id="voice-title" data-i18n-placeholder="title_ph">
                     </div>
                     <div class="input-group">
-                        <label id="voice-text-label">Matn</label>
-                        <textarea id="voice-text" rows="4" placeholder="Yangilik matni..."></textarea>
+                        <label id="voice-text-label" data-i18n="text_label"></label>
+                        <textarea id="voice-text" rows="4" data-i18n-placeholder="text_ph"></textarea>
                     </div>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px; align-items: center;">
                         <input type="checkbox" id="voice-to-channel" style="width: 18px; height: 18px;" checked> 
-                        <label for="voice-to-channel">Kanalga yuborish</label>
+                        <label id="voice-to-channel-label" for="voice-to-channel" data-i18n="send_to_channel"></label>
                     </div>
-                    <button class="btn btn-primary" id="btn-voice-generate" onclick="generateVoiceNews()">Audio yaratish & yuborish</button>
+                    <button class="btn btn-primary" id="btn-voice-generate" onclick="generateVoiceNews()" data-i18n="voice_generate"></button>
                     <p id="voice-status" style="margin-top: 10px; font-size: 0.85rem; color: var(--secondary);"></p>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-music"></i> <span data-i18n="music_downloader">Musiqa Yuklovchi</span></div>
+                    <div class="card-title"><i class="fas fa-music"></i> <span data-i18n="music_downloader"></span></div>
                     <div style="display: flex; gap: 10px;" class="input-group">
-                        <input type="text" id="music-q" placeholder="Artist yoki qo'shiq...">
-                        <button class="btn btn-primary" style="width: 60px;" onclick="searchMusic()"><i class="fas fa-search"></i></button>
+                        <input type="text" id="music-q" data-i18n-placeholder="music_search_placeholder">
+                        <button class="btn btn-primary" id="music-search-btn" style="width: 60px;" onclick="searchMusic()"><i class="fas fa-search"></i></button>
                     </div>
                     <div id="music-list" style="margin-top: 15px;"></div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-download"></i> <span data-i18n="video_downloader">Video Yuklovchi</span></div>
-                    <p style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 15px;">YouTube, Instagram yoki TikTok linkini bering.</p>
-                    <div class="input-group"><input type="text" id="dl-url" placeholder="Link..."></div>
+                    <div class="card-title"><i class="fas fa-download"></i> <span data-i18n="video_downloader"></span></div>
+                    <p style="font-size: 0.8rem; color: var(--secondary); margin-bottom: 15px;" data-i18n="video_download_hint"></p>
+                    <div class="input-group"><input type="text" id="dl-url" data-i18n-placeholder="video_link_ph"></div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <button class="btn btn-ghost" id="btn-dl-video" onclick="downloadMedia('video', this)"><i class="fas fa-video"></i> Video</button>
-                        <button class="btn btn-ghost" id="btn-dl-audio" onclick="downloadMedia('audio', this)"><i class="fas fa-music"></i> Audio</button>
+                        <button class="btn btn-ghost" id="btn-dl-video" onclick="downloadMedia('video', this)" data-i18n="video_download"><i class="fas fa-video"></i></button>
+                        <button class="btn btn-ghost" id="btn-dl-audio" onclick="downloadMedia('audio', this)"><i class="fas fa-music"></i> <span data-i18n="audio_download"></span></button>
                     </div>
                 </div>
             </section>
@@ -279,7 +279,7 @@
             <!-- Settings Page -->
             <section id="page-settings" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-language"></i> <span data-i18n="language_selection">Language Selection</span></div>
+                    <div class="card-title"><i class="fas fa-language"></i> <span data-i18n="language_selection"></span></div>
                     <div class="input-group">
                         <select id="set-lang">
                             <option value="uz">O'zbek</option>
@@ -301,21 +301,21 @@
                             <option value="az">Azerbaijani</option>
                         </select>
                     </div>
-                    <button class="btn btn-primary" onclick="saveSettings()">Tilni saqlash</button>
+                    <button class="btn btn-primary" onclick="saveSettings()" data-i18n="save_language"></button>
                 </div>
 
                 <div class="card" id="user-info-card">
-                    <div class="card-title"><i class="fas fa-id-card"></i> <span data-i18n="creator_profile">Creator Profile Snapshot</span></div>
+                    <div class="card-title"><i class="fas fa-id-card"></i> <span data-i18n="creator_profile"></span></div>
                     <div id="user-info-content"></div>
                 </div>
 
                 <!-- Web3 Wallet -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-wallet"></i> <span data-i18n="web3_wallet">Web3 Membership Wallet</span></div>
+                    <div class="card-title"><i class="fas fa-wallet"></i> <span data-i18n="web3_wallet"></span></div>
                     <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6;">
-                        <p id="wallet-copy" data-i18n="wallet_section_body" style="margin-bottom: 12px;">Premium va VIP darajadagi foydalanuvchilar uchun portal.</p>
-                        <div class="item-row"><span data-i18n="membership_status">Membership Status</span><span id="wallet-membership-state" data-i18n="creator" style="color:var(--gold); font-weight:bold;">Creator</span></div>
-                        <div class="item-row"><span id="wallet-connection-label" data-i18n="wallet_connection_label">Wallet connection</span><span id="wallet-connection-state" data-i18n="integration_pending">Integratsiya kutilmoqda</span></div>
+                        <p id="wallet-copy" data-i18n="wallet_section_body" style="margin-bottom: 12px;"></p>
+                        <div class="item-row"><span data-i18n="membership_status"></span><span id="wallet-membership-state" data-i18n="creator" style="color:var(--gold); font-weight:bold;"></span></div>
+                        <div class="item-row"><span id="wallet-connection-label" data-i18n="wallet_connection_label"></span><span id="wallet-connection-state" data-i18n="integration_pending"></span></div>
                         <div class="ton-connect-shell">
                             <div id="ton-connect"></div>
                             <div id="wallet-address" class="ton-wallet-address"></div>
@@ -325,54 +325,54 @@
 
                 <!-- Premium ELITE -->
                 <div class="card premium-intro" style="border: 1px solid var(--gold); background: rgba(245, 158, 11, 0.05);">
-                    <div class="card-title" style="color: var(--gold);"><i class="fas fa-crown"></i> <span data-i18n="upgrade_premium">Upgrade to Premium ELITE</span></div>
-                    <div id="premium-info" style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 15px; line-height: 1.6;">Yuklanmoqda...</div>
+                    <div class="card-title" style="color: var(--gold);"><i class="fas fa-crown"></i> <span data-i18n="upgrade_premium"></span></div>
+                    <div id="premium-info" style="font-size: 0.85rem; color: var(--secondary); margin-bottom: 15px; line-height: 1.6;" data-i18n="loading"></div>
                 </div>
 
                 <div class="card" id="premium-purchase-card">
-                    <div class="card-title"><i class="fas fa-tag"></i> <span data-i18n="choose_plan">Reja tanlang</span></div>
-                    <p data-i18n="premium_pay_method" style="font-size:0.8rem;color:var(--secondary);margin-bottom:8px;">To'lov usuli:</p>
+                    <div class="card-title"><i class="fas fa-tag"></i> <span data-i18n="choose_plan"></span></div>
+                    <p data-i18n="premium_pay_method" style="font-size:0.8rem;color:var(--secondary);margin-bottom:8px;"></p>
                     <div id="pay-methods-container" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;"></div>
                     <div id="premium-plans" style="margin-top: 8px;">
                         <div class="item-row" style="margin-bottom: 15px;">
                             <div>
-                                <h4 data-i18n="premium_monthly">1 Oylik</h4>
+                                <h4 data-i18n="premium_monthly"></h4>
                                 <p style="color: var(--gold); font-weight: bold;" id="price-monthly">--- UZS</p>
-                                <p data-i18n="premium_monthly_desc" style="color: var(--secondary);">Barcha imkoniyatlar</p>
+                                <p data-i18n="premium_monthly_desc" style="color: var(--secondary);"></p>
                             </div>
-                            <button class="btn btn-primary" data-i18n="premium_buy" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('monthly')">Sotib olish</button>
+                            <button class="btn btn-primary" data-i18n="premium_buy" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('monthly')"></button>
                         </div>
                         <div class="item-row">
                             <div>
-                                <h4 data-i18n="premium_yearly">1 Yillik</h4>
+                                <h4 data-i18n="premium_yearly"></h4>
                                 <p style="color: var(--gold); font-weight: bold;" id="price-yearly">--- UZS</p>
-                                <p data-i18n="premium_yearly_desc" style="color: var(--secondary);">10% chegirma</p>
+                                <p data-i18n="premium_yearly_desc" style="color: var(--secondary);"></p>
                             </div>
-                            <button class="btn btn-primary" data-i18n="premium_buy" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('yearly')">Sotib olish</button>
+                            <button class="btn btn-primary" data-i18n="premium_buy" style="width: auto; padding: 8px 16px; background: var(--gold); color: black;" onclick="buyPremium('yearly')"></button>
                         </div>
                     </div>
                 </div>
 
                 <!-- API Keys -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-key"></i> <span data-i18n="custom_api_keys">Custom API Keys</span></div>
+                    <div class="card-title"><i class="fas fa-key"></i> <span data-i18n="custom_api_keys"></span></div>
                     <div class="glass-guide">
-                        <h4 style="color: var(--accent); margin-bottom: 10px;">API key guide</h4>
+                        <h4 style="color: var(--accent); margin-bottom: 10px;" data-i18n="api_key_guide"></h4>
                         <ul style="font-size: 0.85rem; color: var(--secondary); margin-left: 20px;">
-                            <li>Har bir API kalit uchun +1 RSS manba limiti</li>
-                            <li>AI xizmatlaridan tezroq foydalanish</li>
-                            <li>3 ta kalitgacha maksimal limit</li>
+                            <li data-i18n="api_key_benefit_1"></li>
+                            <li data-i18n="api_key_benefit_2"></li>
+                            <li data-i18n="api_key_benefit_3"></li>
                         </ul>
                         <div style="display:grid; gap:8px; margin-top:14px; font-size:0.85rem;">
-                            <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--accent);">Groq Console</a>
-                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--accent);">Google Gemini API keys</a>
-                            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);">OpenAI API keys</a>
-                            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent);">OpenRouter keys</a>
-                            <a href="https://cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent);">YouTube Data API / Google Cloud credentials</a>
+                            <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--accent);" data-i18n="api_link_groq"></a>
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--accent);" data-i18n="api_link_gemini"></a>
+                            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent);" data-i18n="api_link_openai"></a>
+                            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent);" data-i18n="api_link_openrouter"></a>
+                            <a href="https://cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent);" data-i18n="api_link_google"></a>
                         </div>
                     </div>
                     <div id="api-key-form" class="input-group">
-                        <input type="text" id="api-key" placeholder="API kaliti">
+                        <input type="text" id="api-key" data-i18n-placeholder="api_key_ph">
                         <select id="api-key-type" style="margin-top: 10px;">
                             <option value="groq">Groq</option>
                             <option value="cerebras">Cerebras</option>
@@ -382,13 +382,13 @@
                             <option value="google">Google / YouTube</option>
                         </select>
                     </div>
-                    <button id="btn-add-api-key" class="btn btn-primary" onclick="addApiKey()" style="margin-bottom: 15px;">Kalit qo'shish</button>
+                    <button id="btn-add-api-key" class="btn btn-primary" onclick="addApiKey()" style="margin-bottom: 15px;" data-i18n="api_add"></button>
                     <div id="api-keys-list"></div>
                 </div>
 
                 <!-- Analytics: Financial Markets -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-coins"></i> <span id="finance-card-title" data-i18n="financial_markets">Moliyaviy Bozorlar</span></div>
+                    <div class="card-title"><i class="fas fa-coins"></i> <span id="finance-card-title" data-i18n="financial_markets"></span></div>
                     <div id="finance-list">
                         <div class="item-row">
                             <div class="item-info"><h4>Bitcoin (BTC)</h4><p>Global Kripto narxi</p></div>
@@ -399,74 +399,74 @@
                             <div class="stat-val" style="font-size: 1.1rem;" id="f-usd">---</div>
                         </div>
                     </div>
-                    <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadFinance()">Yangilash</button>
+                    <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadFinance()" data-i18n="refresh"></button>
                 </div>
 
                 <!-- Analytics: Google Trends -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-fire"></i> <span id="trends-card-title" data-i18n="google_trends">Google Trends</span></div>
+                    <div class="card-title"><i class="fas fa-fire"></i> <span id="trends-card-title" data-i18n="google_trends"></span></div>
                     <div style="font-size: 0.85rem; color: var(--secondary); line-height: 1.6; margin-bottom: 15px;">
-                        <p id="trends-summary">Yuklanmoqda...</p>
+                        <p id="trends-summary" data-i18n="loading"></p>
                     </div>
                     <div id="trends-list"></div>
-                    <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadTrends(true)">Yangilash (Google Trends)</button>
+                    <button class="btn btn-ghost" style="margin-top: 10px;" onclick="loadTrends(true)" data-i18n="refresh"></button>
                 </div>
 
                 <!-- Workspaces -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-layer-group"></i> <span data-i18n="workspaces">Workspaces</span></div>
+                    <div class="card-title"><i class="fas fa-layer-group"></i> <span data-i18n="workspaces"></span></div>
                     <div id="workspace-list">
-                        <p style="color: var(--secondary); font-size:0.85rem;">Yuklanmoqda...</p>
+                        <p style="color: var(--secondary); font-size:0.85rem;" data-i18n="loading"></p>
                     </div>
                     <div class="input-group" style="margin-top:10px;">
-                        <input type="text" id="new-workspace-name" placeholder="New workspace name...">
-                        <button class="btn btn-primary" style="margin-top:6px;" onclick="createWorkspace()"><i class="fas fa-plus"></i> Qo'shish</button>
+                        <input type="text" id="new-workspace-name" data-i18n-placeholder="workspace_new_ph">
+                        <button class="btn btn-primary" style="margin-top:6px;" onclick="createWorkspace()" data-i18n="workspace_add"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
 
                 <!-- Premium Status -->
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-crown"></i> <span data-i18n="premium_status">Premium status</span></div>
-                    <div id="premium-status">Yuklanmoqda...</div>
+                    <div class="card-title"><i class="fas fa-crown"></i> <span data-i18n="premium_status"></span></div>
+                    <div id="premium-status" data-i18n="loading"></div>
                 </div>
 
                 <div class="card" style="border: 1px solid var(--gold); background: rgba(245, 158, 11, 0.03);">
-                    <div class="card-title" style="color:var(--gold);"><i class="fas fa-gift"></i> <span data-i18n="affiliate_dashboard">Affiliate Dashboard</span></div>
+                    <div class="card-title" style="color:var(--gold);"><i class="fas fa-gift"></i> <span data-i18n="affiliate_dashboard"></span></div>
                     <div id="affiliate-info" style="font-size:0.85rem;color:var(--secondary);line-height:1.6;">
-                        <p>Yuklanmoqda...</p>
+                        <p data-i18n="loading"></p>
                     </div>
                     <div id="referral-info" style="display:none;"></div>
-                    <button class="btn btn-ghost" data-i18n="referral_copy" style="margin-top: 15px;" onclick="copyReferralLink()">Havolani nusxalash</button>
+                    <button class="btn btn-ghost" data-i18n="referral_copy" style="margin-top: 15px;" onclick="copyReferralLink()"></button>
                 </div>
 
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-headset"></i> <span data-i18n="support_tickets">Support Tickets</span></div>
+                    <div class="card-title"><i class="fas fa-headset"></i> <span data-i18n="support_tickets"></span></div>
                     <div class="input-group">
-                        <input type="text" id="ticket-subject" placeholder="Mavzu">
+                        <input type="text" id="ticket-subject" data-i18n-placeholder="subject_ph">
                     </div>
                     <div class="input-group">
-                        <textarea id="ticket-message" rows="3" placeholder="Xabaringiz..."></textarea>
+                        <textarea id="ticket-message" rows="3" data-i18n-placeholder="ticket_message_ph"></textarea>
                     </div>
-                    <button class="btn btn-primary" onclick="createTicket()">Yuborish</button>
+                    <button class="btn btn-primary" onclick="createTicket()" data-i18n="support_send"></button>
                     <div id="tickets-list" style="margin-top: 15px;"></div>
                 </div>
 
                 <div class="card" style="border: 1px solid rgba(239, 68, 68, 0.2);">
-                    <button class="btn btn-ghost" style="color:var(--danger); border-color:var(--danger);" onclick="logout()">Chiqish (Logout)</button>
+                    <button class="btn btn-ghost" style="color:var(--danger); border-color:var(--danger);" onclick="logout()" data-i18n="common_logout"></button>
                 </div>
             </section>
 
             <!-- 9. Admin Page (Hub) -->
             <section id="page-admin" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-user-shield"></i> Admin Panel</div>
+                    <div class="card-title"><i class="fas fa-user-shield"></i> <span data-i18n="admin_panel"></span></div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <button class="btn btn-ghost" onclick="showPage('admin-users')"><i class="fas fa-users"></i> <span data-i18n="admin_users">Foydalanuvchilar</span></button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-sources')"><i class="fas fa-rss"></i> <span data-i18n="admin_sources">Manbalar</span></button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-broadcast')"><i class="fas fa-bullhorn"></i> <span data-i18n="admin_broadcast">Broadcast</span></button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-settings')"><i class="fas fa-cogs"></i> <span data-i18n="admin_settings">Sozlamalar</span></button>
-                        <button class="btn btn-ghost" onclick="showPage('status')"><i class="fas fa-server"></i> Tizim Statusi</button>
-                        <button class="btn btn-ghost" onclick="showPage('admin-tickets')"><i class="fas fa-ticket-alt"></i> <span data-i18n="admin_tickets">Ticketlar</span></button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-users')"><i class="fas fa-users"></i> <span data-i18n="admin_users"></span></button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-sources')"><i class="fas fa-rss"></i> <span data-i18n="admin_sources"></span></button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-broadcast')"><i class="fas fa-bullhorn"></i> <span data-i18n="admin_broadcast"></span></button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-settings')"><i class="fas fa-cogs"></i> <span data-i18n="admin_settings"></span></button>
+                        <button class="btn btn-ghost" onclick="showPage('status')" data-i18n="admin_status"><i class="fas fa-server"></i></button>
+                        <button class="btn btn-ghost" onclick="showPage('admin-tickets')"><i class="fas fa-ticket-alt"></i> <span data-i18n="admin_tickets"></span></button>
                     </div>
                 </div>
             </section>
@@ -475,86 +475,86 @@
             <!-- 5. Admin Users Page -->
             <section id="page-admin-users" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-users"></i> Foydalanuvchilar</div>
+                    <div class="card-title"><i class="fas fa-users"></i> <span data-i18n="admin_users"></span></div>
                     <div id="admin-users-filters" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
                     <div id="admin-users-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back"></button>
             </section>
 
             <!-- 6. Admin Sources Page -->
             <section id="page-admin-sources" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-rss"></i> Barcha Manbalar</div>
+                    <div class="card-title"><i class="fas fa-rss"></i> <span data-i18n="admin_sources"></span></div>
                     <div id="admin-sources-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back"></button>
             </section>
 
             <!-- 7. Admin Broadcast Page -->
             <section id="page-admin-broadcast" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-bullhorn"></i> Broadcast Xabar</div>
+                    <div class="card-title"><i class="fas fa-bullhorn"></i> <span data-i18n="admin_broadcast"></span></div>
                     <div class="input-group">
-                        <textarea id="broadcast-message" rows="5" placeholder="Xabaringiz..."></textarea>
+                        <textarea id="broadcast-message" rows="5" data-i18n-placeholder="admin_broadcast_ph"></textarea>
                     </div>
-                    <button class="btn btn-primary" onclick="sendBroadcast()">Barchaga yuborish</button>
+                    <button class="btn btn-primary" onclick="sendBroadcast()" data-i18n="admin_broadcast_send"></button>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back"></button>
             </section>
 
             <!-- 8. Admin Settings Page -->
             <section id="page-admin-settings" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-cogs"></i> Admin Sozlamalari</div>
+                    <div class="card-title"><i class="fas fa-cogs"></i> <span data-i18n="admin_settings"></span></div>
                     <div class="input-group">
-                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Premium Stars Narxi</label>
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;" data-i18n="admin_stars_price"></label>
                         <input type="number" id="admin-stars-price" placeholder="500">
                     </div>
                     <div class="input-group">
-                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Oylik Premium Narxi (UZS)</label>
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;" data-i18n="admin_monthly_price"></label>
                         <input type="number" id="admin-monthly-price" placeholder="25000">
                     </div>
                     <div class="input-group">
-                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;">Yillik Premium Narxi (UZS)</label>
+                        <label style="font-size: 0.75rem; color: var(--secondary); margin-bottom: 5px; display: block;" data-i18n="admin_yearly_price"></label>
                         <input type="number" id="admin-yearly-price" placeholder="250000">
                     </div>
                     <div class="input-group" style="flex-direction:row;align-items:center;gap:10px;">
                         <input type="checkbox" id="admin-require-approval" style="width:18px;height:18px;">
-                        <label for="admin-require-approval" style="font-size:0.85rem;">Yangi foydalanuvchilar tasdiqlashni talab qilsin</label>
+                        <label for="admin-require-approval" style="font-size:0.85rem;" data-i18n="admin_require_approval"></label>
                     </div>
-                    <button class="btn btn-primary" onclick="saveAdminSettings()">Saqlash</button>
+                    <button class="btn btn-primary" onclick="saveAdminSettings()" data-i18n="admin_save"></button>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back"></button>
             </section>
 
             <!-- 9. Admin Tickets Page -->
             <section id="page-admin-tickets" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-ticket-alt"></i> Support Ticketlar</div>
+                    <div class="card-title"><i class="fas fa-ticket-alt"></i> <span data-i18n="admin_tickets"></span></div>
                     <div id="admin-tickets-list"></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back"></button>
             </section>
 
             <!-- 10. System Status Page -->
             <section id="page-status" class="page">
                 <div class="card">
-                    <div class="card-title"><i class="fas fa-server"></i> Tizim Ma'lumotlari</div>
-                    <div class="item-row"><span>Uptime</span> <span id="sys-uptime">--</span></div>
-                    <div class="item-row"><span>Redis</span> <span id="sys-redis">--</span></div>
-                    <div class="item-row"><span>Node</span> <span id="sys-node">--</span></div>
+                    <div class="card-title"><i class="fas fa-server"></i> <span data-i18n="admin_status"></span></div>
+                    <div class="item-row"><span data-i18n="sys_uptime"></span> <span id="sys-uptime">--</span></div>
+                    <div class="item-row"><span data-i18n="sys_redis"></span> <span id="sys-redis">--</span></div>
+                    <div class="item-row"><span data-i18n="sys_node"></span> <span id="sys-node">--</span></div>
                 </div>
-                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back">Orqaga</button>
+                <button class="btn btn-ghost" onclick="showPage('admin')" data-i18n="admin_back"></button>
             </section>
         </div>
 
         <nav class="bottom-nav">
-            <div class="nav-item active" id="nav-overview" onclick="showPage('overview')"><i class="fas fa-house-signal"></i><span data-i18n="nav_overview">Overview</span></div>
-            <div class="nav-item" id="nav-sources" onclick="showPage('sources')"><i class="fas fa-rss"></i><span data-i18n="nav_sources">Manbalar</span></div>
-            <div class="nav-item" id="nav-studio" onclick="showPage('studio')"><i class="fas fa-wand-magic-sparkles"></i><span data-i18n="nav_studio">Studiya</span></div>
-            <div class="nav-item" id="nav-settings" onclick="showPage('settings')"><i class="fas fa-cog"></i><span data-i18n="nav_settings">Sozlamalar</span></div>
-            <div class="nav-item" id="nav-admin" style="display: none;" onclick="showPage('admin')"><i class="fas fa-shield-alt"></i><span data-i18n="nav_admin">Admin</span></div>
+            <div class="nav-item active" id="nav-overview" onclick="showPage('overview')"><i class="fas fa-house-signal"></i><span data-i18n="nav_overview"></span></div>
+            <div class="nav-item" id="nav-sources" onclick="showPage('sources')"><i class="fas fa-rss"></i><span data-i18n="nav_sources"></span></div>
+            <div class="nav-item" id="nav-studio" onclick="showPage('studio')"><i class="fas fa-wand-magic-sparkles"></i><span data-i18n="nav_studio"></span></div>
+            <div class="nav-item" id="nav-settings" onclick="showPage('settings')"><i class="fas fa-cog"></i><span data-i18n="nav_settings"></span></div>
+            <div class="nav-item" id="nav-admin" style="display: none;" onclick="showPage('admin')"><i class="fas fa-shield-alt"></i><span data-i18n="nav_admin"></span></div>
         </nav>
     </div>
 

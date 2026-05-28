@@ -56,7 +56,7 @@ export async function handleCallbackQuery(
     }
 
     if (data === "dl_playlist_all") {
-      await handlePlaylist(bot, query, chatId, userStates);
+      await handlePlaylist(bot, query, chatId, lang, userStates);
       return;
     }
 
@@ -75,7 +75,7 @@ export async function handleCallbackQuery(
       const dashUrl = buildDashboardUrl(chatId);
       const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
       if (dashUrl) inlineKeyboard.push([{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
-      inlineKeyboard.push([{ text: "🌐 Language / Tilni o'zgartirish", callback_data: "cmd_lang" }]);
+      inlineKeyboard.push([{ text: i18n.t("language_change", { lng: lang }), callback_data: "cmd_lang" }]);
       await bot.sendMessage(chatId, i18n.t("bot_settings_panel", { lng: lang }), { reply_markup: { inline_keyboard: inlineKeyboard } });
       return;
     }
@@ -149,13 +149,13 @@ async function handleMediaDownload(
   const type = data.includes("_video_") ? "video" : data.includes("_audio_") ? "audio" : null;
   const sendTarget: "chat" | "channel" = data.endsWith("_channel") ? "channel" : "chat";
   if (!type) {
-    await bot.answerCallbackQuery(query.id, { text: "Invalid format", show_alert: true });
+    await bot.answerCallbackQuery(query.id, { text: i18n.t("invalid_format", { lng: lang }), show_alert: true });
     return;
   }
 
   const url = resolveMediaUrl(query, userStates, chatId);
   if (!url) {
-    await bot.answerCallbackQuery(query.id, { text: "Link not found", show_alert: true });
+    await bot.answerCallbackQuery(query.id, { text: i18n.t("link_not_found", { lng: lang }), show_alert: true });
     return;
   }
 
@@ -182,34 +182,34 @@ async function handleMediaDownload(
     logger.error(`Media download error: ${err.message}`);
     const userMsg = err.message.includes("yuklab bo'lmadi")
       ? err.message
-      : `Yuklab olishda xatolik: ${err.message.slice(0, 200)}`;
+      : `${i18n.t("media_download_failed", { lng: lang })}: ${err.message.slice(0, 200)}`;
     await bot.editMessageText(userMsg, { chat_id: chatId, message_id: waitMsg.message_id });
   }
 }
 
 async function handlePlaylist(
-  bot: TelegramBot, query: TelegramBot.CallbackQuery, chatId: number, userStates: Map<number, UserStateEntry>,
+  bot: TelegramBot, query: TelegramBot.CallbackQuery, chatId: number, lang: string, userStates: Map<number, UserStateEntry>,
 ) {
   const url = resolveMediaUrl(query, userStates, chatId);
   if (!url) {
-    await bot.answerCallbackQuery(query.id, { text: "Playlist link not found", show_alert: true });
+    await bot.answerCallbackQuery(query.id, { text: i18n.t("playlist_link_not_found", { lng: lang }), show_alert: true });
     return;
   }
 
-  const waitMsg = await bot.sendMessage(chatId, "Playlist loading...");
+  const waitMsg = await bot.sendMessage(chatId, i18n.t("playlist_loading", { lng: lang }));
   try {
     const { YoutubeService } = await import("../services/youtube");
     const links = await YoutubeService.extractPlaylistLinks(url, 10);
     if (links.length === 0) {
-      await bot.editMessageText("No videos found in the playlist.", { chat_id: chatId, message_id: waitMsg.message_id });
+      await bot.editMessageText(i18n.t("playlist_empty", { lng: lang }), { chat_id: chatId, message_id: waitMsg.message_id });
       return;
     }
-    let text = `Playlist (${links.length})\n\n`;
+    let text = `${i18n.t("playlist_header", { lng: lang }).replace("{count}", String(links.length))}\n\n`;
     links.forEach((link, index) => { text += `${index + 1}. ${link.title}\n${link.url}\n\n`; });
     await bot.editMessageText(text, { chat_id: chatId, message_id: waitMsg.message_id, disable_web_page_preview: true });
   } catch (err: any) {
     logger.error(`Playlist extract error: ${err.message}`);
-    await bot.editMessageText(`Error loading playlist.`, { chat_id: chatId, message_id: waitMsg.message_id });
+    await bot.editMessageText(i18n.t("playlist_error", { lng: lang }), { chat_id: chatId, message_id: waitMsg.message_id });
   }
 }
 
@@ -219,13 +219,13 @@ async function handleScheduleMedia(
 ) {
   const canSchedule = await DBService.checkUserLimit(chatId, "scheduled");
   if (!canSchedule) {
-    await bot.sendMessage(chatId, "Scheduling limit reached.");
+    await bot.sendMessage(chatId, i18n.t("scheduling_limit_reached", { lng: lang }));
     return;
   }
 
   const url = resolveMediaUrl(query, userStates, chatId);
   if (!url) {
-    await bot.sendMessage(chatId, "Link not found.");
+    await bot.sendMessage(chatId, i18n.t("link_not_found", { lng: lang }));
     return;
   }
 
@@ -240,7 +240,7 @@ async function handleBuyPremium(bot: TelegramBot, chatId: number, lang: string) 
   const clickLink = await PaymentService.generateClickLink(chatId, monthlyPrice);
 
   const dashUrl = buildDashboardUrl(chatId);
-  const text = `${i18n.t("bot_premium_title", { lng: lang })}\n\nMonthly: ${monthlyPrice.toLocaleString()} UZS\nYearly: ${yearlyPrice.toLocaleString()} UZS`;
+  const text = `${i18n.t("bot_premium_title", { lng: lang })}\n\n${i18n.t("monthly_plan", { lng: lang })}: ${monthlyPrice.toLocaleString()} UZS\n${i18n.t("yearly_plan", { lng: lang })}: ${yearlyPrice.toLocaleString()} UZS`;
   const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [
     [{ text: `Payme (${monthlyPrice.toLocaleString()} UZS)`, url: paymeLink || "https://payme.uz" }],
     [{ text: `Click (${monthlyPrice.toLocaleString()} UZS)`, url: clickLink || "https://click.uz" }],

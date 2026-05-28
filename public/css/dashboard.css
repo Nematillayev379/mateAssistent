@@ -49,6 +49,10 @@ body {
   overflow-x: hidden;
 }
 
+body:not([data-page]) {
+  padding-bottom: 72px;
+}
+
 /* ── Utility classes ── */
 .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; }
 .card-sm { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; }
@@ -81,6 +85,12 @@ body {
 @media (max-width: 1023px) {
   .appbar { left: 0; }
   .main-content { padding-top: 56px; padding-bottom: 72px; }
+}
+
+@media (min-width: 1024px) {
+  body:not([data-page]) {
+    padding-bottom: 0;
+  }
 }
 
 /* Scrollbar */

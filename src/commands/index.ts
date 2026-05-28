@@ -99,7 +99,7 @@ export function registerCommands(bot: TelegramBot) {
         const mediaType = state.mediaType || "video";
         const article = await ScraperService.scrapeArticle(state.url).catch(() => null);
         const esc = (value: string) => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const caption = article?.title ? `<b>${esc(article.title)}</b>\n\n${esc((article.content || "").slice(0, 400))}` : "Scheduled Post";
+        const caption = article?.title ? `<b>${esc(article.title)}</b>\n\n${esc((article.content || "").slice(0, 400))}` : i18n.t("scheduled_post", { lng: lang });
 
         await DBService.addScheduledPost(chatId, mediaType as any, { url: state.url, caption }, scheduledDate.toISOString());
         userStates.delete(chatId);
@@ -119,7 +119,7 @@ export function registerCommands(bot: TelegramBot) {
       }
       const users = await DBService.getAllUsers();
       let count = 0;
-      await bot.sendMessage(chatId, `${users.length} users in queue...`);
+      await bot.sendMessage(chatId, i18n.t("users_in_queue", { lng: lang }).replace("{count}", String(users.length)));
       for (const targetUser of users) {
         try {
           await bot.sendMessage(targetUser.telegram_id, text, { parse_mode: "HTML" });
@@ -129,7 +129,7 @@ export function registerCommands(bot: TelegramBot) {
           logger.warn(`Broadcast failed for ${targetUser.telegram_id}: ${e.message}`);
         }
       }
-      await bot.sendMessage(chatId, `Broadcast complete: ${count}`);
+      await bot.sendMessage(chatId, i18n.t("broadcast_complete", { lng: lang }).replace("{count}", String(count)));
       userStates.delete(chatId);
       return;
     }
@@ -143,17 +143,17 @@ export function registerCommands(bot: TelegramBot) {
       const isPlaylist = text.includes("playlist") || text.includes("list=") || text.includes("/sets/");
       const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
       if (isPlaylist) {
-        inlineKeyboard.push([{ text: "Bulk Download", callback_data: "dl_playlist_all" }]);
+        inlineKeyboard.push([{ text: i18n.t("media_bulk_download", { lng: lang }), callback_data: "dl_playlist_all" }]);
       }
       inlineKeyboard.push([
-        { text: "Video (Chat)", callback_data: "dl_media_video_chat" },
-        { text: "Audio (Chat)", callback_data: "dl_media_audio_chat" },
+        { text: i18n.t("media_video_chat", { lng: lang }), callback_data: "dl_media_video_chat" },
+        { text: i18n.t("media_audio_chat", { lng: lang }), callback_data: "dl_media_audio_chat" },
       ]);
       inlineKeyboard.push([
-        { text: "Video (Channel)", callback_data: "dl_media_video_channel" },
-        { text: "Audio (Channel)", callback_data: "dl_media_audio_channel" },
+        { text: i18n.t("media_video_channel", { lng: lang }), callback_data: "dl_media_video_channel" },
+        { text: i18n.t("media_audio_channel", { lng: lang }), callback_data: "dl_media_audio_channel" },
       ]);
-      inlineKeyboard.push([{ text: "Schedule", callback_data: "schedule_media" }]);
+      inlineKeyboard.push([{ text: i18n.t("media_schedule", { lng: lang }), callback_data: "schedule_media" }]);
       inlineKeyboard.push([{ text: i18n.t("cancel", { lng: lang }), callback_data: "cancel_dl" }]);
 
       await bot.sendMessage(chatId, `${i18n.t("media_detected", { lng: lang })}\n\n${i18n.t("download_ask", { lng: lang })}`, {
@@ -178,14 +178,14 @@ export function registerCommands(bot: TelegramBot) {
     try {
       const payload = query.invoice_payload;
       if (!payload || !payload.startsWith("premium_sub_")) {
-        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Invalid payment payload" });
+        await bot.answerPreCheckoutQuery(query.id, false, { error_message: i18n.t("payment_invalid_payload", { lng: "en" }) });
         return;
       }
       await bot.answerPreCheckoutQuery(query.id, true);
     } catch (e: any) {
       logger.error(`pre_checkout_query error: ${e.message}`);
       try {
-        await bot.answerPreCheckoutQuery(query.id, false, { error_message: "Server error" });
+        await bot.answerPreCheckoutQuery(query.id, false, { error_message: i18n.t("server_error", { lng: "en" }) });
       } catch (inner: any) {
         logger.warn(`PreCheckoutQuery answer failed: ${inner.message}`);
       }
@@ -221,7 +221,7 @@ export function registerCommands(bot: TelegramBot) {
     if (!chatId || !query.data) return;
     if (!await checkRateLimit(query.from?.id ?? chatId ?? 0)) {
       logger.warn(`Rate limited callback`);
-      await bot.answerCallbackQuery(query.id, { text: "Too many requests" }).catch(() => {});
+      await bot.answerCallbackQuery(query.id, { text: i18n.t("too_many_requests", { lng: "en" }) }).catch(() => {});
       return;
     }
     await handleCallbackQuery(bot, query, userStates);

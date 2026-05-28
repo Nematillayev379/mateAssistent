@@ -23,6 +23,8 @@ function getLanguageKeyboard(): TelegramBot.InlineKeyboardButton[][] {
     ja: "Japanese",
     ko: "Korean",
     fa: "Persian",
+    kk: "Kazakh",
+    az: "Azerbaijani",
   };
 
   const rows: TelegramBot.InlineKeyboardButton[][] = [];
@@ -45,15 +47,13 @@ async function sendWelcomeMenu(
 ): Promise<void> {
   const lang = user.language || "uz";
   const dashboardUrl = buildDashboardUrl(chatId);
-  const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [];
+  const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
 
   if (dashboardUrl) {
-    inline_keyboard.push([
-      { text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }
-    ]);
+    inlineKeyboard.push([{ text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }]);
   }
 
-  inline_keyboard.push(
+  inlineKeyboard.push(
     [
       { text: i18n.t("menu_sources", { lng: lang }), callback_data: "cmd_sources" },
       { text: i18n.t("menu_studio", { lng: lang }), callback_data: "cmd_studio" },
@@ -69,49 +69,47 @@ async function sendWelcomeMenu(
     [
       { text: i18n.t("menu_help", { lng: lang }), callback_data: "cmd_help" },
       { text: i18n.t("menu_intro", { lng: lang }), url: `${process.env.PUBLIC_URL || ""}/intro/` },
-    ],
+    ]
   );
 
   if (role === "owner" || role === "admin") {
-    inline_keyboard.unshift([{ text: i18n.t("menu_admin", { lng: lang }), callback_data: "cmd_admin" }]);
+    inlineKeyboard.unshift([{ text: i18n.t("menu_admin", { lng: lang }), callback_data: "cmd_admin" }]);
   }
 
   if (role === "user" && !user.is_premium) {
-    inline_keyboard.push([{ text: i18n.t("menu_buy_premium", { lng: lang }), callback_data: "buy_premium" }]);
+    inlineKeyboard.push([{ text: i18n.t("menu_buy_premium", { lng: lang }), callback_data: "buy_premium" }]);
   }
 
   const menuText = dashboardUrl
     ? i18n.t("onboarding_menu_ready", { lng: lang })
-    : `${i18n.t("onboarding_menu_ready", { lng: lang })}\n\nDashboard hozircha ulanmagan. Admin PUBLIC_URL ni sozlashi kerak.`;
+    : `${i18n.t("onboarding_menu_ready", { lng: lang })}\n\n${i18n.t("no_dashboard_configured", { lng: lang })}`;
 
-  await bot.sendMessage(chatId, menuText, {
-    reply_markup: { inline_keyboard },
-  });
+  await bot.sendMessage(chatId, menuText, { reply_markup: { inline_keyboard: inlineKeyboard } });
 }
 
 export async function sendLanguageStep(bot: TelegramBot, chatId: number): Promise<void> {
-  const premiumIntro =
-    `\u{1F916} <b>mateAssistent Creator Console</b>\n` +
-    `<i>The Ultimate Web3 Automator for Telegram Creators</i>\n\n` +
-    `\u26A1\ufe0f <b>Core Automation Features:</b>\n` +
-    `\u2022 \u{1F4E1} <b>RSS Feed Aggregator:</b> Auto-publish from website feeds.\n` +
-    `\u2022 \u{1F9E0} <b>Smart AI Post Engine:</b> Auto-translate, summarize, and add emojis.\n` +
-    `\u2022 \u{1F3A8} <b>AI Image Studio:</b> Create stunning high-res matching illustrations.\n` +
-    `\u2022 \u{1F4E5} <b>Universal Downloader:</b> Fetch social videos/audio in high quality.\n` +
-    `\u2022 \u{1F4D3} <b>Scheduler & Cadence:</b> Smart queuing and customized interval times.\n` +
-    `\u2022 \u{1F4CA} <b>Real-time Analytics:</b> Track click rates, duplicates, and top categories.\n\n` +
-    `\u{1F310} <b>Choose your language to start / Tilni tanlang / \u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 \u044f\u0437\u044b\u043a:</b>`;
+  const introText =
+    `🤖 <b>${i18n.t("start_intro_title", { lng: "en" })}</b>\n` +
+    `<i>${i18n.t("start_intro_subtitle", { lng: "en" })}</i>\n\n` +
+    `⚡️ <b>${i18n.t("start_intro_features_title", { lng: "en" })}</b>\n` +
+    `\n• 📡 <b>${i18n.t("start_feature_rss_label", { lng: "en" })}:</b> ${i18n.t("start_feature_rss", { lng: "en" })}` +
+    `\n• 🧠 <b>${i18n.t("start_feature_ai_label", { lng: "en" })}:</b> ${i18n.t("start_feature_ai", { lng: "en" })}` +
+    `\n• 🎨 <b>${i18n.t("start_feature_image_label", { lng: "en" })}:</b> ${i18n.t("start_feature_image", { lng: "en" })}` +
+    `\n• 📥 <b>${i18n.t("start_feature_downloader_label", { lng: "en" })}:</b> ${i18n.t("start_feature_downloader", { lng: "en" })}` +
+    `\n• 📓 <b>${i18n.t("start_feature_scheduler_label", { lng: "en" })}:</b> ${i18n.t("start_feature_scheduler", { lng: "en" })}` +
+    `\n• 📊 <b>${i18n.t("start_feature_analytics_label", { lng: "en" })}:</b> ${i18n.t("start_feature_analytics", { lng: "en" })}` +
+    `\n\n🌐 <b>${i18n.t("start_choose_language", { lng: "en" })}</b>`;
 
-  await bot.sendMessage(chatId, premiumIntro, {
+  await bot.sendMessage(chatId, introText, {
     parse_mode: "HTML",
-    reply_markup: { inline_keyboard: getLanguageKeyboard() }
+    reply_markup: { inline_keyboard: getLanguageKeyboard() },
   });
 }
 
 async function sendChannelStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `\u{1F4E1} <b>Qadam 1/3: Kanal ulang</b>\n\n${i18n.t("onboarding_channel_title", { lng: lang })}\n\n${i18n.t("onboarding_channel_body", { lng: lang })}`,
+    `📡 <b>${i18n.t("onboarding_step_channel", { lng: lang })}</b>\n\n${i18n.t("onboarding_channel_title", { lng: lang })}\n\n${i18n.t("onboarding_channel_body", { lng: lang })}`,
     { parse_mode: "HTML" }
   );
 }
@@ -119,7 +117,7 @@ async function sendChannelStep(bot: TelegramBot, chatId: number, lang: string): 
 async function sendSourceStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `\u{1F4E1} <b>Qadam 2/3: Manba qo\u02BBshing</b>\n\n${i18n.t("onboarding_rss_title", { lng: lang })}\n\n${i18n.t("onboarding_rss_body", { lng: lang })}`,
+    `📡 <b>${i18n.t("onboarding_step_source", { lng: lang })}</b>\n\n${i18n.t("onboarding_rss_title", { lng: lang })}\n\n${i18n.t("onboarding_rss_body", { lng: lang })}`,
     { parse_mode: "HTML" }
   );
 }
@@ -127,7 +125,7 @@ async function sendSourceStep(bot: TelegramBot, chatId: number, lang: string): P
 async function sendIntervalStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `\u{23F0} <b>Qadam 3/3: Intervalni tanlang</b>\n\n${i18n.t("onboarding_interval_title", { lng: lang })}\n\n${i18n.t("onboarding_interval_body", { lng: lang })}`,
+    `⏰ <b>${i18n.t("onboarding_step_interval", { lng: lang })}</b>\n\n${i18n.t("onboarding_interval_title", { lng: lang })}\n\n${i18n.t("onboarding_interval_body", { lng: lang })}`,
     { parse_mode: "HTML" }
   );
 }
@@ -147,17 +145,14 @@ export async function sendNextOnboardingStep(
     await sendLanguageStep(bot, chatId);
     return "language";
   }
-
   if (!user.target_channel) {
     await sendChannelStep(bot, chatId, lang);
     return "channel";
   }
-
   if (!sources.length) {
     await sendSourceStep(bot, chatId, lang);
     return "source";
   }
-
   if (!user.interval_minutes || Number(user.interval_minutes) < 1) {
     await sendIntervalStep(bot, chatId, lang);
     return "interval";
@@ -188,12 +183,12 @@ export const startCommand: BotCommand = {
             logger.info(`New referral: ${chatId} invited by ${referrer.telegram_id}, 3d premium granted`);
             try {
               const refCount = (await DBService.getReferralStats(referrer.telegram_id)).active;
-              const refLang = referrer.language || 'en';
-              const msg = `🎉 ${i18n.t('referral_joined', { lng: refLang })}\n${i18n.t('referral_active_count', { lng: refLang })} ${refCount}`;
+              const refLang = referrer.language || "en";
+              const refMsg = `🎉 ${i18n.t("referral_joined", { lng: refLang })}\n${i18n.t("referral_active_count", { lng: refLang })} ${refCount}`;
               if (refCount > 0 && refCount % 10 === 0) {
                 await DBService.checkAndGivePremium(referrer.telegram_id);
               }
-              await bot.sendMessage(referrer.telegram_id, msg);
+              await bot.sendMessage(referrer.telegram_id, refMsg);
             } catch (e: any) {
               logger.warn(`Could not notify referrer ${referrer.telegram_id}: ${e.message}`);
             }
@@ -210,15 +205,17 @@ export const startCommand: BotCommand = {
       user.role = "owner";
     }
 
-    const requireApproval = (await DBService.getSetting('require_approval')) === '1';
+    const requireApproval = (await DBService.getSetting("require_approval")) === "1";
     if (!requireApproval && !user.is_approved && !isOwner && user.role !== "admin" && user.role !== "owner") {
       await DBService.updateUser(chatId, { is_approved: 1 }).catch(() => {});
       user.is_approved = 1;
     }
     if (requireApproval && !user.is_approved && !isOwner && user.role !== "admin" && user.role !== "owner") {
       try {
-        await bot.sendMessage(chatId, "⏳ Siz hali tasdiqlanmadingiz. Admin tasdiqlashini kuting.");
-      } catch { logger.warn(`Failed to send approval message to ${chatId}`); }
+        await bot.sendMessage(chatId, i18n.t("approval_pending", { lng: user.language || "uz" }));
+      } catch {
+        logger.warn(`Failed to send approval message to ${chatId}`);
+      }
       return;
     }
 

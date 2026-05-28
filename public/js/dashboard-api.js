@@ -15,6 +15,7 @@
 
   token = getParam('token') || getLocal('bot_token');
   userId = getParam('user') || getLocal('bot_user_id');
+  window.__userLang = getLocal('webapp_lang') || 'uz';
 
   if (token && getParam('token')) setLocal('bot_token', token);
   if (userId && getParam('user')) setLocal('bot_user_id', userId);

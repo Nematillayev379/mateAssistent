@@ -2,11 +2,14 @@ import TelegramBot from "node-telegram-bot-api";
 import { DBService } from "../services/database";
 import { ScraperService } from "../services/scraper";
 import { i18n } from "../services/i18n";
-import { logger } from "../utils/logger";
 import { sendNextOnboardingStep } from "./start";
 
 export async function handleOnboardingMessage(
-  bot: TelegramBot, chatId: number, text: string, user: any, lang: string,
+  bot: TelegramBot,
+  chatId: number,
+  text: string,
+  user: any,
+  lang: string,
 ): Promise<boolean> {
   if (!user.has_seen_lang) {
     const { sendLanguageStep } = await import("./start");
@@ -45,7 +48,7 @@ async function handleChannelStep(bot: TelegramBot, chatId: number, text: string,
   }
 
   if (!targetText.startsWith("@") && !targetText.startsWith("-100")) {
-    await bot.sendMessage(chatId, i18n.t("bot_send_channel_example", { lng: lang }));
+    await bot.sendMessage(chatId, i18n.t("setchannel_missing", { lng: lang }));
     return;
   }
 
@@ -54,21 +57,21 @@ async function handleChannelStep(bot: TelegramBot, chatId: number, text: string,
     const botInfo = await bot.getMe();
     const member = await bot.getChatMember(channelChat.id, botInfo.id);
     if (member.status !== "administrator" && member.status !== "creator") {
-      await bot.sendMessage(chatId, i18n.t("bot_channel_not_admin", { lng: lang }));
+      await bot.sendMessage(chatId, i18n.t("setchannel_not_admin", { lng: lang }));
       return;
     }
 
     const saved = await DBService.updateUser(chatId, { target_channel: targetText });
     if (!saved) {
-      await bot.sendMessage(chatId, i18n.t("bot_channel_save_failed", { lng: lang }));
+      await bot.sendMessage(chatId, i18n.t("setchannel_save_failed_db", { lng: lang }));
       return;
     }
 
     await DBService.checkAndMarkReferralActive(chatId);
-    await bot.sendMessage(chatId, i18n.t("onboarding_success", { lng: lang }));
+    await bot.sendMessage(chatId, i18n.t("setchannel_success", { lng: lang }));
     await sendNextOnboardingStep(bot, chatId);
   } catch {
-    await bot.sendMessage(chatId, i18n.t("err_invalid_channel", { lng: lang }));
+    await bot.sendMessage(chatId, i18n.t("setchannel_error", { lng: lang }));
   }
 }
 
@@ -85,7 +88,7 @@ async function handleRssStep(bot: TelegramBot, chatId: number, text: string, lan
   }
 
   if (!websiteInput) {
-    await bot.sendMessage(chatId, `${i18n.t("onboarding_rss_body", { lng: lang })}\n\nWebsite yuboring (masalan: <code>kun.uz</code>) — bot RSS ni o'zi topadi.`, { parse_mode: "HTML" });
+    await bot.sendMessage(chatId, `${i18n.t("onboarding_rss_body", { lng: lang })}\n\n${i18n.t("onboarding_rss_website_hint", { lng: lang })}`, { parse_mode: "HTML" });
     return;
   }
 
@@ -95,9 +98,9 @@ async function handleRssStep(bot: TelegramBot, chatId: number, text: string, lan
     return;
   }
 
-  let rssUrl = isLikelyRssUrl(websiteInput) ? websiteInput : await ScraperService.discoverRSS(websiteInput);
+  const rssUrl = isLikelyRssUrl(websiteInput) ? websiteInput : await ScraperService.discoverRSS(websiteInput);
   if (!rssUrl) {
-    await bot.sendMessage(chatId, "Bu sayt uchun RSS topilmadi. Saytning to'liq URL manzilini yuboring.");
+    await bot.sendMessage(chatId, i18n.t("onboarding_rss_not_found", { lng: lang }));
     return;
   }
 
