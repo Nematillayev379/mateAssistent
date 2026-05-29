@@ -70,16 +70,34 @@ function getMemoryConnection(): RedisRuntimeConnection {
 
 function parseRedisUrls(): string[] {
   const urls: string[] = [];
+  const allowLocalRedis = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
+
+  function pushUrl(rawUrl: string, source: string) {
+    const t = rawUrl.trim();
+    if (!t) return;
+    const isLocal = /localhost|127\.0\.0\.1/i.test(t);
+    if (isLocal && !allowLocalRedis) {
+      logger.warn(`Skipping local Redis URL from ${source} in production: ${t.replace(/:[^:@/]+@/, ':***@')}`);
+      return;
+    }
+    urls.push(t);
+  }
+
   if (CONFIG.REDIS_URLS && CONFIG.REDIS_URLS.trim()) {
     for (const u of CONFIG.REDIS_URLS.split(',')) {
-      const t = u.trim();
-      if (t) urls.push(t);
+      pushUrl(u, 'REDIS_URLS');
     }
   }
   if (CONFIG.REDIS_URL && CONFIG.REDIS_URL.trim()) {
     const existing = new Set(urls);
-    if (!existing.has(CONFIG.REDIS_URL.trim())) {
-      urls.unshift(CONFIG.REDIS_URL.trim());
+    const normalized = CONFIG.REDIS_URL.trim();
+    if (!existing.has(normalized)) {
+      const isLocal = /localhost|127\.0\.0\.1/i.test(normalized);
+      if (isLocal && !allowLocalRedis) {
+        logger.warn(`Skipping local REDIS_URL in production: ${normalized.replace(/:[^:@/]+@/, ':***@')}`);
+      } else {
+        urls.unshift(normalized);
+      }
     }
   }
   if (!urls.length && CONFIG.DEFAULT_REDIS_URL && CONFIG.DEFAULT_REDIS_URL.trim()) {
@@ -260,11 +278,9 @@ function createPooledIORedis(pool: RedisPool): IORedis {
   const proxy = new Proxy(dummy, {
     get(target, prop) {
       const currentValue = (currentConn as any)[prop];
-      if (typeof currentValue === 'function') {
-        return (...args: any[]) => execCmd(c => {
-          const fn = (c as any)[prop];
-          return typeof fn === 'function' ? fn.apply(c, args) : fn;
-        });
+      // EventEmitter methods -> delegate to ee (local EventEmitter)
+      if (typeof prop === 'string' && eventMethods.has(prop)) {
+        return (ee as any)[prop].bind(ee);
       }
 
       if (prop === 'status') return currentConn.status;
@@ -272,11 +288,6 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       if (prop === 'disconnect') return async () => { try { await currentConn.disconnect(); } catch {} };
       if (prop === 'quit') return async () => { for (const e of pool.entries) { if (e.conn) { try { await e.conn.quit(); } catch {} e.conn = null; } } };
       if (prop === 'duplicate') return () => proxy;
-
-      // EventEmitter methods -> delegate to ee (local EventEmitter)
-      if (typeof prop === 'string' && eventMethods.has(prop)) {
-        return (ee as any)[prop].bind(ee);
-      }
 
       // Event listener registration -> track and delegate to currentConn
       if (prop === 'on') return (event: string, handler: (...a: any[]) => void) => {
@@ -298,6 +309,13 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       if (prop === 'emit') return (event: string, ...args: any[]) => ee.emit(event, ...args);
       if (prop === 'listenerCount') return (event?: string) => event ? (registered.get(event)?.size || 0) : registered.size;
       if (prop === 'eventNames') return () => Array.from(registered.keys());
+
+      if (typeof currentValue === 'function') {
+        return (...args: any[]) => execCmd(c => {
+          const fn = (c as any)[prop];
+          return typeof fn === 'function' ? fn.apply(c, args) : fn;
+        });
+      }
 
       return currentValue;
     },
