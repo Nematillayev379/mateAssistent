@@ -74,7 +74,13 @@ export function registerSystemRoutes(app: express.Application) {
   }
 
   app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    res.redirect(302, `/dashboard/overview.html${qs}`);
+  });
+
+  app.get('/dashboard/', (req, res) => {
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    res.redirect(302, `/dashboard/overview.html${qs}`);
   });
 
   app.use((req, res, next) => {

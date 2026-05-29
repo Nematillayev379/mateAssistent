@@ -29,7 +29,10 @@ export async function startBot() {
       { command: "status", description: "Statistika / Stats" },
       { command: "setchannel", description: "Kanalni sozlash / Change channel" },
       { command: "track", description: "Narx kuzatish / Price tracking" },
+      { command: "workspace", description: "Workspace boshqaruvi / Workspace" },
+      { command: "lang", description: "Tilni o'zgartirish / Language" },
       { command: "help", description: "Yordam / Help Guide" },
+      { command: "admin", description: "Admin panel / Admin" },
     ]);
   } catch (e: any) {
     logger.warn(`setMyCommands error: ${e.message}`);

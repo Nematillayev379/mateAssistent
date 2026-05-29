@@ -13,7 +13,7 @@ interface UserStateEntry { type: string; url: string; mediaType?: string; sendTa
 
 function buildDashboardUrl(chatId: number): string | null {
   if (!CONFIG.PUBLIC_URL) return null;
-  return `${CONFIG.PUBLIC_URL}/dashboard?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
+  return `${CONFIG.PUBLIC_URL}/dashboard/overview.html?token=${generateDashboardToken(chatId)}&user=${chatId}&v=${Date.now()}`;
 }
 
 export async function handleCallbackQuery(
@@ -40,7 +40,10 @@ export async function handleCallbackQuery(
           { command: "status", description: `${i18n.t("menu_stats", { lng: langCode })} / Statistika` },
           { command: "setchannel", description: `${i18n.t("menu_channel", { lng: langCode })} / Kanal sozlash` },
           { command: "track", description: `${i18n.t("menu_referral", { lng: langCode })} / Narx kuzatish` },
+          { command: "workspace", description: `Workspace / Workspace` },
+          { command: "lang", description: `Tilni o'zgartirish / Language` },
           { command: "help", description: `${i18n.t("menu_help", { lng: langCode })} / Yordam` },
+          { command: "admin", description: `Admin panel / Admin` },
         ], { scope: { type: "chat", chat_id: chatId } });
       } catch (e: any) { logger.warn(`setMyCommands error: ${e.message}`); }
 

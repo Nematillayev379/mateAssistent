@@ -26,7 +26,7 @@ export function buildDashboardUrl(userId: number | string): string | null {
   if (!/^https?:\/\//i.test(base)) {
     return null;
   }
-  return `${base}/dashboard?token=${generateDashboardToken(userId)}&user=${userId}&v=${Date.now()}`;
+  return `${base}/dashboard/overview.html?token=${generateDashboardToken(userId)}&user=${userId}&v=${Date.now()}`;
 }
 
 /**
