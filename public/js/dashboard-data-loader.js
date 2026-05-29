@@ -114,6 +114,18 @@
         setText('.mobile-sources', c);
       }).catch(function () {});
     }
+
+    /* --- Analytics page --- */
+    if (u && page === 'analytics') {
+      apiFetch('/api/sources/' + u.id).then(function (r) { return r.json(); }).then(function (srcs) {
+        var c = srcs && srcs.length ? srcs.length : 0;
+        setText('.analytics-source-total', c + (c >= 100 ? '+' : ''));
+      }).catch(function () {});
+      var totalPosts = Number(s.total_posts || 0);
+      var totalDuplicates = Number(s.total_duplicates || 0);
+      var accuracy = totalPosts > 0 ? Math.max(0, Math.min(100, ((totalPosts - totalDuplicates) / totalPosts) * 100)) : 0;
+      setText('.analytics-accuracy', accuracy.toFixed(1) + '%');
+    }
   }).catch(function (e) {
     console.error('Dashboard data error:', e);
     var pageTitle = document.querySelector('h1, h2, .font-display');
