@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { logger, sanitizeLogInput } from '../utils/logger';
-import { resolveYtDlpCommand } from '../utils/ytdlp';
+import { findNewestFile, resolveYtDlpCommand } from '../utils/ytdlp';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -13,6 +13,25 @@ const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_music');
 try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: any) { logger.warn(`Failed to create TEMP_DIR: ${e?.message || 'unknown error'}`); }
 
 const MAX_FILE_SIZE = 49 * 1024 * 1024; // 49MB (Telegram limit = 50MB)
+
+function validateDownloadedFile(filePath: string, minBytes = 8 * 1024): boolean {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const size = fs.statSync(filePath).size;
+    return size >= minBytes && size <= MAX_FILE_SIZE;
+  } catch {
+    return false;
+  }
+}
+
+function findDownloadedMusicFile(basePrefix: string, preferredExts: string[]): string | null {
+  for (const ext of preferredExts) {
+    const exact = findNewestFile(TEMP_DIR, basePrefix, ext);
+    if (exact && validateDownloadedFile(exact)) return exact;
+  }
+  const fallback = findNewestFile(TEMP_DIR, basePrefix);
+  return fallback && validateDownloadedFile(fallback) ? fallback : null;
+}
 
 export const MusicService = {
   /**
@@ -105,18 +124,20 @@ export const MusicService = {
         if (!videoId || !title || seen.has(videoId)) continue;
         seen.add(videoId);
 
-        const filePath = path.join(TEMP_DIR, `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.m4a`);
+        const basePrefix = `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const outputTemplate = path.join(TEMP_DIR, `${basePrefix}.%(ext)s`);
         
         try {
           const { execFile } = await import('child_process');
           const execFilePromise = promisify(execFile);
           await execFilePromise(
             ytdlpCommand.command,
-            [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio/best', '-o', filePath, `https://www.youtube.com/watch?v=${videoId}`, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
+            [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio[ext=webm]/bestaudio/best', '-o', outputTemplate, `https://www.youtube.com/watch?v=${videoId}`, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
             { timeout: 60000, maxBuffer: 1024 * 1024 }
           );
 
-          if (fs.existsSync(filePath)) {
+          const filePath = findDownloadedMusicFile(basePrefix, ['.m4a', '.mp3', '.webm', '.opus']);
+          if (filePath) {
             const stats = fs.statSync(filePath);
             if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
               results.push({ title: title.trim(), path: filePath });
@@ -257,17 +278,19 @@ export const MusicService = {
       if (results.length >= amount) break;
       
       if (ytdlpCommand) {
-        const filePath = path.join(TEMP_DIR, `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.m4a`);
+        const basePrefix = `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const outputTemplate = path.join(TEMP_DIR, `${basePrefix}.%(ext)s`);
         try {
           const { execFile } = await import('child_process');
           const execFilePromise = promisify(execFile);
           await execFilePromise(
             ytdlpCommand.command,
-            [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio/best', '-o', filePath, video.url, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
+            [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio[ext=webm]/bestaudio/best', '-o', outputTemplate, video.url, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
             { timeout: 60000, maxBuffer: 1024 * 1024 }
           );
           
-          if (fs.existsSync(filePath)) {
+          const filePath = findDownloadedMusicFile(basePrefix, ['.m4a', '.mp3', '.webm', '.opus']);
+          if (filePath) {
             const stats = fs.statSync(filePath);
             if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
               results.push({ title: video.title, path: filePath });
@@ -276,7 +299,10 @@ export const MusicService = {
             }
           }
         } catch (e: any) {
-          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
+          try {
+            const filePath = findDownloadedMusicFile(basePrefix, ['.m4a', '.mp3', '.webm', '.opus']);
+            if (filePath) fs.unlinkSync(filePath);
+          } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
         }
       }
     }
