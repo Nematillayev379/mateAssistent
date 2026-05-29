@@ -278,6 +278,7 @@ function createPooledIORedis(pool: RedisPool): IORedis {
   const proxy = new Proxy(dummy, {
     get(target, prop) {
       const currentValue = (currentConn as any)[prop];
+      const targetValue = (target as any)[prop];
       // EventEmitter methods -> delegate to ee (local EventEmitter)
       if (typeof prop === 'string' && eventMethods.has(prop)) {
         return (ee as any)[prop].bind(ee);
@@ -317,11 +318,18 @@ function createPooledIORedis(pool: RedisPool): IORedis {
         });
       }
 
+      if (targetValue !== undefined) return targetValue;
       return currentValue;
     },
     set(_target, prop, value) {
       (currentConn as any)[prop] = value;
       return true;
+    },
+    defineProperty(target, prop, descriptor) {
+      try {
+        Object.defineProperty(currentConn as any, prop, descriptor);
+      } catch {}
+      return Reflect.defineProperty(target, prop, descriptor);
     }
   });
 
