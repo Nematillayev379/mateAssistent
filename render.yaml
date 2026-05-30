@@ -36,8 +36,9 @@ services:
       - key: TELEGRAM_CHANNEL_ID
         sync: false
       - key: REDIS_URL
-        value: ""
-      # Leave REDIS_URL empty unless you provide an external Redis instance.
+        sync: false
+      - key: REDIS_URLS
+        sync: false
       - key: PUBLIC_URL
         value: https://mateassistant.onrender.com
     region: oregon
