@@ -49,9 +49,16 @@ if (!connectionOptions) {
     { connection: connectionOptions }
   );
 
+  let lastLimitError = 0;
+  const LIMIT_ERROR_COOLDOWN = 60000;
+
   scraperWorker.on("error", (err) => {
     if (err.message.includes("limit exceeded") || err.message.toLowerCase().includes("exceeded")) {
-      logger.warn(`Scraper worker: limit exceeded (pool rotating automatically)`);
+      const now = Date.now();
+      if (now - lastLimitError > LIMIT_ERROR_COOLDOWN) {
+        logger.warn(`Scraper worker: limit exceeded (cooling down 60s)`);
+        lastLimitError = now;
+      }
     } else {
       logger.error(`Scraper worker error: ${err.message}`);
     }

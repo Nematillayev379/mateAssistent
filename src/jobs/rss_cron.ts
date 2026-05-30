@@ -22,7 +22,7 @@ export function setupRSSCron() {
     }
   });
 
-  cron.schedule('*/2 * * * *', async () => {
+  cron.schedule('*/5 * * * *', async () => {
     try {
       const users = await DBService.getActiveUsers();
       const now = Date.now();

@@ -117,14 +117,22 @@ interface PoolEntry {
   url: string;
   exhausted: boolean;
   conn: IORedis | null;
+  lastAttempt: number;
 }
 
 class RedisPool {
   readonly entries: PoolEntry[] = [];
   private currentIndex = 0;
+  private static readonly RETRY_COOLDOWN_MS = 5 * 60 * 1000;
+  private static readonly MAX_CONCURRENT = 3;
 
   constructor(urls: string[]) {
-    this.entries = urls.map(url => ({ url, exhausted: false, conn: null }));
+    this.entries = urls.map(url => ({
+      url,
+      exhausted: false,
+      conn: null,
+      lastAttempt: 0,
+    }));
   }
 
   get active(): IORedis {
@@ -159,6 +167,7 @@ class RedisPool {
   markExhausted(): boolean {
     const oldEntry = this.entries[this.currentIndex];
     oldEntry.exhausted = true;
+    oldEntry.lastAttempt = Date.now();
     logger.warn(`Redis token exhausted: ${this.maskUrl(oldEntry.url)}`);
 
     if (oldEntry.conn) {
@@ -166,11 +175,13 @@ class RedisPool {
       oldEntry.conn = null;
     }
 
+    const now = Date.now();
     for (let i = 0; i < this.entries.length; i++) {
       const idx = (this.currentIndex + 1 + i) % this.entries.length;
-      if (!this.entries[idx].exhausted) {
+      const entry = this.entries[idx];
+      if (!entry.exhausted || (now - entry.lastAttempt > RedisPool.RETRY_COOLDOWN_MS)) {
         this.currentIndex = idx;
-        logger.info(`Rotated to Redis token #${idx + 1}/${this.entries.length}: ${this.maskUrl(this.entries[idx].url)}`);
+        logger.info(`Rotated to Redis token #${idx + 1}/${this.entries.length}: ${this.maskUrl(entry.url)}`);
         return true;
       }
     }
