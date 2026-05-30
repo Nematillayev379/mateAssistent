@@ -27,21 +27,30 @@ export const UserRepository = {
   },
 
   async upsert(telegramId: number, isOwner = 0, username?: string, firstName?: string) {
+    const existing = await this.get(telegramId);
+
+    if (existing) {
+      const updates: Record<string, any> = {
+        username: username || existing.username,
+        first_name: firstName || existing.first_name,
+        is_active: 1,
+      };
+      if (isOwner === 1) {
+        updates.role = 'owner';
+        updates.is_owner = 1;
+      }
+      const { data, error } = await getSupabase().from('users').update(updates).eq('telegram_id', telegramId).select().single();
+      if (error) { logger.error(`upsertUser update error: ${error.message}`); return existing; }
+      return data;
+    }
+
     const insertData: Record<string, any> = {
       telegram_id: telegramId, is_owner: isOwner, is_active: 1, is_approved: 1,
       role: isOwner === 1 ? 'owner' : 'user', interval_minutes: 15, language: 'uz',
       username: username || null, first_name: firstName || null,
     };
-    let { data, error } = await getSupabase().from('users').upsert(insertData, { onConflict: 'telegram_id' }).select().single();
-    if (error) {
-      logger.error(`upsertUser error: ${error.message}`);
-      const fallback = { ...insertData };
-      delete fallback.role;
-      const fb = await getSupabase().from('users').upsert(fallback, { onConflict: 'telegram_id' }).select().single();
-      if (fb.error) { logger.error(`upsertUser fallback failed: ${fb.error.message}`); return null; }
-      data = fb.data;
-      if (isOwner === 1 && data) await getSupabase().from('users').update({ is_owner: 1 }).eq('telegram_id', telegramId);
-    }
+    const { data, error } = await getSupabase().from('users').insert(insertData).select().single();
+    if (error) { logger.error(`upsertUser insert error: ${error.message}`); return null; }
     return data;
   },
 

@@ -7,7 +7,7 @@ interface AutomationRule {
   userId: number;
   trigger: 'keyword' | 'source' | 'time' | 'category';
   condition: string;
-  action: 'add_price_tracker' | 'forward_to_channel' | 'add_keyword' | 'schedule_post' | 'notify';
+  action: 'rss_search' | 'forward_to_channel' | 'add_keyword' | 'schedule_post' | 'notify';
   actionValue: string;
   isActive: boolean;
   createdAt: string;
@@ -48,9 +48,8 @@ export const RuleEngine = {
 
   async executeAction(rule: AutomationRule, news: { title: string; content: string; url: string; userId: number }): Promise<void> {
     switch (rule.action) {
-      case 'add_price_tracker':
-        await DBService.addTrackedPrice(rule.userId, news.url, news.title.slice(0, 100), 0);
-        logger.info(`Rule #${rule.id}: price tracker added for ${news.title.slice(30)}`);
+      case 'rss_search':
+        logger.info(`Rule #${rule.id}: RSS search triggered for ${news.title.slice(0, 30)}`);
         break;
       case 'add_keyword':
         await DBService.setKeywords(rule.userId, rule.actionValue);
@@ -73,8 +72,8 @@ Til: ${user.language || 'uz'}
 Kanal mavzusi: ${user.target_channel || "Noma'lum"}
 
 3 ta eng foydali IF-THEN qoidasini taklif qiling.
-Har bir qoida: trigger (keyword/source/category), condition, action (add_price_tracker/add_keyword)
-JSON format: [{"trigger":"keyword","condition":"dollar, valyuta","action":"add_price_tracker","actionValue":"iqtisodiy yangiliklar"}]`;
+Har bir qoida: trigger (keyword/source/category), condition, action (rss_search/add_keyword/notify)
+JSON format: [{"trigger":"keyword","condition":"dollar, valyuta","action":"rss_search","actionValue":"dollar kursi yangiliklari"}]`;
 
     try {
       const raw = await getSmartAIResponse('Siz avtomatlashtirish bo\'yicha mutaxassissiz. Faqat JSON qaytaring.', prompt);
