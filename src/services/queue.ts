@@ -32,19 +32,21 @@ export function isRedisAvailable(): boolean {
   const pool = getRedisPool();
   return !!pool && pool.hasAvailable();
 }
-export async function addScraperJob(data: any): Promise<void> {
+export async function addScraperJob(data: any): Promise<boolean> {
   if (!scraperQueue) {
     logger.debug('addScraperJob: Redis not available, skipping queue');
-    return;
+    return false;
   }
   const pool = getRedisPool();
   if (!pool || !pool.hasAvailable()) {
     logger.debug('addScraperJob: all Redis tokens exhausted, skipping queue');
-    return;
+    return false;
   }
   try {
     await scraperQueue.add('scrape-rss', data);
+    return true;
   } catch (err: any) {
     logger.error(`addScraperJob failed: ${err.message}`);
+    return false;
   }
 }

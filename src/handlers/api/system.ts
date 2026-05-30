@@ -7,7 +7,7 @@ import { bot } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
 import { FinanceService } from '../../services/finance';
 import { validateKey } from '../../services/ai';
-import { checkAuth, checkAdmin } from '../../middleware/auth';
+import { checkAuth, checkAdmin } from '../auth';
 
 export function registerSystemRoutes(app: express.Application) {
   app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active', uptime: process.uptime() }));
@@ -83,8 +83,12 @@ export function registerSystemRoutes(app: express.Application) {
     res.redirect(302, `/dashboard/overview.html${qs}`);
   });
 
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'landing.html'));
+  });
+
   app.use((req, res, next) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
-    res.sendFile(path.join(process.cwd(), 'public', 'index.html'), (err) => { if (err && !res.headersSent) res.status(404).json({ error: 'Page not found' }); });
+    res.sendFile(path.join(process.cwd(), 'public', 'landing.html'), (err) => { if (err && !res.headersSent) res.status(404).json({ error: 'Page not found' }); });
   });
 }

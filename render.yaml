@@ -8,6 +8,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=1024"
       - key: TELEGRAM_TOKEN
         sync: false
       - key: OWNER_ID

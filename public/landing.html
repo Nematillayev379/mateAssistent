@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mateAssistent — AI Telegram RSS Bot</title>
+  <meta name="description" content="AI-powered Telegram bot that fetches RSS news, summarizes with AI, and posts to your channels. Web3 dashboard with crypto payments.">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0A0A0B; --surface: #14121c; --card: #111113;
+      --border: #1E1E22; --primary: #c9beff; --primary-container: #6c47ff;
+      --secondary: #41eec2; --text: #e6e0ef; --text-variant: #c9c3d9;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Geist', sans-serif; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+    /* Nav */
+    nav { position: fixed; top: 0; width: 100%; z-index: 100; background: rgba(10,10,11,0.9); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+    nav .container { display: flex; justify-content: space-between; align-items: center; height: 64px; }
+    .logo { font-size: 20px; font-weight: 800; color: var(--primary); }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--text-variant); text-decoration: none; font-size: 14px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--primary); }
+    .btn-primary { background: var(--primary-container); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; transition: opacity 0.2s; }
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* Hero */
+    .hero { padding: 140px 0 80px; text-align: center; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: -200px; left: 50%; transform: translateX(-50%); width: 800px; height: 800px; background: radial-gradient(circle, rgba(108,71,255,0.15), transparent 70%); pointer-events: none; }
+    .hero h1 { font-size: 56px; font-weight: 900; line-height: 1.1; margin-bottom: 20px; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero p { font-size: 18px; color: var(--text-variant); max-width: 600px; margin: 0 auto 32px; line-height: 1.6; }
+    .hero-buttons { display: flex; gap: 16px; justify-content: center; }
+    .btn-secondary { border: 1px solid var(--border); color: var(--text); padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; transition: border-color 0.2s; }
+    .btn-secondary:hover { border-color: var(--primary); }
+
+    /* Features */
+    .features { padding: 80px 0; }
+    .section-title { text-align: center; font-size: 36px; font-weight: 800; margin-bottom: 16px; }
+    .section-subtitle { text-align: center; color: var(--text-variant); margin-bottom: 48px; font-size: 16px; }
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 32px; transition: border-color 0.3s, transform 0.3s; }
+    .feature-card:hover { border-color: var(--primary-container); transform: translateY(-4px); }
+    .feature-icon { font-size: 32px; margin-bottom: 16px; }
+    .feature-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { color: var(--text-variant); font-size: 14px; line-height: 1.6; }
+
+    /* How it works */
+    .how-it-works { padding: 80px 0; background: var(--surface); }
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin-top: 48px; }
+    .step { text-align: center; position: relative; }
+    .step-number { width: 48px; height: 48px; border-radius: 50%; background: var(--primary-container); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; margin: 0 auto 16px; }
+    .step h4 { font-size: 16px; margin-bottom: 8px; }
+    .step p { color: var(--text-variant); font-size: 13px; }
+
+    /* Pricing */
+    .pricing { padding: 80px 0; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .price-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 32px; text-align: center; position: relative; }
+    .price-card.popular { border-color: var(--primary-container); }
+    .price-card.popular::before { content: 'MOST POPULAR'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary-container); color: white; padding: 4px 16px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+    .price-card h3 { font-size: 20px; margin-bottom: 8px; }
+    .price { font-size: 36px; font-weight: 900; margin: 16px 0; }
+    .price span { font-size: 14px; font-weight: 400; color: var(--text-variant); }
+    .price-features { text-align: left; margin: 24px 0; }
+    .price-features li { list-style: none; padding: 8px 0; color: var(--text-variant); font-size: 14px; display: flex; align-items: center; gap: 8px; }
+    .price-features li::before { content: '✓'; color: var(--secondary); font-weight: 700; }
+
+    /* CTA */
+    .cta { padding: 80px 0; text-align: center; background: linear-gradient(135deg, rgba(108,71,255,0.1), rgba(65,238,194,0.05)); }
+    .cta h2 { font-size: 36px; font-weight: 800; margin-bottom: 16px; }
+    .cta p { color: var(--text-variant); margin-bottom: 32px; }
+
+    /* Footer */
+    footer { padding: 40px 0; border-top: 1px solid var(--border); text-align: center; color: var(--text-variant); font-size: 13px; }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 36px; }
+      .features-grid, .pricing-grid { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: repeat(2, 1fr); }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <div class="logo">mateAssistent</div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it Works</a>
+        <a href="#pricing">Pricing</a>
+        <a href="https://t.me/mateAssistent_bot">Open Bot</a>
+      </div>
+      <a href="https://t.me/mateAssistent_bot" class="btn-primary">Start Free</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="container">
+      <h1>AI-Powered Telegram News Bot</h1>
+      <p>Automatically fetch RSS news, summarize with AI, and post to your Telegram channels. Web3 dashboard with crypto payments included.</p>
+      <div class="hero-buttons">
+        <a href="https://t.me/mateAssistent_bot" class="btn-primary">Start Free →</a>
+        <a href="#features" class="btn-secondary">Learn More</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="container">
+      <h2 class="section-title">Everything You Need</h2>
+      <p class="section-subtitle">Powerful features for content automation</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📡</div>
+          <h3>RSS Auto-Post</h3>
+          <p>Add RSS feeds, bot fetches news every 2 minutes and posts to your channels automatically.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3>AI Summarization</h3>
+          <p>Multi-provider AI (Groq, Gemini, OpenAI) summarizes news in your language with smart deduplication.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <h3>Web3 Dashboard</h3>
+          <p>Beautiful dark dashboard with TON Connect wallet, crypto payments, and real-time analytics.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📥</div>
+          <h3>Media Download</h3>
+          <p>Download YouTube, TikTok, Instagram videos and audio directly through the bot.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📅</div>
+          <h3>Scheduled Posts</h3>
+          <p>Schedule posts for specific times. Set intervals for automatic news distribution.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Analytics</h3>
+          <p>Track posts, duplicates, and performance with Chart.js powered analytics dashboard.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <h2 class="section-title">How It Works</h2>
+      <p class="section-subtitle">Get started in 4 simple steps</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h4>Start Bot</h4>
+          <p>Open @mateAssistent_bot and type /start</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h4>Add Channel</h4>
+          <p>Add bot as admin to your Telegram channel</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h4>Add RSS</h4>
+          <p>Enter any news website URL to auto-discover RSS</p>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <h4>Auto-Post</h4>
+          <p>Bot summarizes and posts news automatically</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <div class="container">
+      <h2 class="section-title">Simple Pricing</h2>
+      <p class="section-subtitle">Start free, upgrade when ready</p>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <h3>Free</h3>
+          <div class="price">$0 <span>/ forever</span></div>
+          <ul class="price-features">
+            <li>3 RSS Sources</li>
+            <li>1 Channel</li>
+            <li>AI Summarization</li>
+            <li>Basic Analytics</li>
+          </ul>
+          <a href="https://t.me/mateAssistent_bot" class="btn-secondary" style="display:block;text-align:center;">Get Started</a>
+        </div>
+        <div class="price-card popular">
+          <h3>Premium</h3>
+          <div class="price">125K <span>UZS/mo</span></div>
+          <ul class="price-features">
+            <li>10 RSS Sources</li>
+            <li>Unlimited Channels</li>
+            <li>Priority AI (30/min)</li>
+            <li>Daily Digest</li>
+            <li>Scheduled Posts</li>
+          </ul>
+          <a href="https://t.me/mateAssistent_bot" class="btn-primary" style="display:block;text-align:center;">Subscribe</a>
+        </div>
+        <div class="price-card">
+          <h3>Agency</h3>
+          <div class="price">500K <span>UZS/mo</span></div>
+          <ul class="price-features">
+            <li>10 Channels</li>
+            <li>White-label Dashboard</li>
+            <li>AI Quota: 200/min</li>
+            <li>Multi-Admin</li>
+            <li>API Access</li>
+          </ul>
+          <a href="https://t.me/mateAssistent_bot" class="btn-secondary" style="display:block;text-align:center;">Contact Sales</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="container">
+      <h2>Ready to Automate Your News?</h2>
+      <p>Join thousands of channel owners using AI-powered news distribution.</p>
+      <a href="https://t.me/mateAssistent_bot" class="btn-primary">Start Free Now →</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>© 2026 mateAssistent. Built with AI for the Web3 era.</p>
+    </div>
+  </footer>
+</body>
+</html>

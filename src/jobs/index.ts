@@ -1,12 +1,25 @@
 import cron from "node-cron";
 import axios from "axios";
+import { isRedisAvailable } from '../services/queue';
 import { CONFIG } from "../config/config";
 import { logger } from "../utils/logger";
 
-export function setupSystemCrons() {
-  if (process.env.RENDER_SLEEP === "1" || !process.env.RENDER_SERVICE_ID) {
-    scheduleSelfPing();
+export async function startWorkers(): Promise<void> {
+  if (!isRedisAvailable()) {
+    logger.info('No Redis — using inline processing (memory queue)');
+    return;
   }
+
+  try {
+    await import('./scraper_worker');
+    logger.info('Scraper worker started (AI processing runs inline)');
+  } catch (err: any) {
+    logger.warn(`Workers failed to start: ${err.message} — falling back to inline processing`);
+  }
+}
+
+export function setupSystemCrons() {
+  scheduleSelfPing();
   schedulePriceTracker();
   scheduleDailyDigest();
   scheduleCleanup();
@@ -16,10 +29,19 @@ export function setupSystemCrons() {
 }
 
 function scheduleSelfPing() {
+  if (!CONFIG.PUBLIC_URL) {
+    logger.warn('Self-ping skipped: PUBLIC_URL not set');
+    return;
+  }
   cron.schedule("*/10 * * * *", async () => {
-    if (!CONFIG.PUBLIC_URL) return;
-    try { await axios.get(CONFIG.PUBLIC_URL, { timeout: 10000 }); } catch (e: any) { logger.warn(`Self-ping failed: ${e?.message || 'unknown error'}`); }
+    try {
+      await axios.get(CONFIG.PUBLIC_URL, { timeout: 10000 });
+      logger.debug('Self-ping OK');
+    } catch (e: any) {
+      logger.warn(`Self-ping failed: ${e?.message || 'unknown error'}`);
+    }
   });
+  logger.info(`Self-ping scheduled every 10 min → ${CONFIG.PUBLIC_URL}`);
 }
 
 function schedulePriceTracker() {
@@ -36,7 +58,7 @@ function schedulePriceTracker() {
 function scheduleDailyDigest() {
   cron.schedule("*/15 * * * *", async () => {
     try {
-      const { processDailyDigests } = await import("../crons/digest_cron");
+      const { processDailyDigests } = await import("./digest_cron");
       await processDailyDigests();
     } catch (err: any) {
       logger.warn(`Daily digest cron: ${err.message}`);

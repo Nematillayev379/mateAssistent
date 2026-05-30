@@ -14,7 +14,7 @@ import { i18n } from "../services/i18n";
 import { CONFIG } from "../config/config";
 import { ScraperService } from "../services/scraper";
 import { generateDashboardToken } from "../services/bot_instance";
-import { checkRateLimit } from "../services/rate_limiter";
+import { checkRateLimit, checkCommandRateLimit } from "../services/rate_limiter";
 import { handleCallbackQuery, resolveMediaUrl } from "./callbacks";
 import { handleOnboardingMessage } from "./onboarding";
 
@@ -166,6 +166,12 @@ export function registerCommands(bot: TelegramBot) {
   for (const cmd of commands) {
     bot.onText(cmd.pattern, async (msg: TelegramBot.Message, match: RegExpExecArray | null) => {
       try {
+        const userId = msg.from?.id ?? msg.chat.id;
+        if (!await checkCommandRateLimit(userId)) {
+          logger.warn(`Command rate limited: ${cmd.pattern} by ${userId}`);
+          await bot.sendMessage(msg.chat.id, i18n.t("too_many_requests", { lng: "en" })).catch(() => {});
+          return;
+        }
         logger.info(`Pattern Match: ${cmd.pattern} by ${msg.from?.id}`);
         await cmd.handler(bot, msg, match);
       } catch (error: any) {
@@ -219,8 +225,9 @@ export function registerCommands(bot: TelegramBot) {
   bot.on("callback_query", async (query) => {
     const chatId = query.message?.chat.id;
     if (!chatId || !query.data) return;
-    if (!await checkRateLimit(query.from?.id ?? chatId ?? 0)) {
-      logger.warn(`Rate limited callback`);
+    const userId = query.from?.id ?? chatId ?? 0;
+    if (!await checkCommandRateLimit(userId)) {
+      logger.warn(`Rate limited callback from ${userId}`);
       await bot.answerCallbackQuery(query.id, { text: i18n.t("too_many_requests", { lng: "en" }) }).catch(() => {});
       return;
     }

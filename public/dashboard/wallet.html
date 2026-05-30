@@ -9,6 +9,7 @@
 <link href="/css/dashboard.css" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/gh/tonconnect/sdk@latest/dist/tonconnect-ui.min.js"></script>
 <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -308,7 +309,7 @@
 <img alt="Click" class="h-6 grayscale transition-all group-hover:grayscale-0" data-alt="The Click payment system logo, featuring a minimalist blue and white design with a circular icon and modern typography. It represents a fast, reliable mobile payment platform in Central Asia." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFz_8O_naNO_L-gK76MBQYKQOTyoNxq6OBoI4TTcTd1xixTpyVz1_ia3grvyTVepoJS-i5X1eyPvuv4FLKi8MW5T0umpDyK5Ie8ZKPSLY0B-Pq1-4gTh4chTWmpvBcpO9nL9oZ4p0fu524TSJU1YTzTv1hPldPsY1sGpC13hqbDShX2RuiMxUMLHODvqfc0rRbKcgTBHbut8BfmGpeOyIpFoEsw_J5NuoPVUMGw0caWllT-vjVvD8w_nPWGtkgVcfcLV2ZA3QcoguQ"/>
 <span class="font-label-md text-label-md">Click</span>
 </button>
-<button class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-surface-container-low border border-outline-variant hover:border-on-surface-variant transition-all">
+<button class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg bg-surface-container-low border border-outline-variant hover:border-on-surface-variant transition-all" onclick="connectTonWallet()">
 <span class="material-symbols-outlined text-on-surface-variant">currency_bitcoin</span>
 <span class="font-label-md text-label-md">TON</span>
 </button>
@@ -317,6 +318,8 @@
 <span class="font-label-md text-label-md">USDT</span>
 </button>
 </div>
+<div id="ton-connect" class="mt-4"></div>
+<div id="wallet-connection-state" class="mt-2 text-center font-label-sm text-on-surface-variant"></div>
 </div>
 <!-- Checkout Summary -->
 <div class="glass-card p-6 rounded-xl border-primary/20 bg-primary/5">
@@ -601,4 +604,50 @@
         });
     </script>
 <script src="/js/dashboard-data-loader.js"></script>
-<script src="/js/dashboard-functions.js"></script></body></html>
+<script src="/js/dashboard-functions.js"></script>
+<script>
+let tonConnectUi = null;
+
+function updateWalletState(account) {
+    const stateEl = document.getElementById('wallet-connection-state');
+    if (account && account.address) {
+        const short = account.address.slice(0, 8) + '...' + account.address.slice(-6);
+        if (stateEl) stateEl.textContent = 'Connected: ' + short;
+    } else {
+        if (stateEl) stateEl.textContent = '';
+    }
+}
+
+async function connectTonWallet() {
+    if (tonConnectUi || !window.TonConnectUI) return;
+    try {
+        tonConnectUi = new window.TonConnectUI({
+            manifestUrl: window.location.origin + '/tonconnect-manifest.json',
+            buttonRootId: 'ton-connect',
+        });
+        updateWalletState(tonConnectUi.wallet?.account || null);
+        tonConnectUi.onStatusChange(function(wallet) {
+            updateWalletState(wallet?.account || null);
+            if (wallet?.account?.address) {
+                apiFetch('/api/premium/wallet-claim', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ walletAddress: wallet.account.address })
+                }).then(function(r) { return r.json(); }).then(function(d) {
+                    if (d.success) showToast(d.message || 'Premium activated!', 'success');
+                }).catch(function() {});
+            }
+        });
+    } catch (e) {
+        console.error('TON Connect init failed', e);
+        showToast('TON Connect initialization failed', 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var tonBtn = document.querySelector('[onclick="connectTonWallet()"]');
+    if (tonBtn && window.TonConnectUI) {
+        connectTonWallet();
+    }
+});
+</script></body></html>

@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { DBService } from '../../services/database';
 import { WorkspaceService } from '../../services/workspace';
-import { checkAuth, checkAdmin } from '../../middleware/auth';
+import { checkAuth, checkAdmin } from '../auth';
 import { logger } from '../../utils/logger';
 
 export function registerWorkspaceRoutes(app: express.Application) {

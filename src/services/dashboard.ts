@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { logger } from '../utils/logger';
 import { CONFIG } from '../config/config';
-import { registerRoutes } from '../routes/dashboard';
+import { registerRoutes } from '../handlers/dashboard';
 
 export function startDashboardServer(port: number | string, _bot?: any) {
   const app = express();

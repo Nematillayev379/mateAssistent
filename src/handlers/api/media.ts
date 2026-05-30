@@ -6,7 +6,7 @@ import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
 import { MusicService } from '../../services/music';
-import { checkAuth } from '../../middleware/auth';
+import { checkAuth } from '../auth';
 import { i18n } from '../../services/i18n';
 import { promisify } from 'util';
 import { exec } from 'child_process';

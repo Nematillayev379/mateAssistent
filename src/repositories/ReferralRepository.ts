@@ -12,6 +12,9 @@ export const ReferralRepository = {
     if (exists) { logger.warn(`createReferral: user ${referredId} already has a referrer`); return false; }
     const { error } = await getSupabase().from('referrals').insert({ referrer_id: referrerId, referred_id: referredId });
     if (error) { logger.error(`createReferral: ${error.message}`); return false; }
+
+    await this.giveReferredBonus(referredId);
+
     return true;
   },
 
@@ -40,5 +43,14 @@ export const ReferralRepository = {
     }
     const { error } = await getSupabase().rpc('increment_referral_count', { p_user_id: referrerId });
     if (error) logger.error(`increment_referral_count RPC error: ${error.message}`);
+  },
+
+  async giveReferredBonus(userId: number) {
+    try {
+      const { error } = await getSupabase().rpc('extend_premium', { p_user_id: userId, p_days: 3 });
+      if (error) logger.error(`giveReferredBonus error: ${error.message}`);
+    } catch (e: any) {
+      logger.warn(`giveReferredBonus failed: ${e.message}`);
+    }
   },
 };

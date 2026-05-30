@@ -396,6 +396,7 @@ const shortSets: Record<string, Record<string, string>> = {
   ko: { settings: "설정", status: "통계", menu_help: "도움말", menu_sources: "소스", menu_intro: "봇 소개" },
   fa: { settings: "تنظیمات", status: "آمار", menu_help: "راهنما", menu_sources: "منابع", menu_intro: "درباره ربات" },
   kk: { settings: "Баптаулар", status: "Статистика", menu_help: "Көмек", menu_sources: "Дереккөздер", menu_intro: "Бот туралы", menu_dashboard: "Панель", menu_studio: "AI Студия", menu_channel: "Арна", menu_automation: "Автоматтандыру", menu_analytics: "Аналитика", menu_admin: "Админ", menu_buy_premium: "Premium Сатып Алу", menu_referral: "Реферал", daily_digest_header: "Күнделікті жаңалықтар", welcome_user: "mateAssistent ботына қош келдіңіз.", onboarding_menu_ready: "Орнату аяқталды. Панель және бот құралдары дайын." },
+  ky: { settings: "Жөндөөлөр", status: "Статистика", menu_help: "Жардам", menu_sources: "Булактар", menu_intro: "Бот жөнүндө", menu_dashboard: "Панель", menu_studio: "AI Студия", menu_channel: "Канал", menu_automation: "Автоматташтыруу", menu_analytics: "Аналитика", menu_admin: "Админ", menu_buy_premium: "Premium Сатып алуу", menu_referral: "Реферал", daily_digest_header: "Күнүмдүк жаңылыктар", welcome_user: "mateAssistent ботуна кош келиңиз.", onboarding_menu_ready: "Орнотуу аяктады. Панель жана бот куралдары даяр." },
   az: { settings: "Parametrlər", status: "Statistika", menu_help: "Kömək", menu_sources: "Mənbələr", menu_intro: "Bot haqqında", menu_dashboard: "Panel", menu_studio: "AI Studio", menu_channel: "Kanal", menu_automation: "Avtomatlaşdırma", menu_analytics: "Analitika", menu_admin: "Admin", menu_buy_premium: "Premium Al", menu_referral: "Referal", daily_digest_header: "Gündəlik Xülasə", welcome_user: "mateAssistent botuna xoş gəlmisiniz.", onboarding_menu_ready: "Quraşdırma tamamlandı. Panel və bot alətləri hazırdır." },
 };
 
@@ -426,6 +427,7 @@ export const WEBAPP_LANGS = [
   "ko",
   "fa",
   "kk",
+  "ky",
   "az",
 ] as const;
 
@@ -435,5 +437,5 @@ export async function initI18n() {
     fallbackLng: "en",
     resources,
   });
-  logger.info("i18n initialized with 15 languages");
+  logger.info("i18n initialized with 16 languages");
 }

@@ -2,7 +2,7 @@ import express from 'express';
 import { DBService } from '../../services/database';
 import { TelegramMonitorService, normalizeTelegramChannelId } from '../../services/telegram_monitor';
 import { TrendsService } from '../../services/trends';
-import { checkAuth } from '../../middleware/auth';
+import { checkAuth } from '../auth';
 
 export function registerChannelsRoutes(app: express.Application) {
   app.get('/api/channels/:userId', checkAuth, async (req: any, res: any) => res.json(await DBService.getUserMonitoredChannels(parseInt(req.authenticatedUserId))));

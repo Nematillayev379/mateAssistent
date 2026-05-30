@@ -2,7 +2,7 @@ import express from 'express';
 import { DBService } from '../../services/database';
 import { PriceTrackerService } from '../../services/pricetracker';
 import { ScraperService } from '../../services/scraper';
-import { checkAuth } from '../../middleware/auth';
+import { checkAuth } from '../auth';
 import { logger } from '../../utils/logger';
 
 export function registerTrackerRoutes(app: express.Application) {

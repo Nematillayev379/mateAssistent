@@ -4,7 +4,7 @@ import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
 import { generateSmmPost, generateSmmImage } from '../../services/ai';
-import { checkAuth } from '../../middleware/auth';
+import { checkAuth } from '../auth';
 import { buildChannelPostMarkup } from '../../services/sender';
 
 export function registerAiRoutes(app: express.Application) {

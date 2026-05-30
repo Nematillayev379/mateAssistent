@@ -1,7 +1,7 @@
 import express from 'express';
 import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
-import { checkAuth } from '../../middleware/auth';
+import { checkAuth } from '../auth';
 
 export function registerSettingsRoutes(app: express.Application) {
   app.post('/api/settings/:userId/toggle', checkAuth, async (req: any, res: any) => {

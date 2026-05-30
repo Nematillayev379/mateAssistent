@@ -110,7 +110,8 @@ function parseRedisUrls(): string[] {
   return urls;
 }
 
-// ─── Connection pool ───────────────────────────────────────
+// Global registry of defined Lua commands to replay on rotated connections
+const definedCommands = new Map<string, any>();
 
 interface PoolEntry {
   url: string;
@@ -179,7 +180,7 @@ class RedisPool {
   }
 
   private createConnection(url: string): IORedis {
-    return new IORedis(url, {
+    const conn = new IORedis(url, {
       lazyConnect: true,
       connectTimeout: 10000,
       maxRetriesPerRequest: null,
@@ -192,7 +193,19 @@ class RedisPool {
         return Math.min(times * 1000, 3000);
       },
     });
+
+    // Replay defined commands
+    for (const [name, definition] of definedCommands.entries()) {
+      try {
+        conn.defineCommand(name, definition);
+      } catch (err: any) {
+        logger.error(`Failed to replay defined command "${name}" on rotated connection: ${err.message}`);
+      }
+    }
+
+    return conn;
   }
+
 
   private maskUrl(url: string): string {
     try {
@@ -275,6 +288,17 @@ function createPooledIORedis(pool: RedisPool): IORedis {
   const dummy = new IORedis({ host: '127.0.0.1', port: 6379, lazyConnect: true, maxRetriesPerRequest: null });
   dummy.disconnect();
 
+  function ensureCommandOnConnection(conn: IORedis, propName: string): void {
+    if (typeof propName !== 'string') return;
+    const baseName = propName.replace(/\d+$/, '');
+    const definition = definedCommands.get(baseName) || definedCommands.get(propName);
+    if (definition && typeof (conn as any)[propName] !== 'function') {
+      try {
+        (conn as any).defineCommand(baseName, definition);
+      } catch {}
+    }
+  }
+
   const proxy = new Proxy(dummy, {
     get(target, prop) {
       const currentValue = (currentConn as any)[prop];
@@ -289,6 +313,15 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       if (prop === 'disconnect') return async () => { try { await currentConn.disconnect(); } catch {} };
       if (prop === 'quit') return async () => { for (const e of pool.entries) { if (e.conn) { try { await e.conn.quit(); } catch {} e.conn = null; } } };
       if (prop === 'duplicate') return () => proxy;
+      if (prop === 'defineCommand') {
+        return (name: string, definition: any) => {
+          definedCommands.set(name, definition);
+          try {
+            (dummy as any).defineCommand(name, definition);
+          } catch {}
+          return (currentConn as any).defineCommand(name, definition);
+        };
+      }
 
       // Event listener registration -> track and delegate to currentConn
       if (prop === 'on') return (event: string, handler: (...a: any[]) => void) => {
@@ -313,13 +346,27 @@ function createPooledIORedis(pool: RedisPool): IORedis {
 
       if (typeof currentValue === 'function') {
         return (...args: any[]) => execCmd(c => {
+          ensureCommandOnConnection(c, prop as string);
           const fn = (c as any)[prop];
           return typeof fn === 'function' ? fn.apply(c, args) : fn;
         });
       }
 
-      if (targetValue !== undefined) return targetValue;
-      return currentValue;
+      if (currentValue !== undefined) return currentValue;
+
+      if (typeof prop === 'string') {
+        ensureCommandOnConnection(currentConn, prop);
+        const retryValue = (currentConn as any)[prop];
+        if (typeof retryValue === 'function') {
+          return (...args: any[]) => execCmd(c => {
+            ensureCommandOnConnection(c, prop as string);
+            const fn = (c as any)[prop];
+            return typeof fn === 'function' ? fn.apply(c, args) : fn;
+          });
+        }
+      }
+
+      return targetValue;
     },
     set(_target, prop, value) {
       (currentConn as any)[prop] = value;

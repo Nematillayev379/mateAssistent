@@ -4,13 +4,14 @@ module.exports = {
     script: './dist/main.js',
     instances: process.env.NODE_ENV === 'production' ? 0 : 1,
     exec_mode: 'cluster',
+    node_args: '--max-old-space-size=1024',
     env: {
       NODE_ENV: 'production',
     },
     env_development: {
       NODE_ENV: 'development',
     },
-    max_memory_restart: '1G',
+    max_memory_restart: '1200M',
     error_file: './logs/err.log',
     out_file: './logs/out.log',
     merge_logs: true,

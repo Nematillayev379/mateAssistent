@@ -5,7 +5,7 @@ import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
 import { refreshKeyPool, getActiveKeyStats } from '../../services/ai';
-import { checkAdmin } from '../../middleware/auth';
+import { checkAdmin } from '../auth';
 
 export function registerAdminRoutes(app: express.Application) {
   const adminAiLimiter = rateLimit({

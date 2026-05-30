@@ -1,7 +1,7 @@
 import { bot } from "./bot_instance";
 import { DBService } from "./database";
 import { ScraperService } from "./scraper";
-import { processArticleInline } from "../workers/scraper_worker";
+import { processArticleInline } from "../jobs/scraper_worker";
 import { logger, sanitizeLogInput } from "../utils/logger";
 
 export const RssService = {

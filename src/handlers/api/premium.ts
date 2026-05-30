@@ -6,7 +6,7 @@ import { PaymentService } from '../../services/payment';
 import { CryptoPaymentService } from '../../services/crypto_payment';
 import { SecretManager } from '../../services/secret_manager';
 import { logger } from '../../utils/logger';
-import { checkAuth } from '../../middleware/auth';
+import { checkAuth } from '../auth';
 
 export function registerPremiumRoutes(app: express.Application) {
   const buyLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: 'Too many purchase attempts.' } });
@@ -132,5 +132,86 @@ export function registerPremiumRoutes(app: express.Application) {
       rewardPerActive: 10,
       daysPerReward: 30,
     });
+  });
+
+  app.get('/api/agency/info', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const user = await DBService.getUser(uid);
+    const isAgency = user?.role === 'agency' || user?.role === 'owner';
+    res.json({
+      isAgency,
+      tier: user?.agency_tier || null,
+      maxChannels: isAgency ? 10 : 3,
+      features: isAgency ? [
+        '10 ta kanal boshqaruvi',
+        'White-label dashboard',
+        'AI kvota: 200 ta post/daqiqa',
+        'Prioritet qo\'llab-quvvatlash',
+        'Custom branding',
+        'API access',
+        'Multi-admin role',
+      ] : [
+        '3 ta kanal boshqaruvi',
+        'Standart dashboard',
+        'AI kvota: 30 ta post/daqiqa',
+      ],
+      pricing: {
+        monthly: 500000,
+        quarterly: 1200000,
+        yearly: 4000000,
+      },
+    });
+  });
+
+  app.post('/api/agency/subscribe', buyLimiter, checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const { plan, method } = req.body;
+    const prices: Record<string, number> = { monthly: 500000, quarterly: 1200000, yearly: 4000000 };
+    const price = prices[plan];
+    if (!price) return res.status(400).json({ error: 'Invalid plan' });
+
+    if (method === 'stars') {
+      const starsPrice = Math.ceil(price / 100);
+      const invoice = await bot.createInvoiceLink(
+        `mateAssistent Agency (${plan})`,
+        'Agency subscription',
+        `agency_sub_${uid}_${plan}`,
+        '', 'XTR',
+        [{ label: 'Agency', amount: starsPrice }]
+      );
+      return res.json({ success: true, url: invoice, method: 'stars' });
+    }
+
+    if (method === 'usdt' || method === 'ton') {
+      const fn = method === 'usdt' ? CryptoPaymentService.createRequest : CryptoPaymentService.createTonRequest;
+      const req = await fn(uid, plan, price);
+      if (!req) return res.status(503).json({ error: 'Crypto wallet not configured' });
+      return res.json({ success: true, request: req, method });
+    }
+
+    res.status(400).json({ error: 'Unsupported method' });
+  });
+
+  app.get('/api/agency/channels', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const user = await DBService.getUser(uid);
+    const isAgency = user?.role === 'agency' || user?.role === 'owner';
+    if (!isAgency) return res.status(403).json({ error: 'Agency subscription required' });
+
+    const channels = await DBService.getAllUserChannels(user);
+    res.json({ channels, maxChannels: 10 });
+  });
+
+  app.post('/api/agency/branding', checkAuth, async (req: any, res: any) => {
+    const uid = parseInt(req.authenticatedUserId);
+    const user = await DBService.getUser(uid);
+    const isAgency = user?.role === 'agency' || user?.role === 'owner';
+    if (!isAgency) return res.status(403).json({ error: 'Agency subscription required' });
+
+    const { brandName, logoUrl, primaryColor } = req.body;
+    await DBService.updateUser(uid, {
+      agency_branding: JSON.stringify({ brandName, logoUrl, primaryColor })
+    });
+    res.json({ success: true });
   });
 }

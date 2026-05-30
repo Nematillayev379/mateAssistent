@@ -13,8 +13,10 @@ export function setupRSSCron() {
     try {
       const activeUsers = await DBService.getActiveUsers();
       const activeIds = new Set(activeUsers.map(u => u.telegram_id));
-      await RssService.pruneCache(activeIds);
-      logger.info('Memory cleanup: userLastRun cache pruned');
+      for (const [id] of userLastRun.entries()) {
+        if (!activeIds.has(id)) userLastRun.delete(id);
+      }
+      logger.info(`Memory cleanup: userLastRun pruned, ${userLastRun.size} entries remaining`);
     } catch (err: any) {
       logger.error(`Memory cleanup cron failed: ${err.message}`);
     }
@@ -68,14 +70,14 @@ export function setupRSSCron() {
         logger.info(`RSS cron: processing ${sources.length} sources for user ${user.telegram_id}`);
 
         for (const source of sources) {
-          if (isRedisAvailable()) {
-            await addScraperJob({
-              userId: user.telegram_id,
-              sourceUrl: source.url,
-              sourceName: source.name,
-              lang: source.lang || 'uz',
-            });
-          } else {
+          const queued = isRedisAvailable() && await addScraperJob({
+            userId: user.telegram_id,
+            sourceUrl: source.url,
+            sourceName: source.name,
+            lang: source.lang || 'uz',
+          });
+
+          if (!queued) {
             await RssService.processDirectly(user.telegram_id, source);
           }
         }

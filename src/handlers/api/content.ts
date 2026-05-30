@@ -2,7 +2,7 @@ import express from 'express';
 import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { safeSendToChannels } from '../../services/sender';
-import { checkAuth, checkAdmin } from '../../middleware/auth';
+import { checkAuth, checkAdmin } from '../auth';
 
 export function registerContentRoutes(app: express.Application) {
   app.post('/api/posts/publish', checkAuth, async (req: any, res: any) => {

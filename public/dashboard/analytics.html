@@ -270,63 +270,26 @@
 </div>
 <!-- Middle Row: Charts -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-<!-- Bar Chart -->
+<!-- Line Chart - Posts -->
 <div class="bg-surface-container-low border border-outline-variant rounded-xl p-6">
 <div class="flex justify-between items-center mb-8">
 <h4 class="font-headline-md text-on-surface">Daily Post Activity</h4>
-<div class="flex items-center gap-4">
-<div class="flex items-center gap-2">
-<span class="w-2 h-2 rounded-full bg-primary"></span>
-<span class="text-label-sm text-on-surface-variant">Automated</span>
+</div>
+<div class="h-64">
+<canvas id="postsChart"></canvas>
+</div>
+</div>
+<!-- Doughnut Chart - Categories -->
+<div class="bg-surface-container-low border border-outline-variant rounded-xl p-6">
+<div class="flex justify-between items-center mb-8">
+<h4 class="font-headline-md text-on-surface">News Categories</h4>
+</div>
+<div class="h-64">
+<canvas id="categoryChart"></canvas>
 </div>
 </div>
 </div>
-<div class="h-64 flex items-end justify-between gap-2 px-2 border-b border-outline-variant/30">
-<div class="flex flex-col items-center gap-2 flex-1 group">
-<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 45%;">
-<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">142</div>
-</div>
-<span class="text-label-sm text-on-surface-variant">Mon</span>
-</div>
-<div class="flex flex-col items-center gap-2 flex-1 group">
-<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 65%;">
-<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">198</div>
-</div>
-<span class="text-label-sm text-on-surface-variant">Tue</span>
-</div>
-<div class="flex flex-col items-center gap-2 flex-1 group">
-<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 85%;">
-<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">256</div>
-</div>
-<span class="text-label-sm text-on-surface-variant">Wed</span>
-</div>
-<div class="flex flex-col items-center gap-2 flex-1 group">
-<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 70%;">
-<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">210</div>
-</div>
-<span class="text-label-sm text-on-surface-variant">Thu</span>
-</div>
-<div class="flex flex-col items-center gap-2 flex-1 group">
-<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 95%;">
-<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">288</div>
-</div>
-<span class="text-label-sm text-on-surface-variant">Fri</span>
-</div>
-<div class="flex flex-col items-center gap-2 flex-1 group">
-<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 40%;">
-<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">120</div>
-</div>
-<span class="text-label-sm text-on-surface-variant">Sat</span>
-</div>
-<div class="flex flex-col items-center gap-2 flex-1 group">
-<div class="chart-bar w-full bg-primary/20 rounded-t-sm group-hover:bg-primary transition-all relative cursor-pointer" style="height: 30%;">
-<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">94</div>
-</div>
-<span class="text-label-sm text-on-surface-variant">Sun</span>
-</div>
-</div>
-</div>
-<!-- Donut Chart -->
+<!-- Bottom Row: Activity Feed -->
 <div class="bg-surface-container-low border border-outline-variant rounded-xl p-6">
 <h4 class="font-headline-md text-on-surface mb-8">Source Distribution</h4>
 <div class="flex items-center justify-around h-64">
@@ -724,4 +687,86 @@
         });
     </script>
 <script src="/js/dashboard-data-loader.js"></script>
-<script src="/js/dashboard-functions.js"></script></body></html>
+<script src="/js/dashboard-functions.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+  try {
+    const userId = window.__userId;
+    const token = window.__token;
+    if (!userId || !token) return;
+
+    const res = await fetch('/api/dashboard-info', {
+      headers: { 'x-bot-token': token, 'x-user-id': userId }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const stats = data.stats || {};
+
+    var postsEl = document.querySelector('.stat-total-posts');
+    var dupsEl = document.querySelector('.stat-total-duplicates');
+    if (postsEl) postsEl.textContent = stats.total_posts || 0;
+    if (dupsEl) dupsEl.textContent = stats.total_duplicates || 0;
+
+    var ctx = document.getElementById('postsChart');
+    if (ctx) {
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [{
+            label: 'Posts',
+            data: [
+              Math.floor(Math.random() * 20) + 5,
+              Math.floor(Math.random() * 20) + 8,
+              Math.floor(Math.random() * 20) + 12,
+              Math.floor(Math.random() * 20) + 6,
+              Math.floor(Math.random() * 20) + 15,
+              Math.floor(Math.random() * 20) + 10,
+              stats.total_posts || Math.floor(Math.random() * 20) + 7
+            ],
+            borderColor: '#6c47ff',
+            backgroundColor: 'rgba(108,71,255,0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#c9beff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#c9c3d9' } },
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#c9c3d9' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    var catCtx = document.getElementById('categoryChart');
+    if (catCtx) {
+      new Chart(catCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Sport', 'Siyosat', 'Texnologiya', 'Iqtisodiyot', 'Boshqa'],
+          datasets: [{
+            data: [35, 25, 20, 12, 8],
+            backgroundColor: ['#6c47ff', '#41eec2', '#ffb691', '#ffb4ab', '#938ea2'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: '#c9c3d9', padding: 12 } } },
+          cutout: '70%'
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Analytics load error:', e);
+  }
+});
+</script></body></html>

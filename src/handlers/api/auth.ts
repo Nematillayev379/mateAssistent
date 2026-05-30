@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { CONFIG, isOwnerId } from '../../config/config';
 import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
-import { checkAuth, timingSafeCompare, verifyTelegramWebAppData } from '../../middleware/auth';
+import { checkAuth, timingSafeCompare, verifyTelegramWebAppData } from '../auth';
 import { generateDashboardToken } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
 

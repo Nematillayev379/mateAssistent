@@ -3,9 +3,8 @@ import { CONFIG } from "./config/config";
 import { logger } from "./utils/logger";
 import { bot, startBot } from "./services/telegram";
 import { startDashboardServer } from "./services/dashboard";
-import { startWorkers } from "./workers";
-import { setupRSSCron } from "./crons/rss_cron";
-import { setupSystemCrons } from "./crons";
+import { startWorkers, setupSystemCrons } from "./jobs";
+import { setupRSSCron } from "./jobs/rss_cron";
 import { resolveYtDlpPath } from './utils/ytdlp';
 import { initSentry, captureError } from './services/sentry';
 import pkg from '../package.json';
@@ -63,6 +62,10 @@ async function bootstrap() {
     SchedulerService.setup();
     setupRSSCron();
     setupSystemCrons();
+
+    const { setupHealthMonitoring } = await import('./services/health_monitor');
+    setupHealthMonitoring();
+
     if (CONFIG.OWNER_ID) {
       bot.sendMessage(CONFIG.OWNER_ID, `✅ Bot started\nVersion: ${pkg.version}\nUptime: ${Math.round(process.uptime())}s`).catch(() => {});
     }

@@ -33,6 +33,15 @@ const openaiClients = new Map<string, OpenAI>();
 // Circuit Breaker for temporarily failed or rate-limited API keys
 const blockedKeys = new Map<string, number>();
 
+function cleanupBlockedKeys(): void {
+  const now = Date.now();
+  for (const [key, blockedUntil] of blockedKeys.entries()) {
+    if (blockedUntil < now) blockedKeys.delete(key);
+  }
+}
+
+setInterval(cleanupBlockedKeys, 60_000);
+
 function getAvailableKeys(keys: AiKeyEntry[]): AiKeyEntry[] {
   const now = Date.now();
   const availableKeys = keys.filter((key) => {

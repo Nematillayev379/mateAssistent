@@ -53,6 +53,17 @@ export async function handleCallbackQuery(
       return;
     }
 
+    if (data.startsWith("interval_")) {
+      const minutes = parseInt(data.split("_")[1], 10);
+      if (minutes >= 1 && minutes <= 1440) {
+        await DBService.updateUser(chatId, { interval_minutes: minutes });
+        await bot.answerCallbackQuery(query.id, { text: `✅ ${minutes} min` });
+        await bot.sendMessage(chatId, i18n.t("quick_interval_saved", { lng: lang }));
+        await sendNextOnboardingStep(bot, chatId);
+      }
+      return;
+    }
+
     if (data.startsWith("dl_media_")) {
       await handleMediaDownload(bot, query, chatId, user, lang, userStates, data);
       return;

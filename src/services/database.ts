@@ -17,6 +17,9 @@ import { logger } from "../utils/logger";
 const premiumCache = new Map<number, { active: boolean; expiresAt: number }>();
 const recentNewsLocks = new Map<string, number>();
 const userSendSlots = new Map<number, number>();
+let lastLocksCleanup = 0;
+const LOCKS_CLEANUP_INTERVAL = 60_000;
+const MAX_LOCKS_SIZE = 50_000;
 
 // ── Domain service objects ──────────────────────────────────
 
@@ -397,7 +400,22 @@ export const DBService = {
 
   acquireRecentNewsLock(userId: number, url: string, title: string, ttlMs = 12 * 60 * 60 * 1000): boolean {
     const now = Date.now();
-    for (const [key, expiry] of recentNewsLocks.entries()) { if (expiry <= now) recentNewsLocks.delete(key); }
+    if (now - lastLocksCleanup > LOCKS_CLEANUP_INTERVAL) {
+      lastLocksCleanup = now;
+      for (const [key, expiry] of recentNewsLocks.entries()) {
+        if (expiry <= now) recentNewsLocks.delete(key);
+      }
+      if (recentNewsLocks.size > MAX_LOCKS_SIZE) {
+        const iter = recentNewsLocks.keys();
+        let deleted = 0;
+        while (deleted < MAX_LOCKS_SIZE / 2) {
+          const k = iter.next().value;
+          if (k === undefined) break;
+          recentNewsLocks.delete(k);
+          deleted++;
+        }
+      }
+    }
     const normalizedUrl = NewsService.normalizeUrl(url);
     const normalizedTitle = NewsService.normalizeTitle(title);
     const urlKey = `${userId}:url:${normalizedUrl}`;

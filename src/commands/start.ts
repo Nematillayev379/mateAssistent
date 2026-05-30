@@ -8,23 +8,24 @@ import { logger } from "../utils/logger";
 
 function getLanguageKeyboard(): TelegramBot.InlineKeyboardButton[][] {
   const labels: Record<string, string> = {
-    uz: "O'zbek",
-    ru: "Russian",
-    en: "English",
-    tr: "Turkish",
-    de: "Deutsch",
-    fr: "French",
-    es: "Spanish",
-    it: "Italiano",
-    pt: "Portuguese",
-    ar: "Arabic",
-    hi: "Hindi",
-    zh: "Chinese",
-    ja: "Japanese",
-    ko: "Korean",
-    fa: "Persian",
-    kk: "Kazakh",
-    az: "Azerbaijani",
+    uz: "O'zbek 🇺🇿",
+    ru: "Русский 🇷🇺",
+    en: "English 🇬🇧",
+    tr: "Türkçe 🇹🇷",
+    de: "Deutsch 🇩🇪",
+    fr: "Français 🇫🇷",
+    es: "Español 🇪🇸",
+    it: "Italiano 🇮🇹",
+    pt: "Português 🇵🇹",
+    ar: "العربية 🇸🇦",
+    hi: "हिन्दी 🇮🇳",
+    zh: "中文 🇨🇳",
+    ja: "日本語 🇯🇵",
+    ko: "한국어 🇰🇷",
+    fa: "فارسی 🇮🇷",
+    kk: "Қазақша 🇰🇿",
+    ky: "Кыргызча 🇰🇬",
+    az: "Azərbaycanca 🇦🇿",
   };
 
   const rows: TelegramBot.InlineKeyboardButton[][] = [];
@@ -47,58 +48,63 @@ async function sendWelcomeMenu(
 ): Promise<void> {
   const lang = user.language || "uz";
   const dashboardUrl = buildDashboardUrl(chatId);
+  const publicBase = String(process.env.PUBLIC_URL || "").trim();
+  const introUrl = /^https?:\/\/[^/]+/i.test(publicBase) ? `${publicBase.replace(/\/$/, "")}/intro/` : null;
   const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
 
   if (dashboardUrl) {
-    inlineKeyboard.push([{ text: i18n.t("menu_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }]);
+    inlineKeyboard.push([{ text: `🖥  ${i18n.t("menu_dashboard", { lng: lang })}`, web_app: { url: dashboardUrl } }]);
   }
 
   inlineKeyboard.push(
     [
-      { text: i18n.t("menu_sources", { lng: lang }), callback_data: "cmd_sources" },
-      { text: i18n.t("menu_studio", { lng: lang }), callback_data: "cmd_studio" },
+      { text: `📡 ${i18n.t("menu_sources", { lng: lang })}`, callback_data: "cmd_sources" },
+      { text: `🧠 ${i18n.t("menu_studio", { lng: lang })}`, callback_data: "cmd_studio" },
     ],
     [
-      { text: i18n.t("menu_channel", { lng: lang }), callback_data: "cmd_channel" },
-      { text: i18n.t("menu_automation", { lng: lang }), callback_data: "cmd_automation" },
+      { text: `📤 ${i18n.t("menu_channel", { lng: lang })}`, callback_data: "cmd_channel" },
+      { text: `⚙️ ${i18n.t("menu_automation", { lng: lang })}`, callback_data: "cmd_automation" },
     ],
     [
-      { text: i18n.t("menu_analytics", { lng: lang }), callback_data: "cmd_stats" },
-      { text: i18n.t("menu_settings", { lng: lang }), callback_data: "cmd_settings" },
+      { text: `📊 ${i18n.t("menu_analytics", { lng: lang })}`, callback_data: "cmd_stats" },
+      { text: `🔧 ${i18n.t("menu_settings", { lng: lang })}`, callback_data: "cmd_settings" },
     ],
     [
-      { text: i18n.t("menu_help", { lng: lang }), callback_data: "cmd_help" },
-      { text: i18n.t("menu_intro", { lng: lang }), url: `${process.env.PUBLIC_URL || ""}/intro/` },
+      { text: `❓ ${i18n.t("menu_help", { lng: lang })}`, callback_data: "cmd_help" },
+      ...(introUrl ? [{ text: `ℹ️ ${i18n.t("menu_intro", { lng: lang })}`, url: introUrl }] : []),
     ]
   );
 
   if (role === "owner" || role === "admin") {
-    inlineKeyboard.unshift([{ text: i18n.t("menu_admin", { lng: lang }), callback_data: "cmd_admin" }]);
+    inlineKeyboard.unshift([{ text: `👑 ${i18n.t("menu_admin", { lng: lang })}`, callback_data: "cmd_admin" }]);
   }
 
   if (role === "user" && !user.is_premium) {
-    inlineKeyboard.push([{ text: i18n.t("menu_buy_premium", { lng: lang }), callback_data: "buy_premium" }]);
+    inlineKeyboard.push([{ text: `⭐ ${i18n.t("menu_buy_premium", { lng: lang })}`, callback_data: "buy_premium" }]);
   }
 
+  const statusLine = user.is_premium ? "⭐ Premium" : "🆓 Free";
   const menuText = dashboardUrl
-    ? i18n.t("onboarding_menu_ready", { lng: lang })
-    : `${i18n.t("onboarding_menu_ready", { lng: lang })}\n\n${i18n.t("no_dashboard_configured", { lng: lang })}`;
+    ? `✅ <b>${i18n.t("onboarding_menu_ready", { lng: lang })}</b>\n\n${statusLine}`
+    : `✅ <b>${i18n.t("onboarding_menu_ready", { lng: lang })}</b>\n\n${statusLine}\n\n<i>${i18n.t("no_dashboard_configured", { lng: lang })}</i>`;
 
-  await bot.sendMessage(chatId, menuText, { reply_markup: { inline_keyboard: inlineKeyboard } });
+  await bot.sendMessage(chatId, menuText, { parse_mode: "HTML", reply_markup: { inline_keyboard: inlineKeyboard } });
 }
 
 export async function sendLanguageStep(bot: TelegramBot, chatId: number): Promise<void> {
   const introText =
     `🤖 <b>${i18n.t("start_intro_title", { lng: "en" })}</b>\n` +
     `<i>${i18n.t("start_intro_subtitle", { lng: "en" })}</i>\n\n` +
-    `⚡️ <b>${i18n.t("start_intro_features_title", { lng: "en" })}</b>\n` +
-    `\n• 📡 <b>${i18n.t("start_feature_rss_label", { lng: "en" })}:</b> ${i18n.t("start_feature_rss", { lng: "en" })}` +
-    `\n• 🧠 <b>${i18n.t("start_feature_ai_label", { lng: "en" })}:</b> ${i18n.t("start_feature_ai", { lng: "en" })}` +
-    `\n• 🎨 <b>${i18n.t("start_feature_image_label", { lng: "en" })}:</b> ${i18n.t("start_feature_image", { lng: "en" })}` +
-    `\n• 📥 <b>${i18n.t("start_feature_downloader_label", { lng: "en" })}:</b> ${i18n.t("start_feature_downloader", { lng: "en" })}` +
-    `\n• 📓 <b>${i18n.t("start_feature_scheduler_label", { lng: "en" })}:</b> ${i18n.t("start_feature_scheduler", { lng: "en" })}` +
-    `\n• 📊 <b>${i18n.t("start_feature_analytics_label", { lng: "en" })}:</b> ${i18n.t("start_feature_analytics", { lng: "en" })}` +
-    `\n\n🌐 <b>${i18n.t("start_choose_language", { lng: "en" })}</b>`;
+    `━━━━━━━━━━━━━━━━━━━\n` +
+    `⚡ <b>${i18n.t("start_intro_features_title", { lng: "en" })}</b>\n\n` +
+    `📡 <b>${i18n.t("start_feature_rss_label", { lng: "en" })}</b>\n<i>${i18n.t("start_feature_rss", { lng: "en" })}</i>\n\n` +
+    `🧠 <b>${i18n.t("start_feature_ai_label", { lng: "en" })}</b>\n<i>${i18n.t("start_feature_ai", { lng: "en" })}</i>\n\n` +
+    `🎨 <b>${i18n.t("start_feature_image_label", { lng: "en" })}</b>\n<i>${i18n.t("start_feature_image", { lng: "en" })}</i>\n\n` +
+    `📥 <b>${i18n.t("start_feature_downloader_label", { lng: "en" })}</b>\n<i>${i18n.t("start_feature_downloader", { lng: "en" })}</i>\n\n` +
+    `📅 <b>${i18n.t("start_feature_scheduler_label", { lng: "en" })}</b>\n<i>${i18n.t("start_feature_scheduler", { lng: "en" })}</i>\n\n` +
+    `📊 <b>${i18n.t("start_feature_analytics_label", { lng: "en" })}</b>\n<i>${i18n.t("start_feature_analytics", { lng: "en" })}</i>\n\n` +
+    `━━━━━━━━━━━━━━━━━━━\n` +
+    `🌐 <b>${i18n.t("start_choose_language", { lng: "en" })}</b>`;
 
   await bot.sendMessage(chatId, introText, {
     parse_mode: "HTML",
@@ -109,7 +115,10 @@ export async function sendLanguageStep(bot: TelegramBot, chatId: number): Promis
 async function sendChannelStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `📡 <b>${i18n.t("onboarding_step_channel", { lng: lang })}</b>\n\n${i18n.t("onboarding_channel_title", { lng: lang })}\n\n${i18n.t("onboarding_channel_body", { lng: lang })}`,
+    `<b>📤 ${i18n.t("onboarding_step_channel", { lng: lang })}</b>\n\n` +
+    `<b>${i18n.t("onboarding_channel_title", { lng: lang })}</b>\n\n` +
+    `${i18n.t("onboarding_channel_body", { lng: lang })}\n\n` +
+    `<code>@kanalingiz</code>  yoki  <code>-100123456789</code>`,
     { parse_mode: "HTML" }
   );
 }
@@ -117,7 +126,10 @@ async function sendChannelStep(bot: TelegramBot, chatId: number, lang: string): 
 async function sendSourceStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `📡 <b>${i18n.t("onboarding_step_source", { lng: lang })}</b>\n\n${i18n.t("onboarding_rss_title", { lng: lang })}\n\n${i18n.t("onboarding_rss_body", { lng: lang })}`,
+    `<b>📡 ${i18n.t("onboarding_step_source", { lng: lang })}</b>\n\n` +
+    `<b>${i18n.t("onboarding_rss_title", { lng: lang })}</b>\n\n` +
+    `${i18n.t("onboarding_rss_body", { lng: lang })}\n\n` +
+    `<i>${i18n.t("onboarding_rss_website_hint", { lng: lang })}</i>`,
     { parse_mode: "HTML" }
   );
 }
@@ -125,8 +137,25 @@ async function sendSourceStep(bot: TelegramBot, chatId: number, lang: string): P
 async function sendIntervalStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
-    `⏰ <b>${i18n.t("onboarding_step_interval", { lng: lang })}</b>\n\n${i18n.t("onboarding_interval_title", { lng: lang })}\n\n${i18n.t("onboarding_interval_body", { lng: lang })}`,
-    { parse_mode: "HTML" }
+    `<b>⏱ ${i18n.t("onboarding_step_interval", { lng: lang })}</b>\n\n` +
+    `<b>${i18n.t("onboarding_interval_title", { lng: lang })}</b>\n\n` +
+    `${i18n.t("onboarding_interval_body", { lng: lang })}`,
+    {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "15 min", callback_data: "interval_15" },
+            { text: "30 min", callback_data: "interval_30" },
+            { text: "60 min", callback_data: "interval_60" },
+          ],
+          [
+            { text: "120 min", callback_data: "interval_120" },
+            { text: "240 min", callback_data: "interval_240" },
+          ],
+        ],
+      },
+    }
   );
 }
 
@@ -182,6 +211,7 @@ export const startCommand: BotCommand = {
             await DBService.setPremium(chatId, 3);
             logger.info(`New referral: ${chatId} invited by ${referrer.telegram_id}, 3d premium granted`);
             try {
+              await bot.sendMessage(chatId, `🎉 <b>Referral bonus!</b>\n\nSiz do'stingiz orqali qo'shildingiz!\n<b>3 kunlik Premium</b> sovg'a sifatida berildi!`).catch(() => {});
               const refCount = (await DBService.getReferralStats(referrer.telegram_id)).active;
               const refLang = referrer.language || "en";
               const refMsg = `🎉 ${i18n.t("referral_joined", { lng: refLang })}\n${i18n.t("referral_active_count", { lng: refLang })} ${refCount}`;

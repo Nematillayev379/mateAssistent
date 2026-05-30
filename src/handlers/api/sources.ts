@@ -1,7 +1,7 @@
 import express from 'express';
 import { DBService } from '../../services/database';
 import { ScraperService } from '../../services/scraper';
-import { checkAuth } from '../../middleware/auth';
+import { checkAuth } from '../auth';
 
 export function registerSourcesRoutes(app: express.Application) {
   app.get('/api/sources/:userId', checkAuth, async (req: any, res: any) => res.json(await DBService.getUserSources(parseInt(req.authenticatedUserId))));
