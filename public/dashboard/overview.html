@@ -171,6 +171,10 @@
 <span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
 <span class="font-body-md text-body-md">Wallet</span>
 </a>
+<a id="admin-nav-link" class="hidden items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined" data-icon="shield_person">shield_person</span>
+<span class="font-body-md text-body-md">Admin</span>
+</a>
 </nav>
 <div class="mt-auto pt-stack-md border-t border-outline-variant">
 <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors duration-200" href="/dashboard/settings.html">
@@ -588,6 +592,11 @@
 <span class="material-symbols-outlined" data-icon="bolt">bolt</span>
 <span class="font-label-sm text-label-sm mt-1">Automation</span>
 </a>
+<!-- Admin (hidden by default) -->
+<a id="admin-nav-link-mobile" class="hidden flex-col items-center justify-center text-on-surface-variant transition-colors hover:text-primary-container active:scale-95 duration-150" href="/dashboard/admin/index.html">
+<span class="material-symbols-outlined" data-icon="shield_person">shield_person</span>
+<span class="font-label-sm text-label-sm mt-1">Admin</span>
+</a>
 <!-- Settings -->
 <a class="flex flex-col items-center justify-center text-on-surface-variant transition-colors hover:text-primary-container active:scale-95 duration-150" href="/dashboard/settings.html">
 <span class="material-symbols-outlined" data-icon="settings">settings</span>
@@ -617,6 +626,14 @@
                 if (nameEl) nameEl.textContent = u.first_name || u.username || 'User';
                 var roleEl = $('.sidebar-user-role');
                 if (roleEl) roleEl.textContent = u.role === 'owner' ? 'Owner' : u.role === 'admin' ? 'Admin' : 'User';
+
+                if (u.role === 'owner' || u.role === 'admin') {
+                    var adminLink = document.getElementById('admin-nav-link');
+                    if (adminLink) adminLink.classList.remove('hidden');
+                    var adminLinkMobile = document.getElementById('admin-nav-link-mobile');
+                    if (adminLinkMobile) adminLinkMobile.classList.remove('hidden');
+                }
+
                 var channelEl = $('.mobile-channel-name');
                 if (channelEl && u.target_channel) channelEl.textContent = u.target_channel;
             }
