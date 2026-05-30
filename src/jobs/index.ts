@@ -20,12 +20,12 @@ export async function startWorkers(): Promise<void> {
 
 export function setupSystemCrons() {
   scheduleSelfPing();
-  schedulePriceTracker();
   scheduleDailyDigest();
   scheduleCleanup();
   scheduleClusterDigest();
   scheduleWorkspaceRebalance();
   scheduleKeyPoolRefresh();
+  scheduleDailyRssSearch();
 }
 
 function scheduleSelfPing() {
@@ -44,13 +44,34 @@ function scheduleSelfPing() {
   logger.info(`Self-ping scheduled every 10 min → ${CONFIG.PUBLIC_URL}`);
 }
 
-function schedulePriceTracker() {
-  cron.schedule("0 */4 * * *", async () => {
+function scheduleDailyRssSearch() {
+  cron.schedule("0 8 * * *", async () => {
     try {
-      const { PriceTrackerService } = await import("../services/pricetracker");
-      await PriceTrackerService.runPriceChecks();
+      const { RssSearchService } = await import("../services/rss_search");
+      const { DBService } = await import("../services/database");
+      const { bot } = await import("../services/bot_instance");
+      const users = await DBService.getActiveUsers();
+
+      for (const user of users) {
+        const searches = await RssSearchService.getUserSearches(user.telegram_id);
+        const dailySearches = searches.filter(s => s.mode === 'daily' && s.isActive);
+
+        for (const search of dailySearches) {
+          try {
+            const results = await RssSearchService.runSearch(search.id);
+            if (results.length > 0) {
+              const summary = await RssSearchService.summarizeResults(results, search.topic, user.language || 'uz');
+              await bot.sendMessage(user.target_channel || user.telegram_id, summary, { parse_mode: 'HTML' }).catch(() => {});
+            }
+          } catch (e: any) {
+            logger.warn(`Daily RSS search failed for ${user.telegram_id}: ${e.message}`);
+          }
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
+      logger.info('Daily RSS search completed');
     } catch (err: any) {
-      logger.error(`Price Tracker Cron Error: ${err.message}`);
+      logger.error(`Daily RSS Search Cron Error: ${err.message}`);
     }
   });
 }

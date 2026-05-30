@@ -1,51 +1,88 @@
 import express from 'express';
 import { DBService } from '../../services/database';
-import { PriceTrackerService } from '../../services/pricetracker';
-import { ScraperService } from '../../services/scraper';
+import { RssSearchService } from '../../services/rss_search';
 import { checkAuth } from '../auth';
 import { logger } from '../../utils/logger';
 
 export function registerTrackerRoutes(app: express.Application) {
-  app.get('/api/tracker/search', checkAuth, async (req: any, res: any) => {
-    const q = req.query.q;
-    if (!q || typeof q !== 'string' || q.trim() === '') return res.status(400).json({ error: 'Qidiruv so\'rovi kiritilmagan' });
-    try { res.json((await PriceTrackerService.searchProducts(q.trim())).sort((a: any, b: any) => a.price - b.price)); }
-    catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  app.get('/api/tracker/cheapest', checkAuth, async (req: any, res: any) => {
-    const q = req.query.q;
-    if (!q || typeof q !== 'string' || q.trim() === '') return res.status(400).json({ error: 'Qidiruv so\'rovi kiritilmagan' });
+  app.get('/api/rss-search/:userId', checkAuth, async (req: any, res: any) => {
     try {
-      let results = await PriceTrackerService.searchProducts(q.trim());
-      if (!results.length) {
-        try {
-          const scraped = await ScraperService.searchProducts(q.trim());
-          results = (scraped || []).map((item: any) => ({ title: item.name || item.title || 'Mahsulot', price: Number(item.price) || 0, url: item.url, source: item.store || item.source || 'Marketplace' })).filter((item: any) => item.url && Number.isFinite(item.price) && item.price > 0).sort((a: any, b: any) => a.price - b.price);
-        } catch (e: any) { logger.warn(`API call failed: ${e?.message || 'unknown error'}`); }
+      const uid = parseInt(req.params.userId);
+      if (uid !== parseInt(req.authenticatedUserId)) {
+        return res.status(403).json({ error: 'Forbidden' });
       }
-      const cheapest = results[0] || null;
-      const bySource = Array.from(results.reduce((acc: Map<string, any>, item: any) => { const current = acc.get(item.source); if (!current || item.price < current.price) acc.set(item.source, item); return acc; }, new Map())).map(([, v]) => v).sort((a, b) => a.price - b.price);
-      res.json({ cheapest, bySource });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+      const searches = await RssSearchService.getUserSearches(uid);
+      res.json({ searches });
+    } catch (err: any) {
+      logger.error(`getSearches error: ${err.message}`);
+      res.status(500).json({ error: 'Server error' });
+    }
   });
 
-  app.get('/api/prices/:userId', checkAuth, async (req: any, res: any) => res.json(await DBService.getTrackedPrices(parseInt(req.authenticatedUserId))));
-
-  app.post('/api/prices/:userId', checkAuth, async (req: any, res: any) => {
-    const { url, name, price } = req.body;
-    const parsedPrice = Number(price);
-    if (!url || !name || Number.isNaN(parsedPrice) || parsedPrice < 0) return res.status(400).json({ error: 'Invalid price tracker payload' });
+  app.post('/api/rss-search/:userId', checkAuth, async (req: any, res: any) => {
     try {
-      let finalName = name, finalPrice = parsedPrice;
-      if (finalName === 'Tovar' || finalPrice === 0) {
-        const resolved = await PriceTrackerService.fetchPrice(url);
-        if (resolved) { finalName = resolved.title; finalPrice = resolved.price; }
+      const uid = parseInt(req.params.userId);
+      if (uid !== parseInt(req.authenticatedUserId)) {
+        return res.status(403).json({ error: 'Forbidden' });
       }
-      await DBService.addTrackedPrice(parseInt(req.authenticatedUserId), url, finalName, finalPrice);
-      res.json({ success: true });
-    } catch (e: any) { res.status(400).json({ error: e.message }); }
+
+      const { topic, keywords, maxResults, mode } = req.body;
+      if (!topic || !topic.trim()) {
+        return res.status(400).json({ error: 'Topic is required' });
+      }
+
+      const search = await RssSearchService.createSearch(
+        uid,
+        topic.trim(),
+        keywords || [],
+        maxResults || 10,
+        mode || 'instant'
+      );
+
+      if (mode === 'instant') {
+        const results = await RssSearchService.runSearch(search.id);
+        const user = await DBService.getUser(uid);
+        const summary = await RssSearchService.summarizeResults(results, topic, user?.language || 'uz');
+        return res.json({ success: true, search, results, summary });
+      }
+
+      res.json({ success: true, search, message: 'Search created. Results will be delivered daily.' });
+    } catch (err: any) {
+      logger.error(`createSearch error: ${err.message}`);
+      res.status(500).json({ error: 'Server error' });
+    }
   });
 
-  app.delete('/api/prices/:userId/:id', checkAuth, async (req: any, res: any) => { await DBService.removePrice(parseInt(req.authenticatedUserId), parseInt(req.params.id)); res.json({ success: true }); });
+  app.delete('/api/rss-search/:userId/:searchId', checkAuth, async (req: any, res: any) => {
+    try {
+      const uid = parseInt(req.params.userId);
+      if (uid !== parseInt(req.authenticatedUserId)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+      const deleted = await RssSearchService.deleteSearch(uid, req.params.searchId);
+      res.json({ success: deleted });
+    } catch (err: any) {
+      logger.error(`deleteSearch error: ${err.message}`);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  app.post('/api/rss-search/:userId/:searchId/run', checkAuth, async (req: any, res: any) => {
+    try {
+      const uid = parseInt(req.params.userId);
+      if (uid !== parseInt(req.authenticatedUserId)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
+
+      const results = await RssSearchService.runSearch(req.params.searchId);
+      const user = await DBService.getUser(uid);
+      const search = (await RssSearchService.getUserSearches(uid)).find(s => s.id === req.params.searchId);
+      const summary = await RssSearchService.summarizeResults(results, search?.topic || 'Search', user?.language || 'uz');
+
+      res.json({ success: true, results, summary });
+    } catch (err: any) {
+      logger.error(`runSearch error: ${err.message}`);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
 }
