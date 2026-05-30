@@ -341,6 +341,68 @@
 </div>
 </section>
 
+<!-- RSS Search Section -->
+<section class="mt-stack-lg bg-surface-container-low border border-outline-variant rounded-xl p-stack-md">
+<div class="flex items-center gap-stack-sm mb-stack-md">
+<span class="material-symbols-outlined text-secondary">search</span>
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">RSS Search</h2>
+<span class="bg-secondary/10 text-secondary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">AI Powered</span>
+</div>
+<p class="text-on-surface-variant font-body-md text-body-md mb-stack-md">Topic yozing, AI RSS lardan qidiradi va özet beradi.</p>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-stack-md">
+<!-- Left: Search Form -->
+<div class="space-y-stack-md">
+<div>
+<label class="text-label-md font-label-md text-on-surface-variant mb-1 block">Mavzu</label>
+<input type="text" id="rss-search-topic" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Masalan: dollar kursi, sun'iy intellekt, futbol">
+</div>
+<div>
+<label class="text-label-md font-label-md text-on-surface-variant mb-1 block">Kalit so'zlar (vergul bilan)</label>
+<input type="text" id="rss-search-keywords" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="dollar, valyuta, iqtisodiyot">
+</div>
+<div class="grid grid-cols-2 gap-stack-md">
+<div>
+<label class="text-label-md font-label-md text-on-surface-variant mb-1 block">Natijalar soni</label>
+<select id="rss-search-max" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 text-body-md text-on-surface focus:border-primary outline-none">
+<option value="5">5</option>
+<option value="10" selected>10</option>
+<option value="20">20</option>
+<option value="50">50</option>
+</select>
+</div>
+<div>
+<label class="text-label-md font-label-md text-on-surface-variant mb-1 block">Rejim</label>
+<select id="rss-search-mode" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 text-body-md text-on-surface focus:border-primary outline-none">
+<option value="instant">Darhol</option>
+<option value="daily">Kunlik</option>
+</select>
+</div>
+</div>
+<button class="w-full bg-secondary text-on-secondary font-bold py-3 rounded-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all" onclick="runRssSearch()">
+<span class="material-symbols-outlined">search</span>
+                    Qidirish
+                </button>
+</div>
+
+<!-- Right: Results -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md min-h-[300px] max-h-[500px] overflow-y-auto custom-scrollbar" id="rss-search-results">
+<div class="flex flex-col items-center justify-center h-full text-on-surface-variant">
+<span class="material-symbols-outlined text-4xl mb-2 opacity-30">manage_search</span>
+<p class="text-body-md">Natijalar shu yerda ko'rinadi</p>
+</div>
+</div>
+</div>
+
+<!-- Active Searches List -->
+<div class="mt-stack-md">
+<h3 class="text-label-md font-label-md text-on-surface-variant mb-stack-sm uppercase tracking-wider">Active Searches</h3>
+<div id="rss-search-list" class="space-y-2">
+<div class="text-body-md text-on-surface-variant py-4 text-center">Hozircha qidiruvlar yo'q</div>
+</div>
+</div>
+</section>
+
 <section class="mt-stack-lg">
 <div class="flex items-center justify-between mb-stack-md">
 <div class="flex items-center gap-stack-sm">
@@ -597,6 +659,99 @@
                 else circle.style.transform = 'translateX(0px)';
             });
         }
+
+        // RSS Search Functions
+        async function runRssSearch() {
+            const topic = document.getElementById('rss-search-topic').value.trim();
+            const keywordsStr = document.getElementById('rss-search-keywords').value.trim();
+            const maxResults = parseInt(document.getElementById('rss-search-max').value);
+            const mode = document.getElementById('rss-search-mode').value;
+            const resultsDiv = document.getElementById('rss-search-results');
+
+            if (!topic) {
+                showToast('Mavzuni kiriting', 'error');
+                return;
+            }
+
+            const keywords = keywordsStr ? keywordsStr.split(',').map(k => k.trim()).filter(Boolean) : [topic];
+
+            resultsDiv.innerHTML = '<div class="flex flex-col items-center justify-center h-full"><div class="animate-spin w-8 h-8 border-2 border-secondary border-t-transparent rounded-full mb-2"></div><p class="text-on-surface-variant">Qidirilmoqda...</p></div>';
+
+            try {
+                const res = await apiFetch('/api/rss-search/' + window.__userId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, keywords, maxResults, mode })
+                });
+                const data = await res.json();
+
+                if (data.success && data.results) {
+                    let html = '<div class="space-y-3">';
+                    html += '<div class="flex items-center gap-2 mb-3"><span class="material-symbols-outlined text-secondary">check_circle</span><span class="text-body-md text-secondary font-bold">' + data.results.length + ' ta natija topildi</span></div>';
+
+                    for (const r of data.results) {
+                        html += '<div class="bg-surface-container rounded-lg p-3 border border-outline-variant hover:border-secondary transition-colors">';
+                        html += '<h4 class="text-body-md font-bold text-on-surface mb-1">' + escapeHtml(r.title) + '</h4>';
+                        html += '<p class="text-label-sm text-on-surface-variant mb-2">' + escapeHtml(r.source) + ' · ' + (r.pubDate ? new Date(r.pubDate).toLocaleDateString() : '') + '</p>';
+                        html += '<p class="text-body-sm text-on-surface-variant line-clamp-2">' + escapeHtml(r.content.slice(0, 200)) + '</p>';
+                        if (r.url) html += '<a href="' + r.url + '" target="_blank" class="text-secondary text-label-sm hover:underline mt-1 inline-block">O\'qish →</a>';
+                        html += '</div>';
+                    }
+                    html += '</div>';
+
+                    if (data.summary) {
+                        html = '<div class="bg-secondary/10 border border-secondary/30 rounded-lg p-3 mb-3"><p class="text-body-md text-on-surface">' + escapeHtml(data.summary) + '</p></div>' + html;
+                    }
+
+                    resultsDiv.innerHTML = html;
+                    loadSearchList();
+                } else {
+                    resultsDiv.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-on-surface-variant"><span class="material-symbols-outlined text-4xl mb-2 opacity-30">search_off</span><p>Natija topilmadi</p></div>';
+                }
+            } catch (e) {
+                resultsDiv.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-error"><span class="material-symbols-outlined text-4xl mb-2">error</span><p>Xatolik yuz berdi</p></div>';
+            }
+        }
+
+        async function loadSearchList() {
+            try {
+                const res = await apiFetch('/api/rss-search/' + window.__userId);
+                const data = await res.json();
+                const listDiv = document.getElementById('rss-search-list');
+
+                if (!data.searches || data.searches.length === 0) {
+                    listDiv.innerHTML = '<div class="text-body-md text-on-surface-variant py-4 text-center">Hozircha qidiruvlar yo\'q</div>';
+                    return;
+                }
+
+                let html = '';
+                for (const s of data.searches) {
+                    html += '<div class="flex items-center justify-between bg-surface-container rounded-lg p-3 border border-outline-variant">';
+                    html += '<div class="flex-1"><p class="text-body-md font-bold text-on-surface">' + escapeHtml(s.topic) + '</p>';
+                    html += '<p class="text-label-sm text-on-surface-variant">' + s.keywords.join(', ') + ' · ' + (s.mode === 'daily' ? 'Kunlik' : 'Darhol') + '</p></div>';
+                    html += '<button onclick="deleteSearch(\'' + s.id + '\')" class="text-error hover:text-error/80 p-2"><span class="material-symbols-outlined">delete</span></button>';
+                    html += '</div>';
+                }
+                listDiv.innerHTML = html;
+            } catch (e) {}
+        }
+
+        async function deleteSearch(searchId) {
+            try {
+                await apiFetch('/api/rss-search/' + window.__userId + '/' + searchId, { method: 'DELETE' });
+                loadSearchList();
+                showToast('Qidiruv o\'chirildi', 'success');
+            } catch (e) {
+                showToast('Xatolik', 'error');
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSearchList);
     </script>
 <script src="/js/dashboard-data-loader.js"></script>
 <script src="/js/dashboard-functions.js"></script></body></html>
