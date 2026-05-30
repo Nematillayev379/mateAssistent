@@ -1,142 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login — Uzbekistan Newsroom</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #0a0a0f; color: #e2e8f0;
-    min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  }
-  .card {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 20px;
-    padding: 2.5rem;
-    width: 100%; max-width: 400px;
-    margin: 1rem;
-    backdrop-filter: blur(12px);
-  }
-  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; text-align: center; }
-  .sub { color: #94a3b8; font-size: 0.9rem; text-align: center; margin-bottom: 2rem; }
-  .tab-group { display: flex; gap: 0; margin-bottom: 1.5rem; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
-  .tab { flex: 1; padding: 0.7rem; text-align: center; cursor: pointer; font-size: 0.9rem; font-weight: 500; background: transparent; color: #94a3b8; border: none; transition: 0.2s; }
-  .tab.active { background: rgba(34,211,238,0.1); color: #22d3ee; }
-  .form-group { margin-bottom: 1.2rem; }
-  label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.4rem; }
-  input {
-    width: 100%; padding: 0.9rem 1rem;
-    border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.04); color: #e2e8f0;
-    font-size: 0.95rem; outline: none; transition: 0.2s;
-  }
-  input:focus { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.1); }
-  .btn {
-    width: 100%; padding: 0.9rem;
-    border-radius: 10px; border: none;
-    font-size: 1rem; font-weight: 600; cursor: pointer;
-    background: linear-gradient(135deg, #22d3ee, #06b6d4);
-    color: #0a0a0f; transition: 0.2s;
-  }
-  .btn:hover { transform: translateY(-2px); box-shadow: 0 0 30px rgba(34,211,238,0.2); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-  .error { color: #f87171; font-size: 0.85rem; margin-top: 0.8rem; text-align: center; display: none; }
-  .success-msg { color: #22d3ee; font-size: 0.85rem; margin-top: 0.8rem; text-align: center; display: none; }
-  .or-divider { text-align: center; color: #475569; font-size: 0.85rem; margin: 1rem 0; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — mateAssistent Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#14121c",
+            "surface-container": "#201e29",
+            "surface-container-lowest": "#0e0d17",
+            "primary": "#c9beff",
+            "primary-container": "#6c47ff",
+            "secondary": "#41eec2",
+            "on-surface": "#e6e0ef",
+            "on-surface-variant": "#c9c3d9",
+            "outline-variant": "#484556",
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0A0A0B; font-family: 'Geist', sans-serif; }
+    .glass { background: rgba(20, 18, 28, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(72, 69, 86, 0.3); }
+    .glow { box-shadow: 0 0 60px rgba(108, 71, 255, 0.15); }
+  </style>
 </head>
-<body>
-<div class="card">
-  <h1>Web Console</h1>
-  <p class="sub">Login to your dashboard from any browser</p>
-
-  <div class="tab-group">
-    <button class="tab active" onclick="switchTab('login')">Login</button>
-    <button class="tab" onclick="switchTab('register')">Register</button>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <!-- Background Effects -->
+  <div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-container/10 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-3xl"></div>
   </div>
 
-  <div id="login-form">
-    <div class="form-group">
-      <label>Email</label>
-      <input type="email" id="login-email" placeholder="you@example.com">
+  <!-- Login Card -->
+  <div class="glass glow rounded-2xl p-8 w-full max-w-md relative z-10">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-container/20 flex items-center justify-center">
+        <span class="material-symbols-outlined text-primary text-3xl">smart_toy</span>
+      </div>
+      <h1 class="text-2xl font-bold text-on-surface">mateAssistent</h1>
+      <p class="text-on-surface-variant text-sm mt-1">Dashboard Access</p>
     </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="login-password" placeholder="Min 6 characters">
+
+    <!-- Login Form -->
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="text-sm text-on-surface-variant mb-2 block">Telegram ID</label>
+        <input type="text" id="telegramId" placeholder="Masalan: 8566566223"
+          class="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
+      </div>
+
+      <button type="submit" id="loginBtn"
+        class="w-full bg-primary-container text-on-primary font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all">
+        <span class="material-symbols-outlined">login</span>
+        Kirish
+      </button>
+    </form>
+
+    <!-- Divider -->
+    <div class="flex items-center gap-4 my-6">
+      <div class="flex-1 h-px bg-outline-variant/30"></div>
+      <span class="text-xs text-on-surface-variant">YOKI</span>
+      <div class="flex-1 h-px bg-outline-variant/30"></div>
     </div>
-    <button class="btn" id="login-btn" onclick="handleLogin()">Login</button>
-    <div class="error" id="login-error"></div>
+
+    <!-- Telegram Bot Link -->
+    <a href="https://t.me/mateAssistent_bot" target="_blank"
+      class="w-full border border-outline-variant text-on-surface py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-surface-container transition-colors">
+      <span class="material-symbols-outlined">send</span>
+      Telegram Bot orqali kirish
+    </a>
+
+    <!-- Error Message -->
+    <div id="errorMsg" class="hidden mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center"></div>
   </div>
 
-  <div id="register-form" style="display:none">
-    <div class="form-group">
-      <label>Email</label>
-      <input type="email" id="reg-email" placeholder="you@example.com">
-    </div>
-    <div class="form-group">
-      <label>Password</label>
-      <input type="password" id="reg-password" placeholder="Min 6 characters">
-    </div>
-    <button class="btn" id="reg-btn" onclick="handleRegister()">Create Account</button>
-    <div class="error" id="reg-error"></div>
-    <div class="success-msg" id="reg-success">Account created! You can now login once an admin approves your account.</div>
-  </div>
+  <script>
+    const DASHBOARD_SECRET = '2d5b291fb6d65429eac3562da57884dab8677f3522780d87a9cb4fe54f473546';
 
-  <div class="or-divider">or</div>
-  <a class="btn" style="display:block; text-align:center; text-decoration:none;" href="/">Open in Telegram</a>
-</div>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const telegramId = document.getElementById('telegramId').value.trim();
+      const errorMsg = document.getElementById('errorMsg');
+      const loginBtn = document.getElementById('loginBtn');
 
-<script>
-(function() {
-  var t = localStorage.getItem('bot_token');
-  var u = localStorage.getItem('bot_user_id');
-  if (t && u) { window.location.href = '/?web=1'; return; }
-})();
+      if (!telegramId) {
+        errorMsg.textContent = 'Telegram ID kiriting';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
 
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
-  document.getElementById('register-form').style.display = tab === 'register' ? 'block' : 'none';
-  event.target.classList.add('active');
-}
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<div class="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div> Tekshirilmoqda...';
 
-function showError(id, msg) { var el = document.getElementById(id); el.textContent = msg; el.style.display = 'block'; }
-function hideError(id) { document.getElementById(id).style.display = 'none'; }
+      try {
+        const token = await generateToken(telegramId);
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: telegramId, token: token })
+        });
 
-async function handleLogin() {
-  var email = document.getElementById('login-email').value.trim();
-  var password = document.getElementById('login-password').value;
-  if (!email || !password) { showError('login-error', 'Fill in all fields'); return; }
-  hideError('login-error');
-  document.getElementById('login-btn').disabled = true;
-  try {
-    var r = await fetch('/api/auth/web-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, password: password }) });
-    var d = await r.json();
-    if (!r.ok) { showError('login-error', d.error || 'Login failed'); return; }
-    localStorage.setItem('bot_token', d.token);
-    localStorage.setItem('bot_user_id', String(d.userId));
-    window.location.href = '/?web=1';
-  } catch (e) { showError('login-error', 'Connection error'); }
-  finally { document.getElementById('login-btn').disabled = false; }
-}
+        if (response.ok) {
+          localStorage.setItem('dashboard_token', token);
+          localStorage.setItem('dashboard_user', telegramId);
+          window.location.href = '/dashboard/overview.html?token=' + token + '&user=' + telegramId;
+        } else {
+          errorMsg.textContent = 'Noto\'g\'ri Telegram ID yoki siz hali ro\'yxatdan o\'tmagansiz';
+          errorMsg.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorMsg.textContent = 'Xatolik yuz berdi. Qaytadan urinib ko\'ring.';
+        errorMsg.classList.remove('hidden');
+      }
 
-async function handleRegister() {
-  var email = document.getElementById('reg-email').value.trim();
-  var password = document.getElementById('reg-password').value;
-  if (!email || !password || password.length < 6) { showError('reg-error', 'Email and password (6+ chars) required'); return; }
-  hideError('reg-error');
-  document.getElementById('reg-btn').disabled = true;
-  try {
-    var r = await fetch('/api/auth/web-register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email, password: password }) });
-    var d = await r.json();
-    if (!r.ok) { showError('reg-error', d.error || 'Registration failed'); return; }
-    document.getElementById('reg-success').style.display = 'block';
-  } catch (e) { showError('reg-error', 'Connection error'); }
-  finally { document.getElementById('reg-btn').disabled = false; }
-}
-</script>
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = '<span class="material-symbols-outlined">login</span> Kirish';
+    });
+
+    // Simple token generation (matches bot_instance.ts)
+    async function generateToken(userId) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(userId + ':' + DASHBOARD_SECRET);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Check if already logged in
+    const savedToken = localStorage.getItem('dashboard_token');
+    const savedUser = localStorage.getItem('dashboard_user');
+    if (savedToken && savedUser) {
+      window.location.href = '/dashboard/overview.html?token=' + savedToken + '&user=' + savedUser;
+    }
+  </script>
 </body>
 </html>

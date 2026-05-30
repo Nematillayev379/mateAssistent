@@ -44,6 +44,30 @@ export function registerAuthRoutes(app: express.Application) {
     res.json({ token, userId: tgUser.id, role: user.role || 'user' });
   });
 
+  app.post('/api/auth/verify', authLimiter, async (req, res) => {
+    const { userId, token } = req.body;
+    if (!userId || !token) return res.status(400).json({ error: 'Missing userId or token' });
+
+    const uid = parseInt(userId);
+    if (isNaN(uid)) return res.status(400).json({ error: 'Invalid userId' });
+
+    const expectedToken = generateDashboardToken(uid);
+    if (token !== expectedToken) return res.status(401).json({ error: 'Invalid token' });
+
+    let user = await DBService.getUser(uid);
+    if (!user) {
+      user = await DBService.upsertUser(uid, isOwnerId(uid) ? 1 : 0);
+    }
+    if (!user) return res.status(500).json({ error: 'User not found' });
+
+    if (isOwnerId(uid) && user.role !== 'owner') {
+      await DBService.updateUserRole(uid, 'owner');
+      user.role = 'owner';
+    }
+
+    res.json({ success: true, userId: uid, role: user.role || 'user' });
+  });
+
   app.post('/api/auth/master', masterLimiter, async (req, res) => {
     const { token } = req.body;
     if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {

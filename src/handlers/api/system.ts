@@ -87,6 +87,10 @@ export function registerSystemRoutes(app: express.Application) {
     res.sendFile(path.join(process.cwd(), 'public', 'landing.html'));
   });
 
+  app.get('/login', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'login.html'));
+  });
+
   app.use((req, res, next) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
     res.sendFile(path.join(process.cwd(), 'public', 'landing.html'), (err) => { if (err && !res.headersSent) res.status(404).json({ error: 'Page not found' }); });
