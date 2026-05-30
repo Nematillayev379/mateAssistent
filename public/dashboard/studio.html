@@ -484,7 +484,7 @@ tailwind.config = {
 </div>
 </div>
 <div class="relative group">
-<textarea class="w-full h-32 bg-surface-container-low border border-outline-variant rounded-xl p-4 text-body-md font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-all resize-none placeholder:text-outline/50" placeholder="Describe topic..."></textarea>
+<textarea id="ai-prompt" class="w-full h-32 bg-surface-container-low border border-outline-variant rounded-xl p-4 text-body-md font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container outline-none transition-all resize-none placeholder:text-outline/50" placeholder="Describe topic..."></textarea>
 <div class="absolute bottom-3 right-3 text-label-sm font-label-sm text-outline">0/500</div>
 </div>
 <div class="flex items-center justify-between bg-surface-container-low border border-outline-variant rounded-xl p-4">
@@ -496,11 +496,23 @@ tailwind.config = {
 <div class="absolute top-1 left-1 bg-on-primary-container w-3 h-3 rounded-full transition-transform translate-x-5" id="toggle-circle"></div>
 </button>
 </div>
-<button class="w-full h-12 bg-primary-container text-on-primary-container font-headline-md text-headline-md font-bold rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2">
+<button id="btn-ai" class="w-full h-12 bg-primary-container text-on-primary-container font-headline-md text-headline-md font-bold rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2" onclick="generateAIPost()">
 <span class="material-symbols-outlined" data-icon="bolt" style="font-variation-settings: 'FILL' 1;">bolt</span>
                 Generate Post
             </button>
 </section>
+<!-- AI Result (Mobile) -->
+<div id="ai-result" style="display:none" class="glass-panel p-stack-md rounded-xl mt-stack-lg">
+<div class="flex justify-between items-center mb-stack-sm">
+<span class="text-primary font-bold">AI Generated</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant rounded-lg text-sm hover:bg-surface-container" onclick="copyAIPost()">Copy</button>
+<button class="px-3 py-1 bg-primary-container text-on-primary-container rounded-lg text-sm font-bold" onclick="sendAIPost()">Send to Channel</button>
+</div>
+</div>
+<img id="ai-res-img" style="display:none" class="w-full max-w-sm rounded-lg mb-3"/>
+<p id="ai-res-text" class="text-body-md"></p>
+</div>
 <!-- Preview Section (Telegram Mockup) -->
 <section class="space-y-stack-md">
 <h2 class="font-label-md text-label-md text-outline tracking-widest uppercase">Live Preview</h2>

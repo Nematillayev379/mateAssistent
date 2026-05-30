@@ -11,7 +11,7 @@
 
   // ─── Helpers ─────────────────────────────────
   function esc(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-  function $(s) { return document.querySelector(s); }
+  function $(s) { var els = document.querySelectorAll(s); if (els.length <= 1) return els[0]; return Array.from(els).find(function(el){ return el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0; }) || els[0]; }
   function $$(s) { return document.querySelectorAll(s); }
   function setText(s, v) { var e = $(s); if (e) e.textContent = v != null ? v : ''; }
   function setAllText(s, v) { $$(s).forEach(function (e) { e.textContent = v != null ? v : ''; }); }
@@ -31,7 +31,7 @@
     var prompt = $('#ai-prompt') && $('#ai-prompt').value;
     if (!prompt) { showToast('Mavzu kiriting!', 'error'); return; }
     var btn = $('#btn-ai'); if (btn) btn.disabled = true;
-    var lang = $('#post-lang') ? $('#post-lang').value : (window.__userLang || 'uz');
+    var lang = window.__userLang || 'uz';
     try {
       var r = await apiFetch('/api/ai/smm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt:prompt, language:lang, withImage:!!$('#ai-image')?.checked }) });
       if (!r.ok) { var e = await r.json(); throw new Error(e.error || 'Xatolik'); }
@@ -98,7 +98,14 @@
       data.forEach(function(m){
         var vid = m.videoId || (m.url || '').match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)?.[1] || '';
         var title = esc(m.title || 'music');
-        list.innerHTML += '<div class="flex items-center justify-between p-3 bg-[#111113] border border-[#1E1E22] rounded-xl mt-2"><span class="font-body-md">'+title+'</span><div class="flex gap-2"><button class="px-3 py-1.5 bg-primary-container text-on-primary-container rounded-lg text-sm font-bold" onclick="downloadMusic(\''+vid+'\',\''+title.replace(/'/g,"")+'\',this)">Download</button><button class="px-3 py-1.5 border border-outline-variant rounded-lg text-sm" onclick="sendMusic(\''+vid+'\',\''+title.replace(/'/g,"")+'\',this)">Send</button></div></div>';
+        (function(vid, title){
+          var div = document.createElement('div');
+          div.className = 'flex items-center justify-between p-3 bg-[#111113] border border-[#1E1E22] rounded-xl mt-2';
+          div.innerHTML = '<span class="font-body-md">'+title+'</span><div class="flex gap-2"><button class="dl-btn px-3 py-1.5 bg-primary-container text-on-primary-container rounded-lg text-sm font-bold">Download</button><button class="send-btn px-3 py-1.5 border border-outline-variant rounded-lg text-sm">Send</button></div>';
+          div.querySelector('.dl-btn').onclick = function(){ downloadMusic(vid, title, this); };
+          div.querySelector('.send-btn').onclick = function(){ sendMusic(vid, title, this); };
+          list.appendChild(div);
+        })(vid, title);
       });
     } catch(e) { list.innerHTML = '<p class="text-error">Xatolik</p>'; }
   };
