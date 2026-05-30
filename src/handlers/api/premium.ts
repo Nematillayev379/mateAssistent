@@ -17,12 +17,15 @@ export function registerPremiumRoutes(app: express.Application) {
 
   app.get('/api/premium-info', checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId);
-    const priceMonthly = await DBService.getPrice('monthly');
-    const priceYearly = await DBService.getPrice('yearly');
-    const isActive = await DBService.isPremiumActive(uid);
-    let expiresAt = null;
-    if (isActive) { const user = await DBService.getUser(uid); expiresAt = user?.premium_until; }
-    const starsPrice = parseInt(await DBService.getSetting('premium_stars_price') || '500');
+    const [priceMonthly, priceYearly, isActive, starsPriceStr, user] = await Promise.all([
+      DBService.getPrice('monthly'),
+      DBService.getPrice('yearly'),
+      DBService.isPremiumActive(uid),
+      DBService.getSetting('premium_stars_price'),
+      DBService.getUser(uid),
+    ]);
+    const starsPrice = parseInt(starsPriceStr || '500');
+    const expiresAt = isActive ? user?.premium_until : null;
     res.json({ monthlyPrice: priceMonthly, yearlyPrice: priceYearly, starsPrice, starsYearlyPrice: starsPrice * 10, isActive, expiresAt, benefits: ['10 ta RSS manba', 'Cheksiz kanal monitoring', 'Cheksiz schedule post', 'AI prioritet (30/min)', 'Kunlik digest', 'Premium badge va oltin tema'] });
   });
 

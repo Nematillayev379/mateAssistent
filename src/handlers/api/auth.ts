@@ -86,14 +86,26 @@ export function registerAuthRoutes(app: express.Application) {
     const userId = parseInt(req.authenticatedUserId);
     const user = await DBService.getUser(userId);
     if (!user) return res.status(404).json({ error: 'Not found' });
+
     const effectiveRole = user.role || (user.is_owner ? 'owner' : 'user');
+    const isAdmin = effectiveRole === 'owner' || effectiveRole === 'admin';
+
+    const [stats, scheduled, referrals, workspaces, tickets, apiKeyCount] = await Promise.all([
+      DBService.getStats(userId),
+      DBService.getUserScheduledPosts(userId),
+      DBService.getReferralStats(userId),
+      DBService.getUserWorkspaces(userId),
+      isAdmin ? DBService.getTickets() : DBService.getUserTickets(userId),
+      DBService.getUserApiKeyCount(userId),
+    ]);
+
     res.json({
-      user: { id: user.telegram_id, telegram_id: user.telegram_id, username: user.username, first_name: user.first_name, role: effectiveRole, is_owner: !!user.is_owner, is_premium: !!user.is_premium, is_approved: !!user.is_approved, is_active: user.is_active !== 0, target_channel: user.target_channel || null, language: user.language || 'uz', premium_until: user.premium_until || null, referral_code: user.referral_code || null, api_key_count: await DBService.getUserApiKeyCount(userId) },
-      stats: await DBService.getStats(userId),
-      scheduled: await DBService.getUserScheduledPosts(userId),
-      referrals: await DBService.getReferralStats(userId),
-      workspaces: await DBService.getUserWorkspaces(userId),
-      tickets: (user.role === 'owner' || user.role === 'admin') ? await DBService.getTickets() : await DBService.getUserTickets(userId)
+      user: { id: user.telegram_id, telegram_id: user.telegram_id, username: user.username, first_name: user.first_name, role: effectiveRole, is_owner: !!user.is_owner, is_premium: !!user.is_premium, is_approved: !!user.is_approved, is_active: user.is_active !== 0, target_channel: user.target_channel || null, language: user.language || 'uz', premium_until: user.premium_until || null, referral_code: user.referral_code || null, api_key_count: apiKeyCount },
+      stats,
+      scheduled,
+      referrals,
+      workspaces,
+      tickets,
     });
   });
 
