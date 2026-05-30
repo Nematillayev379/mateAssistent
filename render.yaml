@@ -39,5 +39,5 @@ services:
         value: ""
       # Leave REDIS_URL empty unless you provide an external Redis instance.
       - key: PUBLIC_URL
-        value: https://uzbekistan-news-bot.onrender.com
+        value: https://mateassistant.onrender.com
     region: oregon
