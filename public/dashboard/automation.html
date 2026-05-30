@@ -564,56 +564,47 @@
 </div>
 </div>
 </section>
-<!-- Price Tracker Section -->
+<!-- RSS Search Section -->
 <section class="mb-stack-lg">
 <div class="flex items-center gap-2 mb-stack-md">
-<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">Price Tracker</h2>
-<span class="material-symbols-outlined text-on-surface-variant text-[18px]">monetization_on</span>
+<h2 class="font-headline-md text-headline-md text-on-surface font-semibold">RSS Search</h2>
+<span class="material-symbols-outlined text-secondary text-[18px]">search</span>
+<span class="bg-secondary/10 text-secondary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">AI Powered</span>
 </div>
-<!-- Tracker Input -->
+<!-- Search Input -->
 <div class="relative mb-gutter">
-<input class="w-full bg-[#0A0A0B] border border-outline-variant rounded-lg h-12 px-4 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-on-surface-variant/50" placeholder="Track a product price (OLX/Uzum URL)" type="text"/>
-<button class="absolute right-2 top-2 h-8 w-8 bg-surface-container-high rounded flex items-center justify-center hover:bg-outline-variant transition-colors">
-<span class="material-symbols-outlined text-primary">add</span>
+<input id="auto-search-topic" class="w-full bg-[#0A0A0B] border border-outline-variant rounded-lg h-12 px-4 focus:border-secondary focus:ring-1 focus:ring-secondary outline-none transition-all placeholder:text-on-surface-variant/50" placeholder="Qidiruv mavzusini kiriting (masalan: dollar kursi)" type="text"/>
+<button onclick="createAutoSearch()" class="absolute right-2 top-2 h-8 w-8 bg-secondary/20 rounded flex items-center justify-center hover:bg-secondary/30 transition-colors">
+<span class="material-symbols-outlined text-secondary">add</span>
 </button>
 </div>
-<!-- Tracked Items -->
+<!-- Search Options -->
+<div class="grid grid-cols-2 gap-stack-md mb-stack-md">
+<div>
+<label class="text-label-sm text-on-surface-variant mb-1 block">Kalit so'zlar (vergul bilan)</label>
+<input id="auto-search-keywords" class="w-full bg-[#0A0A0B] border border-outline-variant rounded-lg h-10 px-3 text-body-md focus:border-secondary outline-none transition-all placeholder:text-on-surface-variant/50" placeholder="dollar, valyuta, iqtisodiyot" type="text"/>
+</div>
+<div>
+<label class="text-label-sm text-on-surface-variant mb-1 block">Rejim</label>
+<select id="auto-search-mode" class="w-full bg-[#0A0A0B] border border-outline-variant rounded-lg h-10 px-3 text-body-md focus:border-secondary outline-none transition-all">
+<option value="daily">Kunlik (har kuni 8:00)</option>
+<option value="instant">Darhol</option>
+</select>
+</div>
+</div>
+<!-- Active Searches -->
 <div class="bg-[#111113] border border-outline-variant rounded-xl overflow-hidden">
-<div class="p-stack-md flex gap-4 items-center">
-<div class="w-16 h-16 bg-surface-container rounded-lg overflow-hidden flex-shrink-0">
-<img alt="iPhone 15 Pro" class="w-full h-full object-cover" data-alt="A professional product shot of an iPhone 15 Pro in natural titanium, resting on a dark slate surface. The lighting is dramatic and moody, with sharp rim highlights that emphasize its sleek industrial design and textured finish. The overall aesthetic is high-end technology, set against a deep monochromatic background with subtle purple lens flares to match a premium UI palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvhKzUQCu71GErd1UsD6OPfg-GvmD448NiE_rVlan2uc6n_RXPV5NS9_7d7FWOd709t-eoVVo_lTq6xQzIxfgRguWRd3J61DX_IAjhh7Fn9TJfGI0HYVkwHTMuIkkYon9QwWdjNbeviljdImGakSsLHCG2lXCWlY8hodjpC6qhjg6Z5W375ecMoZMQ0pPYOq-eM2PiZ5lUxDFNaKI_mTFwLohpaARLzU5xB212onYTLRxAJoQpOEc3wd4iiPr_2Hq7ZL6QM1uL-FAC"/>
-</div>
-<div class="flex-grow">
-<div class="flex justify-between items-start">
-<h3 class="font-body-lg text-body-lg font-bold text-on-surface">iPhone 15 Pro</h3>
-<span class="text-secondary font-label-md text-label-md flex items-center">
-<span class="material-symbols-outlined text-[14px] mr-1">trending_down</span>
-                                -2%
-                            </span>
-</div>
-<p class="text-primary font-headline-md text-headline-md font-bold mt-1">12 500 000 UZS</p>
-<div class="flex items-center gap-2 mt-1">
-<span class="material-symbols-outlined text-on-surface-variant text-[12px]">schedule</span>
-<span class="text-label-sm font-label-sm text-on-surface-variant uppercase">Last checked 1h ago</span>
-</div>
-</div>
-</div>
-<div class="bg-surface-container-low px-stack-md py-2 border-t border-outline-variant flex justify-between">
-<button class="text-label-md font-label-md text-on-surface-variant hover:text-primary flex items-center gap-1 transition-colors">
-<span class="material-symbols-outlined text-[14px]">history</span> History
-                    </button>
-<button class="text-label-md font-label-md text-error hover:opacity-80 flex items-center gap-1 transition-colors">
-<span class="material-symbols-outlined text-[14px]">delete</span> Stop
-                    </button>
+<div id="auto-search-list" class="divide-y divide-outline-variant">
+<div class="p-stack-md text-center text-on-surface-variant text-body-md">Hozircha qidiruvlar yo'q</div>
 </div>
 </div>
 </section>
 <!-- Insights Banner -->
-<section class="bg-primary-container/10 border border-primary/20 rounded-xl p-stack-md flex items-start gap-3">
-<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+<section class="bg-secondary-container/10 border border-secondary/20 rounded-xl p-stack-md flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
 <div>
-<h4 class="text-on-primary-container font-bold text-body-md">Automation Pro-Tip</h4>
-<p class="text-on-surface-variant text-body-md mt-1">You can bridge your Price Tracker to a Rule. Create a rule to auto-post price drops to your main Telegram channel.</p>
+<h4 class="text-on-secondary-container font-bold text-body-md">RSS Search Pro-Tip</h4>
+<p class="text-on-surface-variant text-body-md mt-1">RSS Search orqali qidiruv yarating va kunlik avtomatik natijalarni kanalingizga yuboring. AI mavzuingizga mos xabarlarni topadi va özet tayyorlaydi.</p>
 </div>
 </section>
 <!-- Bot Settings (Mobile) -->
@@ -708,6 +699,88 @@
                 searchInput.parentElement.classList.remove('scale-[1.02]');
             });
         }
+
+        // RSS Search Functions
+        async function createAutoSearch() {
+            const topic = document.getElementById('auto-search-topic').value.trim();
+            const keywordsStr = document.getElementById('auto-search-keywords').value.trim();
+            const mode = document.getElementById('auto-search-mode').value;
+
+            if (!topic) {
+                showToast('Mavzuni kiriting', 'error');
+                return;
+            }
+
+            const keywords = keywordsStr ? keywordsStr.split(',').map(k => k.trim()).filter(Boolean) : [topic];
+
+            try {
+                const res = await apiFetch('/api/rss-search/' + window.__userId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic, keywords, maxResults: 10, mode })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast('Qidiruv yaratildi!', 'success');
+                    document.getElementById('auto-search-topic').value = '';
+                    document.getElementById('auto-search-keywords').value = '';
+                    loadAutoSearchList();
+
+                    if (mode === 'instant' && data.results) {
+                        showToast(data.results.length + ' ta natija topildi', 'success');
+                    }
+                }
+            } catch (e) {
+                showToast('Xatolik yuz berdi', 'error');
+            }
+        }
+
+        async function loadAutoSearchList() {
+            try {
+                const res = await apiFetch('/api/rss-search/' + window.__userId);
+                const data = await res.json();
+                const listDiv = document.getElementById('auto-search-list');
+
+                if (!data.searches || data.searches.length === 0) {
+                    listDiv.innerHTML = '<div class="p-stack-md text-center text-on-surface-variant text-body-md">Hozircha qidiruvlar yo\'q</div>';
+                    return;
+                }
+
+                let html = '';
+                for (const s of data.searches) {
+                    html += '<div class="p-stack-md flex items-center justify-between">';
+                    html += '<div class="flex items-center gap-3">';
+                    html += '<div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center"><span class="material-symbols-outlined text-secondary">search</span></div>';
+                    html += '<div><p class="text-body-md font-bold text-on-surface">' + escapeHtml(s.topic) + '</p>';
+                    html += '<p class="text-label-sm text-on-surface-variant">' + s.keywords.join(', ') + '</p></div>';
+                    html += '</div>';
+                    html += '<div class="flex items-center gap-2">';
+                    html += '<span class="text-label-sm text-on-surface-variant">' + (s.mode === 'daily' ? '📅 Kunlik' : '⚡ Darhol') + '</span>';
+                    html += '<button onclick="deleteAutoSearch(\'' + s.id + '\')" class="text-error hover:opacity-80 p-2"><span class="material-symbols-outlined text-[18px]">delete</span></button>';
+                    html += '</div>';
+                    html += '</div>';
+                }
+                listDiv.innerHTML = html;
+            } catch (e) {}
+        }
+
+        async function deleteAutoSearch(searchId) {
+            try {
+                await apiFetch('/api/rss-search/' + window.__userId + '/' + searchId, { method: 'DELETE' });
+                loadAutoSearchList();
+                showToast('Qidiruv o\'chirildi', 'success');
+            } catch (e) {
+                showToast('Xatolik', 'error');
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAutoSearchList);
     </script>
 <script src="/js/dashboard-data-loader.js"></script>
 <script src="/js/dashboard-functions.js"></script></body></html>
