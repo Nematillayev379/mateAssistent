@@ -55,7 +55,6 @@ const httpClient = (0, axios_cookiejar_support_1.wrapper)(axios_1.default.create
     responseType: "text",
 }));
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
-// BUG-044 & BUG-110 Fix: Faster retries and graceful fallback
 async function fetchWithRetry(url, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -63,42 +62,60 @@ async function fetchWithRetry(url, retries = 3) {
             return data;
         }
         catch (e) {
-            // BUG-037 Fix: Do not throw on final attempt, return empty string for graceful fail
             if (i === retries - 1)
                 return "";
-            // BUG-110 Fix: Reduce retry delay
             await new Promise(r => setTimeout(r, 1000 * (i + 1)));
         }
     }
     return "";
+}
+function resolveUrl(value, baseUrl) {
+    if (!value)
+        return undefined;
+    try {
+        return new URL(value, baseUrl).href;
+    }
+    catch {
+        return undefined;
+    }
+}
+function extractImageFromHtmlFragment(fragment) {
+    if (!fragment)
+        return undefined;
+    try {
+        const $fragment = cheerio.load(fragment);
+        return $fragment("img").first().attr("src") || undefined;
+    }
+    catch {
+        return undefined;
+    }
 }
 exports.ScraperService = {
     async scrapeArticle(url) {
         try {
             const html = await fetchWithRetry(url);
             const $ = cheerio.load(html);
-            let imageUrl = $("meta[property='og:image']").attr("content") || $("meta[name='twitter:image']").attr("content");
-            // BUG-052 Fix: Use og:title first, then only first h1
+            const imageCandidates = [
+                $("meta[property='og:image:secure_url']").attr("content"),
+                $("meta[property='og:image']").attr("content"),
+                $("meta[name='twitter:image']").attr("content"),
+                $("meta[name='twitter:image:src']").attr("content"),
+                $("link[rel='image_src']").attr("href"),
+                $("article img[src]").first().attr("src"),
+                $("main img[src]").first().attr("src"),
+                $(".news-text img[src], .content img[src], .article-body img[src], .post-content img[src], .entry-content img[src]").first().attr("src"),
+            ];
+            let imageUrl = imageCandidates.map((candidate) => resolveUrl(candidate, url)).find((candidate) => candidate && this.isMediaUrl(candidate));
             const title = $("meta[property='og:title']").attr("content") || $("h1").first().text().trim() || $("title").text().trim() || '';
-            if (imageUrl && !imageUrl.startsWith("http")) {
-                try {
-                    imageUrl = new URL(imageUrl, url).href;
-                }
-                catch {
-                    imageUrl = undefined;
-                }
-            }
             if (imageUrl === url || !this.isMediaUrl(imageUrl))
                 imageUrl = undefined;
             const paragraphs = [];
-            // BUG-046 Fix: Use CONFIG.AD_KEYWORDS for consistent filtering
             const adKeywords = config_1.CONFIG.AD_KEYWORDS.map(k => k.toLowerCase());
             const selectors = [
                 "article p", ".news-text p", ".content p", ".article-body p",
                 ".post-content p", ".entry-content p", "main p", ".article__text p",
                 "#article-body p", ".story-body p"
             ];
-            // B-40 Fix: Deduplicate paragraphs with Set
             const seenParagraphs = new Set();
             $(selectors.join(", ")).each((_, p) => {
                 const t = $(p).text().trim();
@@ -115,21 +132,8 @@ exports.ScraperService = {
                 if (metaDesc)
                     paragraphs.push(metaDesc);
             }
-            let audioUrl = $("enclosure[type^='audio']").attr("url") || $("a[href$='.mp3']").first().attr("href");
-            let videoUrl = $("meta[property='og:video']").attr("content") || $("enclosure[type^='video']").attr("url") || $("a[href$='.mp4']").first().attr("href");
-            // B-50 Fix: Fix relative audio URL conversion with proper error handling
-            try {
-                if (audioUrl && !audioUrl.startsWith("http")) {
-                    audioUrl = new URL(audioUrl, url).href;
-                }
-                if (videoUrl && !videoUrl.startsWith("http")) {
-                    videoUrl = new URL(videoUrl, url).href;
-                }
-            }
-            catch (e) {
-                // If URL parsing fails, keep original value
-                logger_1.logger.warn(`URL conversion failed for ${(0, logger_1.sanitizeLogInput)(url)}: ${e}`);
-            }
+            let audioUrl = resolveUrl($("enclosure[type^='audio']").attr("url") || $("a[href$='.mp3']").first().attr("href"), url);
+            let videoUrl = resolveUrl($("meta[property='og:video']").attr("content") || $("enclosure[type^='video']").attr("url") || $("a[href$='.mp4']").first().attr("href"), url);
             return { title, content: paragraphs.join("\n\n"), imageUrl, audioUrl, videoUrl };
         }
         catch (e) {
@@ -137,7 +141,6 @@ exports.ScraperService = {
             return null;
         }
     },
-    // BUG-149 Fix: Removed heic entirely as Telegram doesn't support it
     isMediaUrl(url) {
         if (!url)
             return false;
@@ -148,7 +151,6 @@ exports.ScraperService = {
             return true;
         return /\/(images?|img|uploads?|media|cdn|assets?)\/[^/]+/i.test(url);
     },
-    // B-32 Fix: Improve isMediaUrl with HEAD request for better performance
     async isValidMedia(url) {
         if (!this.isMediaUrl(url))
             return false;
@@ -177,7 +179,6 @@ exports.ScraperService = {
             }
         }
     },
-    // BUG-048 Fix: Support Atom <id> tag as fallback
     extractLink(el, $) {
         // RSS: <link> text content
         let link = $(el).find("link").text().trim();
@@ -188,7 +189,6 @@ exports.ScraperService = {
         if (!link.startsWith("http")) {
             link = $(el).find("guid").text().trim();
         }
-        // BUG-048 Fix: Atom <id> fallback
         if (!link.startsWith("http")) {
             const idText = $(el).find("id").text().trim();
             if (idText.startsWith("http"))
@@ -197,7 +197,6 @@ exports.ScraperService = {
         if (link.startsWith("http")) {
             try {
                 const u = new URL(link);
-                // BUG-090 Fix: Keep search query as it often contains the article ID
                 return u.origin + u.pathname + u.search;
             }
             catch {
@@ -207,9 +206,14 @@ exports.ScraperService = {
         return "";
     },
     extractMedia(el, $) {
-        // BUG-135 Fix: Handle both namespaced and non-namespaced queries for cheerio XML mode
+        const descriptionHtml = $(el).find("description").text().trim() ||
+            $(el).find("content\\:encoded").text().trim() ||
+            $(el).find("content").text().trim();
+        const inlineImage = extractImageFromHtmlFragment(descriptionHtml);
         let imageUrl = $(el).find("enclosure[type^='image']").attr("url") ||
-            $(el).find("media\\:content[medium='image'], media\\:content[type^='image']").attr("url");
+            $(el).find("media\\:content[medium='image'], media\\:content[type^='image']").attr("url") ||
+            $(el).find("media\\:thumbnail").attr("url") ||
+            inlineImage;
         let videoUrl = $(el).find("enclosure[type^='video']").attr("url") ||
             $(el).find("media\\:content[medium='video'], media\\:content[type^='video']").attr("url");
         let audioUrl = $(el).find("enclosure[type^='audio']").attr("url") ||
@@ -228,7 +232,6 @@ exports.ScraperService = {
             const $ = cheerio.load(xml, { xmlMode: true });
             const items = [];
             const entries = $("item").length ? $("item") : $("entry");
-            // BUG-055 Fix: Limit to 50 items to prevent memory/performance issues
             entries.slice(0, 50).each((_, el) => {
                 const title = $(el).find("title").text().trim();
                 const link = this.extractLink(el, $);
@@ -260,7 +263,6 @@ exports.ScraperService = {
         try {
             const html = await fetchWithRetry(websiteUrl);
             const $ = cheerio.load(html);
-            // BUG-088 Fix: Support <link rel="alternate"> without type attribute
             const rssLinks = $('link[rel="alternate"][type="application/rss+xml"], link[rel="alternate"][type="application/atom+xml"], link[rel="alternate"]')
                 .map((_, el) => $(el).attr('href'))
                 .get()
@@ -287,11 +289,9 @@ exports.ScraperService = {
             const urlMatch = aiResponse.match(/https?:\/\/[^\s]+/i);
             if (urlMatch) {
                 const discovered = urlMatch[0];
-                // BUG-050 Fix: Use endsWith for hostname comparison instead of includes
                 try {
                     const originalHost = new URL(websiteUrl).hostname.replace('www.', '');
                     const discoveredHost = new URL(discovered).hostname.replace('www.', '');
-                    // BUG-H7 Fix: Require same domain or subdomain, completely blocking different domains
                     if (discoveredHost !== originalHost && !discoveredHost.endsWith('.' + originalHost)) {
                         logger_1.logger.warn(`🚫 SSRF/Phishing Protection: AI returned different domain URL: ${(0, logger_1.sanitizeLogInput)(discovered)}`);
                         return null;
@@ -308,7 +308,6 @@ exports.ScraperService = {
         }
         return null;
     },
-    // BUG-051 Fix: Complete SSRF protection with all private ranges
     async isPublicExternalUrl(url) {
         try {
             const u = new URL(url);
@@ -351,12 +350,10 @@ exports.ScraperService = {
             const html = await fetchWithRetry(url);
             const $ = cheerio.load(html);
             let priceText = "";
-            // BUG-052 Fix: Use title tag split or og:title for name
             let name = $("meta[property='og:title']").attr("content") || $("title").text().split("|")[0].trim();
             let imageUrl = $("meta[property='og:image']").attr("content");
             if (url.includes("uzum.uz")) {
                 priceText = $("span.currency").first().parent().text();
-                // BUG-052 Fix: Use first h1 only
                 name = $("h1").first().text().trim() || name;
                 if (!imageUrl)
                     imageUrl = $(".ui-carousel-image img").attr("src");
@@ -393,7 +390,9 @@ exports.ScraperService = {
                         else
                             checkProduct(data);
                     }
-                    catch { }
+                    catch {
+                        logger_1.logger.warn(`JSON-LD parse error`);
+                    }
                 });
                 if (!foundLd || !priceText) {
                     logger_1.logger.info(`Using AI fallback for price extraction on ${(0, logger_1.sanitizeLogInput)(url)}`);
@@ -414,7 +413,6 @@ exports.ScraperService = {
                     }
                 }
             }
-            // BUG-039 Fix: Properly handle 1.234.567 or 1,234,567 formatting before parsing
             const numericString = priceText.replace(/[\s,]/g, "").replace(/\.(?=\d{3})/g, "").replace(/[^0-9.]/g, "");
             const price = parseFloat(numericString) || 0;
             if (price === 0)
@@ -435,11 +433,9 @@ exports.ScraperService = {
         }
     },
     /** Smart Search Aggregator */
-    // BUG-053 Fix: Added lowercase currency checks for Asaxiy
-    // BUG-054 Fix: Added error handling for OLX private API
     async searchProducts(query) {
         const results = [];
-        // 1. OLX API (BUG-054: May fail silently - that's OK)
+        // 1. OLX API
         try {
             const olxRes = await axios_1.default.get(`https://www.olx.uz/api/v1/offers/?query=${encodeURIComponent(query)}`, {
                 headers: { "User-Agent": USER_AGENT },
@@ -484,7 +480,6 @@ exports.ScraperService = {
                 if (name && priceText && url) {
                     const rawPrice = parseFloat(priceText.replace(/[^0-9]/g, "")) || 0;
                     let currency = 'UZS';
-                    // BUG-053 Fix: Case-insensitive currency detection
                     const priceTextLower = priceText.toLowerCase();
                     if (priceText.includes('$') || priceTextLower.includes('u.e') || priceTextLower.includes('y.e') || priceTextLower.includes('у.е'))
                         currency = 'USD';

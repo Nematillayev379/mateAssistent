@@ -55,13 +55,13 @@ exports.DownloaderService = {
         const filename = `yt_${Date.now()}.mp4`;
         const filePath = path_1.default.join(TEMP_DIR, filename);
         try {
-            const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
-            if (ytdlpPath) {
+            const ytdlpCommand = await (0, ytdlp_1.resolveYtDlpCommand)();
+            if (ytdlpCommand) {
                 logger_1.logger.info(`Downloading YouTube video with yt-dlp: ${(0, logger_1.sanitizeLogInput)(url)}`);
-                // BUG-047 Fix: Use execFile to avoid hanging processes when shell ignores SIGTERM on timeout
                 const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
                 const execFilePromise = (0, util_1.promisify)(execFile);
-                await execFilePromise(ytdlpPath, [
+                await execFilePromise(ytdlpCommand.command, [
+                    ...ytdlpCommand.args,
                     '-f', 'best[ext=mp4][filesize<50M]/best[filesize<50M]/best',
                     '-o', filePath,
                     url
@@ -83,11 +83,12 @@ exports.DownloaderService = {
         const filePath = path_1.default.join(TEMP_DIR, filename);
         // Strategy 1: yt-dlp (Most reliable for downloading files)
         try {
-            const ytdlpPath = await (0, ytdlp_1.resolveYtDlpPath)();
-            if (ytdlpPath) {
+            const ytdlpCommand = await (0, ytdlp_1.resolveYtDlpCommand)();
+            if (ytdlpCommand) {
                 const { execFile } = await Promise.resolve().then(() => __importStar(require('child_process')));
                 const execFilePromise = (0, util_1.promisify)(execFile);
-                await execFilePromise(ytdlpPath, [
+                await execFilePromise(ytdlpCommand.command, [
+                    ...ytdlpCommand.args,
                     '-f', 'best',
                     '-o', filePath,
                     url
@@ -96,7 +97,9 @@ exports.DownloaderService = {
                     return filePath;
             }
         }
-        catch (e) { }
+        catch (e) {
+            logger_1.logger.warn(`Instagram yt-dlp fallback: ${e?.message || 'unknown'}`);
+        }
         // Strategy 2: ddinstagram proxy (Returns URL)
         try {
             const proxyUrl = url.replace(/instagram\.com/i, 'ddinstagram.com');
@@ -108,7 +111,7 @@ exports.DownloaderService = {
             if (match)
                 return match[1];
         }
-        catch (e) { }
+        catch { /* ddinstagram proxy is best-effort; continue to Cobalt */ }
         // Strategy 3: Cobalt API
         return this.getCobaltMedia(url);
     },
@@ -116,34 +119,42 @@ exports.DownloaderService = {
     async getCobaltMedia(url, opts) {
         const audioOnly = !!opts?.audioOnly;
         const instances = [
-            'https://cobalt.clxxped.lol',
-            'https://cobalt.meowing.de',
-            'https://cobalt.canine.tools',
-            'https://cobalt.kittycat.boo',
-            'https://cobalt.blackcat.sweeux.org',
-            'https://cobalt.mgytr.top',
-            'https://dl.woof.monster',
-            'https://qwkuns.me',
-            'https://cobalt.liubquanti.click',
-            'https://cobalt.squair.xyz',
-            'https://cobalt.cjs.nz',
+            'https://cobaltapi.kittycat.boo',
+            'https://dog.kittycat.boo',
+            'https://fox.kittycat.boo',
+            'https://cobaltapi.squair.xyz',
+            'https://api.cobalt.blackcat.sweeux.org',
+            'https://api.dl.woof.monster',
+            'https://api.qwkuns.me',
+            'https://cobaltapi.cjs.nz',
+            'https://apicobalt.mgytr.top',
+            'https://api.cobalt.liubquanti.click',
+            'https://nuko-c.meowing.de',
+            'https://sunny.imput.net',
+            'https://nachos.imput.net',
+            'https://kityune.imput.net',
+            'https://blossom.imput.net',
+            'https://lime.clxxped.lol',
+            'https://melon.clxxped.lol',
+            'https://grapefruit.clxxped.lol',
         ];
         const fetchFromInstance = async (base) => {
+            // 1. Try Cobalt v10 API parameters (POST to base URL)
             try {
                 const res = await axios_1.default.post(`${base}/`, {
                     url,
-                    videoQuality: '720',
-                    filenameStyle: 'basic',
-                    downloadMode: audioOnly ? 'audio' : 'auto',
+                    vQuality: '720',
+                    aFormat: 'mp3',
+                    filenamePattern: 'basic',
                     isAudioOnly: audioOnly,
-                    audioFormat: 'mp3',
                 }, {
                     headers: {
                         Accept: 'application/json',
                         'Content-Type': 'application/json',
                         Origin: 'https://cobalt.tools',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     },
-                    timeout: 25000,
+                    timeout: 15000,
                 });
                 if (res.data?.url)
                     return res.data.url;
@@ -154,17 +165,55 @@ exports.DownloaderService = {
                 if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
                     return res.data.picker[0].url;
                 }
-                throw new Error('No URL in response');
             }
             catch {
+                logger_1.logger.warn(`Cobalt v10 API failed`);
+            }
+            // 2. Try Cobalt v7/v8 API parameters (POST to base URL)
+            try {
+                const res = await axios_1.default.post(`${base}/`, {
+                    url,
+                    videoQuality: '720',
+                    filenameStyle: 'basic',
+                    downloadMode: audioOnly ? 'audio' : 'auto',
+                    audioFormat: 'mp3',
+                    audioBitrate: '128',
+                }, {
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        Origin: 'https://cobalt.tools',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    },
+                    timeout: 15000,
+                });
+                if (res.data?.url)
+                    return res.data.url;
+                if (res.data?.status === 'stream' && res.data?.url)
+                    return res.data.url;
+                if (res.data?.status === 'redirect' && res.data?.url)
+                    return res.data.url;
+                if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
+                    return res.data.picker[0].url;
+                }
+            }
+            catch {
+                logger_1.logger.warn(`Cobalt v7/v8 API failed`);
+            }
+            // 3. Try /api/json endpoint (Some older instances)
+            try {
                 const res = await axios_1.default.post(`${base}/api/json`, {
                     url,
                     vQuality: '720',
                     filenamePattern: 'basic',
                     isAudioOnly: audioOnly,
                 }, {
-                    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-                    timeout: 20000,
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    },
+                    timeout: 15000,
                 });
                 if (res.data?.url)
                     return res.data.url;
@@ -173,8 +222,11 @@ exports.DownloaderService = {
                 if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
                     return res.data.picker[0].url;
                 }
-                throw new Error('No URL in response');
             }
+            catch {
+                logger_1.logger.warn(`Cobalt /api/json endpoint failed`);
+            }
+            throw new Error('All attempts failed on this instance');
         };
         try {
             const bestUrl = await Promise.any(instances.map(base => fetchFromInstance(base)));
@@ -186,7 +238,6 @@ exports.DownloaderService = {
         }
     },
     /** Clean up temp files older than 1 hour */
-    // BUG-048 Fix: Use async operations to prevent blocking the Node.js event loop
     async cleanup() {
         try {
             if (!fs_1.default.existsSync(TEMP_DIR))
@@ -201,9 +252,13 @@ exports.DownloaderService = {
                         await fs_1.default.promises.unlink(filePath);
                     }
                 }
-                catch { }
+                catch {
+                    logger_1.logger.warn(`Cleanup: failed to remove temp file`);
+                }
             }
         }
-        catch (e) { }
+        catch (e) {
+            logger_1.logger.warn(`Cleanup error: ${e?.message || 'unknown'}`);
+        }
     }
 };

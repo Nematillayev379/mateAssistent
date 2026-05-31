@@ -36,163 +36,76 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const ws_1 = __importDefault(require("ws"));
 const config_1 = require("./config/config");
 const logger_1 = require("./utils/logger");
 const telegram_1 = require("./services/telegram");
 const dashboard_1 = require("./services/dashboard");
-const workers_1 = require("./workers");
-const rss_cron_1 = require("./crons/rss_cron");
-const node_cron_1 = __importDefault(require("node-cron"));
-const axios_1 = __importDefault(require("axios"));
-const dns_1 = __importDefault(require("dns"));
+const jobs_1 = require("./jobs");
+const rss_cron_1 = require("./jobs/rss_cron");
 const ytdlp_1 = require("./utils/ytdlp");
-// Fix for Render/Node18+ AggregateError (forces IPv4)
-if (dns_1.default.setDefaultResultOrder) {
-    dns_1.default.setDefaultResultOrder('ipv4first');
+const sentry_1 = require("./services/sentry");
+const package_json_1 = __importDefault(require("../package.json"));
+if (typeof globalThis.WebSocket === 'undefined') {
+    globalThis.WebSocket = ws_1.default;
 }
+const _startTime = Date.now();
+logger_1.logger.info(`Process started at ${new Date().toISOString()}, PID ${process.pid}`);
+(0, sentry_1.initSentry)();
 async function bootstrap() {
-    logger_1.logger.info(`🚀 Bot deployed at ${new Date().toISOString()}, version ${require('../package.json').version}`);
-    logger_1.logger.info("🚀 Bootstrapping mateAssistent Bot Ecosystem...");
-    // Deploy healthcheck — log which ENV vars are actually present
-    logger_1.logger.info("🔧 Deploy env check:", {
-        node_version: process.version,
-        cwd: process.cwd(),
-        NODE_ENV: process.env.NODE_ENV || "(unset)",
-        PORT: process.env.PORT || "(unset)",
-        TELEGRAM_TOKEN_set: !!process.env.TELEGRAM_TOKEN,
-        TELEGRAM_BOT_TOKEN_set: !!process.env.TELEGRAM_BOT_TOKEN,
-        OWNER_ID: process.env.OWNER_ID || "(unset)",
-        SUPABASE_URL: !!process.env.SUPABASE_URL,
-        PUBLIC_URL: process.env.PUBLIC_URL || "(unset)",
-        TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID || "(unset)",
-        GROQ_KEYS_count: (process.env.GROQ_KEYS?.split(',') ?? []).filter(Boolean).length,
-        GEMINI_KEYS_set: !!process.env.GEMINI_KEYS,
-        CEREBRAS_KEYS_set: !!process.env.CEREBRAS_KEYS,
-        OPENROUTER_KEYS_set: !!process.env.OPENROUTER_KEYS,
-        REDIS_URL_set: !!process.env.REDIS_URL,
-    });
-    // B-08 Fix: Validate TELEGRAM_BOT_TOKEN on startup
+    logger_1.logger.info(`Bootstrap started, elapsed ${Date.now() - _startTime}ms`);
+    logger_1.logger.info(`Bot deployed at ${new Date().toISOString()}, version ${package_json_1.default.version}`);
+    logger_1.logger.info("Bootstrapping Bot Ecosystem...");
     if (!config_1.CONFIG.TELEGRAM_TOKEN) {
-        logger_1.logger.error('❌ TELEGRAM_BOT_TOKEN must be set in environment variables!');
+        logger_1.logger.error('TELEGRAM_BOT_TOKEN must be set in environment variables!');
         process.exit(1);
     }
-    // BUG-C3 Fix: Validate DASHBOARD_SECRET during bootstrap instead of early import throw
     if (!config_1.CONFIG.DASHBOARD_SECRET) {
-        logger_1.logger.error('❌ DASHBOARD_SECRET environment variable is REQUIRED! Add DASHBOARD_SECRET to your environment variables.');
+        logger_1.logger.error('DASHBOARD_SECRET environment variable is REQUIRED!');
         process.exit(1);
     }
     try {
-        // BUG-001 & #002: Critical Service Initialization
+        const { SecretManager } = await Promise.resolve().then(() => __importStar(require("./services/secret_manager")));
+        await SecretManager.init();
+        logger_1.logger.info(`Secret backend: ${SecretManager.getBackend()}`);
         const { initI18n } = await Promise.resolve().then(() => __importStar(require("./services/i18n")));
-        const { refreshKeyPool } = await Promise.resolve().then(() => __importStar(require("./services/ai")));
+        const { refreshKeyPool, getActiveKeyStats } = await Promise.resolve().then(() => __importStar(require("./services/ai")));
+        const { getEnvKeySourceReport } = await Promise.resolve().then(() => __importStar(require("./config/config")));
         await initI18n();
         await refreshKeyPool();
-        const { getActiveKeyStats } = await Promise.resolve().then(() => __importStar(require("./services/ai")));
-        const { getEnvKeySourceReport } = await Promise.resolve().then(() => __importStar(require("./config/config")));
         const keyStats = getActiveKeyStats();
-        const envSources = getEnvKeySourceReport();
-        logger_1.logger.info(`✅ AI KeyPool: ${keyStats.total} ta kalit yuklandi`, {
-            byProvider: keyStats.byProvider,
-            envVars: envSources,
-        });
-        if (keyStats.total === 0) {
-            logger_1.logger.warn('⚠️  AI KEY POOL BO\'SH! Render .env: GROQ_KEYS=key1,key2,key3 formatida tekshiring.');
-        }
-        // BUG-XXX Fix: Verify yt-dlp binary at startup to surface Windows/permission issues early
+        logger_1.logger.info(`AI KeyPool: ${keyStats.total} keys loaded`, { byProvider: keyStats.byProvider, envVars: getEnvKeySourceReport() });
+        if (keyStats.total === 0)
+            logger_1.logger.warn('AI KEY POOL IS EMPTY! Check Render .env vars.');
         try {
             const ytDlpBinary = await (0, ytdlp_1.resolveYtDlpPath)();
-            if (ytDlpBinary) {
-                logger_1.logger.info(`✅ yt-dlp topildi: ${ytDlpBinary}`);
-            }
-            else {
-                logger_1.logger.warn('⚠️  yt-dlp EXECUTABLE topilmadi! Musiqa va video yuklash Cobalt API orqali ishlaydi. yt-dlp.exe ni loyiha ildiziga qo\'shing.');
-            }
+            if (ytDlpBinary)
+                logger_1.logger.info(`yt-dlp found: ${ytDlpBinary}`);
+            else
+                logger_1.logger.warn('yt-dlp not found. Downloads will use Cobalt API.');
         }
         catch (e) {
-            logger_1.logger.warn(`⚠️  yt-dlp tekshirishda xatolik: ${e.message}`);
+            logger_1.logger.warn(`yt-dlp check error: ${e.message}`);
         }
-        // 1. Start Dashboard
-        // B-31 Fix: Parse PORT as integer
         const PORT = parseInt(process.env.PORT || '3000', 10);
         (0, dashboard_1.startDashboardServer)(PORT, telegram_1.bot);
-        // 2. Start Bot
         await (0, telegram_1.startBot)();
-        // 3. Start Background Workers
-        await (0, workers_1.startWorkers)();
-        // 4. Start Post Scheduler
+        await (0, jobs_1.startWorkers)();
         const { SchedulerService } = await Promise.resolve().then(() => __importStar(require('./services/scheduler')));
         SchedulerService.setup();
-        // 5. Setup Cron Jobs — always run regardless of webhook/polling mode
-        // BUG-003 Fix: Crons must run in both webhook AND polling modes.
-        // startBot() already handles webhook vs polling selection — no duplicate calls here.
         (0, rss_cron_1.setupRSSCron)();
-        setupSystemCrons();
+        (0, jobs_1.setupSystemCrons)();
+        const { setupHealthMonitoring } = await Promise.resolve().then(() => __importStar(require('./services/health_monitor')));
+        setupHealthMonitoring();
+        if (config_1.CONFIG.OWNER_ID) {
+            telegram_1.bot.sendMessage(config_1.CONFIG.OWNER_ID, `✅ Bot started\nVersion: ${package_json_1.default.version}\nUptime: ${Math.round(process.uptime())}s`).catch(() => { });
+        }
     }
     catch (err) {
-        logger_1.logger.error(`🔥 Fatal Initialization Error: ${err.message}`);
+        (0, sentry_1.captureError)(err, { type: 'bootstrap' });
+        logger_1.logger.error(`Fatal Initialization Error: ${err.message}`, { stack: err.stack });
         process.exit(1);
     }
-}
-function setupSystemCrons() {
-    // 1. Self-ping to keep Render service alive
-    node_cron_1.default.schedule('*/10 * * * *', async () => {
-        if (!config_1.CONFIG.PUBLIC_URL)
-            return;
-        try {
-            await axios_1.default.get(config_1.CONFIG.PUBLIC_URL, { timeout: 10000 });
-            logger_1.logger.info(`🌐 Self-ping successful`);
-        }
-        catch (err) {
-            logger_1.logger.warn(`🌐 Self-ping failed: ${err.message}`);
-        }
-    });
-    // 2. Price Tracker Cron (Every 4 hours)
-    node_cron_1.default.schedule('0 */4 * * *', async () => {
-        try {
-            const { PriceTrackerService } = await Promise.resolve().then(() => __importStar(require('./services/pricetracker')));
-            await PriceTrackerService.runPriceChecks();
-        }
-        catch (err) {
-            logger_1.logger.error(`❌ Price Tracker Cron Error: ${err.message}`);
-        }
-    });
-    // 3. Daily Digest Cron (Every minute, check who needs digest)
-    node_cron_1.default.schedule('* * * * *', async () => {
-        try {
-            const { processDailyDigests } = await Promise.resolve().then(() => __importStar(require('./crons/digest_cron')));
-            await processDailyDigests();
-        }
-        catch (err) {
-            // Ignore if not set up yet
-        }
-    });
-    // 4. System Cleanup (Every 6 hours)
-    node_cron_1.default.schedule('0 */6 * * *', async () => {
-        try {
-            const { DownloaderService } = await Promise.resolve().then(() => __importStar(require('./services/downloader')));
-            const { MusicService } = await Promise.resolve().then(() => __importStar(require('./services/music')));
-            const { DBService } = await Promise.resolve().then(() => __importStar(require('./services/database')));
-            await DownloaderService.cleanup();
-            await MusicService.cleanup();
-            await DBService.cleanupOldEmbeddings(7);
-            // BUG-020 Fix: Cleanup expired premium users
-            await DBService.cleanupExpiredPremium();
-            logger_1.logger.info(`🧹 System cleanup completed`);
-        }
-        catch (err) {
-            logger_1.logger.error(`❌ System Cleanup Error: ${err.message}`);
-        }
-    });
-    // 5. Refresh Key Pool every hour
-    node_cron_1.default.schedule('0 * * * *', async () => {
-        try {
-            const { refreshKeyPool } = await Promise.resolve().then(() => __importStar(require('./services/ai')));
-            await refreshKeyPool();
-        }
-        catch (err) {
-            logger_1.logger.error(`❌ Key Pool Refresh Error: ${err.message}`);
-        }
-    });
 }
 bootstrap().catch(err => {
     logger_1.logger.error(`🔥 Fatal Bootstrap Error: ${err.message}`);
@@ -200,18 +113,42 @@ bootstrap().catch(err => {
 });
 // Global error handlers
 process.on("uncaughtException", (err) => {
-    logger_1.logger.error(`🔥 Uncaught Exception: ${err.message}`);
-    logger_1.logger.error(err.stack || "");
+    (0, sentry_1.captureError)(err, { type: 'uncaughtException' });
+    logger_1.logger.error(`Uncaught Exception: ${err.message}`, { stack: err.stack });
+    process.exit(1);
 });
 process.on("unhandledRejection", (reason) => {
-    logger_1.logger.error(`🌐 Unhandled Rejection: ${reason?.message || reason}`);
+    (0, sentry_1.captureError)(reason instanceof Error ? reason : new Error(String(reason)), { type: 'unhandledRejection' });
+    logger_1.logger.error(`Unhandled Rejection: ${reason?.message || reason}`);
 });
-// B-19 Fix: Handle polling errors and implement restart attempts
-process.on('SIGTERM', () => {
+let shuttingDown = false;
+process.on('SIGTERM', async () => {
+    if (shuttingDown)
+        return;
+    shuttingDown = true;
     logger_1.logger.info('SIGTERM received, shutting down gracefully');
+    try {
+        telegram_1.bot.stopPolling();
+        const { gracefulShutdown } = await Promise.resolve().then(() => __importStar(require('./services/memory_queue')));
+        await gracefulShutdown(8000);
+    }
+    catch {
+        logger_1.logger.warn(`SIGTERM shutdown error`);
+    }
     process.exit(0);
 });
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
+    if (shuttingDown)
+        return;
+    shuttingDown = true;
     logger_1.logger.info('SIGINT received, shutting down gracefully');
+    try {
+        telegram_1.bot.stopPolling();
+        const { gracefulShutdown } = await Promise.resolve().then(() => __importStar(require('./services/memory_queue')));
+        await gracefulShutdown(5000);
+    }
+    catch {
+        logger_1.logger.warn(`SIGINT shutdown error`);
+    }
     process.exit(0);
 });

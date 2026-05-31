@@ -40,39 +40,48 @@ exports.SchedulerService = void 0;
 const node_cron_1 = __importDefault(require("node-cron"));
 const database_1 = require("./database");
 const logger_1 = require("../utils/logger");
+const config_1 = require("../config/config");
+let schedulerInitialized = false;
 exports.SchedulerService = {
     setup() {
-        // BUG-118 Fix: Use arrow function to preserve 'this' context
+        if (schedulerInitialized) {
+            logger_1.logger.warn('SchedulerService.setup called more than once; skipping duplicate cron registration.');
+            return;
+        }
         node_cron_1.default.schedule('* * * * *', async () => {
-            await this.processScheduledPosts();
-        });
-        logger_1.logger.info('📅 Scheduler Service initialized (checking every minute)');
+            try {
+                await this.processScheduledPosts();
+            }
+            catch (err) {
+                logger_1.logger.error(`Scheduler loop failed: ${err.message}`);
+            }
+        }, { timezone: config_1.CONFIG.TIMEZONE });
+        schedulerInitialized = true;
+        logger_1.logger.info('Scheduler Service initialized (checking every minute)');
     },
     async processScheduledPosts() {
         const posts = await database_1.DBService.getPendingScheduledPosts();
         if (posts.length === 0)
             return;
-        logger_1.logger.info(`📅 Processing ${posts.length} scheduled posts...`);
+        logger_1.logger.info(`Processing ${posts.length} scheduled posts...`);
         for (const post of posts) {
             try {
                 const user = await database_1.DBService.getUser(post.user_id);
                 if (!user || !user.target_channel) {
                     logger_1.logger.warn(`Skip post ${post.id}: user ${post.user_id} has no target channel`);
+                    await database_1.DBService.updateScheduledPostStatus(post.id, 'failed').catch((e) => logger_1.logger.warn(`Scheduler status update failed: ${e.message}`));
                     continue;
                 }
-                // BUG-116 Fix: Ensure content is an object
                 let content = post.content;
                 if (typeof content === 'string') {
                     try {
                         content = JSON.parse(content);
                     }
                     catch {
-                        logger_1.logger.error(`Invalid JSON in post ${post.id}`);
-                        continue;
+                        content = { text: content };
                     }
                 }
-                const { safeSend } = await Promise.resolve().then(() => __importStar(require('./telegram')));
-                // Convert scheduled post to article format for safeSend
+                const { safeSend } = await Promise.resolve().then(() => __importStar(require('./sender')));
                 const article = {
                     title: content.title || (post.type === 'text' ? 'Xabar' : 'Media'),
                     content: content.text || content.caption || '',
@@ -84,11 +93,11 @@ exports.SchedulerService = {
                 };
                 await safeSend(user, article);
                 await database_1.DBService.markScheduledPostSent(post.id);
-                logger_1.logger.info(`✅ Scheduled post ${post.id} sent to ${user.target_channel}`);
+                logger_1.logger.info(`Scheduled post ${post.id} sent to ${user.target_channel}`);
             }
             catch (err) {
-                logger_1.logger.error(`❌ Failed to send scheduled post ${post.id}: ${err.message}`);
-                await database_1.DBService.updateScheduledPostStatus(post.id, 'failed').catch(() => { });
+                logger_1.logger.error(`Failed to send scheduled post ${post.id}: ${err.message}`);
+                await database_1.DBService.updateScheduledPostStatus(post.id, 'failed').catch((e) => logger_1.logger.warn(`Scheduler status update failed: ${e.message}`));
             }
         }
     }

@@ -4,653 +4,494 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DBService = void 0;
-const supabase_js_1 = require("@supabase/supabase-js");
-const config_1 = require("../config/config");
-const logger_1 = require("../utils/logger");
+const BaseRepository_1 = require("../repositories/BaseRepository");
+const UserRepository_1 = require("../repositories/UserRepository");
+const NewsRepository_1 = require("../repositories/NewsRepository");
+const SourceRepository_1 = require("../repositories/SourceRepository");
+const StatsRepository_1 = require("../repositories/StatsRepository");
+const ApiKeyRepository_1 = require("../repositories/ApiKeyRepository");
+const PricingRepository_1 = require("../repositories/PricingRepository");
+const MonitorRepository_1 = require("../repositories/MonitorRepository");
+const ReferralRepository_1 = require("../repositories/ReferralRepository");
+const WorkspaceRepository_1 = require("../repositories/WorkspaceRepository");
+const RuleRepository_1 = require("../repositories/RuleRepository");
+const WebUserRepository_1 = require("../repositories/WebUserRepository");
+const CryptoPaymentRepository_1 = require("../repositories/CryptoPaymentRepository");
 const crypto_1 = __importDefault(require("crypto"));
-// B-07 Fix: Validate SUPABASE_URL and SUPABASE_KEY on startup
-const supabaseUrl = config_1.CONFIG.SUPABASE_URL;
-const supabaseKey = config_1.CONFIG.SUPABASE_KEY;
-if (!supabaseUrl || !supabaseKey) {
-    logger_1.logger.error('❌ SUPABASE_URL and SUPABASE_KEY must be set in environment variables!');
-    process.exit(1);
-}
-const supabase = (0, supabase_js_1.createClient)(supabaseUrl, supabaseKey);
-// In-memory cache to prevent redundant Supabase queries for premium verification
+const logger_1 = require("../utils/logger");
 const premiumCache = new Map();
-exports.DBService = {
-    // --- USERS ---
-    async getUser(telegramId) {
-        const { data, error } = await supabase.from('users').select('*').eq('telegram_id', telegramId).single();
-        if (error && error.code !== 'PGRST116')
-            logger_1.logger.error(`getUser error: ${error.message}`);
-        return data;
-    },
-    async getAllUsers() {
-        const { data, error } = await supabase.from('users').select('*');
-        if (error)
-            logger_1.logger.error(`getAllUsers error: ${error.message}`);
-        return data || [];
-    },
-    // BUG-018 Fix: Removed dead 'yesterday' variable
-    async getActiveUsers() {
-        const { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('is_active', 1)
-            .not('target_channel', 'is', null)
-            .eq('is_approved', 1);
-        if (error)
-            logger_1.logger.error(`getActiveUsers error: ${error.message}`);
-        return data || [];
-    },
-    // BUG-016 Fix: Handle null from getUser properly
-    async upsertUser(telegramId, isOwner = 0, username, firstName) {
-        const insertData = {
-            telegram_id: telegramId,
-            is_owner: isOwner,
-            is_approved: 1, // BUG FIX: Allow normal users to enter without manual approval
-            role: isOwner === 1 ? 'owner' : 'user',
-            username: username || null,
-            first_name: firstName || null,
-        };
-        let { data, error } = await supabase.from('users').upsert(insertData, { onConflict: 'telegram_id' }).select().single();
-        if (error) {
-            logger_1.logger.error(`upsertUser error: ${error.message}`);
-            const fallbackInsertData = { ...insertData };
-            delete fallbackInsertData.role;
-            const fallback = await supabase.from('users').upsert(fallbackInsertData, { onConflict: 'telegram_id' }).select().single();
-            if (fallback.error) {
-                logger_1.logger.error(`upsertUser fallback without role failed: ${fallback.error.message}`);
-                return null;
-            }
-            data = fallback.data;
-            if (isOwner === 1 && data) {
-                await supabase.from('users').update({ is_owner: 1 }).eq('telegram_id', telegramId);
-            }
-        }
-        return data;
-    },
-    // BUG-030 Fix: Return success boolean
-    async updateUser(telegramId, updates) {
-        const { error } = await supabase.from('users').update(updates).eq('telegram_id', telegramId);
-        if (error) {
-            logger_1.logger.error(`updateUser error: ${error.message}`);
-            return false;
-        }
-        // Invalidate premium cache on updates
-        premiumCache.delete(telegramId);
-        return true;
-    },
-    // --- SOURCES ---
-    async getUserSources(userId) {
-        const { data, error } = await supabase.from('sources').select('*').eq('user_id', userId);
-        if (error)
-            logger_1.logger.error(`getUserSources error: ${error.message}`);
-        return data || [];
-    },
-    async getAllSources() {
-        const { data, error } = await supabase.from('sources').select('*');
-        if (error)
-            logger_1.logger.error(`getAllSources error: ${error.message}`);
-        return data || [];
-    },
-    // BUG-011 Fix: Return success boolean
-    async addSource(userId, name, url, lang) {
-        const { error } = await supabase.from('sources').insert({ user_id: userId, name, url, lang });
-        if (error) {
-            logger_1.logger.error(`addSource error: ${error.message}`);
-            return false;
-        }
-        return true;
-    },
-    async removeSource(userId, sourceId) {
-        const { error } = await supabase.from('sources').delete().eq('id', sourceId).eq('user_id', userId);
-        if (error)
-            logger_1.logger.error(`removeSource error: ${error.message}`);
-    },
-    // --- NEWS DEDUPLICATION ---
-    // BUG-012 Fix: Single optimized query for deduplication
-    async isSeenOrSeenByTitle(userId, url, title) {
-        const seenUrl = await this.isSeen(userId, url);
-        if (seenUrl)
-            return true;
-        return this.isSeenByTitle(userId, title);
-    },
-    async isSeen(userId, url) {
-        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('url', url).limit(1);
-        if (error)
-            logger_1.logger.error(`isSeen error: ${error.message}`);
-        return !!(data && data.length > 0);
-    },
-    async isSeenByTitle(userId, title) {
-        const { data, error } = await supabase.from('processed_news').select('id').eq('user_id', userId).eq('title', title).limit(1);
-        if (error)
-            logger_1.logger.error(`isSeenByTitle error: ${error.message}`);
-        return !!(data && data.length > 0);
-    },
-    // BUG-013 Fix: Use upsert with onConflict to handle unique constraints gracefully
-    async markSeen(userId, url, title) {
-        const { error } = await supabase.from('processed_news').upsert({ user_id: userId, url, title }, { onConflict: 'user_id, url' });
-        if (error) {
-            logger_1.logger.error(`markSeen error: ${error.message}`);
-            throw error;
-        }
-    },
-    async getLastTitles(userId, limit = 20) {
-        const { data, error } = await supabase.from('processed_news').select('title').eq('user_id', userId).order('created_at', { ascending: false }).limit(limit);
-        if (error)
-            logger_1.logger.error(`getLastTitles error: ${error.message}`);
-        return (data || []).map(r => r.title);
-    },
-    // --- API KEYS ---
-    // BUG-023 Fix: Use onConflict with user_id check
-    async addApiKey(userId, key, type) {
-        // Check if key already belongs to another user
-        const { data: existingKey } = await supabase.from('api_keys').select('user_id').eq('api_key', key).maybeSingle();
-        if (existingKey && existingKey.user_id !== userId) {
-            logger_1.logger.warn(`addApiKey: key already owned by another user`);
-            return;
-        }
-        const { error } = await supabase.from('api_keys').upsert({ user_id: userId, api_key: key, api_type: type, is_active: true }, { onConflict: 'api_key' });
-        if (error)
-            logger_1.logger.error(`addApiKey error: ${error.message}`);
-    },
-    async removeApiKey(userId, key) {
-        const { error } = await supabase.from('api_keys').delete().eq('user_id', userId).eq('api_key', key);
-        if (error)
-            logger_1.logger.error(`removeApiKey error: ${error.message}`);
-    },
-    async getUserApiKeyCount(userId) {
-        const { count, error } = await supabase.from('api_keys').select('*', { count: 'exact', head: true }).eq('user_id', userId);
-        if (error)
-            logger_1.logger.error(`getUserApiKeyCount error: ${error.message}`);
-        return count || 0;
-    },
-    async isKeyExists(key) {
-        const { data, error } = await supabase.from('api_keys').select('id').eq('api_key', key).maybeSingle();
-        return !!data;
-    },
-    async getValidApiKeys() {
-        const { data, error } = await supabase.from('api_keys').select('api_key, api_type').eq('is_active', true);
-        if (error)
-            logger_1.logger.error(`getValidApiKeys error: ${error.message}`);
-        return (data || []).map(k => ({ key: k.api_key, type: k.api_type }));
-    },
-    async getUserApiKeys(userId) {
-        const { data, error } = await supabase.from('api_keys').select('*').eq('user_id', userId).eq('is_active', true);
-        if (error)
-            logger_1.logger.error(`getUserApiKeys error: ${error.message}`);
-        return data || [];
-    },
-    // --- STATS ---
-    async incrementStat(userId, field) {
-        const { error } = await supabase.rpc('increment_stat', { p_user_id: userId, p_field: field });
-        if (error)
-            logger_1.logger.error(`incrementStat rpc error: ${error.message}`);
-    },
-    // BUG-024 Fix: Initialize stats if not exists
-    // BUG-095 Fix: Removed non-existent total_errors
-    async getStats(userId) {
-        const { data } = await supabase.from('stats').select('*').eq('user_id', userId).maybeSingle();
-        return data || { total_posts: 0, total_duplicates: 0 };
-    },
-    // --- PRICE TRACKER ---
-    // BUG-093 Fix: Added error handling
-    async addTrackedPrice(userId, url, name, price) {
-        const { error } = await supabase.from('tracked_prices').insert({ user_id: userId, url, item_name: name, last_price: price });
-        if (error) {
-            logger_1.logger.error(`addTrackedPrice error: ${error.message}`);
-            throw new Error('Narxni kuzatuvga olishda xatolik yuz berdi.');
-        }
-    },
-    async getTrackedPrices(userId) {
-        const { data } = await supabase.from('tracked_prices').select('*').eq('user_id', userId);
-        return data || [];
-    },
-    async getAllTrackedPrices() {
-        const { data } = await supabase.from('tracked_prices').select('*');
-        return data || [];
-    },
-    async updatePrice(id, newPrice) {
-        await supabase.from('tracked_prices').update({ last_price: newPrice }).eq('id', id);
-    },
-    async removePrice(userId, id) {
-        await supabase.from('tracked_prices').delete().eq('id', id).eq('user_id', userId);
-    },
-    // --- SETTINGS --- (BUG-014/015 Fix: Single unified implementation using 'settings' table)
-    async getSetting(key) {
-        const { data } = await supabase.from('settings').select('value').eq('key', key).maybeSingle();
-        return data?.value ?? null;
-    },
-    async setSetting(key, value) {
-        await supabase.from('settings').upsert({ key, value }, { onConflict: 'key' });
-    },
-    // --- MONITORED CHANNELS --- (BUG-012/013 Fix: Single unified implementation)
-    async getUserMonitoredChannels(userId) {
-        const { data, error } = await supabase.from('monitored_channels').select('*').eq('user_id', userId);
-        if (error)
-            logger_1.logger.error(`getUserMonitoredChannels error: ${error.message}`);
-        return data || [];
-    },
-    async addMonitoredChannel(userId, platform, channelId, name, opts) {
-        const row = {
-            user_id: userId,
-            platform,
-            channel_id: channelId,
-            name,
-            forward_mode: opts?.forward_mode || 'copy',
-            use_ai: opts?.use_ai ?? 0,
-            is_active: 1,
-        };
-        const { error } = await supabase.from('monitored_channels').insert(row);
-        if (error)
-            logger_1.logger.error(`addMonitoredChannel error: ${error.message}`);
-    },
-    async updateMonitoredChannelSettings(id, userId, updates) {
-        const { error } = await supabase.from('monitored_channels').update(updates).eq('id', id).eq('user_id', userId);
-        if (error)
-            logger_1.logger.error(`updateMonitoredChannelSettings error: ${error.message}`);
-    },
-    getUserOutputChannels(user) {
-        const list = [];
-        if (user?.target_channel)
-            list.push(String(user.target_channel).trim());
-        if (user?.extra_channels) {
-            user.extra_channels.split(',').forEach((c) => {
-                const t = c.trim();
-                if (t)
-                    list.push(t);
-            });
-        }
-        return [...new Set(list)];
-    },
-    async setExtraChannels(userId, channels) {
-        const value = channels.filter(Boolean).join(',');
-        await this.updateUser(userId, { extra_channels: value });
-    },
-    async isTelegramMessageSeen(userId, sourceChatId, messageId) {
-        const { data } = await supabase.from('telegram_seen_messages')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('source_chat_id', sourceChatId)
-            .eq('message_id', messageId)
-            .maybeSingle();
-        return !!data;
-    },
-    async markTelegramMessageSeen(userId, sourceChatId, messageId) {
-        const { error } = await supabase.from('telegram_seen_messages').insert({
-            user_id: userId,
-            source_chat_id: sourceChatId,
-            message_id: messageId,
-        });
-        if (error && !String(error.message).includes('duplicate') && error.code !== '23505') {
-            logger_1.logger.warn(`markTelegramMessageSeen: ${error.message}`);
-        }
-    },
-    async getRecentNewsTitles(limit = 80) {
-        const { data, error } = await supabase.from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
-        if (error)
-            logger_1.logger.error(`getRecentNewsTitles error: ${error.message}`);
-        return (data || []).map((r) => r?.title).filter(Boolean);
-    },
-    async saveTrendsSnapshot(topics, summary) {
-        await supabase.from('trends_snapshots').insert({ topics, summary });
-    },
-    async getLatestTrendsSnapshot() {
-        const { data } = await supabase.from('trends_snapshots').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
-        return data;
-    },
-    async savePostDraft(userId, draft) {
-        const { data, error } = await supabase.from('post_drafts').insert({
-            user_id: userId,
-            title: draft.title || null,
-            body: draft.body,
-            image_url: draft.image_url || null,
-            channels: draft.channels || null,
-            status: 'draft',
-        }).select().single();
-        if (error)
-            logger_1.logger.error(`savePostDraft error: ${error.message}`);
-        return data;
-    },
-    async getUserPostDrafts(userId) {
-        const { data } = await supabase.from('post_drafts').select('*').eq('user_id', userId).order('updated_at', { ascending: false }).limit(20);
-        return data || [];
-    },
-    async removeMonitoredChannel(userId, id) {
-        const { error } = await supabase.from('monitored_channels').delete().eq('id', id).eq('user_id', userId);
-        if (error)
-            logger_1.logger.error(`removeMonitoredChannel error: ${error.message}`);
-    },
-    // BUG-012 Fix: Single getMonitoredChannels
-    async getMonitoredChannels() {
-        const { data, error } = await supabase.from('monitored_channels').select('*');
-        if (error)
-            logger_1.logger.error(`getMonitoredChannels error: ${error.message}`);
-        return data || [];
-    },
-    // BUG-013 Fix: Single updateMonitoredChannel with last_check
-    async updateMonitoredChannel(id, lastPostId) {
-        const { error } = await supabase.from('monitored_channels').update({ last_post_id: lastPostId, last_check: new Date().toISOString() }).eq('id', id);
-        if (error)
-            logger_1.logger.error(`updateMonitoredChannel error: ${error.message}`);
-    },
-    // --- VECTOR DEDUPLICATION ---
-    async findSimilarNews(userId, embedding, threshold = 0.9) {
-        const { data, error } = await supabase.rpc('match_news', {
-            query_embedding: embedding,
-            match_threshold: threshold,
-            p_user_id: userId
-        });
-        if (error) {
-            if (error.message.includes('function match_news') && error.message.includes('does not exist')) {
-                logger_1.logger.warn('⚠️ Supabase SQL migration (match_news) hali bajarilmagan.');
-            }
-            else {
-                logger_1.logger.error(`findSimilarNews error: ${error.message}`);
-            }
-            return null;
-        }
-        return data && data.length > 0 ? data[0] : null;
-    },
-    async saveEmbedding(userId, contentHash, embedding) {
-        const { error } = await supabase.from('news_embeddings').insert({
-            user_id: userId,
-            content_hash: contentHash,
-            embedding: embedding
-        });
-        if (error)
-            logger_1.logger.error(`saveEmbedding error: ${error.message}`);
-    },
-    async cleanupOldEmbeddings(days = 7) {
-        const date = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-        await supabase.from('news_embeddings').delete().lt('created_at', date);
-    },
-    // ── REFERRAL ──────────────────────────────
-    async getUserByReferralCode(code) {
-        const { data } = await supabase.from('users').select('*').eq('referral_code', code.toUpperCase()).maybeSingle();
-        return data;
-    },
-    async hasReferral(referredId) {
-        const { data } = await supabase.from('referrals').select('id').eq('referred_id', referredId).maybeSingle();
-        return !!data;
-    },
-    // BUG-022 Fix: Check for existing referral before creating
-    async createReferral(referrerId, referredId) {
-        const exists = await this.hasReferral(referredId);
-        if (exists) {
-            logger_1.logger.warn(`createReferral: referred user ${referredId} already has a referrer`);
-            return false;
-        }
-        const { error } = await supabase.from('referrals').insert({ referrer_id: referrerId, referred_id: referredId });
-        if (error) {
-            logger_1.logger.error(`createReferral: ${error.message}`);
-            return false;
-        }
-        return true;
-    },
-    async checkAndMarkReferralActive(userId) {
-        const user = await this.getUser(userId);
-        if (!user || !user.target_channel)
-            return;
-        const sources = await this.getUserSources(userId);
-        if (sources.length === 0)
-            return;
-        const { data: ref } = await supabase.from('referrals').select('*').eq('referred_id', userId).maybeSingle();
-        if (ref && ref.is_active === false) {
-            await supabase.from('referrals').update({ is_active: true }).eq('referred_id', userId);
-            await this.checkAndGivePremium(ref.referrer_id);
-        }
-    },
-    // BUG-029 Fix: Added error handling for RPCs
-    async checkAndGivePremium(referrerId) {
-        const { count } = await supabase.from('referrals').select('*', { count: 'exact', head: true }).eq('referrer_id', referrerId).eq('is_active', true);
-        const activeCount = count || 0;
-        if (activeCount > 0 && activeCount % 10 === 0) {
-            const { error } = await supabase.rpc('extend_premium', { p_user_id: referrerId, p_days: 30 });
-            if (error)
-                logger_1.logger.error(`extend_premium RPC error: ${error.message}`);
-        }
-        const { error } = await supabase.rpc('increment_referral_count', { p_user_id: referrerId });
-        if (error)
-            logger_1.logger.error(`increment_referral_count RPC error: ${error.message}`);
-    },
-    async getReferralStats(userId) {
-        const { data: all } = await supabase.from('referrals').select('*').eq('referrer_id', userId);
-        const total = all?.length || 0;
-        const active = all?.filter(r => r.is_active).length || 0;
-        const needed = 10 - (active % 10);
-        return { total, active, needed };
-    },
-    // BUG-021 Fix: Collision check for referral code - fallback to unique suffix
+const recentNewsLocks = new Map();
+const userSendSlots = new Map();
+let lastLocksCleanup = 0;
+const LOCKS_CLEANUP_INTERVAL = 60_000;
+const MAX_LOCKS_SIZE = 50_000;
+// ── Domain service objects ──────────────────────────────────
+const UserService = {
+    get: (id) => UserRepository_1.UserRepository.get(id),
+    getAll: () => UserRepository_1.UserRepository.getAll(),
+    getActive: () => UserRepository_1.UserRepository.getActive(),
+    upsert: (id, o, u, f) => UserRepository_1.UserRepository.upsert(id, o, u, f),
+    update: (id, u) => UserRepository_1.UserRepository.update(id, u),
+    getByReferralCode: (c) => UserRepository_1.UserRepository.getByReferralCode(c),
+    getForAdmin: () => UserRepository_1.UserRepository.getForAdmin(),
+    outputChannels: (u) => UserRepository_1.UserRepository.outputChannels(u),
+    getAllUserChannels: (u) => UserRepository_1.UserRepository.getAllChannels(u),
+    setExtraChannels: (userId, channels) => UserRepository_1.UserRepository.update(userId, { extra_channels: channels.filter(Boolean).join(',') }),
     async ensureReferralCode(userId) {
-        const user = await this.getUser(userId);
+        const user = await UserRepository_1.UserRepository.get(userId);
         if (user?.referral_code)
             return user.referral_code;
         let code;
         let attempts = 0;
-        const maxAttempts = 100;
         do {
             code = crypto_1.default.randomBytes(6).toString('hex').toUpperCase().slice(0, 8);
-            const existing = await this.getUserByReferralCode(code);
+            const existing = await UserRepository_1.UserRepository.getByReferralCode(code);
             if (!existing)
                 break;
             attempts++;
-        } while (attempts < maxAttempts);
-        // BUG-015 Fix: Fallback to userId-based unique code instead of throwing
-        if (attempts >= maxAttempts) {
-            const fallbackCode = `${userId.toString(36).toUpperCase().slice(-4)}${code.slice(-4)}`;
-            code = fallbackCode;
-        }
-        await supabase.from('users').update({ referral_code: code }).eq('telegram_id', userId);
+        } while (attempts < 100);
+        if (attempts >= 100)
+            code = `${userId.toString(36).toUpperCase().slice(-4)}${code.slice(-4)}`;
+        await (0, BaseRepository_1.getSupabase)().from('users').update({ referral_code: code }).eq('telegram_id', userId);
         return code;
     },
-    // BUG-126 Fix: Add in-memory cache for premium status
     async isPremiumActive(userId) {
         const cached = premiumCache.get(userId);
-        const nowTime = Date.now();
-        if (cached && cached.expiresAt > nowTime) {
+        const now = Date.now();
+        if (cached && cached.expiresAt > now)
             return cached.active;
-        }
-        const user = await this.getUser(userId);
+        const user = await UserRepository_1.UserRepository.get(userId);
         if (!user)
             return false;
         const isPremiumFlag = Number(user.is_premium) === 1 || user.is_premium === true;
         let active = isPremiumFlag;
         if (user.premium_until) {
             const expiryDate = new Date(user.premium_until);
-            if (expiryDate > new Date()) {
+            if (expiryDate > new Date())
                 active = true;
-            }
             else {
-                if (isPremiumFlag) {
-                    await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
-                }
+                if (isPremiumFlag)
+                    await (0, BaseRepository_1.getSupabase)().from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', userId);
                 active = false;
             }
         }
-        premiumCache.set(userId, { active, expiresAt: nowTime + 5 * 60 * 1000 }); // Cache for 5 minutes
+        premiumCache.set(userId, { active, expiresAt: now + 5 * 60 * 1000 });
         return active;
     },
-    // BUG-020 Fix: Now called from main.ts system crons
     async cleanupExpiredPremium() {
         const now = new Date().toISOString();
-        const { error } = await supabase
-            .from('users')
-            .update({ is_premium: 0 })
-            .eq('is_premium', 1)
-            .not('premium_until', 'is', null)
-            .lte('premium_until', now);
+        const { error } = await (0, BaseRepository_1.getSupabase)().from('users').update({ is_premium: 0 }).eq('is_premium', 1).not('premium_until', 'is', null).lte('premium_until', now);
         if (error)
             logger_1.logger.error(`cleanupExpiredPremium error: ${error.message}`);
     },
-    // BUG-132 Fix: Add length limit
-    async setKeywords(userId, keywords) {
-        const safeKeywords = keywords.slice(0, 1000); // Prevent overflow
-        await supabase.from('users').update({ keywords: safeKeywords }).eq('telegram_id', userId);
+    normalizeTargetChannel(value) {
+        let ch = String(value || '').trim();
+        if (!ch)
+            return '';
+        if (ch.includes('t.me/')) {
+            const parts = ch.split('t.me/');
+            const h = parts[parts.length - 1].split('/')[0].trim();
+            if (h)
+                ch = `@${h}`;
+        }
+        if (!ch.startsWith('@') && !ch.startsWith('-100') && /^[a-zA-Z0-9_]{5,32}$/.test(ch))
+            ch = `@${ch}`;
+        return ch;
     },
-    // BUG-008 Fix: Filter out empty strings from split
+};
+const NewsService = {
+    isSeen: (id, u, t) => NewsRepository_1.NewsRepository.isSeen(id, u, t),
+    isSeenByUrl: (id, u) => NewsRepository_1.NewsRepository.isSeenByUrl(id, u),
+    isSeenByTitle: (id, t) => NewsRepository_1.NewsRepository.isSeenByTitle(id, t),
+    markSeen: (id, u, t) => NewsRepository_1.NewsRepository.markSeen(id, u, t),
+    getLastTitles: (id, l) => NewsRepository_1.NewsRepository.getLastTitles(id, l),
+    getRecentTitles: (l) => NewsRepository_1.NewsRepository.getRecentTitles(l),
+    isLikelyDuplicateTitle: (a, b) => (0, BaseRepository_1.isLikelyDuplicate)(a, b),
+    normalizeUrl: BaseRepository_1.normalizeUrl,
+    normalizeTitle: BaseRepository_1.normalizeTitle,
+};
+const SourceService = {
+    getByUser: (id) => SourceRepository_1.SourceRepository.getByUser(id),
+    getAll: () => SourceRepository_1.SourceRepository.getAll(),
+    add: (id, n, u, l) => SourceRepository_1.SourceRepository.add(id, n, u, l),
+    remove: (id, s) => SourceRepository_1.SourceRepository.remove(id, s),
+};
+const ApiKeyService = {
+    add: (id, k, t) => ApiKeyRepository_1.ApiKeyRepository.add(id, k, t),
+    remove: (id, k) => ApiKeyRepository_1.ApiKeyRepository.remove(id, k),
+    removeById: (id) => ApiKeyRepository_1.ApiKeyRepository.removeById(id),
+    count: (id) => ApiKeyRepository_1.ApiKeyRepository.count(id),
+    exists: (k) => ApiKeyRepository_1.ApiKeyRepository.exists(k),
+    getValid: () => ApiKeyRepository_1.ApiKeyRepository.getValid(),
+    getByUser: (id) => ApiKeyRepository_1.ApiKeyRepository.getByUser(id),
+};
+const StatsService = {
+    increment: (id, f) => StatsRepository_1.StatsRepository.increment(id, f),
+    get: (id) => StatsRepository_1.StatsRepository.get(id),
+};
+const PriceService = {
+    add: (id, u, n, p) => PricingRepository_1.PriceRepository.add(id, u, n, p),
+    getByUser: (id) => PricingRepository_1.PriceRepository.getByUser(id),
+    getAll: () => PricingRepository_1.PriceRepository.getAll(),
+    updatePrice: (id, p) => PricingRepository_1.PriceRepository.updatePrice(id, p),
+    remove: (id, p) => PricingRepository_1.PriceRepository.remove(id, p),
+};
+const SettingsService = {
+    get: (k) => PricingRepository_1.SettingsRepository.get(k),
+    set: (k, v) => PricingRepository_1.SettingsRepository.set(k, v),
+};
+const ScheduleService = {
+    add: (id, t, c, s) => PricingRepository_1.ScheduleRepository.add(id, t, c, s),
+    cancel: (id, s) => PricingRepository_1.ScheduleRepository.cancel(id, s),
+    getPending: () => PricingRepository_1.ScheduleRepository.getPending(),
+    getByUser: (id) => PricingRepository_1.ScheduleRepository.getByUser(id),
+    markSent: (id) => PricingRepository_1.ScheduleRepository.markSent(id),
+    updateStatus: (id, s) => PricingRepository_1.ScheduleRepository.updateStatus(id, s),
+};
+const CryptoPaymentService = {
+    create: (payment) => CryptoPaymentRepository_1.CryptoPaymentRepository.create(payment),
+    getById: (id) => CryptoPaymentRepository_1.CryptoPaymentRepository.getById(id),
+    updateStatus: (id, status) => CryptoPaymentRepository_1.CryptoPaymentRepository.updateStatus(id, status),
+    getWalletClaimByTelegramId: (telegramId) => CryptoPaymentRepository_1.CryptoPaymentRepository.getWalletClaimByTelegramId(telegramId),
+    getWalletClaimByAddress: (walletAddress) => CryptoPaymentRepository_1.CryptoPaymentRepository.getWalletClaimByAddress(walletAddress),
+    createWalletClaim: (record) => CryptoPaymentRepository_1.CryptoPaymentRepository.createWalletClaim(record),
+    deleteWalletClaim: (telegramId) => CryptoPaymentRepository_1.CryptoPaymentRepository.deleteWalletClaim(telegramId),
+};
+const MonitorService = {
+    getByUser: (id) => MonitorRepository_1.MonitorRepository.getByUser(id),
+    add: (id, p, c, n, o) => MonitorRepository_1.MonitorRepository.add(id, p, c, n, o),
+    updateSettings: (id, u, up) => MonitorRepository_1.MonitorRepository.updateSettings(id, u, up),
+    remove: (id, ch) => MonitorRepository_1.MonitorRepository.remove(id, ch),
+    getAll: () => MonitorRepository_1.MonitorRepository.getAll(),
+    updateLastPost: (id, l) => MonitorRepository_1.MonitorRepository.updateLastPost(id, l),
+};
+const TelegramMessageService = {
+    isSeen: (id, c, m) => MonitorRepository_1.TelegramMessageRepository.isSeen(id, c, m),
+    markSeen: (id, c, m) => MonitorRepository_1.TelegramMessageRepository.markSeen(id, c, m),
+};
+const TrendsService = {
+    saveSnapshot: (t, s) => MonitorRepository_1.TrendsRepository.saveSnapshot(t, s),
+    getLatest: () => MonitorRepository_1.TrendsRepository.getLatest(),
+};
+const ReferralService = {
+    has: (id) => ReferralRepository_1.ReferralRepository.has(id),
+    create: (r, d) => ReferralRepository_1.ReferralRepository.create(r, d),
+    getStats: (id) => ReferralRepository_1.ReferralRepository.getStats(id),
+    checkAndMarkActive: (id) => ReferralRepository_1.ReferralRepository.checkAndMarkActive(id),
+    givePremium: (id) => ReferralRepository_1.ReferralRepository.givePremium(id),
+};
+const WorkspaceService = {
+    getByUser: (id) => WorkspaceRepository_1.WorkspaceRepository.getByUser(id),
+    create: (id, n) => WorkspaceRepository_1.WorkspaceRepository.create(id, n),
+    getChannels: (id) => WorkspaceRepository_1.WorkspaceRepository.getChannels(id),
+    addChannel: (w, c, n) => WorkspaceRepository_1.WorkspaceRepository.addChannel(w, c, n),
+    removeChannel: (c, w) => WorkspaceRepository_1.WorkspaceRepository.removeChannel(c, w),
+    getMembers: (w) => WorkspaceRepository_1.WorkspaceRepository.getMembers(w),
+    addMember: (w, u, r) => WorkspaceRepository_1.WorkspaceRepository.addMember(w, u, r),
+    removeMember: (w, u) => WorkspaceRepository_1.WorkspaceRepository.removeMember(w, u),
+    updateMemberRole: (w, u, r) => WorkspaceRepository_1.WorkspaceRepository.updateMemberRole(w, u, r),
+};
+const RuleService = {
+    getByUser: (id) => RuleRepository_1.RuleRepository.getByUser(id),
+    add: (id, tr, co, ac, av) => RuleRepository_1.RuleRepository.add(id, tr, co, ac, av),
+    toggle: (id, a) => RuleRepository_1.RuleRepository.toggle(id, a),
+    delete: (id) => RuleRepository_1.RuleRepository.delete(id),
+};
+const TicketService = {
+    create: (id, s, m) => RuleRepository_1.TicketRepository.create(id, s, m),
+    getByUser: (id) => RuleRepository_1.TicketRepository.getByUser(id),
+    getAll: () => RuleRepository_1.TicketRepository.getAll(),
+    updateStatus: (id, s) => RuleRepository_1.TicketRepository.updateStatus(id, s),
+};
+const DraftService = {
+    save: (id, d) => RuleRepository_1.DraftRepository.save(id, d),
+    getByUser: (id) => RuleRepository_1.DraftRepository.getByUser(id),
+};
+const WebUserService = {
+    getByEmail: (email) => WebUserRepository_1.WebUserRepository.getByEmail(email),
+    list: () => WebUserRepository_1.WebUserRepository.list(),
+    create: (record) => WebUserRepository_1.WebUserRepository.create(record),
+};
+// ── Public API ──────────────────────────────────────────────
+exports.DBService = {
+    // Domain-specific service objects
+    User: UserService,
+    News: NewsService,
+    Source: SourceService,
+    ApiKey: ApiKeyService,
+    Stats: StatsService,
+    Price: PriceService,
+    Settings: SettingsService,
+    Schedule: ScheduleService,
+    CryptoPayment: CryptoPaymentService,
+    Monitor: MonitorService,
+    TelegramMessage: TelegramMessageService,
+    Trends: TrendsService,
+    Referral: ReferralService,
+    Workspace: WorkspaceService,
+    Rule: RuleService,
+    Ticket: TicketService,
+    Draft: DraftService,
+    WebUser: WebUserService,
+    // ── Base (keep at top level) ──
+    getSupabase: BaseRepository_1.getSupabase,
+    isLikelyDuplicateTitle: (a, b) => NewsService.isLikelyDuplicateTitle(a, b),
+    normalizeNewsUrl: (u) => NewsService.normalizeUrl(u),
+    normalizeNewsTitle: (t) => NewsService.normalizeTitle(t),
+    // ── User (legacy flat methods) ──
+    getUser: (id) => UserService.get(id),
+    getAllUsers: () => UserService.getAll(),
+    getActiveUsers: () => UserService.getActive(),
+    upsertUser: (id, o, u, f) => UserService.upsert(id, o, u, f),
+    updateUser: (id, u) => UserService.update(id, u),
+    getUserByReferralCode: (c) => UserService.getByReferralCode(c),
+    getUsersForAdmin: () => UserService.getForAdmin(),
+    getUserOutputChannels: (u) => UserService.outputChannels(u),
+    getAllUserChannels: (u) => UserService.getAllUserChannels(u),
+    getWebUserByEmail: (email) => WebUserService.getByEmail(email),
+    getWebUsers: () => WebUserService.list(),
+    createWebUser: (record) => WebUserService.create(record),
+    setExtraChannels: (userId, channels) => UserService.setExtraChannels(userId, channels),
+    ensureReferralCode: (userId) => UserService.ensureReferralCode(userId),
+    isPremiumActive: (userId) => UserService.isPremiumActive(userId),
+    cleanupExpiredPremium: () => UserService.cleanupExpiredPremium(),
+    normalizeTargetChannel: (value) => UserService.normalizeTargetChannel(value),
+    // ── Source (legacy flat methods) ──
+    getUserSources: (id) => SourceService.getByUser(id),
+    getAllSources: () => SourceService.getAll(),
+    addSource: (id, n, u, l) => SourceService.add(id, n, u, l),
+    removeSource: (id, s) => SourceService.remove(id, s),
+    // ── News (legacy flat methods) ──
+    isSeenOrSeenByTitle: (id, u, t) => NewsService.isSeen(id, u, t),
+    isSeen: (id, u) => NewsService.isSeenByUrl(id, u),
+    isSeenByTitle: (id, t) => NewsService.isSeenByTitle(id, t),
+    markSeen: (id, u, t) => NewsService.markSeen(id, u, t),
+    getLastTitles: (id, l) => NewsService.getLastTitles(id, l),
+    getRecentNewsTitles: (l) => NewsService.getRecentTitles(l),
+    // ── API Keys (legacy flat methods) ──
+    addApiKey: (id, k, t) => ApiKeyService.add(id, k, t),
+    removeApiKey: (id, k) => ApiKeyService.remove(id, k),
+    removeApiKeyById: (id) => ApiKeyService.removeById(id),
+    getUserApiKeyCount: (id) => ApiKeyService.count(id),
+    isKeyExists: (k) => ApiKeyService.exists(k),
+    getValidApiKeys: () => ApiKeyService.getValid(),
+    getUserApiKeys: (id) => ApiKeyService.getByUser(id),
+    // ── Stats (legacy flat methods) ──
+    incrementStat: (id, f) => StatsService.increment(id, f),
+    getStats: (id) => StatsService.get(id),
+    // ── Price Tracker (legacy flat methods) ──
+    addTrackedPrice: (id, u, n, p) => PriceService.add(id, u, n, p),
+    getTrackedPrices: (id) => PriceService.getByUser(id),
+    getAllTrackedPrices: () => PriceService.getAll(),
+    updatePrice: (id, p) => PriceService.updatePrice(id, p),
+    removePrice: (id, p) => PriceService.remove(id, p),
+    // ── Settings (legacy flat methods) ──
+    getSetting: (k) => SettingsService.get(k),
+    setSetting: (k, v) => SettingsService.set(k, v),
+    // ── Scheduled Posts (legacy flat methods) ──
+    addScheduledPost: (id, t, c, s) => ScheduleService.add(id, t, c, s),
+    cancelScheduledPost: (id, s) => ScheduleService.cancel(id, s),
+    getPendingScheduledPosts: () => ScheduleService.getPending(),
+    getUserScheduledPosts: (id) => ScheduleService.getByUser(id),
+    markScheduledPostSent: (id) => ScheduleService.markSent(id),
+    updateScheduledPostStatus: (id, s) => ScheduleService.updateStatus(id, s),
+    createCryptoPayment: (payment) => CryptoPaymentService.create(payment),
+    getCryptoPayment: (id) => CryptoPaymentService.getById(id),
+    updateCryptoPaymentStatus: (id, status) => CryptoPaymentService.updateStatus(id, status),
+    getWalletClaimByTelegramId: (telegramId) => CryptoPaymentService.getWalletClaimByTelegramId(telegramId),
+    getWalletClaimByAddress: (walletAddress) => CryptoPaymentService.getWalletClaimByAddress(walletAddress),
+    createWalletClaim: (record) => CryptoPaymentService.createWalletClaim(record),
+    deleteWalletClaim: (telegramId) => CryptoPaymentService.deleteWalletClaim(telegramId),
+    // ── Monitored Channels (legacy flat methods) ──
+    getUserMonitoredChannels: (id) => MonitorService.getByUser(id),
+    addMonitoredChannel: (id, p, c, n, o) => MonitorService.add(id, p, c, n, o),
+    updateMonitoredChannelSettings: (id, u, up) => MonitorService.updateSettings(id, u, up),
+    removeMonitoredChannel: (id, ch) => MonitorService.remove(id, ch),
+    getMonitoredChannels: () => MonitorService.getAll(),
+    updateMonitoredChannel: (id, l) => MonitorService.updateLastPost(id, l),
+    // ── Telegram Messages (legacy flat methods) ──
+    isTelegramMessageSeen: (id, c, m) => TelegramMessageService.isSeen(id, c, m),
+    markTelegramMessageSeen: (id, c, m) => TelegramMessageService.markSeen(id, c, m),
+    // ── Trends (legacy flat methods) ──
+    saveTrendsSnapshot: (t, s) => TrendsService.saveSnapshot(t, s),
+    getLatestTrendsSnapshot: () => TrendsService.getLatest(),
+    // ── Referrals (legacy flat methods) ──
+    hasReferral: (id) => ReferralService.has(id),
+    createReferral: (r, d) => ReferralService.create(r, d),
+    getReferralStats: (id) => ReferralService.getStats(id),
+    checkAndMarkReferralActive: (id) => ReferralService.checkAndMarkActive(id),
+    checkAndGivePremium: (id) => ReferralService.givePremium(id),
+    // ── Workspaces (legacy flat methods) ──
+    getUserWorkspaces: (id) => WorkspaceService.getByUser(id),
+    createWorkspace: (id, n) => WorkspaceService.create(id, n),
+    getWorkspaceChannels: (id) => WorkspaceService.getChannels(id),
+    addWorkspaceChannel: (w, c, n) => WorkspaceService.addChannel(w, c, n),
+    removeWorkspaceChannel: (c, w) => WorkspaceService.removeChannel(c, w),
+    getWorkspaceMembers: (w) => WorkspaceService.getMembers(w),
+    addWorkspaceMember: (w, u, r) => WorkspaceService.addMember(w, u, r),
+    removeWorkspaceMember: (w, u) => WorkspaceService.removeMember(w, u),
+    updateWorkspaceMemberRole: (w, u, r) => WorkspaceService.updateMemberRole(w, u, r),
+    // ── Rules (legacy flat methods) ──
+    getUserRules: (id) => RuleService.getByUser(id),
+    addRule: (id, tr, co, ac, av) => RuleService.add(id, tr, co, ac, av),
+    toggleRule: (id, a) => RuleService.toggle(id, a),
+    deleteRule: (id) => RuleService.delete(id),
+    // ── Tickets (legacy flat methods) ──
+    createTicket: (id, s, m) => TicketService.create(id, s, m),
+    getUserTickets: (id) => TicketService.getByUser(id),
+    getTickets: () => TicketService.getAll(),
+    updateTicketStatus: (id, s) => TicketService.updateStatus(id, s),
+    // ── Drafts (legacy flat methods) ──
+    savePostDraft: (id, d) => DraftService.save(id, d),
+    getUserPostDrafts: (id) => DraftService.getByUser(id),
+    // ── Embeddings ──
+    async findSimilarNews(userId, embedding, threshold = 0.9) {
+        const { data, error } = await (0, BaseRepository_1.getSupabase)().rpc('match_news', { query_embedding: embedding, match_threshold: threshold, p_user_id: userId });
+        if (error) {
+            if (error.message.includes('function match_news') && error.message.includes('does not exist')) {
+                logger_1.logger.warn('Supabase SQL migration (match_news) hali bajarilmagan.');
+            }
+            else
+                logger_1.logger.error(`findSimilarNews error: ${error.message}`);
+            return null;
+        }
+        return data && data.length > 0 ? data[0] : null;
+    },
+    async saveEmbedding(userId, contentHash, embedding) {
+        const { error } = await (0, BaseRepository_1.getSupabase)().from('news_embeddings').insert({ user_id: userId, content_hash: contentHash, embedding });
+        if (error)
+            logger_1.logger.error(`saveEmbedding error: ${error.message}`);
+    },
+    async cleanupOldEmbeddings(days = 7) {
+        const date = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        await (0, BaseRepository_1.getSupabase)().from('news_embeddings').delete().lt('created_at', date);
+    },
+    // ── In-Memory helpers ──
+    tryReserveUserSendSlot(userId, intervalMinutes) {
+        const now = Date.now();
+        const intervalMs = Math.max(intervalMinutes, 1) * 60 * 1000;
+        const lockedUntil = userSendSlots.get(userId) || 0;
+        if (lockedUntil > now)
+            return false;
+        userSendSlots.set(userId, now + intervalMs);
+        return true;
+    },
+    releaseUserSendSlot(userId) { userSendSlots.delete(userId); },
+    acquireRecentNewsLock(userId, url, title, ttlMs = 12 * 60 * 60 * 1000) {
+        const now = Date.now();
+        if (now - lastLocksCleanup > LOCKS_CLEANUP_INTERVAL) {
+            lastLocksCleanup = now;
+            for (const [key, expiry] of recentNewsLocks.entries()) {
+                if (expiry <= now)
+                    recentNewsLocks.delete(key);
+            }
+            if (recentNewsLocks.size > MAX_LOCKS_SIZE) {
+                const iter = recentNewsLocks.keys();
+                let deleted = 0;
+                while (deleted < MAX_LOCKS_SIZE / 2) {
+                    const k = iter.next().value;
+                    if (k === undefined)
+                        break;
+                    recentNewsLocks.delete(k);
+                    deleted++;
+                }
+            }
+        }
+        const normalizedUrl = NewsService.normalizeUrl(url);
+        const normalizedTitle = NewsService.normalizeTitle(title);
+        const urlKey = `${userId}:url:${normalizedUrl}`;
+        const titleKey = normalizedTitle ? `${userId}:title:${normalizedTitle}` : '';
+        const urlExisting = recentNewsLocks.get(urlKey);
+        if (urlExisting && urlExisting > now)
+            return false;
+        if (titleKey) {
+            const titleExisting = recentNewsLocks.get(titleKey);
+            if (titleExisting && titleExisting > now)
+                return false;
+            recentNewsLocks.set(titleKey, now + ttlMs);
+        }
+        recentNewsLocks.set(urlKey, now + ttlMs);
+        return true;
+    },
+    // ── User composite helpers ──
+    async setKeywords(userId, keywords) {
+        await (0, BaseRepository_1.getSupabase)().from('users').update({ keywords: keywords.slice(0, 1000) }).eq('telegram_id', userId);
+    },
     async getKeywords(userId) {
-        const user = await this.getUser(userId);
+        const user = await UserRepository_1.UserRepository.get(userId);
         if (!user?.keywords || user.keywords.trim() === '')
             return [];
         return user.keywords.split(',').map((k) => k.trim().toLowerCase()).filter((k) => k.length > 0);
     },
     async setScheduleTimes(userId, times) {
-        await supabase.from('users').update({ schedule_times: times }).eq('telegram_id', userId);
+        await (0, BaseRepository_1.getSupabase)().from('users').update({ schedule_times: times }).eq('telegram_id', userId);
     },
-    // BUG-027 Fix: Validate digest time format
     async setDailyDigest(userId, enabled, time) {
-        // Validate time format HH:MM
         const match = time.match(/^(\d{1,2}):(\d{2})$/);
         if (match) {
             const h = parseInt(match[1]);
             const m = parseInt(match[2]);
-            if (h < 0 || h > 23 || m < 0 || m > 59) {
-                logger_1.logger.warn(`setDailyDigest: invalid time format '${time}' for user ${userId}`);
-                time = '20:00'; // Default fallback
-            }
+            if (h < 0 || h > 23 || m < 0 || m > 59)
+                time = '20:00';
         }
-        else {
-            time = '20:00'; // Default fallback
-        }
-        await supabase.from('users').update({ daily_digest: enabled, digest_time: time }).eq('telegram_id', userId);
+        else
+            time = '20:00';
+        await (0, BaseRepository_1.getSupabase)().from('users').update({ daily_digest: enabled, digest_time: time }).eq('telegram_id', userId);
     },
     async getUsersWithDigest() {
-        const { data } = await supabase.from('users').select('*').eq('daily_digest', true).eq('is_approved', 1);
+        const { data } = await (0, BaseRepository_1.getSupabase)().from('users').select('*').eq('daily_digest', true).eq('is_approved', 1);
         return data || [];
     },
-    // BUG-028 & BUG-097 Fix: Increase limit for digest and add source info
     async getRecentTitlesForDigest(userId, hours = 24) {
         const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
-        const { data } = await supabase.from('processed_news').select('title, url, created_at').eq('user_id', userId).gte('created_at', since).order('created_at', { ascending: false }).limit(100);
+        const { data } = await (0, BaseRepository_1.getSupabase)().from('processed_news').select('title, url, created_at').eq('user_id', userId).gte('created_at', since).order('created_at', { ascending: false }).limit(100);
         return data || [];
     },
     async setLanguage(userId, lang) {
-        await supabase.from('users').update({ language: lang }).eq('telegram_id', userId);
+        await (0, BaseRepository_1.getSupabase)().from('users').update({ language: lang }).eq('telegram_id', userId);
     },
     async setPremium(telegramId, days) {
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + days);
-        await supabase.from('users').update({ is_premium: 1, premium_until: expiresAt.toISOString() }).eq('telegram_id', telegramId);
+        await (0, BaseRepository_1.getSupabase)().from('users').update({ is_premium: 1, premium_until: expiresAt.toISOString() }).eq('telegram_id', telegramId);
         premiumCache.set(telegramId, { active: true, expiresAt: Date.now() + 5 * 60 * 1000 });
     },
     async revokePremium(telegramId) {
-        await supabase.from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', telegramId);
+        await (0, BaseRepository_1.getSupabase)().from('users').update({ is_premium: 0, premium_until: null }).eq('telegram_id', telegramId);
         premiumCache.set(telegramId, { active: false, expiresAt: Date.now() + 5 * 60 * 1000 });
     },
-    async setPrice(type, price) {
-        await this.setSetting(`price_${type}`, price.toString());
-    },
-    // BUG-014 Fix: Single getPrice using settings table
+    async setPrice(type, price) { await PricingRepository_1.SettingsRepository.set(`price_${type}`, price.toString()); },
     async getPrice(type) {
-        const val = await this.getSetting(`price_${type}`);
-        const numericValue = val ? parseInt(val) : NaN;
-        return isNaN(numericValue) ? (type === 'monthly' ? 25000 : 250000) : numericValue;
+        const val = await PricingRepository_1.SettingsRepository.get(`price_${type}`);
+        const numeric = val ? parseInt(val) : NaN;
+        return isNaN(numeric) ? (type === 'monthly' ? 25000 : 250000) : numeric;
     },
-    // BUG-025 Fix: Validate scheduled_at and type
-    async addScheduledPost(userId, type, content, scheduledAt) {
-        const validTypes = ['video', 'audio', 'text'];
-        if (!validTypes.includes(type)) {
-            const errorText = `Invalid scheduled post type: ${type}`;
-            logger_1.logger.error(`addScheduledPost error: ${errorText}`);
-            throw new Error(errorText);
-        }
-        if (!scheduledAt || isNaN(Date.parse(scheduledAt))) {
-            const errorText = `Invalid scheduledAt timestamp: ${scheduledAt}`;
-            logger_1.logger.error(`addScheduledPost error: ${errorText}`);
-            throw new Error(errorText);
-        }
-        const { error } = await supabase.from('scheduled_posts').insert({ user_id: userId, type, content, scheduled_at: scheduledAt, status: 'pending' });
-        if (error)
-            logger_1.logger.error(`addScheduledPost error: ${error.message}`);
-    },
-    async cancelScheduledPost(userId, scheduleId) {
-        const { error } = await supabase.from('scheduled_posts').update({ status: 'cancelled' }).eq('id', scheduleId).eq('user_id', userId);
-        if (error)
-            logger_1.logger.error(`cancelScheduledPost error: ${error.message}`);
-    },
-    // BUG-016 Fix: Include 'failed' posts for retry
-    async getPendingScheduledPosts() {
-        const now = new Date().toISOString();
-        const { data, error } = await supabase.from('scheduled_posts').select('*').in('status', ['pending', 'failed']).lte('scheduled_at', now);
-        if (error)
-            logger_1.logger.error(`getPendingScheduledPosts error: ${error.message}`);
-        return data || [];
-    },
-    // BUG-026 Fix: Filter only pending/sent posts for user view
-    async getUserScheduledPosts(userId) {
-        const { data, error } = await supabase.from('scheduled_posts').select('*').eq('user_id', userId).in('status', ['pending', 'sent']).order('scheduled_at', { ascending: false });
-        if (error)
-            logger_1.logger.error(`getUserScheduledPosts error: ${error.message}`);
-        return data || [];
-    },
-    async markScheduledPostSent(id) {
-        await supabase.from('scheduled_posts').update({ status: 'sent' }).eq('id', id);
-    },
-    async updateScheduledPostStatus(id, status) {
-        await supabase.from('scheduled_posts').update({ status }).eq('id', id);
-    },
-    // BUG-017 Fix: Consistent limit calculation
     async checkUserLimit(userId, limitType) {
-        const user = await this.getUser(userId);
-        if (user && (user.role === 'owner' || user.role === 'admin' || user.is_owner === 1)) {
+        const user = await UserRepository_1.UserRepository.get(userId);
+        if (user && (user.role === 'owner' || user.role === 'admin' || user.is_owner === 1))
             return true;
-        }
         const isPremium = await this.isPremiumActive(userId);
         if (isPremium) {
             if (limitType === 'sources') {
-                const sources = await this.getUserSources(userId);
-                return sources.length < 10;
+                const s = await SourceRepository_1.SourceRepository.getByUser(userId);
+                return s.length < 10;
             }
-            if (limitType === 'channels') {
-                return true; // unlimited for premium
-            }
-            if (limitType === 'scheduled') {
-                return true; // unlimited for premium
-            }
+            return true;
         }
         if (limitType === 'sources') {
-            const sources = await this.getUserSources(userId);
-            const apiKeyCount = await this.getUserApiKeyCount(userId);
-            const limit = 1 + Math.min(apiKeyCount, 3);
-            return sources.length < limit;
+            const s = await SourceRepository_1.SourceRepository.getByUser(userId);
+            const apiKeyCount = await ApiKeyRepository_1.ApiKeyRepository.count(userId);
+            return s.length < 1 + Math.min(apiKeyCount, 3);
         }
         if (limitType === 'channels') {
-            const channels = await this.getUserMonitoredChannels(userId);
-            const limit = 3;
-            return channels.length < limit;
+            const ch = await MonitorRepository_1.MonitorRepository.getByUser(userId);
+            return ch.length < 3;
         }
         if (limitType === 'scheduled') {
-            const { count } = await supabase.from('scheduled_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending');
+            const { count } = await (0, BaseRepository_1.getSupabase)().from('scheduled_posts').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'pending');
             return (count || 0) < 3;
         }
         return true;
-    },
-    async createTicket(userId, subject, message) {
-        const { data, error } = await supabase.from('support_tickets').insert({ user_id: userId, subject, message }).select().single();
-        if (error)
-            logger_1.logger.error(`createTicket error: ${error.message}`);
-        return data;
-    },
-    async getUserTickets(userId) {
-        const { data, error } = await supabase.from('support_tickets').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-        if (error)
-            logger_1.logger.error(`getUserTickets error: ${error.message}`);
-        return data || [];
-    },
-    async getTickets() {
-        const { data, error } = await supabase.from('support_tickets').select('*, users(username, first_name)').order('created_at', { ascending: false });
-        if (error)
-            logger_1.logger.error(`getTickets error: ${error.message}`);
-        return data || [];
-    },
-    // BUG-133 Fix: Validate status
-    async updateTicketStatus(ticketId, status) {
-        if (!['open', 'closed', 'resolved'].includes(status))
-            return;
-        await supabase.from('support_tickets').update({ status }).eq('id', ticketId);
     },
     async updateUserRole(telegramId, role) {
         const updates = { role };
@@ -658,35 +499,24 @@ exports.DBService = {
             updates.is_owner = 1;
             updates.is_approved = 1;
         }
-        else {
+        else
             updates.is_owner = 0;
-        }
-        const { error } = await supabase.from('users').update(updates).eq('telegram_id', telegramId);
+        const { error } = await (0, BaseRepository_1.getSupabase)().from('users').update(updates).eq('telegram_id', telegramId);
         if (error) {
             logger_1.logger.warn(`updateUserRole warning: ${error.message}`);
             return false;
         }
-        // Invalidate premium cache on role change
         premiumCache.delete(telegramId);
-        if (role === 'premium') {
+        if (role === 'premium')
             await this.setPremium(telegramId, 30);
-        }
-        else if (role === 'user') {
+        else if (role === 'user')
             await this.revokePremium(telegramId);
-        }
         return true;
     },
-    async getUsersForAdmin() {
-        const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
-        if (error) {
-            logger_1.logger.error(`getUsersForAdmin error: ${error.message}`);
+    async getRecentTitlesForChannel(channelId) {
+        const { data, error } = await (0, BaseRepository_1.getSupabase)().from('processed_news').select('title').eq('target_channel', channelId).order('created_at', { ascending: false }).limit(10);
+        if (error)
             return [];
-        }
-        const users = data || [];
-        const sources = await this.getAllSources();
-        return users.map(u => ({
-            ...u,
-            sources: sources.filter(s => s.user_id === u.telegram_id)
-        }));
+        return data || [];
     },
 };

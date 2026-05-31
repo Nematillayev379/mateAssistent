@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { logger, sanitizeLogInput } from '../utils/logger';
-import { resolveYtDlpPath } from '../utils/ytdlp';
+import { findNewestFile, resolveYtDlpCommand } from '../utils/ytdlp';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -10,9 +10,28 @@ import { promisify } from 'util';
 
 const execPromise = promisify(exec);
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_music');
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: any) { logger.warn(`Failed to create TEMP_DIR: ${e?.message || 'unknown error'}`); }
 
 const MAX_FILE_SIZE = 49 * 1024 * 1024; // 49MB (Telegram limit = 50MB)
+
+function validateDownloadedFile(filePath: string, minBytes = 8 * 1024): boolean {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const size = fs.statSync(filePath).size;
+    return size >= minBytes && size <= MAX_FILE_SIZE;
+  } catch {
+    return false;
+  }
+}
+
+function findDownloadedMusicFile(basePrefix: string, preferredExts: string[]): string | null {
+  for (const ext of preferredExts) {
+    const exact = findNewestFile(TEMP_DIR, basePrefix, ext);
+    if (exact && validateDownloadedFile(exact)) return exact;
+  }
+  const fallback = findNewestFile(TEMP_DIR, basePrefix);
+  return fallback && validateDownloadedFile(fallback) ? fallback : null;
+}
 
 export const MusicService = {
   /**
@@ -32,8 +51,6 @@ export const MusicService = {
     } catch (e: any) {
       logger.warn(`MusicService: yt-dlp strategy failed: ${e.message}`);
     }
-
-    // BUG-114 Fix: If strategy 1 found anything, do not fall through to other strategies, as they will likely fail too and just waste time
     if (results.length === 0) {
       try {
         logger.info(`MusicService: Cobalt API orqali qidirilmoqda...`);
@@ -54,8 +71,6 @@ export const MusicService = {
         logger.warn(`MusicService: YouTube scrape strategy failed: ${e.message}`);
       }
     }
-
-    // BUG-055 Fix: Throw error if no results found so caller can notify user
     if (results.length === 0) {
       throw new Error("Musiqa topilmadi yoki yuklashda xatolik yuz berdi. Iltimos keyinroq urinib ko'ring.");
     }
@@ -73,9 +88,8 @@ export const MusicService = {
    */
   async searchWithYtDlp(artist: string, amount: number): Promise<{ title: string, path: string }[]> {
     const results: { title: string, path: string }[] = [];
-    // BUG-113 & BUG-054 Fix: Use cached path
-    const ytdlpPath = await this.getYtDlpPathAsync();
-    if (!ytdlpPath) {
+    const ytdlpCommand = await this.getYtDlpCommandAsync();
+    if (!ytdlpCommand) {
       logger.warn('yt-dlp topilmadi, skip');
       return results;
     }
@@ -87,7 +101,8 @@ export const MusicService = {
       
       const { spawn } = await import('child_process');
       const stdout = await new Promise<string>((resolve, reject) => {
-        const proc = spawn(ytdlpPath, [
+        const proc = spawn(ytdlpCommand.command, [
+          ...ytdlpCommand.args,
           `ytsearch${amount * 2}:${searchQuery}`,
           '--flat-playlist',
           '--print', '%(id)s|||%(title)s',
@@ -109,59 +124,45 @@ export const MusicService = {
         if (!videoId || !title || seen.has(videoId)) continue;
         seen.add(videoId);
 
-        const filePath = path.join(TEMP_DIR, `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.m4a`);
+        const basePrefix = `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const outputTemplate = path.join(TEMP_DIR, `${basePrefix}.%(ext)s`);
         
         try {
-          // BUG-113 Fix: Use child_process.execFile to prevent shell injection and maxBuffer issues
           const { execFile } = await import('child_process');
           const execFilePromise = promisify(execFile);
           await execFilePromise(
-            ytdlpPath,
-            ['-f', 'bestaudio[ext=m4a]', '-o', filePath, `https://www.youtube.com/watch?v=${videoId}`, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
+            ytdlpCommand.command,
+            [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio[ext=webm]/bestaudio/best', '-o', outputTemplate, `https://www.youtube.com/watch?v=${videoId}`, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
             { timeout: 60000, maxBuffer: 1024 * 1024 }
           );
 
-          if (fs.existsSync(filePath)) {
+          const filePath = findDownloadedMusicFile(basePrefix, ['.m4a', '.mp3', '.webm', '.opus']);
+          if (filePath) {
             const stats = fs.statSync(filePath);
             if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
               results.push({ title: title.trim(), path: filePath });
               logger.info(`✅ Music downloaded: ${sanitizeLogInput(title.trim())} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
             } else {
-              // B-14 Fix: Delete temp file if invalid size
-              try { fs.unlinkSync(filePath); } catch {}
+              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
             }
           }
-          // B-13 Fix: Check alt paths only if primary file doesn't exist
-          const altExtensions = ['.webm', '.opus', '.mp3'];
-          for (const altExt of altExtensions) {
-            const altPath = filePath.replace(/\.[a-zA-Z0-9]+$/, '') + altExt;
-            if (fs.existsSync(altPath)) {
-              const stats = fs.statSync(altPath);
-              if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
-                results.push({ title: title.trim(), path: altPath });
-                logger.info(`✅ Music downloaded: ${sanitizeLogInput(title.trim())} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
-                break;
-              }
-            }
-          }
-        } catch (dlErr: any) {
-          logger.warn(`yt-dlp download error for "${sanitizeLogInput(title)}": ${dlErr.message?.slice(0, 100)}`);
-          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+        } catch (e: any) {
+          logger.warn(`yt-dlp download error: ${e.message?.slice(0, 200)}`);
         }
       }
+
+      const uniqueResults = new Map<string, { title: string, path: string }>();
+      for (const result of results) {
+        const normalizedTitle = result.title.toLowerCase().trim();
+        if (!uniqueResults.has(normalizedTitle)) {
+          uniqueResults.set(normalizedTitle, result);
+        }
+      }
+      return Array.from(uniqueResults.values());
     } catch (e: any) {
       logger.warn(`yt-dlp search error: ${e.message?.slice(0, 200)}`);
     }
-
-    // B-54 Fix: Deduplicate search results by title
-    const uniqueResults = new Map<string, { title: string, path: string }>();
-    for (const result of results) {
-      const normalizedTitle = result.title.toLowerCase().trim();
-      if (!uniqueResults.has(normalizedTitle)) {
-        uniqueResults.set(normalizedTitle, result);
-      }
-    }
-    return Array.from(uniqueResults.values());
+    return results;
   },
 
   /**
@@ -174,9 +175,24 @@ export const MusicService = {
     const videos = await this.getYouTubeVideoIds(artist, amount * 2);
     
     const cobaltInstances = [
-      'https://api.cobalt.tools',
-      'https://cobalt.canine.tools', 
-      'https://cobalt.meowing.de',
+      'https://cobaltapi.kittycat.boo',
+      'https://dog.kittycat.boo',
+      'https://fox.kittycat.boo',
+      'https://cobaltapi.squair.xyz',
+      'https://api.cobalt.blackcat.sweeux.org',
+      'https://api.dl.woof.monster',
+      'https://api.qwkuns.me',
+      'https://cobaltapi.cjs.nz',
+      'https://apicobalt.mgytr.top',
+      'https://api.cobalt.liubquanti.click',
+      'https://nuko-c.meowing.de',
+      'https://sunny.imput.net',
+      'https://nachos.imput.net',
+      'https://kityune.imput.net',
+      'https://blossom.imput.net',
+      'https://lime.clxxped.lol',
+      'https://melon.clxxped.lol',
+      'https://grapefruit.clxxped.lol',
     ];
 
     for (const video of videos) {
@@ -206,8 +222,6 @@ export const MusicService = {
           const writer = fs.createWriteStream(filePath);
           const audioRes = await axios.get(audioUrl, { responseType: 'stream', timeout: 30000 });
           audioRes.data.pipe(writer);
-
-          // B-15 Fix: Add resolved flag to prevent race condition
           let resolved = false;
           await new Promise<void>((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -239,8 +253,7 @@ export const MusicService = {
               logger.info(`✅ Cobalt download: ${sanitizeLogInput(video.title)} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
               break; // Success, move to next video
             } else {
-              // B-14 Fix: Delete temp file if invalid size
-              try { fs.unlinkSync(filePath); } catch {}
+              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup failed: ${e?.message || 'unknown'}`); }
             }
           }
         } catch (e: any) {
@@ -259,34 +272,37 @@ export const MusicService = {
   async searchWithYouTubeScrape(artist: string, amount: number): Promise<{ title: string, path: string }[]> {
     const results: { title: string, path: string }[] = [];
     const videos = await this.getYouTubeVideoIds(artist, amount * 2);
-    const ytdlpPath = await this.getYtDlpPathAsync();
+    const ytdlpCommand = await this.getYtDlpCommandAsync();
 
     for (const video of videos) {
       if (results.length >= amount) break;
       
-      if (ytdlpPath) {
-        const filePath = path.join(TEMP_DIR, `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.m4a`);
+      if (ytdlpCommand) {
+        const basePrefix = `music_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const outputTemplate = path.join(TEMP_DIR, `${basePrefix}.%(ext)s`);
         try {
-          // BUG-113 Fix: execFile usage
           const { execFile } = await import('child_process');
           const execFilePromise = promisify(execFile);
           await execFilePromise(
-            ytdlpPath,
-            ['-f', 'bestaudio[ext=m4a]', '-o', filePath, video.url, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
+            ytdlpCommand.command,
+            [...ytdlpCommand.args, '-f', 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio[ext=webm]/bestaudio/best', '-o', outputTemplate, video.url, '--no-warnings', '--no-playlist', '--max-filesize', '49M'],
             { timeout: 60000, maxBuffer: 1024 * 1024 }
           );
           
-          if (fs.existsSync(filePath)) {
+          const filePath = findDownloadedMusicFile(basePrefix, ['.m4a', '.mp3', '.webm', '.opus']);
+          if (filePath) {
             const stats = fs.statSync(filePath);
             if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
               results.push({ title: video.title, path: filePath });
             } else {
-              // B-14 Fix: Delete temp file if invalid size
-              try { fs.unlinkSync(filePath); } catch {}
+              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
             }
           }
         } catch (e: any) {
-          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch {}
+          try {
+            const filePath = findDownloadedMusicFile(basePrefix, ['.m4a', '.mp3', '.webm', '.opus']);
+            if (filePath) fs.unlinkSync(filePath);
+          } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
         }
       }
     }
@@ -314,8 +330,6 @@ export const MusicService = {
       });
 
       const body = res.data;
-      
-      // BUG-057 Fix: Support modern regex and fallbacks for YouTube search changes
       const jsonMatch = body.match(/(?:var ytInitialData|window\["ytInitialData"\])\s*=\s*({[\s\S]*?});/);
       if (jsonMatch) {
         try {
@@ -357,16 +371,16 @@ export const MusicService = {
 
   async searchYouTubeIdsWithYtDlp(query: string, limit: number): Promise<{ title: string; url: string; videoId: string }[]> {
     const results: { title: string; url: string; videoId: string }[] = [];
-    const ytdlpPath = await resolveYtDlpPath();
-    if (!ytdlpPath) return results;
+    const ytdlpCommand = await resolveYtDlpCommand();
+    if (!ytdlpCommand) return results;
 
     try {
       const { execFile } = await import('child_process');
       const { promisify } = await import('util');
       const execFilePromise = promisify(execFile);
       const { stdout } = await execFilePromise(
-        ytdlpPath,
-        [`ytsearch${limit}:${query}`, '--print', '%(id)s|||%(title)s', '--flat-playlist', '--no-warnings'],
+        ytdlpCommand.command,
+        [...ytdlpCommand.args, `ytsearch${limit}:${query}`, '--print', '%(id)s|||%(title)s', '--flat-playlist', '--no-warnings'],
         { timeout: 90000, maxBuffer: 4 * 1024 * 1024 }
       );
 
@@ -388,16 +402,16 @@ export const MusicService = {
 
     return results;
   },
-
-  // BUG-054 Fix: Cached async yt-dlp path resolver
-  cachedYtDlpPath: null as string | null,
+  cachedYtDlpCommand: null as { command: string; args: string[] } | null,
   ytDlpChecked: false,
-  async getYtDlpPathAsync(): Promise<string | null> {
-    return resolveYtDlpPath();
+  async getYtDlpCommandAsync(): Promise<{ command: string; args: string[] } | null> {
+    return resolveYtDlpCommand();
   },
 
   getYtDlpPath(): string | null {
-    if (this.ytDlpChecked) return this.cachedYtDlpPath;
+    if (this.ytDlpChecked && this.cachedYtDlpCommand) {
+      return [this.cachedYtDlpCommand.command, ...this.cachedYtDlpCommand.args].join(' ');
+    }
     // Fallback if called synchronously
     return null;
   },
@@ -419,9 +433,9 @@ export const MusicService = {
             fs.unlinkSync(filePath);
             cleaned++;
           }
-        } catch {}
+        } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
       }
-      if (cleaned > 0) logger.info(`🧹 MusicService: ${cleaned} temp files cleaned.`);
-    } catch {}
+      if (cleaned > 0) logger.info(`MusicService: ${cleaned} temp files cleaned.`);
+    } catch (e: any) { logger.warn(`Cleanup failed: ${e?.message || 'unknown error'}`); }
   }
 };

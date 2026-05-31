@@ -3,10 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TelegramMonitorService = void 0;
 exports.normalizeTelegramChannelId = normalizeTelegramChannelId;
 const bot_instance_1 = require("./bot_instance");
-const config_1 = require("../config/config");
 const database_1 = require("./database");
 const logger_1 = require("../utils/logger");
-const telegram_1 = require("./telegram");
+const sender_1 = require("./sender");
 const ai_1 = require("./ai");
 /** Normalize @channel, -100id, or numeric id */
 function normalizeTelegramChannelId(input) {
@@ -29,7 +28,7 @@ exports.TelegramMonitorService = {
         const chatKey = String(chatId);
         const usernameKey = chatUsername ? `@${chatUsername.toLowerCase()}` : null;
         return channels.filter((c) => {
-            if (c.platform !== 'telegram' || c.is_active === 0)
+            if (c.platform !== 'telegram' || c.is_active === 0 || c.is_active === false)
                 return false;
             const stored = normalizeTelegramChannelId(c.channel_id);
             if (stored === chatKey)
@@ -72,8 +71,9 @@ exports.TelegramMonitorService = {
                 const targets = database_1.DBService.getUserOutputChannels(user);
                 const forwardMode = sub.forward_mode || 'copy';
                 const useAi = sub.use_ai === 1;
+                let sent = 0;
                 if (forwardMode === 'copy' && !useAi) {
-                    await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
+                    sent = await (0, sender_1.safeSendToChannels)(user, targets, async (target) => {
                         await bot_instance_1.bot.copyMessage(target, sourceKey, msg.message_id);
                     });
                 }
@@ -90,19 +90,20 @@ exports.TelegramMonitorService = {
                     };
                     if (msg.photo?.length) {
                         const photo = msg.photo[msg.photo.length - 1];
-                        const file = await bot_instance_1.bot.getFile(photo.file_id);
-                        article.imageUrl = `https://api.telegram.org/file/bot${config_1.CONFIG.TELEGRAM_TOKEN}/${file.file_path}`;
+                        article.imageUrl = photo.file_id;
                     }
-                    await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
-                        const u = { ...user, target_channel: target };
-                        await (0, telegram_1.safeSend)(u, article);
+                    sent = await (0, sender_1.safeSendToChannels)(user, targets, async (target) => {
+                        const u = { ...user, target_channel: target, extra_channels: '' };
+                        await (0, sender_1.safeSend)(u, article);
                     });
                 }
                 else {
-                    await (0, telegram_1.safeSendToChannels)(user, targets, async (target) => {
+                    sent = await (0, sender_1.safeSendToChannels)(user, targets, async (target) => {
                         await bot_instance_1.bot.forwardMessage(target, sourceKey, msg.message_id);
                     });
                 }
+                if (sent === 0)
+                    throw new Error('All Telegram monitor sends failed');
                 await this.markMessageSeen(sub.user_id, sourceKey, msg.message_id);
                 await database_1.DBService.incrementStat(sub.user_id, 'total_posts');
             }

@@ -1,11 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
+import { logger } from './logger';
 
 const execPromise = promisify(exec);
+const execFilePromise = promisify(execFile);
 
 let cachedYtDlpPath: string | null = null;
+let cachedYtDlpCommand: { command: string; args: string[] } | null = null;
 let ytDlpChecked = false;
 
 import https from 'https';
@@ -38,7 +41,14 @@ function downloadFile(url: string, destination: string): Promise<void> {
 
 /** Resolve yt-dlp binary (Render/Linux, Docker, Windows, postinstall). */
 export async function resolveYtDlpPath(): Promise<string | null> {
-  if (ytDlpChecked) return cachedYtDlpPath;
+  const command = await resolveYtDlpCommand();
+  if (!command) return null;
+  return command.args.length ? [command.command, ...command.args].join(' ') : command.command;
+}
+
+/** Resolve yt-dlp as an executable plus base args for safe spawn/execFile usage. */
+export async function resolveYtDlpCommand(): Promise<{ command: string; args: string[] } | null> {
+  if (ytDlpChecked) return cachedYtDlpCommand;
 
   const candidates = [
     '/usr/local/bin/yt-dlp',
@@ -47,20 +57,25 @@ export async function resolveYtDlpPath(): Promise<string | null> {
     path.join(__dirname, '..', '..', 'yt-dlp.exe'),
     path.join(process.cwd(), 'yt-dlp'),
     path.join(process.cwd(), 'yt-dlp.exe'),
+    ...(process.platform === 'win32' ? [
+      path.join(process.env.USERPROFILE || 'C:', 'yt-dlp.exe'),
+      path.join(process.env.LOCALAPPDATA || process.env.USERPROFILE || 'C:', 'Programs', 'yt-dlp', 'yt-dlp.exe'),
+      path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'yt-dlp', 'yt-dlp.exe'),
+    ] : []),
     'yt-dlp',
   ];
 
   for (const p of candidates) {
     try {
-      const cmd = p.includes(' ') || p.includes('\\') ? `"${p}"` : p;
       if (p === 'yt-dlp' || fs.existsSync(p)) {
         if (process.platform !== 'win32' && p !== 'yt-dlp') {
           try {
             fs.chmodSync(p, '755');
-          } catch {}
+          } catch (e: any) { logger.warn(`Failed to chmod yt-dlp: ${e?.message || 'unknown error'}`); }
         }
-        await execPromise(`${cmd} --version`, { timeout: 8000 });
+        await execFilePromise(p, ['--version'], { timeout: 8000 });
         cachedYtDlpPath = p;
+        cachedYtDlpCommand = { command: p, args: [] };
         break;
       }
     } catch {
@@ -78,19 +93,53 @@ export async function resolveYtDlpPath(): Promise<string | null> {
       }
       
       try {
-        await execPromise(`python3 "${fallbackPath}" --version`, { timeout: 10000 });
-        cachedYtDlpPath = `python3 "${fallbackPath}"`;
-      } catch {
-        await execPromise(`"${fallbackPath}" --version`, { timeout: 10000 });
+        await execFilePromise('python3', [fallbackPath, '--version'], { timeout: 10000 });
         cachedYtDlpPath = fallbackPath;
+        cachedYtDlpCommand = { command: 'python3', args: [fallbackPath] };
+      } catch {
+        await execFilePromise(fallbackPath, ['--version'], { timeout: 10000 });
+        cachedYtDlpPath = fallbackPath;
+        cachedYtDlpCommand = { command: fallbackPath, args: [] };
       }
     } catch {
       // Ignored
     }
   }
 
+  // Windows fallback: find yt-dlp via `where`, then Python module
+  if (!cachedYtDlpPath && process.platform === 'win32') {
+    try {
+      const { stdout } = await execPromise('where yt-dlp 2>nul');
+      const wherePath = stdout.split('\n')[0].trim();
+      if (wherePath && fs.existsSync(wherePath)) {
+        await execFilePromise(wherePath, ['--version'], { timeout: 8000 });
+        cachedYtDlpPath = wherePath;
+        cachedYtDlpCommand = { command: wherePath, args: [] };
+      }
+    } catch {
+      const pythonLaunchers: Array<{ cmd: string; args: string[] }> = [
+        { cmd: 'py', args: ['-m', 'yt_dlp'] },
+        { cmd: 'python', args: ['-m', 'yt_dlp'] },
+        { cmd: 'python3', args: ['-m', 'yt_dlp'] },
+      ];
+      for (const launcher of pythonLaunchers) {
+        try {
+          await execFilePromise(launcher.cmd, [...launcher.args, '--version'], { timeout: 8000 });
+          cachedYtDlpPath = `${launcher.cmd} ${launcher.args.join(' ')}`;
+          cachedYtDlpCommand = { command: launcher.cmd, args: launcher.args };
+          break;
+        } catch {
+          // try next launcher
+        }
+      }
+    }
+  }
+
+  if (!cachedYtDlpPath) {
+    logger.warn('yt-dlp not found after checking all candidates. Install with: npm install yt-dlp or winget install yt-dlp');
+  }
   ytDlpChecked = true;
-  return cachedYtDlpPath;
+  return cachedYtDlpCommand;
 }
 
 export function findNewestFile(dir: string, prefix: string, ext?: string): string | null {

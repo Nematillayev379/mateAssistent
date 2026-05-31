@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -57,27 +24,27 @@ exports.generateSummary = generateSummary;
 exports.generateTTS = generateTTS;
 const openai_1 = require("openai");
 const groq_sdk_1 = __importDefault(require("groq-sdk"));
-const googleTTS = __importStar(require("google-tts-api"));
+const edge_tts_1 = require("@andresaya/edge-tts");
 const crypto_1 = __importDefault(require("crypto"));
+const axios_1 = __importDefault(require("axios"));
 const config_1 = require("../config/config");
 const logger_1 = require("../utils/logger");
 const database_1 = require("./database");
-// BUG-031 Fix: Use mutex to prevent race conditions on globalKeyIndex
 let globalKeyIndex = 0;
 let embeddingKeyIndex = 0;
 let activeKeys = (0, config_1.buildKeyPoolFromEnv)();
-const keyMutex = { locked: false, queue: [] };
+const keyLock = { promise: Promise.resolve() };
+const scopedKeyIndexes = new Map();
 async function withKeyMutex(fn) {
-    while (keyMutex.locked) {
-        await new Promise(resolve => keyMutex.queue.push(resolve));
-    }
-    keyMutex.locked = true;
+    const prev = keyLock.promise;
+    let nextResolve;
+    keyLock.promise = new Promise(resolve => { nextResolve = resolve; });
+    await prev;
     try {
         return await fn();
     }
     finally {
-        keyMutex.locked = false;
-        keyMutex.queue.shift()?.();
+        nextResolve();
     }
 }
 // Client caching to save resources
@@ -85,6 +52,146 @@ const groqClients = new Map();
 const openaiClients = new Map();
 // Circuit Breaker for temporarily failed or rate-limited API keys
 const blockedKeys = new Map();
+function cleanupBlockedKeys() {
+    const now = Date.now();
+    for (const [key, blockedUntil] of blockedKeys.entries()) {
+        if (blockedUntil < now)
+            blockedKeys.delete(key);
+    }
+}
+setInterval(cleanupBlockedKeys, 60_000);
+function getAvailableKeys(keys) {
+    const now = Date.now();
+    const availableKeys = keys.filter((key) => {
+        const blockedUntil = blockedKeys.get(key.key);
+        return !blockedUntil || blockedUntil < now;
+    });
+    return availableKeys.length > 0 ? availableKeys : keys;
+}
+async function selectRotatingKey(keys, scope) {
+    return withKeyMutex(async () => {
+        const poolToUse = getAvailableKeys(keys);
+        if (poolToUse.length === 0) {
+            throw new Error('API kalitlar mavjud emas!');
+        }
+        if (scope === 'global') {
+            const idx = globalKeyIndex % poolToUse.length;
+            const key = poolToUse[idx];
+            globalKeyIndex = (globalKeyIndex + 1) % poolToUse.length;
+            return { key, idx };
+        }
+        const currentIndex = scopedKeyIndexes.get(scope) || 0;
+        const idx = currentIndex % poolToUse.length;
+        const key = poolToUse[idx];
+        scopedKeyIndexes.set(scope, (currentIndex + 1) % poolToUse.length);
+        return { key, idx };
+    });
+}
+async function requestAICompletion(currentKeyObj, system, user, maxTokens, timeoutMs) {
+    if (currentKeyObj.type === "groq") {
+        let groq = groqClients.get(currentKeyObj.key);
+        if (!groq) {
+            groq = new groq_sdk_1.default({ apiKey: currentKeyObj.key, timeout: timeoutMs });
+            groqClients.set(currentKeyObj.key, groq);
+        }
+        const res = await groq.chat.completions.create({
+            messages: [{ role: "system", content: system }, { role: "user", content: user }],
+            model: "llama-3.3-70b-versatile",
+            max_tokens: maxTokens,
+        });
+        return res.choices[0]?.message?.content ?? "";
+    }
+    if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                systemInstruction: { parts: [{ text: system }] },
+                contents: [{ parts: [{ text: user }] }],
+                generationConfig: { maxOutputTokens: maxTokens, temperature: config_1.CONFIG.TEMPERATURE }
+            }),
+            signal: AbortSignal.timeout(timeoutMs),
+        });
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => '');
+            throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), { status: response.status });
+        }
+        const data = await response.json().catch(() => ({}));
+        return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    }
+    if (currentKeyObj.type === "openai") {
+        let client = openaiClients.get(currentKeyObj.key);
+        if (!client) {
+            client = new openai_1.OpenAI({ apiKey: currentKeyObj.key, timeout: timeoutMs });
+            openaiClients.set(currentKeyObj.key, client);
+        }
+        const res = await client.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "system", content: system }, { role: "user", content: user }],
+            max_tokens: maxTokens,
+        });
+        return res.choices[0]?.message?.content ?? "";
+    }
+    let baseURL;
+    let model;
+    switch (currentKeyObj.type) {
+        case "cerebras":
+            baseURL = "https://api.cerebras.ai/v1";
+            model = "llama-3.1-70b";
+            break;
+        case "openrouter":
+            baseURL = "https://openrouter.ai/api/v1";
+            model = "google/gemini-2.0-flash-001";
+            break;
+        default:
+            throw new Error(`Unsupported AI provider type: ${currentKeyObj.type}`);
+    }
+    const clientKey = `${baseURL}:${currentKeyObj.key}`;
+    let client = openaiClients.get(clientKey);
+    if (!client) {
+        client = new openai_1.OpenAI({
+            apiKey: currentKeyObj.key,
+            baseURL,
+            timeout: timeoutMs
+        });
+        openaiClients.set(clientKey, client);
+    }
+    const res = await client.chat.completions.create({
+        model,
+        messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        max_tokens: maxTokens,
+    });
+    return res.choices[0]?.message?.content ?? "";
+}
+async function getSmartAIResponseInternal(keys, system, user, retryCount = 0, scope = 'global') {
+    if (keys.length === 0)
+        throw new Error("API kalitlar mavjud emas!");
+    const maxRetries = Math.min(keys.length, 5);
+    if (retryCount >= maxRetries)
+        throw new Error("Barcha API kalitlar tugadi (limit yoki xato).");
+    if (retryCount > 0) {
+        await new Promise(resolve => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
+    }
+    const { key: currentKeyObj, idx } = await selectRotatingKey(keys, scope);
+    try {
+        const maxTokens = config_1.MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || config_1.CONFIG.MAX_TOKENS;
+        return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000);
+    }
+    catch (error) {
+        const errMsg = error?.message ?? '';
+        const status = error?.status ?? error?.response?.status;
+        if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
+            blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000);
+            logger_1.logger.warn(`[${scope.toUpperCase()} ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
+            return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
+        }
+        if (errMsg.includes('does not support image') || errMsg.includes('image.png')) {
+            logger_1.logger.warn(`[${scope.toUpperCase()}] Groq image-input error on key #${idx}. Content contains image references. Falling through.`);
+            return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
+        }
+        throw error;
+    }
+}
 /** Bazadan va ENV dan kalitlarni yuklash */
 async function refreshKeyPool() {
     await withKeyMutex(async () => {
@@ -97,11 +204,8 @@ async function refreshKeyPool() {
                 }
             }
             activeKeys = allKeys;
-            // BUG-004 Fix: Reset globalKeyIndex
             globalKeyIndex = 0;
-            // BUG-036 Fix: Reset embedding index to prevent out-of-range
             embeddingKeyIndex = 0;
-            // BUG-131 Fix: Clean up old clients from Maps to prevent memory leak
             for (const key of groqClients.keys()) {
                 if (!allKeys.find(k => k.key === key))
                     groqClients.delete(key);
@@ -119,123 +223,9 @@ async function refreshKeyPool() {
         }
     });
 }
-// BUG-032 Fix: Limit retries to Math.min(activeKeys.length, 10) and prevent infinite loop with 1 key
 async function getSmartAIResponse(system, user, retryCount = 0) {
-    if (activeKeys.length === 0)
-        throw new Error("API kalitlar mavjud emas!");
-    const maxRetries = Math.min(activeKeys.length, 5);
-    if (retryCount >= maxRetries)
-        throw new Error("Barcha API kalitlar tugadi (limit yoki xato).");
-    // BUG-003 Fix: Max delay 5 seconds to avoid Webhook timeout
-    if (retryCount > 0) {
-        await new Promise(resolve => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
-    }
-    // BUG-001 & BUG-002 Fix: Extract key selection to happen inside mutex, but execution and retry outside
-    let currentKeyObj;
-    let idx = 0;
-    await withKeyMutex(async () => {
-        const now = Date.now();
-        const availableKeys = activeKeys.filter(k => {
-            const blockedUntil = blockedKeys.get(k.key);
-            return !blockedUntil || blockedUntil < now;
-        });
-        const poolToUse = availableKeys.length > 0 ? availableKeys : activeKeys;
-        idx = globalKeyIndex % poolToUse.length;
-        currentKeyObj = poolToUse[idx];
-        globalKeyIndex = (globalKeyIndex + 1) % poolToUse.length;
-    });
-    try {
-        // BUG-001 Fix: Use provider-specific max tokens
-        const maxTokens = config_1.MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || config_1.CONFIG.MAX_TOKENS;
-        if (currentKeyObj.type === "groq") {
-            let groq = groqClients.get(currentKeyObj.key);
-            if (!groq) {
-                groq = new groq_sdk_1.default({ apiKey: currentKeyObj.key, timeout: 15000 });
-                groqClients.set(currentKeyObj.key, groq);
-            }
-            // BUG-033 Fix: Added max_tokens for Groq
-            const res = await groq.chat.completions.create({
-                messages: [{ role: "system", content: system }, { role: "user", content: user }],
-                model: "llama-3.3-70b-versatile",
-                max_tokens: maxTokens,
-            });
-            return res.choices[0]?.message?.content ?? "";
-        }
-        else if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
-            // BUG-034 Fix: Use gemini-2.0-flash (widely supported)
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    system_instruction: { parts: [{ text: system }] },
-                    contents: [{ parts: [{ text: user }] }]
-                })
-            });
-            if (!response.ok) {
-                const errorBody = await response.text().catch(() => '');
-                throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), { status: response.status });
-            }
-            const data = await response.json().catch(() => ({}));
-            return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-        }
-        else if (currentKeyObj.type === "openai") {
-            let client = openaiClients.get(currentKeyObj.key);
-            if (!client) {
-                client = new openai_1.OpenAI({ apiKey: currentKeyObj.key, timeout: 15000 });
-                openaiClients.set(currentKeyObj.key, client);
-            }
-            const res = await client.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [{ role: "system", content: system }, { role: "user", content: user }],
-                max_tokens: maxTokens,
-            });
-            return res.choices[0]?.message?.content ?? "";
-        }
-        else {
-            let baseURL;
-            let model;
-            switch (currentKeyObj.type) {
-                case "cerebras":
-                    baseURL = "https://api.cerebras.ai/v1";
-                    model = "llama-3.1-70b";
-                    break;
-                case "openrouter":
-                    baseURL = "https://openrouter.ai/api/v1";
-                    model = "google/gemini-2.0-flash-001";
-                    break;
-                default:
-                    throw new Error(`Unsupported AI provider type: ${currentKeyObj.type}`);
-            }
-            let client = openaiClients.get(`${baseURL}:${currentKeyObj.key}`);
-            if (!client) {
-                client = new openai_1.OpenAI({
-                    apiKey: currentKeyObj.key,
-                    baseURL,
-                    timeout: 15000
-                });
-                openaiClients.set(`${baseURL}:${currentKeyObj.key}`, client);
-            }
-            const res = await client.chat.completions.create({
-                model,
-                messages: [{ role: "system", content: system }, { role: "user", content: user }],
-                max_tokens: maxTokens,
-            });
-            return res.choices[0]?.message?.content ?? "";
-        }
-    }
-    catch (error) {
-        const status = error?.status ?? error?.response?.status;
-        if (status === 429 || status === 401 || status === 503 || status === 500) {
-            if (currentKeyObj?.key) {
-                blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
-            }
-            logger_1.logger.warn(`[${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
-            return getSmartAIResponse(system, user, retryCount + 1);
-        }
-        throw error;
-    }
+    return getSmartAIResponseInternal(activeKeys, system, user, retryCount, 'global');
 }
-// BUG-035 Fix: Use same model for validation as main usage
 async function validateKey(type, key) {
     try {
         if (type === "openrouter") {
@@ -245,7 +235,6 @@ async function validateKey(type, key) {
             return response.ok;
         }
         if (type === "groq") {
-            // B-24 Fix: Use GET /models endpoint instead of making API call that costs tokens
             const response = await fetch("https://api.groq.com/openai/v1/models", {
                 headers: { "Authorization": `Bearer ${key}` }
             });
@@ -259,7 +248,6 @@ async function validateKey(type, key) {
             return Array.isArray(data.models) && data.models.length > 0;
         }
         else if (type === "openai") {
-            // B-24 Fix: Use GET /models endpoint instead of making API call that costs tokens
             const response = await fetch("https://api.openai.com/v1/models", {
                 headers: { "Authorization": `Bearer ${key}` }
             });
@@ -273,7 +261,6 @@ async function validateKey(type, key) {
             else {
                 throw new Error(`Unknown API key type: ${type}`);
             }
-            // B-24 Fix: Use GET /models endpoint instead of making API call that costs tokens
             const response = await fetch(`${baseURL}/models`, {
                 headers: { "Authorization": `Bearer ${key}` }
             });
@@ -285,7 +272,6 @@ async function validateKey(type, key) {
         return false;
     }
 }
-// B-57 Fix: Reduce lastTitles count to prevent token overflow
 async function isDuplicateAI(userId, title, content) {
     const lastTitles = await database_1.DBService.getLastTitles(userId, 20);
     if (lastTitles.length === 0)
@@ -299,10 +285,9 @@ async function isDuplicateAI(userId, title, content) {
     }
     catch (err) {
         logger_1.logger.error(`Dublikat tekshirishda AI xatosi: ${err.message}`);
-        return true; // BUG-007 Fix: Fail-safe to avoid spamming if AI fails
+        return true;
     }
 }
-// BUG-043 Fix: Log warning when embedding returns null
 async function checkSemanticDuplicate(userId, title, content) {
     try {
         const textToEmbed = `${title}\n${content.slice(0, 500)}`;
@@ -325,21 +310,17 @@ async function checkSemanticDuplicate(userId, title, content) {
         return false;
     }
 }
-// B-33 Fix: Add fallback for empty AI responses
 async function getNiceEmoji(title) {
     try {
         const res = await getSmartAIResponse("Pick one relevant emoji for this news topic. Output ONLY the emoji.", title);
-        // BUG-009 Fix: Safely extract first emoji to support multi-byte Unicode
         const emojis = res.match(/[\p{Emoji}\u200d]+/gu);
         const emoji = emojis ? emojis[0] : "🔹";
-        // B-33 Fix: Return fallback if empty
         return emoji || "🔹";
     }
     catch {
         return "🔹";
     }
 }
-// BUG-041 Fix: Removed redundant toUpperCase before regex with /i flag
 async function moderateContent(title, content) {
     const categories = [
         { label: 'Jinsiy zo\'ravonlik va Pornografiya', description: 'Sexual violence, sexual assault, harassment, or explicit adult content.' },
@@ -374,9 +355,6 @@ async function moderateContent(title, content) {
         return { status: 'BLOCKED', reason: 'Moderation service unavailable' };
     }
 }
-// BUG-038 Fix: Log warning when translation fails
-// B-17 Fix: Add content length limit to prevent token overflow
-// B-33 Fix: Add fallback for empty AI responses
 async function translateToUzbek(title, content) {
     const prompt = `Translate this news to Uzbek. Keep it professional. Output JSON: {"title": "...", "content": "..."}`;
     try {
@@ -386,7 +364,6 @@ async function translateToUzbek(title, content) {
         const jsonMatch = res.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
-            // B-33 Fix: Add fallback for empty responses
             if (!parsed.title || !parsed.content) {
                 return { title: title || 'Untitled', content: content || '' };
             }
@@ -400,18 +377,16 @@ async function translateToUzbek(title, content) {
     }
 }
 /** Gemini orqali matnli embedding (vektor) olish */
-// BUG-036 Fix: Safe embedding key index management with proper retry
 async function getEmbedding(text, retryCount = 0) {
     if (retryCount > 5)
         return null;
-    if (activeKeys.length === 0)
-        return null;
-    const geminiKeys = activeKeys.filter(k => k.type === 'gemini' || k.type === 'google');
-    if (geminiKeys.length === 0) {
-        return null;
-    }
     let keyObj;
     await withKeyMutex(async () => {
+        if (activeKeys.length === 0)
+            return;
+        const geminiKeys = activeKeys.filter(k => k.type === 'gemini' || k.type === 'google');
+        if (geminiKeys.length === 0)
+            return;
         const safeIndex = embeddingKeyIndex % geminiKeys.length;
         keyObj = geminiKeys[safeIndex];
         embeddingKeyIndex = (embeddingKeyIndex + 1) % geminiKeys.length;
@@ -428,10 +403,8 @@ async function getEmbedding(text, retryCount = 0) {
         });
         if (!response.ok) {
             if (response.status === 429) {
-                // BUG-009 Fix: Increment retry count to prevent infinite loop
-                return new Promise((resolve) => {
-                    setTimeout(() => resolve(getEmbedding(text, retryCount + 1)), 1000);
-                });
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return getEmbedding(text, retryCount + 1);
             }
             return null;
         }
@@ -443,12 +416,10 @@ async function getEmbedding(text, retryCount = 0) {
         return null;
     }
 }
-// BUG-042 Fix: Normalize category comparison
 async function categorizeNews(title, content) {
     try {
         const res = await getSmartAIResponse(`Yangilikni FAQAT bitta kategoriya bilan belginla. Kategoriyalar: Sport, Siyosat, Iqtisodiyot, Texnologiya, Jamiyat, Madaniyat, Sogliq, Talim, Hodisalar, Boshqa. FAQAT kategoriya nomini yoz, hech narsa qo'shma.`, `${title}\n${content.slice(0, 300)}`);
         const validCategories = ['Sport', 'Siyosat', 'Iqtisodiyot', 'Texnologiya', 'Jamiyat', 'Madaniyat', 'Sogliq', 'Talim', 'Hodisalar', 'Boshqa'];
-        // BUG-042 Fix: Normalize by removing apostrophes and comparing
         const normalizedRes = res.replace(/[''ʻʼ`]/g, '');
         const found = validCategories.find(c => normalizedRes.includes(c));
         return found || 'Boshqa';
@@ -457,7 +428,6 @@ async function categorizeNews(title, content) {
         return 'general';
     }
 }
-// B-37 Fix: Combined function to get both category and sentiment in one API call
 async function categorizeAndAnalyze(title, content) {
     try {
         const validCategories = ['Sport', 'Siyosat', 'Iqtisodiyot', 'Texnologiya', 'Jamiyat', 'Madaniyat', 'Sogliq', 'Talim', 'Hodisalar', 'Boshqa'];
@@ -494,20 +464,16 @@ async function analyzeSentiment(title) {
         return 'neutral';
     }
 }
-// BUG-040 Fix: Validate AI-returned indices against array bounds
-// B-43 Fix: Improve selectTopNews JSON parsing with better error handling
 async function selectTopNews(titles) {
     if (titles.length <= 5)
         return titles;
     try {
         const list = titles.map((t, i) => `[${i}] ${t.title}`).join('\n');
         const res = await getSmartAIResponse(`Quyidagi yangiliklar ro'yxatidan eng muhim va qiziqarli 5 tasini tanla. FAQAT JSON formatida javob ber: [0, 2, 5, 8, 12] kabi indekslar.`, list);
-        // B-43 Fix: More flexible JSON parsing to handle various AI response formats
         const match = res.match(/\[[\d,\s]+\]/);
         if (match) {
             try {
                 const indices = JSON.parse(match[0]);
-                // BUG-040 Fix: Validate indices are in range
                 const selected = indices
                     .filter(i => typeof i === 'number' && i >= 0 && i < titles.length)
                     .slice(0, 5)
@@ -531,106 +497,7 @@ function getKeysSortedForSmm() {
     return [...activeKeys].sort((a, b) => preferred.indexOf(a.type) - preferred.indexOf(b.type));
 }
 async function getSmartAIResponseWithKeys(keys, system, user, retryCount = 0) {
-    if (keys.length === 0)
-        throw new Error('API kalitlar mavjud emas!');
-    const maxRetries = Math.min(keys.length, 5);
-    if (retryCount >= maxRetries)
-        throw new Error('Barcha API kalitlar tugadi (limit yoki xato).');
-    if (retryCount > 0) {
-        await new Promise((resolve) => setTimeout(resolve, Math.min(1000 * 2 ** retryCount, 5000)));
-    }
-    const now = Date.now();
-    const availableKeys = keys.filter(k => {
-        const blockedUntil = blockedKeys.get(k.key);
-        return !blockedUntil || blockedUntil < now;
-    });
-    const poolToUse = availableKeys.length > 0 ? availableKeys : keys;
-    const idx = retryCount % poolToUse.length;
-    const currentKeyObj = poolToUse[idx];
-    try {
-        const maxTokens = config_1.MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || config_1.CONFIG.MAX_TOKENS;
-        if (currentKeyObj.type === 'groq') {
-            let groq = groqClients.get(currentKeyObj.key);
-            if (!groq) {
-                groq = new groq_sdk_1.default({ apiKey: currentKeyObj.key, timeout: 20000 });
-                groqClients.set(currentKeyObj.key, groq);
-            }
-            const res = await groq.chat.completions.create({
-                messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-                model: 'llama-3.3-70b-versatile',
-                max_tokens: maxTokens,
-            });
-            return res.choices[0]?.message?.content ?? '';
-        }
-        if (currentKeyObj.type === 'gemini' || currentKeyObj.type === 'google') {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    system_instruction: { parts: [{ text: system }] },
-                    contents: [{ parts: [{ text: user }] }],
-                }),
-                signal: AbortSignal.timeout(25000),
-            });
-            if (!response.ok) {
-                const errorBody = await response.text().catch(() => '');
-                throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), {
-                    status: response.status,
-                });
-            }
-            const data = (await response.json().catch(() => ({})));
-            return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-        }
-        if (currentKeyObj.type === 'openai') {
-            let client = openaiClients.get(currentKeyObj.key);
-            if (!client) {
-                client = new openai_1.OpenAI({ apiKey: currentKeyObj.key, timeout: 20000 });
-                openaiClients.set(currentKeyObj.key, client);
-            }
-            const res = await client.chat.completions.create({
-                model: 'gpt-4o-mini',
-                messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-                max_tokens: maxTokens,
-            });
-            return res.choices[0]?.message?.content ?? '';
-        }
-        let baseURL;
-        let model;
-        switch (currentKeyObj.type) {
-            case 'cerebras':
-                baseURL = 'https://api.cerebras.ai/v1';
-                model = 'llama-3.1-70b';
-                break;
-            case 'openrouter':
-                baseURL = 'https://openrouter.ai/api/v1';
-                model = 'google/gemini-2.0-flash-001';
-                break;
-            default:
-                throw new Error(`Unsupported AI provider type: ${currentKeyObj.type}`);
-        }
-        let client = openaiClients.get(`${baseURL}:${currentKeyObj.key}`);
-        if (!client) {
-            client = new openai_1.OpenAI({ apiKey: currentKeyObj.key, baseURL, timeout: 20000 });
-            openaiClients.set(`${baseURL}:${currentKeyObj.key}`, client);
-        }
-        const res = await client.chat.completions.create({
-            model,
-            messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-            max_tokens: maxTokens,
-        });
-        return res.choices[0]?.message?.content ?? '';
-    }
-    catch (error) {
-        const status = error?.status ?? error?.response?.status;
-        if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
-            if (currentKeyObj?.key) {
-                blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000); // Block key for 5 minutes
-            }
-            logger_1.logger.warn(`[SMM ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato (${status}), keyingisi...`);
-            return getSmartAIResponseWithKeys(keys, system, user, retryCount + 1);
-        }
-        throw error;
-    }
+    return getSmartAIResponseInternal(keys, system, user, retryCount, 'smm');
 }
 function getActiveKeyStats() {
     return {
@@ -638,7 +505,7 @@ function getActiveKeyStats() {
         byProvider: (0, config_1.countKeysByProvider)(activeKeys),
     };
 }
-async function generateSmmPost(topic) {
+async function generateSmmPost(topic, lang = "uz") {
     if (activeKeys.length === 0) {
         await refreshKeyPool();
     }
@@ -646,8 +513,25 @@ async function generateSmmPost(topic) {
         throw new Error("AI kalitlari topilmadi. Render .env da GROQ_KEYS yoki GEMINI_KEYS (vergul yoki yangi qator bilan) tekshiring.");
     }
     const cleanTopic = topic.trim();
-    const systemPrompt = "Siz O'zbekistondagi mashhur Telegram kanallar uchun SMM post yozuvchisisiz.\n" +
-        "FAQAT o'zbek tilida yozing.\n" +
+    const languagePromptMap = {
+        uz: "FAQAT o'zbek tilida yozing.",
+        ru: "Пишите только на русском языке.",
+        en: "Write only in English.",
+        tr: "Yalnızca Türkçe yazın.",
+        de: "Schreiben Sie nur auf Deutsch.",
+        fr: "Écrivez uniquement en français.",
+        es: "Escriba solo en español.",
+        it: "Scrivi solo in italiano.",
+        pt: "Escreva apenas em português.",
+        ar: "اكتب بالعربية فقط.",
+        hi: "केवल हिन्दी में लिखें।",
+        zh: "仅使用中文写作。",
+        ja: "日本語のみで書いてください。",
+        ko: "한국어로만 작성하세요.",
+        fa: "فقط به فارسی بنویسید.",
+    };
+    const systemPrompt = "Siz mashhur Telegram kanallari uchun SMM post yozuvchisisiz.\n" +
+        `${languagePromptMap[lang] || languagePromptMap.uz}\n` +
         "Foydalanuvchi bergan MAVZU — postning yagona mavzusi; boshqa mavzuga o'tmang.\n" +
         "Format: qiziqarli sarlavha (1 qator), keyin 3-4 qisqa paragraph, oxirida CTA.\n" +
         "80-140 so'z, tegishli emojilar (4-8 ta).\n" +
@@ -664,42 +548,90 @@ async function generateSmmPost(topic) {
     }
     return text;
 }
+function extractJsonBlock(text) {
+    const cleaned = String(text || '').trim();
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match)
+        return null;
+    try {
+        return JSON.parse(match[0]);
+    }
+    catch {
+        return null;
+    }
+}
 async function generateSmmImage(topic) {
     const cleanTopic = topic.trim().slice(0, 200);
-    const imagePrompt = `Professional social media banner illustration, topic: ${cleanTopic}. ` +
-        'Modern vibrant design, cinematic lighting, Uzbek cultural elements if relevant, ' +
-        'high quality, 16:9, no text, no watermark, no letters';
-    const seed = Date.now() % 1_000_000;
-    const urls = [
-        `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux`,
-        `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1024&height=576&nologo=true&seed=${seed + 1}`,
+    let visualSpec = {
+        subject: cleanTopic,
+        setting: 'clean editorial social media scene',
+        action: 'main subject presented clearly',
+        style: 'realistic, high-contrast, premium',
+        mustInclude: cleanTopic,
+        mustAvoid: 'text, watermark, unrelated objects, generic stock visuals',
+    };
+    try {
+        const brief = await getSmartAIResponse("You are a visual director for social media. Return STRICT JSON only with keys: subject, setting, action, style, mustInclude, mustAvoid. Make the subject match the user topic exactly and keep the scene concrete, specific, and visually unambiguous. No markdown, no bullets, no extra text.", cleanTopic);
+        const parsed = extractJsonBlock(brief || '');
+        if (parsed) {
+            visualSpec = {
+                subject: String(parsed.subject || visualSpec.subject).trim().slice(0, 120),
+                setting: String(parsed.setting || visualSpec.setting).trim().slice(0, 140),
+                action: String(parsed.action || visualSpec.action).trim().slice(0, 140),
+                style: String(parsed.style || visualSpec.style).trim().slice(0, 140),
+                mustInclude: String(parsed.mustInclude || visualSpec.mustInclude).trim().slice(0, 160),
+                mustAvoid: String(parsed.mustAvoid || visualSpec.mustAvoid).trim().slice(0, 160),
+            };
+        }
+    }
+    catch (e) {
+        logger_1.logger.warn(`SMM visual brief fallback used: ${e.message}`);
+    }
+    const promptVariants = [
+        `Editorial social media image where the subject is exactly "${visualSpec.subject}". Scene: ${visualSpec.setting}. Action: ${visualSpec.action}. Style: ${visualSpec.style}. Must include: ${visualSpec.mustInclude}. Must avoid: ${visualSpec.mustAvoid}. Realistic, 16:9 composition, strong focal subject, no text, no watermark, no unrelated objects.`,
+        `Create a news-style visual strictly about "${visualSpec.subject}". Background: ${visualSpec.setting}. Main action: ${visualSpec.action}. Visual style: ${visualSpec.style}. The image must instantly communicate the exact topic and nothing else. No text, no logos, no watermark, no generic stock scene.`,
+        `High-quality Telegram post illustration for "${visualSpec.subject}". Use this exact topic as the central subject: ${visualSpec.mustInclude}. Scene details: ${visualSpec.setting}. Composition: ${visualSpec.action}. Style: ${visualSpec.style}. No text, no extra subjects, no unrelated props, no watermark.`
     ];
-    for (const imageUrl of urls) {
+    const seed = Date.now() % 1_000_000;
+    const tryFetchImage = async (imagePrompt, variantIndex) => {
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(imagePrompt)}?width=1280&height=720&nologo=true&seed=${seed + variantIndex}&model=flux`;
         try {
             const res = await fetch(imageUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0 mateAssistentBot/1.0' },
-                signal: AbortSignal.timeout(60000),
+                signal: AbortSignal.timeout(20000),
             });
             if (!res.ok)
-                continue;
+                return null;
             const contentType = (res.headers.get('content-type') || '').toLowerCase();
-            // BUG-158 Fix: Ensure response is actual image, not HTML error page
             if (!contentType.startsWith('image/'))
-                continue;
+                return null;
             const buf = Buffer.from(await res.arrayBuffer());
-            if (buf.length < 2000)
-                continue;
-            const imageBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`;
-            return { imageUrl, imageBase64 };
+            if (buf.length < 8 * 1024)
+                return null;
+            return { imageUrl, imageBase64: `data:image/jpeg;base64,${buf.toString('base64')}` };
         }
         catch (e) {
             logger_1.logger.warn(`SMM image fetch failed: ${e.message}`);
+            return null;
         }
-    }
-    return { imageUrl: urls[0], imageBase64: null };
+    };
+    const settled = await Promise.all(promptVariants.map((variant, index) => tryFetchImage(variant, index)));
+    const firstOk = settled.find(Boolean);
+    if (firstOk)
+        return firstOk;
+    const fallbackPrompt = promptVariants[0];
+    return {
+        imageUrl: `https://image.pollinations.ai/prompt/${encodeURIComponent(fallbackPrompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=flux`,
+        imageBase64: null
+    };
 }
-async function generateAudioSummary(title, content) {
-    const summary = await getSmartAIResponse(`Bu yangilikni 3-4 jumlada qisqacha xulosa qil. Podcast uchun tabiiy, quloqqa yoqimli tilda yoz. O'zbek tilida.`, `${title}\n${content.slice(0, 1000)}`);
+async function generateAudioSummary(title, content, lang = 'uz') {
+    const languagePromptMap = {
+        uz: "Faqat o'zbek tilida, ravon va eshittirish uslubida yozing.",
+        ru: "Пишите только на русском языке, естественно и как для аудио-новости.",
+        en: "Write only in English in a natural spoken-news style.",
+    };
+    const summary = await getSmartAIResponse(`Bu yangilikni 3-4 jumlada qisqacha xulosa qil. Podcast uchun tabiiy, quloqqa yoqimli tilda yoz. ${languagePromptMap[lang] || languagePromptMap.uz}`, `${title}\n${content.slice(0, 1400)}`);
     return summary;
 }
 async function generateSummary(title, content) {
@@ -711,22 +643,96 @@ async function generateSummary(title, content) {
         return "";
     }
 }
-// B-30 Fix: Increase TTS text limit to 500-800 chars for better summaries
-async function generateTTS(text) {
+function normalizeTextForSpeech(text) {
+    return text
+        .replace(/https?:\/\/\S+/g, ' ')
+        .replace(/[*_`#>\[\]()]/g, ' ')
+        .replace(/[\u{1F300}-\u{1FAFF}]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+async function generateTTS(text, lang = 'uz') {
     try {
-        // Increase limit to 800 chars for better audio summaries
-        const safeText = text.slice(0, 800);
-        const allAudio = await googleTTS.getAllAudioBase64(safeText, {
-            lang: 'uz',
-            slow: false,
-            host: 'https://translate.google.com',
-            timeout: 15000,
-        });
-        const buffers = allAudio.map(a => Buffer.from(a.base64, 'base64'));
-        return Buffer.concat(buffers);
+        const safeText = normalizeTextForSpeech(text).slice(0, 800).trim();
+        if (!safeText)
+            return null;
+        // Strategy 1: Google Translate TTS via direct HTTP request
+        try {
+            const ttsLangs = { uz: 'uz', ru: 'ru', en: 'en' };
+            const ttsLang = ttsLangs[lang] || 'uz';
+            const chunks = splitText(safeText, 180);
+            const audioBuffers = [];
+            for (const chunk of chunks) {
+                const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=${ttsLang}&client=tw-ob`;
+                const res = await axios_1.default.get(url, {
+                    responseType: 'arraybuffer',
+                    timeout: 15000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Referer': 'https://translate.google.com',
+                    },
+                });
+                const buf = Buffer.from(res.data);
+                if (buf.length > 200)
+                    audioBuffers.push(buf);
+            }
+            if (audioBuffers.length > 0) {
+                logger_1.logger.info(`TTS: Google generated ${audioBuffers.length} chunks, ${audioBuffers.reduce((s, b) => s + b.length, 0)} bytes`);
+                return Buffer.concat(audioBuffers);
+            }
+        }
+        catch (googleErr) {
+            logger_1.logger.warn(`Google TTS failed: ${googleErr.message}`);
+        }
+        // Strategy 2: Edge TTS as fallback
+        try {
+            const tts = new edge_tts_1.EdgeTTS();
+            const voiceMap = {
+                uz: ['uz-UZ-SardorNeural', 'uz-UZ-MadinaNeural'],
+                ru: ['ru-RU-SvetlanaNeural', 'ru-RU-DmitryNeural'],
+                en: ['en-US-AvaNeural', 'en-US-AndrewNeural'],
+            };
+            const voices = voiceMap[lang] || voiceMap.uz;
+            for (const voice of voices) {
+                try {
+                    await tts.synthesize(safeText, voice, {
+                        outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+                    });
+                    const buf = tts.toBuffer();
+                    if (buf && buf.length > 200) {
+                        logger_1.logger.info(`TTS: Edge generated ${buf.length} bytes (voice: ${voice})`);
+                        return buf;
+                    }
+                }
+                catch (voiceErr) {
+                    logger_1.logger.warn(`TTS voice ${voice} failed: ${voiceErr.message}`);
+                }
+            }
+        }
+        catch (edgeErr) {
+            logger_1.logger.error(`Edge TTS failed: ${edgeErr.message}`);
+        }
+        return null;
     }
     catch (e) {
         logger_1.logger.error(`TTS Error: ${e.message}`);
         return null;
     }
+}
+function splitText(text, maxLen) {
+    const chunks = [];
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    let current = '';
+    for (const s of sentences) {
+        if ((current + s).length > maxLen && current) {
+            chunks.push(current.trim());
+            current = s;
+        }
+        else {
+            current += s;
+        }
+    }
+    if (current.trim())
+        chunks.push(current.trim());
+    return chunks.length ? chunks : [text];
 }

@@ -20,7 +20,6 @@ exports.trackCommand = {
                 `<b>Kuzatilayotgan tovarlar:</b>\n${list}`;
             return bot.sendMessage(chatId, text, { parse_mode: 'HTML', disable_web_page_preview: true });
         }
-        // BUG-093 Fix: Error handling with user-friendly message
         try {
             await bot.sendMessage(chatId, "🔍 Narx tekshirilmoqda...");
             const result = await scraper_1.ScraperService.getPrice(url);

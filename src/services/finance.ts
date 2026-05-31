@@ -7,13 +7,11 @@ export class FinanceService {
   private static fetchPromise: Promise<any[]> | null = null;
 
   /** Fetch Rates from CBU */
-  // BUG-139 Fix: Use the correct endpoint for current rates
   static async getRates(): Promise<any[]> {
     const cacheKey = 'CBU_DATA';
     if (this.CACHE[cacheKey] && Date.now() - this.CACHE[cacheKey].timestamp < this.CACHE_TTL) {
       return this.CACHE[cacheKey].data;
     }
-    // BUG-044 & BUG-136 Fix: Return existing promise to prevent concurrent identical requests
     if (this.fetchPromise) {
       return this.fetchPromise;
     }
@@ -33,7 +31,6 @@ export class FinanceService {
     return this.fetchPromise;
   }
 
-  // BUG-140 Fix: Updated fallback rate to more realistic value
   static async getUSDRate(): Promise<number> {
     const rates = await this.getRates();
     const usd = rates.find((v: any) => v.Ccy === 'USD');
@@ -47,12 +44,10 @@ export class FinanceService {
   }
 
   /** Convert common currency strings to UZS numeric value */
-  // BUG-141 Fix: Complete currency variant matching
   static async convertToUZS(value: number, currency: string): Promise<number> {
     if (!currency) return value;
     const c = currency.toUpperCase().trim();
     // USD variants: USD, $, U.E., У.Е., Y.E.
-    // BUG-046 & BUG-141 Fix: Removed non-standard 'UYE' to prevent incorrect UZS fallback misattribution
     if (c === 'USD' || c === '$' || c.startsWith('U.E') || c.startsWith('У.Е') || c.startsWith('Y.E')) {
       const rate = await this.getUSDRate();
       return Math.round(value * rate);
@@ -74,7 +69,6 @@ export class FinanceService {
     
     try {
       const res = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,the-open-network&vs_currencies=usd');
-      // BUG-045 Fix: Safely access crypto prices with fallbacks
       const prices = {
         BTC: res.data?.bitcoin?.usd || 0,
         ETH: res.data?.ethereum?.usd || 0,

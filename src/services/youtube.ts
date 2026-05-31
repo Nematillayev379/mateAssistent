@@ -4,10 +4,41 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { logger } from '../utils/logger';
-import { findNewestFile, resolveYtDlpPath } from '../utils/ytdlp';
+import { findNewestFile, resolveYtDlpCommand } from '../utils/ytdlp';
+let ffmpegStatic: string | null = null;
+try { ffmpegStatic = require('ffmpeg-static'); } catch (e: any) { logger.warn(`Failed to require ffmpeg-static: ${e?.message || 'unknown error'}`); }
 
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_yt');
-if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
+try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: any) { logger.warn(`Failed to create TEMP_DIR: ${e?.message || 'unknown error'}`); }
+const MAX_MEDIA_SIZE = 49 * 1024 * 1024;
+
+function detectExtensionFromContentType(contentType?: string, fallback: string = 'bin'): string {
+  const value = String(contentType || '').toLowerCase();
+  if (value.includes('audio/mpeg')) return 'mp3';
+  if (value.includes('audio/mp4') || value.includes('audio/x-m4a')) return 'm4a';
+  if (value.includes('audio/webm')) return 'webm';
+  if (value.includes('video/mp4')) return 'mp4';
+  return fallback;
+}
+
+function validateDownloadedFile(filePath: string, minBytes = 8 * 1024): boolean {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const size = fs.statSync(filePath).size;
+    return size >= minBytes && size <= MAX_MEDIA_SIZE;
+  } catch {
+    return false;
+  }
+}
+
+function findDownloadedMedia(basePrefix: string, preferredExts: string[]): string | null {
+  for (const ext of preferredExts) {
+    const exact = findNewestFile(TEMP_DIR, basePrefix, ext);
+    if (exact && validateDownloadedFile(exact)) return exact;
+  }
+  const fallback = findNewestFile(TEMP_DIR, basePrefix);
+  return fallback && validateDownloadedFile(fallback) ? fallback : null;
+}
 
 export const YoutubeService = {
   async getLatestVideo(channelId: string) {
@@ -98,15 +129,15 @@ export const YoutubeService = {
 
   async extractPlaylistLinks(url: string, limit: number = 20): Promise<{ title: string; url: string }[]> {
     try {
-      const ytdlpPath = await resolveYtDlpPath();
-      if (!ytdlpPath) throw new Error('yt-dlp not found');
+      const ytdlpCommand = await resolveYtDlpCommand();
+      if (!ytdlpCommand) throw new Error('yt-dlp not found');
 
       const { execFile } = await import('child_process');
       const { promisify } = await import('util');
       const execFilePromise = promisify(execFile);
       const { stdout } = await execFilePromise(
-        ytdlpPath,
-        ['--flat-playlist', '--print', '%(id)s|||%(title)s', '--playlist-end', String(limit), url.trim()],
+        ytdlpCommand.command,
+        [...ytdlpCommand.args, '--flat-playlist', '--print', '%(id)s|||%(title)s', '--playlist-end', String(limit), url.trim()],
         { timeout: 60000 }
       );
 
@@ -125,15 +156,18 @@ export const YoutubeService = {
 export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'audio'): Promise<string> {
   if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
-  const safeUrl = urlParam.replace(/"/g, '').trim();
+  let safeUrl = urlParam.replace(/"/g, '').trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(safeUrl)) {
+    safeUrl = `https://www.youtube.com/watch?v=${safeUrl}`;
+  }
   if (!safeUrl.startsWith('http')) throw new Error('Invalid URL');
 
   const stamp = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-  const ytdlpPath = await resolveYtDlpPath();
+  const ytdlpCommand = await resolveYtDlpCommand();
   let ytdlpFailed = false;
 
   // BUG-XXX Fix: Capture stderr from yt-dlp to diagnose binary/execution issues on Windows
-  if (ytdlpPath) {
+  if (ytdlpCommand) {
     try {
       const { spawn } = await import('child_process');
       const baseOut = path.join(TEMP_DIR, `yt_${stamp}`);
@@ -141,7 +175,7 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
         typeParam === 'audio'
           ? [
               '-f',
-              'bestaudio[ext=m4a]/bestaudio/best',
+              'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio[ext=webm]/bestaudio/best',
               '-o',
               `${baseOut}.%(ext)s`,
               safeUrl,
@@ -151,6 +185,8 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
               '49M',
               '--socket-timeout',
               '30',
+              '--retries',
+              '3',
             ]
           : [
               '-f',
@@ -164,12 +200,11 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
               '49M',
               '--socket-timeout',
               '30',
+              '--retries',
+              '3',
             ];
 
-      let ffmpegPath = '';
-      try {
-        ffmpegPath = require('ffmpeg-static') || '';
-      } catch (e) {}
+      const ffmpegPath = ffmpegStatic || '';
 
       if (ffmpegPath) {
         args.push('--ffmpeg-location', path.dirname(ffmpegPath));
@@ -177,7 +212,7 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
 
       let stderrOutput = '';
       await new Promise<void>((resolve, reject) => {
-        const proc = spawn(ytdlpPath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+        const proc = spawn(ytdlpCommand.command, [...ytdlpCommand.args, ...args], { stdio: ['ignore', 'ignore', 'pipe'] });
         proc.stderr.on('data', (d: Buffer) => { stderrOutput += d.toString(); });
         const timer = setTimeout(() => {
           proc.kill('SIGKILL');
@@ -198,10 +233,9 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
         });
       });
 
-      const ext = typeParam === 'audio' ? '.m4a' : '.mp4';
-      let filePath = findNewestFile(TEMP_DIR, `yt_${stamp}`, ext);
-      if (!filePath) filePath = findNewestFile(TEMP_DIR, `yt_${stamp}`);
-      if (filePath && fs.existsSync(filePath) && fs.statSync(filePath).size > 0) {
+      const preferredExts = typeParam === 'audio' ? ['.m4a', '.mp3', '.webm', '.opus'] : ['.mp4', '.webm', '.mkv'];
+      const filePath = findDownloadedMedia(`yt_${stamp}`, preferredExts);
+      if (filePath) {
         return filePath;
       }
     } catch (e: any) {
@@ -218,21 +252,38 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
       audioOnly: typeParam === 'audio',
     });
     if (cobaltUrl) {
-      const ext = typeParam === 'audio' ? 'm4a' : 'mp4';
-      const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
-      const response = await axios.get(cobaltUrl, {
-        responseType: 'arraybuffer',
-        timeout: 120000,
-        maxContentLength: 52 * 1024 * 1024,
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      });
-      fs.writeFileSync(filePath, Buffer.from(response.data));
-      if (fs.statSync(filePath).size > 0) return filePath;
+      try {
+        const response = await axios.get(cobaltUrl, {
+          responseType: 'arraybuffer',
+          timeout: 60000,
+          maxContentLength: 52 * 1024 * 1024,
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+        });
+        const contentTypeHeader = response.headers?.['content-type'];
+        if (typeof contentTypeHeader === 'string' && contentTypeHeader.includes('application/json')) {
+          throw new Error('Cobalt JSON response returned instead of media file');
+        }
+        const ext = detectExtensionFromContentType(
+          typeof contentTypeHeader === 'string' ? contentTypeHeader : undefined,
+          typeParam === 'audio' ? 'mp3' : 'mp4'
+        );
+        const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
+        fs.writeFileSync(filePath, Buffer.from(response.data));
+        if (validateDownloadedFile(filePath)) return filePath;
+        try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
+      } catch (dlErr: any) {
+        logger.warn(`Failed to persist Cobalt media locally: ${dlErr.message}`);
+      }
     }
   } catch (e: any) {
     const reason = ytdlpFailed ? `yt-dlp ham ishlamadi (${e.message.slice(0, 100)})` : '';
     logger.warn(`Cobalt fallback failed: ${reason}`);
   }
 
-  throw new Error('Yuklash muvaffaqiyatsiz. yt-dlp yoki Cobalt ishlamadi. Keyinroq urinib ko‘ring yoki buni muvofiq qiling.');
+  const reason = !ytdlpCommand
+    ? 'yt-dlp topilmadi (serverda o\'rnatilmagan)'
+    : ytdlpFailed
+    ? 'yt-dlp ishlamadi va Cobalt API javob bermadi'
+    : 'Cobalt API javob bermadi';
+  throw new Error(`Audio/video yuklab bo‘lmadi: ${reason}. Iltimos qayta urinib ko‘ring yoki boshqa link yuboring.`);
 }

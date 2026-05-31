@@ -38,18 +38,14 @@ const queue_1 = require("../services/queue");
 const logger_1 = require("../utils/logger");
 async function startWorkers() {
     if (!(0, queue_1.isRedisAvailable)()) {
-        logger_1.logger.info('ℹ️ Redis not available — workers skipped, using inline RSS processing');
+        logger_1.logger.info('No Redis — using inline processing (memory queue)');
         return;
     }
-    // Workers self-register when imported; guards inside each file prevent
-    // Worker construction when REDIS_URL is empty.
     try {
-        // CRIT-2 Fix: Use dynamic import instead of require for ESM compatibility
         await Promise.resolve().then(() => __importStar(require('./scraper_worker')));
-        await Promise.resolve().then(() => __importStar(require('./ai_worker')));
-        logger_1.logger.info('🚀 Queue workers started');
+        logger_1.logger.info('Scraper worker started (AI processing runs inline)');
     }
     catch (err) {
-        logger_1.logger.warn(`⚠️ Workers failed to start: ${err.message} — falling back to inline processing`);
+        logger_1.logger.warn(`Workers failed to start: ${err.message} — falling back to inline processing`);
     }
 }
