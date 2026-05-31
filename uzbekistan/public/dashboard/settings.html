@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>mateAssistent — Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>tailwind.config = { darkMode: "class", theme: { extend: {} } }</script>
+<meta name="theme-color" content="#07070a"/>
+<script src="/js/dashboard-api.js"></script>
+<link href="/css/dashboard.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+  body { background: #07070a; font-family: 'Inter', sans-serif; color: #ededf2; }
+  .form-section { animation: slideUp 0.4s ease both; }
+  .form-section:nth-child(1) { animation-delay: 0.05s; }
+  .form-section:nth-child(2) { animation-delay: 0.1s; }
+  .form-section:nth-child(3) { animation-delay: 0.15s; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .toggle-bg { transition: background 0.2s; }
+  input:checked + .toggle-bg { background: var(--accent-blue); }
+  input:checked + .toggle-bg .toggle-dot { transform: translateX(20px); }
+  select, input { background: #111118; border: 1px solid #1e1e2a; color: #ededf2; }
+  select:focus, input:focus { border-color: #5b8def; outline: none; }
+</style></head>
+<body data-page="settings" class="min-h-screen">
+
+<!-- DESKTOP SIDEBAR -->
+<aside class="hidden lg:flex w-64 fixed left-0 top-0 h-full bg-surface border-r border-outline-variant flex-col z-50" style="background:#0d0d12">
+  <div class="px-5 py-6 border-b border-outline-variant">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
+        <span class="material-symbols-outlined text-primary" style="font-size:20px">neurology</span>
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight">mateAssistent</h1>
+        <p class="text-[10px] text-muted font-mono uppercase tracking-widest">Bot Dashboard</p>
+      </div>
+    </div>
+  </div>
+  <nav class="flex-1 px-3 py-4 space-y-0.5">
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/overview.html">
+      <span class="material-symbols-outlined" style="font-size:20px">grid_view</span>
+      <span class="text-sm">Overview</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/sources.html">
+      <span class="material-symbols-outlined" style="font-size:20px">rss_feed</span>
+      <span class="text-sm">Sources</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/studio.html">
+      <span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span>
+      <span class="text-sm">Studio</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/distribution.html">
+      <span class="material-symbols-outlined" style="font-size:20px">account_tree</span>
+      <span class="text-sm">Distribution</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/automation.html">
+      <span class="material-symbols-outlined" style="font-size:20px">psychology</span>
+      <span class="text-sm">Automation</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/analytics.html">
+      <span class="material-symbols-outlined" style="font-size:20px">monitoring</span>
+      <span class="text-sm">Analytics</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/wallet.html">
+      <span class="material-symbols-outlined" style="font-size:20px">wallet</span>
+      <span class="text-sm">Wallet</span>
+    </a>
+    <a id="admin-nav-link" class="hidden items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/admin/overview.html">
+      <span class="material-symbols-outlined" style="font-size:20px">shield</span>
+      <span class="text-sm">Admin</span>
+    </a>
+  </nav>
+  <div class="px-4 py-4 border-t border-outline-variant">
+    <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 text-primary font-semibold transition-all" href="/dashboard/settings.html">
+      <span class="material-symbols-outlined" style="font-size:20px">settings</span>
+      <span class="text-sm">Settings</span>
+    </a>
+    <div class="flex items-center gap-3 px-3 py-3 mt-2">
+      <div class="w-8 h-8 rounded-full bg-elevated border border-outline-variant flex items-center justify-center text-xs font-bold text-muted sidebar-user-name">U</div>
+      <div class="overflow-hidden">
+        <p class="text-xs font-semibold truncate sidebar-user-name">User</p>
+        <p class="text-[9px] text-muted font-mono uppercase tracking-widest sidebar-user-role">User</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- DESKTOP TOPBAR -->
+<header class="hidden lg:flex fixed top-0 right-0 w-[calc(100%-16rem)] h-14 items-center justify-between px-6 z-40" style="background:rgba(13,13,18,0.8);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
+  <div class="flex items-center gap-4">
+    <h2 class="text-lg font-bold tracking-tight">Settings</h2>
+    <div class="h-5 w-px bg-border-subtle"></div>
+    <div class="relative">
+      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted" style="font-size:16px">search</span>
+      <input class="pl-9 pr-4 py-1.5 text-sm bg-deep border border-outline-variant rounded-lg focus:border-primary outline-none w-56" placeholder="Search settings..." type="text" style="background:var(--bg-deep)"/>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <button class="relative p-2 rounded-lg hover:bg-elevated transition-all">
+      <span class="material-symbols-outlined text-muted" style="font-size:20px">notifications</span>
+    </button>
+    <button class="p-2 rounded-lg hover:bg-elevated transition-all">
+      <span class="material-symbols-outlined text-muted" style="font-size:20px">help</span>
+    </button>
+  </div>
+</header>
+
+<!-- DESKTOP MAIN -->
+<main class="hidden lg:block ml-64 pt-14 min-h-screen">
+  <div class="max-w-4xl mx-auto px-8 py-8 space-y-6">
+    <!-- Header -->
+    <div class="pb-6 border-b border-outline-variant">
+      <h2 class="text-2xl font-bold tracking-tight mb-1">Configuration</h2>
+      <p class="text-sm text-muted">Manage your bot's behavior, language, and posting schedule.</p>
+    </div>
+
+    <!-- Bot Settings -->
+    <div class="form-section bg-card border border-outline-variant rounded-xl p-6 space-y-5">
+      <div class="flex items-center gap-3 pb-4 border-b border-outline-variant">
+        <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-primary" style="font-size:18px">smart_toy</span>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold">Bot Settings</h3>
+          <p class="text-xs text-muted">Core automation configuration</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="space-y-2">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">Language</label>
+          <select id="set-lang" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary">
+            <option value="uz">Uzbek</option>
+            <option value="ru">Russian</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">Target Channel</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-mono text-xs">@</span>
+            <input id="set-channel" class="w-full pl-8 pr-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary" placeholder="channel_name" type="text"/>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">Keywords Filter</label>
+          <input id="set-keywords" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary" placeholder="sport, news, tech" type="text"/>
+        </div>
+        <div class="space-y-2">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">Posting Interval (min)</label>
+          <input id="set-interval" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary" placeholder="15" type="number" min="1" max="1440" value="15"/>
+        </div>
+        <div class="space-y-2">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">Daily Digest</label>
+          <select id="set-digest" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary">
+            <option value="false">Off</option>
+            <option value="true">On</option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">Digest Time</label>
+          <input id="set-digest-time" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary" type="time" value="09:00"/>
+        </div>
+      </div>
+      <div class="flex gap-3 pt-4 border-t border-outline-variant">
+        <button onclick="saveSettings()" class="px-6 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:brightness-110 active:scale-95 transition-all">Save Settings</button>
+        <button onclick="removeMainChannel()" class="px-5 py-2.5 border border-error/30 text-error text-sm rounded-lg hover:bg-error/5 active:scale-95 transition-all">Remove Channel</button>
+      </div>
+    </div>
+
+    <!-- AI Settings -->
+    <div class="form-section bg-card border border-outline-variant rounded-xl p-6 space-y-5">
+      <div class="flex items-center gap-3 pb-4 border-b border-outline-variant">
+        <div class="w-9 h-9 rounded-lg bg-purple/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-purple" style="font-size:18px">auto_awesome</span>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold">AI Content Engine</h3>
+          <p class="text-xs text-muted">Configure AI post generation behavior</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="space-y-2">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">Content Tone</label>
+          <select class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary">
+            <option value="professional">Professional</option>
+            <option value="casual">Casual</option>
+            <option value="creative">Creative</option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">Max Length</label>
+          <select class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary">
+            <option value="short">Short (200 chars)</option>
+            <option value="medium" selected>Medium (500 chars)</option>
+            <option value="long">Long (1000 chars)</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex items-center justify-between p-4 rounded-lg bg-elevated/50 border border-outline-variant">
+        <div>
+          <p class="text-sm font-medium">Include Source Links</p>
+          <p class="text-xs text-muted">Add reference links to AI-generated posts</p>
+        </div>
+        <label class="relative cursor-pointer">
+          <input class="sr-only" type="checkbox" checked/>
+          <div class="w-11 h-6 rounded-full toggle-bg flex items-center px-1 border border-outline-variant" style="background:var(--bg-elevated)">
+            <div class="w-4 h-4 rounded-full bg-white toggle-dot transition-transform"></div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- API & Security -->
+    <div class="form-section bg-card border border-outline-variant rounded-xl p-6 space-y-5">
+      <div class="flex items-center gap-3 pb-4 border-b border-outline-variant">
+        <div class="w-9 h-9 rounded-lg bg-amber/10 flex items-center justify-center">
+          <span class="material-symbols-outlined text-tertiary" style="font-size:18px">key</span>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold">API & Security</h3>
+          <p class="text-xs text-muted">Manage API keys and access credentials</p>
+        </div>
+      </div>
+      <div class="flex flex-col md:flex-row gap-4 items-end">
+        <div class="flex-1 space-y-2 w-full">
+          <label class="text-xs text-muted font-mono uppercase tracking-wider">API Key</label>
+          <div class="relative">
+            <input class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm font-mono opacity-70" readonly type="password" value="sk-••••••••••••••••••"/>
+            <button class="absolute right-3 top-1/2 -translate-y-1/2 text-primary hover:text-white transition-colors">
+              <span class="material-symbols-outlined" style="font-size:16px">content_copy</span>
+            </button>
+          </div>
+        </div>
+        <button class="px-5 py-2.5 border border-outline-variant text-sm rounded-lg hover:bg-elevated transition-all whitespace-nowrap">Rotate Key</button>
+      </div>
+      <div class="flex items-center gap-3 p-4 rounded-lg bg-error/5 border border-error/20">
+        <span class="material-symbols-outlined text-error" style="font-size:18px">warning</span>
+        <p class="text-xs text-error/80">Key hasn't been rotated in 90 days. Recommended for security.</p>
+      </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="form-section bg-card border border-error/20 rounded-xl p-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-error/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-error" style="font-size:18px">logout</span>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-error">Danger Zone</h3>
+            <p class="text-xs text-muted">Irreversible account actions</p>
+          </div>
+        </div>
+        <button class="px-5 py-2.5 border border-error/30 text-error text-sm rounded-lg hover:bg-error/5 active:scale-95 transition-all">Logout</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- MOBILE HEADER -->
+<header class="lg:hidden fixed top-0 w-full z-50 flex items-center justify-between px-4 h-14" style="background:rgba(13,13,18,0.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+      <span class="material-symbols-outlined text-primary" style="font-size:18px">neurology</span>
+    </div>
+    <h1 class="text-base font-bold">Settings</h1>
+  </div>
+  <button class="p-2">
+    <span class="material-symbols-outlined text-muted" style="font-size:20px">notifications</span>
+  </button>
+</header>
+
+<!-- MOBILE MAIN -->
+<main class="lg:hidden pt-14 pb-20 px-4 space-y-4">
+  <div class="bg-card border border-outline-variant rounded-xl p-4 space-y-4">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary" style="font-size:18px">smart_toy</span>
+      <h2 class="text-sm font-semibold">Bot Settings</h2>
+    </div>
+    <div class="space-y-3">
+      <div class="space-y-1">
+        <label class="text-[10px] text-muted font-mono uppercase tracking-wider">Language</label>
+        <select id="set-lang" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm">
+          <option value="uz">Uzbek</option>
+          <option value="ru">Russian</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] text-muted font-mono uppercase tracking-wider">Target Channel</label>
+        <div class="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-outline-variant">
+          <span class="text-muted text-xs font-mono">@</span>
+          <input id="set-channel" class="bg-transparent border-none p-0 text-sm w-full focus:outline-none" placeholder="channel_name" type="text"/>
+        </div>
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] text-muted font-mono uppercase tracking-wider">Keywords</label>
+        <input id="set-keywords" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm" placeholder="sport, news, tech" type="text"/>
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] text-muted font-mono uppercase tracking-wider">Interval (min)</label>
+        <input id="set-interval" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm" type="number" value="15"/>
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] text-muted font-mono uppercase tracking-wider">Daily Digest</label>
+        <select id="set-digest" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm">
+          <option value="false">Off</option>
+          <option value="true">On</option>
+        </select>
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] text-muted font-mono uppercase tracking-wider">Digest Time</label>
+        <input id="set-digest-time" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm" type="time" value="09:00"/>
+      </div>
+    </div>
+    <div class="flex gap-3 pt-2">
+      <button onclick="saveSettings()" class="flex-1 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg active:scale-95 transition-all">Save</button>
+      <button onclick="removeMainChannel()" class="flex-1 py-2.5 border border-error/30 text-error text-sm rounded-lg active:scale-95 transition-all">Remove</button>
+    </div>
+  </div>
+
+  <div class="bg-card border border-error/20 rounded-xl p-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-error" style="font-size:18px">logout</span>
+      <div>
+        <p class="text-sm font-semibold text-error">Logout</p>
+        <p class="text-[10px] text-muted">End current session</p>
+      </div>
+    </div>
+    <button class="px-4 py-2 border border-error/30 text-error text-xs rounded-lg">Logout</button>
+  </div>
+</main>
+
+<!-- BOTTOM NAV -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 border-t border-outline-variant lg:hidden" style="background:var(--bg-surface)">
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/overview.html">
+    <span class="material-symbols-outlined" style="font-size:20px">grid_view</span>
+    <span class="text-[9px] font-mono mt-0.5">Overview</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/sources.html">
+    <span class="material-symbols-outlined" style="font-size:20px">rss_feed</span>
+    <span class="text-[9px] font-mono mt-0.5">Sources</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/studio.html">
+    <span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span>
+    <span class="text-[9px] font-mono mt-0.5">Studio</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/automation.html">
+    <span class="material-symbols-outlined" style="font-size:20px">psychology</span>
+    <span class="text-[9px] font-mono mt-0.5">Auto</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-primary font-semibold" href="/dashboard/settings.html">
+    <span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'FILL' 1">settings</span>
+    <span class="text-[9px] font-mono mt-0.5">Settings</span>
+  </a>
+</nav>
+
+<script>
+  function $(sel) { return document.querySelector(sel); }
+  function $$(sel) { return document.querySelectorAll(sel); }
+
+  apiFetch('/api/dashboard-info').then(function(r) { return r.json(); }).then(function(d) {
+    var u = d.user;
+    if (u) {
+      $$('.sidebar-user-name').forEach(function(el) { el.textContent = u.first_name || u.username || 'User'; });
+      $$('.sidebar-user-role').forEach(function(el) { el.textContent = u.role === 'owner' ? 'Owner' : u.role === 'admin' ? 'Admin' : 'User'; });
+      if (u.role === 'owner' || u.role === 'admin') {
+        var adminLink = document.getElementById('admin-nav-link');
+        if (adminLink) adminLink.classList.remove('hidden');
+      }
+    }
+  }).catch(function(){});
+
+  apiFetch('/api/settings/' + window.__userId).then(function(r) { return r.json(); }).then(function(s) {
+    if (!s) return;
+    if (s.language) { var el = document.getElementById('set-lang'); if (el) el.value = s.language; }
+    if (s.target_channel) { var el = document.getElementById('set-channel'); if (el) el.value = s.target_channel; }
+    if (s.keywords) { var el = document.getElementById('set-keywords'); if (el) el.value = s.keywords; }
+    if (s.interval_minutes) { var el = document.getElementById('set-interval'); if (el) el.value = s.interval_minutes; }
+    if (s.daily_digest !== undefined) { var el = document.getElementById('set-digest'); if (el) el.value = String(s.daily_digest); }
+    if (s.digest_time) { var el = document.getElementById('set-digest-time'); if (el) el.value = s.digest_time; }
+  }).catch(function(){});
+
+  document.querySelectorAll('button, a').forEach(function(el) {
+    el.addEventListener('click', function() { if (window.navigator.vibrate) window.navigator.vibrate(3); });
+  });
+</script>
+<script src="/js/dashboard-data-loader.js"></script>
+<script src="/js/dashboard-functions.js"></script>
+</body></html>

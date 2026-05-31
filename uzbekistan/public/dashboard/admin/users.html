@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>mateAssistent — Admin Users</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+tailwind.config = { darkMode: "class", theme: { extend: {} } }
+</script>
+<meta name="theme-color" content="#07070a"/>
+<script src="/js/dashboard-api.js"></script>
+<link href="/css/dashboard.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+  body { background: #07070a; font-family: 'Inter', sans-serif; color: #ededf2; }
+  .admin-row { animation: slideIn 0.35s ease both; }
+  .admin-row:nth-child(1) { animation-delay: 0.05s; }
+  .admin-row:nth-child(2) { animation-delay: 0.1s; }
+  .admin-row:nth-child(3) { animation-delay: 0.15s; }
+  .admin-row:nth-child(4) { animation-delay: 0.2s; }
+  .admin-row:nth-child(5) { animation-delay: 0.25s; }
+  .admin-row:nth-child(6) { animation-delay: 0.3s; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+  .stat-card { animation: slideUp 0.4s ease both; }
+  .stat-card:nth-child(1) { animation-delay: 0.3s; }
+  .stat-card:nth-child(2) { animation-delay: 0.35s; }
+  .stat-card:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .shimmer { background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-hover) 50%, var(--bg-elevated) 75%); background-size: 200% 100%; animation: shimmer 2s infinite; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .page-badge { font-family: 'JetBrains Mono', monospace; }
+</style></head>
+<body data-page="admin-users" class="min-h-screen">
+
+<!-- DESKTOP SIDEBAR -->
+<aside class="hidden lg:flex w-64 fixed left-0 top-0 h-full bg-surface border-r border-outline-variant flex-col z-50" style="background:#0d0d12">
+  <div class="px-5 py-6 border-b border-outline-variant">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
+        <span class="material-symbols-outlined text-primary" style="font-size:20px">neurology</span>
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight">mateAssistent</h1>
+        <p class="text-[10px] text-muted font-mono uppercase tracking-widest">Bot Dashboard</p>
+      </div>
+    </div>
+  </div>
+  <nav class="flex-1 px-3 py-4 space-y-0.5">
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/overview.html">
+      <span class="material-symbols-outlined" style="font-size:20px">grid_view</span>
+      <span class="text-sm">Overview</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/sources.html">
+      <span class="material-symbols-outlined" style="font-size:20px">rss_feed</span>
+      <span class="text-sm">Sources</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/studio.html">
+      <span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span>
+      <span class="text-sm">Studio</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/distribution.html">
+      <span class="material-symbols-outlined" style="font-size:20px">account_tree</span>
+      <span class="text-sm">Distribution</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/automation.html">
+      <span class="material-symbols-outlined" style="font-size:20px">psychology</span>
+      <span class="text-sm">Automation</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/analytics.html">
+      <span class="material-symbols-outlined" style="font-size:20px">monitoring</span>
+      <span class="text-sm">Analytics</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/wallet.html">
+      <span class="material-symbols-outlined" style="font-size:20px">wallet</span>
+      <span class="text-sm">Wallet</span>
+    </a>
+    <a id="admin-nav-link" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary font-semibold" href="/dashboard/admin/overview.html">
+      <span class="material-symbols-outlined" style="font-size:20px">shield</span>
+      <span class="text-sm">Admin</span>
+    </a>
+  </nav>
+  <div class="px-4 py-4 border-t border-outline-variant">
+    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-muted hover:text-primary transition-all" href="/dashboard/settings.html">
+      <span class="material-symbols-outlined" style="font-size:20px">settings</span>
+      <span class="text-sm">Settings</span>
+    </a>
+    <div class="flex items-center gap-3 px-3 py-3 mt-2">
+      <div class="w-8 h-8 rounded-full bg-elevated border border-outline-variant flex items-center justify-center text-xs font-bold text-muted sidebar-user-name">U</div>
+      <div class="overflow-hidden">
+        <p class="text-xs font-semibold truncate sidebar-user-name">User</p>
+        <p class="text-[9px] text-muted font-mono uppercase tracking-widest sidebar-user-role">User</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- DESKTOP TOPBAR -->
+<header class="hidden lg:flex fixed top-0 right-0 w-[calc(100%-16rem)] h-14 items-center justify-between px-6 z-40" style="background:rgba(13,13,18,0.8);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
+  <div class="flex items-center gap-4">
+    <h2 class="text-lg font-bold tracking-tight">Admin Users</h2>
+    <div class="h-5 w-px bg-border-subtle"></div>
+    <div class="relative">
+      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted" style="font-size:16px">search</span>
+      <input class="pl-9 pr-4 py-1.5 text-sm bg-deep border border-outline-variant rounded-lg focus:border-primary outline-none w-56" id="admin-user-search" placeholder="Search users..." type="text" style="background:var(--bg-deep)"/>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/20">
+      <span class="pulse-dot" style="width:6px;height:6px"></span>
+      <span class="text-[10px] font-mono text-success font-semibold uppercase tracking-wider">Admin</span>
+    </div>
+    <button class="relative p-2 rounded-lg hover:bg-elevated transition-all">
+      <span class="material-symbols-outlined text-muted" style="font-size:20px">notifications</span>
+      <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error border-2 border-surface"></span>
+    </button>
+    <button class="p-2 rounded-lg hover:bg-elevated transition-all">
+      <span class="material-symbols-outlined text-muted" style="font-size:20px">help</span>
+    </button>
+  </div>
+</header>
+
+<!-- DESKTOP MAIN -->
+<main class="hidden lg:block ml-64 pt-14 min-h-screen">
+  <div class="max-w-7xl mx-auto px-8 py-8 space-y-8">
+    <!-- Admin Sub-Nav -->
+    <div class="flex items-center gap-6 border-b border-outline-variant pb-3">
+      <a class="text-sm font-mono text-muted hover:text-primary transition-all" href="/dashboard/admin/overview.html">Overview</a>
+      <a class="text-sm font-mono text-primary font-semibold border-b-2 border-primary pb-3 -mb-3" href="/dashboard/admin/users.html">Users</a>
+      <a class="text-sm font-mono text-muted hover:text-primary transition-all" href="/dashboard/admin/broadcast.html">Broadcast</a>
+      <a class="text-sm font-mono text-muted hover:text-primary transition-all" href="/dashboard/admin/system.html">System</a>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted" style="font-size:18px">search</span>
+          <input class="pl-10 pr-4 py-2 text-sm bg-card border border-outline-variant rounded-lg focus:border-primary outline-none w-64" id="filter-search" placeholder="Search by username or ID..." type="text" style="background:var(--bg-card)"/>
+        </div>
+        <div class="relative">
+          <select id="role-filter" class="appearance-none pl-4 pr-10 py-2 text-sm bg-card border border-outline-variant rounded-lg text-muted focus:border-primary outline-none cursor-pointer" style="background:var(--bg-card)">
+            <option value="">All Roles</option>
+            <option value="owner">Owner</option>
+            <option value="admin">Admin</option>
+            <option value="premium">Premium</option>
+            <option value="user">User</option>
+            <option value="blocked">Blocked</option>
+          </select>
+          <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" style="font-size:18px">expand_more</span>
+        </div>
+      </div>
+      <button class="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-outline-variant hover:bg-elevated transition-all active:scale-[0.98]" onclick="showToast('Exporting CSV...','info')">
+        <span class="material-symbols-outlined" style="font-size:16px">download</span>
+        Export CSV
+      </button>
+    </div>
+
+    <!-- Users Table -->
+    <div id="admin-users-list">
+      <div class="bg-card border border-outline-variant rounded-xl overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="admin-users-table w-full text-left">
+            <thead>
+              <tr class="border-b border-outline-variant" style="background:var(--bg-elevated)">
+                <th class="px-5 py-3.5 text-[11px] font-mono text-muted font-semibold uppercase tracking-wider">Telegram ID</th>
+                <th class="px-5 py-3.5 text-[11px] font-mono text-muted font-semibold uppercase tracking-wider">Username</th>
+                <th class="px-5 py-3.5 text-[11px] font-mono text-muted font-semibold uppercase tracking-wider">Role Badge</th>
+                <th class="px-5 py-3.5 text-[11px] font-mono text-muted font-semibold uppercase tracking-wider">Premium</th>
+                <th class="px-5 py-3.5 text-[11px] font-mono text-muted font-semibold uppercase tracking-wider">Sources</th>
+                <th class="px-5 py-3.5 text-[11px] font-mono text-muted font-semibold uppercase tracking-wider">Joined</th>
+                <th class="px-5 py-3.5 text-[11px] font-mono text-muted font-semibold uppercase tracking-wider">Status</th>
+                <th class="px-5 py-3.5 text-[11px] font-mono text-muted font-semibold uppercase tracking-wider w-10">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-outline-variant">
+              <!-- Row 1: Owner -->
+              <tr class="admin-row hover:bg-elevated/50 transition-all">
+                <td class="px-5 py-4 text-xs font-mono text-muted">502931102</td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-amber/10 flex items-center justify-center text-[10px] font-bold text-tertiary">T</div>
+                    <span class="text-sm font-medium">@ton_founder</span>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="badge badge-amber" style="background:rgba(245,166,35,0.12);color:var(--accent-amber);border:1px solid rgba(245,166,35,0.2)">OWNER</span>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="material-symbols-outlined text-secondary" style="font-size:18px;font-variation-settings:'FILL' 1">verified</span>
+                </td>
+                <td class="px-5 py-4 text-sm font-mono">14</td>
+                <td class="px-5 py-4 text-sm text-muted">2d ago</td>
+                <td class="px-5 py-4">
+                  <div class="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(46,213,115,0.5)]"></div>
+                </td>
+                <td class="px-5 py-4">
+                  <div class="relative">
+                    <button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserAction(502931102,'owner')">
+                      <span class="material-symbols-outlined" style="font-size:18px">more_horiz</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <!-- Row 2: Admin -->
+              <tr class="admin-row hover:bg-elevated/50 transition-all">
+                <td class="px-5 py-4 text-xs font-mono text-muted">883102944</td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">S</div>
+                    <span class="text-sm font-medium">@admin_sergey</span>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="badge badge-blue" style="background:rgba(91,141,239,0.12);color:var(--accent-blue);border:1px solid rgba(91,141,239,0.2)">ADMIN</span>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="material-symbols-outlined text-secondary" style="font-size:18px;font-variation-settings:'FILL' 1">verified</span>
+                </td>
+                <td class="px-5 py-4 text-sm font-mono">8</td>
+                <td class="px-5 py-4 text-sm text-muted">5d ago</td>
+                <td class="px-5 py-4">
+                  <div class="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(46,213,115,0.5)]"></div>
+                </td>
+                <td class="px-5 py-4">
+                  <button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserAction(883102944,'admin')">
+                    <span class="material-symbols-outlined" style="font-size:18px">more_horiz</span>
+                  </button>
+                </td>
+              </tr>
+              <!-- Row 3: Premium -->
+              <tr class="admin-row hover:bg-elevated/50 transition-all">
+                <td class="px-5 py-4 text-xs font-mono text-muted">112003948</td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-secondary/10 flex items-center justify-center text-[10px] font-bold text-secondary">C</div>
+                    <span class="text-sm font-medium">@crypto_whale</span>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="badge badge-cyan" style="background:rgba(65,238,194,0.12);color:var(--accent-cyan);border:1px solid rgba(65,238,194,0.2)">PREMIUM</span>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="material-symbols-outlined text-secondary" style="font-size:18px;font-variation-settings:'FILL' 1">verified</span>
+                </td>
+                <td class="px-5 py-4 text-sm font-mono">124</td>
+                <td class="px-5 py-4 text-sm text-muted">12d ago</td>
+                <td class="px-5 py-4">
+                  <div class="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(46,213,115,0.5)]"></div>
+                </td>
+                <td class="px-5 py-4">
+                  <button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserAction(112003948,'premium')">
+                    <span class="material-symbols-outlined" style="font-size:18px">more_horiz</span>
+                  </button>
+                </td>
+              </tr>
+              <!-- Row 4: Regular User -->
+              <tr class="admin-row hover:bg-elevated/50 transition-all">
+                <td class="px-5 py-4 text-xs font-mono text-muted">556771029</td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-elevated flex items-center justify-center text-[10px] font-bold text-muted">U</div>
+                    <span class="text-sm font-medium">@user_newbie</span>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="badge" style="background:rgba(94,94,120,0.12);color:var(--text-muted);border:1px solid rgba(94,94,120,0.2)">USER</span>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="material-symbols-outlined text-muted" style="font-size:18px">remove_circle</span>
+                </td>
+                <td class="px-5 py-4 text-sm font-mono">2</td>
+                <td class="px-5 py-4 text-sm text-muted">1mo ago</td>
+                <td class="px-5 py-4">
+                  <div class="w-2 h-2 rounded-full bg-muted"></div>
+                </td>
+                <td class="px-5 py-4">
+                  <button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserAction(556771029,'user')">
+                    <span class="material-symbols-outlined" style="font-size:18px">more_horiz</span>
+                  </button>
+                </td>
+              </tr>
+              <!-- Row 5: Blocked -->
+              <tr class="admin-row hover:bg-elevated/50 transition-all">
+                <td class="px-5 py-4 text-xs font-mono text-muted">220019384</td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-error/10 flex items-center justify-center text-[10px] font-bold text-error">S</div>
+                    <span class="text-sm font-medium">@spammer_x</span>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="badge" style="background:rgba(255,71,87,0.12);color:var(--accent-red);border:1px solid rgba(255,71,87,0.2)">BLOCKED</span>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="material-symbols-outlined text-error" style="font-size:18px">block</span>
+                </td>
+                <td class="px-5 py-4 text-sm font-mono">0</td>
+                <td class="px-5 py-4 text-sm text-muted">2mo ago</td>
+                <td class="px-5 py-4">
+                  <div class="w-2 h-2 rounded-full bg-error shadow-[0_0_8px_rgba(255,71,87,0.5)]"></div>
+                </td>
+                <td class="px-5 py-4">
+                  <button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserAction(220019384,'block')">
+                    <span class="material-symbols-outlined" style="font-size:18px">more_horiz</span>
+                  </button>
+                </td>
+              </tr>
+              <!-- Row 6: Premium Fill -->
+              <tr class="admin-row hover:bg-elevated/50 transition-all opacity-80">
+                <td class="px-5 py-4 text-xs font-mono text-muted">991002341</td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-secondary/10 flex items-center justify-center text-[10px] font-bold text-secondary">M</div>
+                    <span class="text-sm font-medium">@marketing_pro</span>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="badge badge-cyan" style="background:rgba(65,238,194,0.12);color:var(--accent-cyan);border:1px solid rgba(65,238,194,0.2)">PREMIUM</span>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="material-symbols-outlined text-secondary" style="font-size:18px;font-variation-settings:'FILL' 1">verified</span>
+                </td>
+                <td class="px-5 py-4 text-sm font-mono">45</td>
+                <td class="px-5 py-4 text-sm text-muted">3mo ago</td>
+                <td class="px-5 py-4">
+                  <div class="w-2 h-2 rounded-full bg-muted"></div>
+                </td>
+                <td class="px-5 py-4">
+                  <button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserAction(991002341,'premium')">
+                    <span class="material-symbols-outlined" style="font-size:18px">more_horiz</span>
+                  </button>
+                </td>
+              </tr>
+              <!-- Row 7: User Fill -->
+              <tr class="admin-row hover:bg-elevated/50 transition-all opacity-60">
+                <td class="px-5 py-4 text-xs font-mono text-muted">440029118</td>
+                <td class="px-5 py-4">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-elevated flex items-center justify-center text-[10px] font-bold text-muted">T</div>
+                    <span class="text-sm font-medium">@tester_bot</span>
+                  </div>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="badge" style="background:rgba(94,94,120,0.12);color:var(--text-muted);border:1px solid rgba(94,94,120,0.2)">USER</span>
+                </td>
+                <td class="px-5 py-4">
+                  <span class="material-symbols-outlined text-muted" style="font-size:18px">remove_circle</span>
+                </td>
+                <td class="px-5 py-4 text-sm font-mono">1</td>
+                <td class="px-5 py-4 text-sm text-muted">4mo ago</td>
+                <td class="px-5 py-4">
+                  <div class="w-2 h-2 rounded-full bg-muted"></div>
+                </td>
+                <td class="px-5 py-4">
+                  <button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserAction(440029118,'user')">
+                    <span class="material-symbols-outlined" style="font-size:18px">more_horiz</span>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="px-5 py-3.5 border-t border-outline-variant flex items-center justify-between" style="background:var(--bg-elevated)">
+          <p class="text-xs font-mono text-muted">Showing <span class="text-primary font-semibold">1–7</span> of <span class="text-primary font-semibold">1,240</span> users</p>
+          <div class="flex items-center gap-1.5">
+            <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-muted hover:bg-elevated transition-all disabled:opacity-30" disabled>
+              <span class="material-symbols-outlined" style="font-size:16px">chevron_left</span>
+            </button>
+            <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary font-semibold text-xs font-mono">1</button>
+            <button class="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:bg-elevated text-xs font-mono transition-all">2</button>
+            <button class="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:bg-elevated text-xs font-mono transition-all">3</button>
+            <span class="text-muted text-xs mx-1">...</span>
+            <button class="w-8 h-8 flex items-center justify-center rounded-lg text-muted hover:bg-elevated text-xs font-mono transition-all">124</button>
+            <button class="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant text-muted hover:bg-elevated transition-all">
+              <span class="material-symbols-outlined" style="font-size:16px">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Insight Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="stat-card bg-card border border-outline-variant rounded-xl p-5 hover:border-primary/30 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-all">
+            <span class="material-symbols-outlined text-primary" style="font-size:22px">group_add</span>
+          </div>
+          <div>
+            <p class="text-[10px] font-mono text-muted uppercase tracking-wider">New Users (24h)</p>
+            <div class="flex items-baseline gap-2">
+              <span class="text-2xl font-bold">+124</span>
+              <span class="text-[11px] font-mono text-success font-semibold">↑ 12%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card bg-card border border-outline-variant rounded-xl p-5 hover:border-secondary/30 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl bg-secondary/10 flex items-center justify-center group-hover:bg-secondary/20 transition-all">
+            <span class="material-symbols-outlined text-secondary" style="font-size:22px">auto_awesome</span>
+          </div>
+          <div>
+            <p class="text-[10px] font-mono text-muted uppercase tracking-wider">Conversion Rate</p>
+            <div class="flex items-baseline gap-2">
+              <span class="text-2xl font-bold">8.4%</span>
+              <span class="text-[11px] font-mono text-success font-semibold">↑ 0.5%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card bg-card border border-outline-variant rounded-xl p-5 hover:border-error/30 transition-all group">
+        <div class="flex items-center gap-4">
+          <div class="w-11 h-11 rounded-xl bg-error/10 flex items-center justify-center group-hover:bg-error/20 transition-all">
+            <span class="material-symbols-outlined text-error" style="font-size:22px">gpp_bad</span>
+          </div>
+          <div>
+            <p class="text-[10px] font-mono text-muted uppercase tracking-wider">Flagged Activity</p>
+            <div class="flex items-baseline gap-2">
+              <span class="text-2xl font-bold">12</span>
+              <span class="text-[11px] font-mono text-error font-semibold">↓ 4</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- MOBILE -->
+<header class="lg:hidden fixed top-0 w-full z-50 flex items-center justify-between px-4 h-14" style="background:rgba(13,13,18,0.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+      <span class="material-symbols-outlined text-primary" style="font-size:18px">neurology</span>
+    </div>
+    <h1 class="text-base font-bold">mateAssistent</h1>
+  </div>
+  <button class="relative p-2">
+    <span class="material-symbols-outlined text-muted" style="font-size:20px">notifications</span>
+    <span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-error"></span>
+  </button>
+</header>
+
+<main class="lg:hidden pt-14 pb-20 px-4 space-y-4">
+  <div class="flex items-center justify-between">
+    <h2 class="text-lg font-bold tracking-tight">Admin Users</h2>
+    <span class="text-[10px] font-mono text-primary bg-primary/10 px-2.5 py-1 rounded-full">Admin</span>
+  </div>
+
+  <!-- Mobile Filter -->
+  <div class="flex gap-2">
+    <div class="relative flex-1">
+      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted" style="font-size:16px">search</span>
+      <input class="w-full pl-9 pr-3 py-2 text-sm bg-card border border-outline-variant rounded-lg focus:border-primary outline-none" id="mobile-filter-search" placeholder="Search..." type="text" style="background:var(--bg-card)"/>
+    </div>
+    <button class="px-3 py-2 rounded-lg border border-outline-variant text-muted hover:bg-elevated transition-all" onclick="showToast('Exporting CSV...','info')">
+      <span class="material-symbols-outlined" style="font-size:18px">download</span>
+    </button>
+  </div>
+
+  <!-- Mobile User Cards -->
+  <div id="admin-users-list-mobile" class="space-y-3">
+    <!-- Card 1: Owner -->
+    <div class="admin-row bg-card border border-outline-variant rounded-xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-amber/10 flex items-center justify-center text-xs font-bold text-tertiary">T</div>
+          <div>
+            <p class="text-sm font-semibold">@ton_founder</p>
+            <p class="text-[10px] font-mono text-muted">502931102</p>
+          </div>
+        </div>
+        <span class="badge badge-amber" style="background:rgba(245,166,35,0.12);color:var(--accent-amber);border:1px solid rgba(245,166,35,0.2)">OWNER</span>
+      </div>
+      <div class="flex items-center justify-between text-xs text-muted">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-secondary" style="font-size:14px;font-variation-settings:'FILL' 1">verified</span> Premium</span>
+          <span>14 sources</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <div class="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(46,213,115,0.5)]"></div>
+          <span class="text-success">Active</span>
+        </div>
+      </div>
+    </div>
+    <!-- Card 2: Admin -->
+    <div class="admin-row bg-card border border-outline-variant rounded-xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">S</div>
+          <div>
+            <p class="text-sm font-semibold">@admin_sergey</p>
+            <p class="text-[10px] font-mono text-muted">883102944</p>
+          </div>
+        </div>
+        <span class="badge badge-blue" style="background:rgba(91,141,239,0.12);color:var(--accent-blue);border:1px solid rgba(91,141,239,0.2)">ADMIN</span>
+      </div>
+      <div class="flex items-center justify-between text-xs text-muted">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-secondary" style="font-size:14px;font-variation-settings:'FILL' 1">verified</span> Premium</span>
+          <span>8 sources</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <div class="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(46,213,115,0.5)]"></div>
+          <span class="text-success">Active</span>
+        </div>
+      </div>
+    </div>
+    <!-- Card 3: Premium -->
+    <div class="admin-row bg-card border border-outline-variant rounded-xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-secondary/10 flex items-center justify-center text-xs font-bold text-secondary">C</div>
+          <div>
+            <p class="text-sm font-semibold">@crypto_whale</p>
+            <p class="text-[10px] font-mono text-muted">112003948</p>
+          </div>
+        </div>
+        <span class="badge badge-cyan" style="background:rgba(65,238,194,0.12);color:var(--accent-cyan);border:1px solid rgba(65,238,194,0.2)">PREMIUM</span>
+      </div>
+      <div class="flex items-center justify-between text-xs text-muted">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-secondary" style="font-size:14px;font-variation-settings:'FILL' 1">verified</span> Premium</span>
+          <span>124 sources</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <div class="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_rgba(46,213,115,0.5)]"></div>
+          <span class="text-success">Active</span>
+        </div>
+      </div>
+    </div>
+    <!-- Card 4: User -->
+    <div class="admin-row bg-card border border-outline-variant rounded-xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-elevated flex items-center justify-center text-xs font-bold text-muted">U</div>
+          <div>
+            <p class="text-sm font-semibold">@user_newbie</p>
+            <p class="text-[10px] font-mono text-muted">556771029</p>
+          </div>
+        </div>
+        <span class="badge" style="background:rgba(94,94,120,0.12);color:var(--text-muted);border:1px solid rgba(94,94,120,0.2)">USER</span>
+      </div>
+      <div class="flex items-center justify-between text-xs text-muted">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center gap-1"><span class="material-symbols-outlined text-muted" style="font-size:14px">remove_circle</span> Free</span>
+          <span>2 sources</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <div class="w-2 h-2 rounded-full bg-muted"></div>
+          <span class="text-muted">Inactive</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Stats -->
+  <div class="grid grid-cols-3 gap-3 pt-2">
+    <div class="bg-card border border-outline-variant rounded-xl p-3 text-center">
+      <p class="text-[10px] font-mono text-muted uppercase tracking-wider">New</p>
+      <p class="text-lg font-bold text-primary">+124</p>
+    </div>
+    <div class="bg-card border border-outline-variant rounded-xl p-3 text-center">
+      <p class="text-[10px] font-mono text-muted uppercase tracking-wider">Conv.</p>
+      <p class="text-lg font-bold text-secondary">8.4%</p>
+    </div>
+    <div class="bg-card border border-outline-variant rounded-xl p-3 text-center">
+      <p class="text-[10px] font-mono text-muted uppercase tracking-wider">Flagged</p>
+      <p class="text-lg font-bold text-error">12</p>
+    </div>
+  </div>
+</main>
+
+<!-- Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 border-t border-outline-variant lg:hidden" style="background:var(--bg-surface)">
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/overview.html">
+    <span class="material-symbols-outlined" style="font-size:20px">grid_view</span>
+    <span class="text-[9px] font-mono mt-0.5">Overview</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/sources.html">
+    <span class="material-symbols-outlined" style="font-size:20px">rss_feed</span>
+    <span class="text-[9px] font-mono mt-0.5">Sources</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/studio.html">
+    <span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span>
+    <span class="text-[9px] font-mono mt-0.5">Studio</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/automation.html">
+    <span class="material-symbols-outlined" style="font-size:20px">psychology</span>
+    <span class="text-[9px] font-mono mt-0.5">Auto</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/settings.html">
+    <span class="material-symbols-outlined" style="font-size:20px">settings</span>
+    <span class="text-[9px] font-mono mt-0.5">Settings</span>
+  </a>
+</nav>
+
+<script>
+  document.querySelectorAll('.sidebar a').forEach(function(a) {
+    a.addEventListener('click', function() {
+      document.querySelectorAll('.sidebar a').forEach(function(l) {
+        l.classList.remove('bg-primary/10', 'text-primary', 'font-semibold');
+        l.classList.add('text-muted');
+      });
+      this.classList.add('bg-primary/10', 'text-primary', 'font-semibold');
+      this.classList.remove('text-muted');
+    });
+  });
+
+  function $(sel) { return document.querySelector(sel); }
+  function $$(sel) { return document.querySelectorAll(sel); }
+
+  apiFetch('/api/dashboard-info').then(function(r) { return r.json(); }).then(function(d) {
+    var u = d.user, s = d.stats || {};
+    if (u) {
+      var nameEls = $$('.sidebar-user-name');
+      nameEls.forEach(function(el) { el.textContent = u.first_name || u.username || 'User'; });
+      var roleEls = $$('.sidebar-user-role');
+      roleEls.forEach(function(el) { el.textContent = u.role === 'owner' ? 'Owner' : u.role === 'admin' ? 'Admin' : 'User'; });
+
+      if (u.role === 'owner' || u.role === 'admin') {
+        var adminLink = document.getElementById('admin-nav-link');
+        if (adminLink) adminLink.classList.remove('hidden');
+      }
+    }
+  }).catch(function(e) { console.error('Dashboard data:', e); });
+
+  // Combined search filter for both desktop and mobile
+  function filterUsers() {
+    var desktopQuery = ($('#filter-search') || {}).value || '';
+    var mobileQuery = ($('#mobile-filter-search') || {}).value || '';
+    var query = desktopQuery || mobileQuery;
+    var roleFilter = ($('#role-filter') || {}).value || '';
+    var rows = $$('.admin-users-table tbody tr');
+    rows.forEach(function(row) {
+      var text = row.innerText.toLowerCase();
+      var matchSearch = !query || text.includes(query.toLowerCase());
+      var matchRole = true;
+      if (roleFilter) {
+        var badgeEl = row.querySelector('.badge');
+        var badgeText = badgeEl ? badgeEl.textContent.toLowerCase() : '';
+        matchRole = badgeText.includes(roleFilter.toLowerCase());
+      }
+      row.style.display = matchSearch && matchRole ? '' : 'none';
+    });
+  }
+
+  var filterSearch = $('#filter-search');
+  var mobileFilterSearch = $('#mobile-filter-search');
+  var roleFilter = $('#role-filter');
+  if (filterSearch) filterSearch.addEventListener('input', filterUsers);
+  if (mobileFilterSearch) mobileFilterSearch.addEventListener('input', filterUsers);
+  if (roleFilter) roleFilter.addEventListener('change', filterUsers);
+
+  // Sync desktop <-> mobile search
+  if (filterSearch && mobileFilterSearch) {
+    filterSearch.addEventListener('input', function() {
+      if (document.activeElement === filterSearch) mobileFilterSearch.value = filterSearch.value;
+    });
+    mobileFilterSearch.addEventListener('input', function() {
+      if (document.activeElement === mobileFilterSearch) filterSearch.value = mobileFilterSearch.value;
+    });
+  }
+
+  // Haptic
+  document.querySelectorAll('button, a').forEach(function(el) {
+    el.addEventListener('click', function() {
+      if (window.navigator.vibrate) window.navigator.vibrate(3);
+    });
+  });
+</script>
+<script src="/js/dashboard-data-loader.js"></script>
+<script src="/js/dashboard-functions.js"></script>
+</body></html>

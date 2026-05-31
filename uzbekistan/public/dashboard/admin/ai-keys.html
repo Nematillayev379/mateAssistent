@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TeleAuto Admin - AI Keys Management</title>
+
+<script src="/js/dashboard-api.js"></script>
+<link href="/css/dashboard.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0A0A0B;
+            color: #e6e0ef;
+            font-family: 'Geist', sans-serif;
+        }
+        /* Custom scrollbar for pro-tool feel */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0A0A0B; }
+        ::-webkit-scrollbar-thumb { background: #1E1E22; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #333; }
+        
+        .glass-card {
+            background: rgba(17, 17, 19, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid #1E1E22;
+        }
+        .sidebar-active {
+            border-left: 4px solid #6C47FF;
+        }
+    </style>
+
+</head>
+<body class="overflow-x-hidden lg:pl-64" data-page="admin-ai-keys">
+<!-- SideNavBar (Shared Component) -->
+<aside class="hidden lg:flex flex-col h-full py-stack-md px-container-padding w-64 fixed left-0 top-0 bg-surface-container-lowest border-r border-outline-variant z-50">
+<div class="mb-stack-lg">
+<h1 class="font-headline-lg text-headline-lg font-black text-on-surface">TeleAuto Pro</h1>
+<p class="text-on-surface-variant font-label-md text-label-md opacity-60">SaaS Platform</p>
+</div>
+<nav class="flex-1 flex flex-col gap-unit">
+<!-- Nav item loop (Logic: Admin is active) -->
+<a class="flex items-center gap-stack-sm py-2 px-3 transition-colors duration-200 text-on-surface-variant hover:text-on-surface hover:bg-surface-container" href="/dashboard/overview.html">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="font-body-md text-body-md">Overview</span>
+</a>
+<a class="flex items-center gap-stack-sm py-2 px-3 transition-colors duration-200 text-on-surface-variant hover:text-on-surface hover:bg-surface-container" href="/dashboard/sources.html">
+<span class="material-symbols-outlined text-[20px]">database</span>
+<span class="font-body-md text-body-md">Sources</span>
+</a>
+<a class="flex items-center gap-stack-sm py-2 px-3 transition-colors duration-200 text-on-surface-variant hover:text-on-surface hover:bg-surface-container" href="/dashboard/studio.html">
+<span class="material-symbols-outlined text-[20px]">edit_square</span>
+<span class="font-body-md text-body-md">Studio</span>
+</a>
+<a class="flex items-center gap-stack-sm py-2 px-3 transition-colors duration-200 text-on-surface-variant hover:text-on-surface hover:bg-surface-container" href="#">
+<span class="material-symbols-outlined text-[20px]">campaign</span>
+<span class="font-body-md text-body-md">Distribution</span>
+</a>
+<a class="flex items-center gap-stack-sm py-2 px-3 transition-colors duration-200 text-on-surface-variant hover:text-on-surface hover:bg-surface-container" href="/dashboard/automation.html">
+<span class="material-symbols-outlined text-[20px]">robot_2</span>
+<span class="font-body-md text-body-md">Automation</span>
+</a>
+<a class="flex items-center gap-stack-sm py-2 px-3 transition-colors duration-200 text-on-surface-variant hover:text-on-surface hover:bg-surface-container" href="#">
+<span class="material-symbols-outlined text-[20px]">monitoring</span>
+<span class="font-body-md text-body-md">Analytics</span>
+</a>
+<a class="flex items-center gap-stack-sm py-2 px-3 transition-colors duration-200 text-on-surface-variant hover:text-on-surface hover:bg-surface-container" href="#">
+<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+<span class="font-body-md text-body-md">Wallet</span>
+</a>
+<a class="flex items-center gap-stack-sm py-2 px-3 transition-colors duration-200 text-on-surface-variant hover:text-on-surface hover:bg-surface-container" href="/dashboard/settings.html">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+<a class="flex items-center gap-stack-sm py-2 px-3 bg-surface-container-high text-primary font-bold border-l-4 border-primary Active: scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+<span class="font-body-md text-body-md">Admin</span>
+</a>
+</nav>
+<div class="mt-auto flex items-center gap-3 pt-stack-md border-t border-outline-variant">
+<div class="w-8 h-8 rounded-full overflow-hidden bg-surface-container-high">
+<img alt="User Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3ROHag7mlnjC2lah9bsA3G-MBqujLqv2Htb4boJlhV-B7U8GAbae6dBE-5yZCsNzgvdT6LITvKAlgYPQrlmZ0tbJc2UKuzPOoqR_hmfylvEhhk3_dYW5xpfGPjXyHfBbkvkvoxBgAxNRbXqhufa_foCM4WclKKdeGJ7knz-NjvG1cAHp1B4Vq_v8ytcH_Hwo3f388a518d2K5H-2DHr64vXtW6X5-KGRoAfy-3BAGUzuMN8l3HnGCKYXtnULMTxiL_qBlWyanI1z6"/>
+</div>
+<div class="flex flex-col">
+<span class="sidebar-user-name font-label-md text-label-md text-on-surface"></span>
+<span class="sidebar-user-role text-[10px] text-on-surface-variant"></span>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="lg:ml-64 min-h-screen pb-20 lg:pb-0">
+<!-- TopAppBar (Shared Component) -->
+<header class="hidden lg:flex fixed top-0 right-0 w-full lg:left-64 lg:w-[calc(100%-16rem)] z-40 flex justify-between items-center px-gutter h-14 bg-surface-container-low border-b border-outline-variant">
+<div class="flex items-center gap-gutter">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-body-md">search</span>
+<input class="w-full h-8 pl-8 pr-2 bg-surface-container-lowest border border-outline-variant rounded-lg font-body-md text-body-md focus:border-primary outline-none transition-all" placeholder="Search keys..." type="text"/>
+</div>
+<nav class="flex gap-stack-md ml-4">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/overview.html">Overview</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/users.html">Subscribers</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface" href="/dashboard/admin/logs.html">Logs</a>
+<a class="font-label-md text-label-md text-primary border-b-2 border-primary pb-2" href="/dashboard/admin/permissions.html">Permissions</a>
+</nav>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all Click: opacity-80">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-all Click: opacity-80">help_outline</button>
+<div class="w-px h-4 bg-outline-variant mx-1"></div>
+<span class="font-label-md text-label-md font-bold text-on-surface">TeleAuto Admin</span>
+</div>
+</header>
+<!-- Page Content -->
+<div class="mt-14 p-gutter space-y-gutter pb-20 lg:pb-0">
+<!-- Hero Header Actions -->
+<div class="flex justify-between items-end mb-stack-lg">
+<div>
+<h2 class="font-display text-display">AI Keys Management</h2>
+<p class="text-on-surface-variant font-body-md text-body-md">Manage and monitor API key health across providers.</p>
+</div>
+<div class="flex gap-stack-sm">
+<button class="flex items-center gap-2 h-10 px-4 rounded-lg border border-outline-variant font-label-md text-label-md hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+                        Refresh Key Pool
+                    </button>
+<button class="flex items-center gap-2 h-10 px-4 rounded-lg bg-primary-container text-on-primary-container font-label-md text-label-md hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        Add Key
+                    </button>
+</div>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Stat Card: Total -->
+<div class="glass-card p-stack-md rounded-xl">
+<div class="flex items-center justify-between mb-2">
+<span class="text-on-surface-variant font-label-md text-label-md">Total Keys</span>
+<span class="material-symbols-outlined text-on-surface-variant">key</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-display font-display">1,284</span>
+<span class="text-[12px] text-secondary font-label-sm">+12%</span>
+</div>
+<div class="mt-4 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 100%"></div>
+</div>
+</div>
+<!-- Stat Card: Active -->
+<div class="glass-card p-stack-md rounded-xl border-l-4 border-l-secondary">
+<div class="flex items-center justify-between mb-2">
+<span class="text-on-surface-variant font-label-md text-label-md">Active Pool</span>
+<span class="material-symbols-outlined text-secondary">check_circle</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-display font-display">1,102</span>
+<span class="text-[12px] text-on-surface-variant font-label-sm">85.8%</span>
+</div>
+<div class="mt-4 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary" style="width: 85.8%"></div>
+</div>
+</div>
+<!-- Stat Card: Blocked -->
+<div class="glass-card p-stack-md rounded-xl border-l-4 border-l-error">
+<div class="flex items-center justify-between mb-2">
+<span class="text-on-surface-variant font-label-md text-label-md">Rate Limited / Blocked</span>
+<span class="material-symbols-outlined text-error">block</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="text-display font-display">182</span>
+<span class="text-[12px] text-error font-label-sm">-4.2%</span>
+</div>
+<div class="mt-4 h-1 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-error" style="width: 14.2%"></div>
+</div>
+</div>
+</div>
+<!-- Provider Ratio Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-gutter">
+<!-- Groq -->
+<div class="glass-card p-stack-md rounded-xl flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded bg-surface-container-highest flex items-center justify-center font-black text-xs text-primary">G</div>
+<span class="font-headline-md text-headline-md">Groq</span>
+</div>
+<span class="text-secondary bg-secondary/10 px-2 py-0.5 rounded-full font-label-sm text-[10px]">Healthy</span>
+</div>
+<div>
+<div class="flex justify-between font-label-sm text-[10px] mb-1">
+<span class="text-on-surface">Active: 412</span>
+<span class="text-on-surface-variant">Blocked: 12</span>
+</div>
+<div class="flex h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary" style="width: 97%"></div>
+<div class="h-full bg-error" style="width: 3%"></div>
+</div>
+</div>
+</div>
+<!-- Gemini -->
+<div class="glass-card p-stack-md rounded-xl flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded bg-surface-container-highest flex items-center justify-center font-black text-xs text-secondary">♊</div>
+<span class="font-headline-md text-headline-md">Gemini</span>
+</div>
+<span class="text-secondary bg-secondary/10 px-2 py-0.5 rounded-full font-label-sm text-[10px]">Healthy</span>
+</div>
+<div>
+<div class="flex justify-between font-label-sm text-[10px] mb-1">
+<span class="text-on-surface">Active: 320</span>
+<span class="text-on-surface-variant">Blocked: 28</span>
+</div>
+<div class="flex h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary" style="width: 91%"></div>
+<div class="h-full bg-error" style="width: 9%"></div>
+</div>
+</div>
+</div>
+<!-- OpenAI -->
+<div class="glass-card p-stack-md rounded-xl flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded bg-surface-container-highest flex items-center justify-center font-black text-xs text-on-surface">O</div>
+<span class="font-headline-md text-headline-md">OpenAI</span>
+</div>
+<span class="text-tertiary bg-tertiary/10 px-2 py-0.5 rounded-full font-label-sm text-[10px]">Warning</span>
+</div>
+<div>
+<div class="flex justify-between font-label-sm text-[10px] mb-1">
+<span class="text-on-surface">Active: 198</span>
+<span class="text-on-surface-variant">Blocked: 112</span>
+</div>
+<div class="flex h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary" style="width: 63%"></div>
+<div class="h-full bg-error" style="width: 37%"></div>
+</div>
+</div>
+</div>
+<!-- Anthropic -->
+<div class="glass-card p-stack-md rounded-xl flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded bg-surface-container-highest flex items-center justify-center font-black text-xs text-primary-fixed-dim">A</div>
+<span class="font-headline-md text-headline-md">Anthropic</span>
+</div>
+<span class="text-secondary bg-secondary/10 px-2 py-0.5 rounded-full font-label-sm text-[10px]">Healthy</span>
+</div>
+<div>
+<div class="flex justify-between font-label-sm text-[10px] mb-1">
+<span class="text-on-surface">Active: 172</span>
+<span class="text-on-surface-variant">Blocked: 30</span>
+</div>
+<div class="flex h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary" style="width: 85%"></div>
+<div class="h-full bg-error" style="width: 15%"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Keys Table -->
+<div class="glass-card rounded-xl overflow-hidden">
+<div class="px-container-padding py-stack-md border-b border-outline-variant flex justify-between items-center bg-surface-container-low/50">
+<h3 class="font-headline-md text-headline-md">Key Inventory Details</h3>
+<div class="flex gap-2">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">filter_list</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface">download</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-md text-body-md border-collapse">
+<thead>
+<tr class="bg-surface-container-low/30 border-b border-outline-variant">
+<th class="px-container-padding py-3 font-label-md text-label-md text-on-surface-variant">ID / NAME</th>
+<th class="px-container-padding py-3 font-label-md text-label-md text-on-surface-variant">PROVIDER</th>
+<th class="px-container-padding py-3 font-label-md text-label-md text-on-surface-variant">KEY MASK</th>
+<th class="px-container-padding py-3 font-label-md text-label-md text-on-surface-variant">STATUS</th>
+<th class="px-container-padding py-3 font-label-md text-label-md text-on-surface-variant">LAST USED</th>
+<th class="px-container-padding py-3 font-label-md text-label-md text-on-surface-variant text-right">QUOTA (24H)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-container-padding py-4 text-on-surface font-medium">Main-Groq-01</td>
+<td class="px-container-padding py-4 text-on-surface-variant">Groq Cloud</td>
+<td class="px-container-padding py-4 font-label-sm opacity-60">gsk_Lq9w...xR2m</td>
+<td class="px-container-padding py-4">
+<span class="inline-flex items-center gap-1.5 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="px-container-padding py-4 text-on-surface-variant">2 mins ago</td>
+<td class="px-container-padding py-4 text-right font-label-sm">4.2k / 10k</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-container-padding py-4 text-on-surface font-medium">GPT4-Backup-X</td>
+<td class="px-container-padding py-4 text-on-surface-variant">OpenAI</td>
+<td class="px-container-padding py-4 font-label-sm opacity-60">sk-proj...T6Yh</td>
+<td class="px-container-padding py-4">
+<span class="inline-flex items-center gap-1.5 text-error">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                                        Rate Limited
+                                    </span>
+</td>
+<td class="px-container-padding py-4 text-on-surface-variant">14 hrs ago</td>
+<td class="px-container-padding py-4 text-right font-label-sm">10k / 10k</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-container-padding py-4 text-on-surface font-medium">Gemini-Pro-Free-09</td>
+<td class="px-container-padding py-4 text-on-surface-variant">Google AI</td>
+<td class="px-container-padding py-4 font-label-sm opacity-60">AIzaSyB..._WpQ</td>
+<td class="px-container-padding py-4">
+<span class="inline-flex items-center gap-1.5 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="px-container-padding py-4 text-on-surface-variant">Just now</td>
+<td class="px-container-padding py-4 text-right font-label-sm">1.8k / 2.5k</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-container-padding py-4 text-on-surface font-medium">Anthropic-High-Priority</td>
+<td class="px-container-padding py-4 text-on-surface-variant">Anthropic</td>
+<td class="px-container-padding py-4 font-label-sm opacity-60">ant-api-k0...9jK</td>
+<td class="px-container-padding py-4">
+<span class="inline-flex items-center gap-1.5 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                                        Active
+                                    </span>
+</td>
+<td class="px-container-padding py-4 text-on-surface-variant">45 mins ago</td>
+<td class="px-container-padding py-4 text-right font-label-sm">82k / 500k</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="px-container-padding py-4 text-on-surface font-medium">Old-Key-Deprecated</td>
+<td class="px-container-padding py-4 text-on-surface-variant">OpenAI</td>
+<td class="px-container-padding py-4 font-label-sm opacity-60">sk-proj...0000</td>
+<td class="px-container-padding py-4">
+<span class="inline-flex items-center gap-1.5 text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                                        Revoked
+                                    </span>
+</td>
+<td class="px-container-padding py-4 text-on-surface-variant">3 months ago</td>
+<td class="px-container-padding py-4 text-right font-label-sm">0 / 0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-container-padding py-3 flex justify-between items-center bg-surface-container-low/20">
+<span class="font-label-md text-label-md text-on-surface-variant">Showing 5 of 1,284 keys</span>
+<div class="flex items-center gap-4">
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface">Previous</button>
+<div class="flex gap-1">
+<span class="w-6 h-6 flex items-center justify-center bg-primary text-on-primary font-label-md text-label-md rounded">1</span>
+<span class="w-6 h-6 flex items-center justify-center text-on-surface-variant hover:bg-surface-container font-label-md text-label-md rounded cursor-pointer">2</span>
+<span class="w-6 h-6 flex items-center justify-center text-on-surface-variant hover:bg-surface-container font-label-md text-label-md rounded cursor-pointer">3</span>
+</div>
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-on-surface">Next</button>
+</div>
+</div>
+</div>
+<!-- High Intensity Log Strip -->
+<div class="glass-card rounded-xl p-stack-sm flex items-center gap-stack-md">
+<div class="px-3 py-1 bg-primary/10 rounded border border-primary/20 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="font-label-md text-label-md text-primary">REAL-TIME TRAFFIC</span>
+</div>
+<div class="flex-1 overflow-hidden">
+<div class="flex gap-stack-lg animate-[marquee_20s_linear_infinite] whitespace-nowrap text-on-surface-variant font-label-sm text-[11px]">
+<span>[21:42:01] Groq main pool balanced...</span>
+<span>[21:42:04] Key Main-Groq-01 usage spike: +200 req/m...</span>
+<span>[21:42:08] Gemini rate limit threshold detected on group 'Alpha'...</span>
+<span>[21:42:12] Automatic rotation enabled for OpenAI tier...</span>
+<span>[21:42:15] Proxy 12.0.4.x responding with 42ms latency...</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Custom animation for the log marquee
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes marquee {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Micro-interactions for buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => btn.classList.add('scale-95'));
+            btn.addEventListener('mouseup', () => btn.classList.remove('scale-95'));
+            btn.addEventListener('mouseleave', () => btn.classList.remove('scale-95'));
+        });
+    </script>
+<!-- Mobile Bottom Nav -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 bg-surface border-t border-outline-variant lg:hidden">
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/overview.html"><span class="material-symbols-outlined">grid_view</span><span class="font-label-sm text-label-sm mt-0.5">Overview</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/sources.html"><span class="material-symbols-outlined">database</span><span class="font-label-sm text-label-sm mt-0.5">Sources</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/studio.html"><span class="material-symbols-outlined">movie_edit</span><span class="font-label-sm text-label-sm mt-0.5">Studio</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/automation.html"><span class="material-symbols-outlined">bolt</span><span class="font-label-sm text-label-sm mt-0.5">Automation</span></a>
+  <a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-container" href="/dashboard/settings.html"><span class="material-symbols-outlined">settings</span><span class="font-label-sm text-label-sm mt-0.5">Settings</span></a>
+</nav>
+<script src="/js/dashboard-data-loader.js"></script>
+<script src="/js/dashboard-functions.js"></script></body></html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — mateAssistent Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#14121c",
+            "surface-container": "#201e29",
+            "surface-container-lowest": "#0e0d17",
+            "primary": "#c9beff",
+            "primary-container": "#6c47ff",
+            "secondary": "#41eec2",
+            "on-surface": "#e6e0ef",
+            "on-surface-variant": "#c9c3d9",
+            "outline-variant": "#484556",
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0A0A0B; font-family: 'Geist', sans-serif; }
+    .glass { background: rgba(20, 18, 28, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(72, 69, 86, 0.3); }
+    .glow { box-shadow: 0 0 60px rgba(108, 71, 255, 0.15); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+  <!-- Background Effects -->
+  <div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-container/10 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-3xl"></div>
+  </div>
+
+  <!-- Login Card -->
+  <div class="glass glow rounded-2xl p-8 w-full max-w-md relative z-10">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-container/20 flex items-center justify-center">
+        <span class="material-symbols-outlined text-primary text-3xl">smart_toy</span>
+      </div>
+      <h1 class="text-2xl font-bold text-on-surface">mateAssistent</h1>
+      <p class="text-on-surface-variant text-sm mt-1">Dashboard Access</p>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="text-sm text-on-surface-variant mb-2 block">Telegram ID</label>
+        <input type="text" id="telegramId" placeholder="Masalan: 8566566223"
+          class="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
+      </div>
+
+      <button type="submit" id="loginBtn"
+        class="w-full bg-primary-container text-on-primary font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all">
+        <span class="material-symbols-outlined">login</span>
+        Kirish
+      </button>
+    </form>
+
+    <!-- Divider -->
+    <div class="flex items-center gap-4 my-6">
+      <div class="flex-1 h-px bg-outline-variant/30"></div>
+      <span class="text-xs text-on-surface-variant">YOKI</span>
+      <div class="flex-1 h-px bg-outline-variant/30"></div>
+    </div>
+
+    <!-- Telegram Bot Link -->
+    <a href="https://t.me/mateAssistent_bot" target="_blank"
+      class="w-full border border-outline-variant text-on-surface py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-surface-container transition-colors">
+      <span class="material-symbols-outlined">send</span>
+      Telegram Bot orqali kirish
+    </a>
+
+    <!-- Error Message -->
+    <div id="errorMsg" class="hidden mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center"></div>
+  </div>
+
+  <script>
+    const DASHBOARD_SECRET = '2d5b291fb6d65429eac3562da57884dab8677f3522780d87a9cb4fe54f473546';
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const telegramId = document.getElementById('telegramId').value.trim();
+      const errorMsg = document.getElementById('errorMsg');
+      const loginBtn = document.getElementById('loginBtn');
+
+      if (!telegramId) {
+        errorMsg.textContent = 'Telegram ID kiriting';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<div class="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div> Tekshirilmoqda...';
+
+      try {
+        const token = await generateToken(telegramId);
+        const response = await fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: telegramId, token: token })
+        });
+
+        if (response.ok) {
+          localStorage.setItem('dashboard_token', token);
+          localStorage.setItem('dashboard_user', telegramId);
+          window.location.href = '/dashboard/overview.html?token=' + token + '&user=' + telegramId;
+        } else {
+          errorMsg.textContent = 'Noto\'g\'ri Telegram ID yoki siz hali ro\'yxatdan o\'tmagansiz';
+          errorMsg.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorMsg.textContent = 'Xatolik yuz berdi. Qaytadan urinib ko\'ring.';
+        errorMsg.classList.remove('hidden');
+      }
+
+      loginBtn.disabled = false;
+      loginBtn.innerHTML = '<span class="material-symbols-outlined">login</span> Kirish';
+    });
+
+    // Simple token generation (matches bot_instance.ts)
+    async function generateToken(userId) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(userId + ':' + DASHBOARD_SECRET);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Check if already logged in
+    const savedToken = localStorage.getItem('dashboard_token');
+    const savedUser = localStorage.getItem('dashboard_user');
+    if (savedToken && savedUser) {
+      window.location.href = '/dashboard/overview.html?token=' + savedToken + '&user=' + savedUser;
+    }
+  </script>
+</body>
+</html>

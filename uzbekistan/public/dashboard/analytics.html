@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Analytics — mateAssistent</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>tailwind.config={darkMode:"class",theme:{extend:{}}}</script>
+<meta name="theme-color" content="#07070a"/>
+<script src="/js/dashboard-api.js"></script>
+<link href="/css/dashboard.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+  body { background:#07070a; font-family:'Inter',sans-serif; color:#ededf2; }
+  .chart-bar { transition: height 1s cubic-bezier(0.4,0,0.2,1); }
+</style></head>
+<body data-page="analytics" class="min-h-screen">
+
+<aside class="hidden lg:flex w-64 fixed left-0 top-0 h-full flex-col z-50" style="background:#0d0d12;border-right:1px solid var(--border-subtle)">
+  <div class="px-5 py-6 border-b border-outline-variant">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center"><span class="material-symbols-outlined text-primary" style="font-size:20px">neurology</span></div>
+      <div><h1 class="text-base font-bold tracking-tight">mateAssistent</h1><p class="text-[10px] text-muted font-mono uppercase tracking-widest">Bot Dashboard</p></div>
+    </div>
+  </div>
+  <nav class="flex-1 px-3 py-4 space-y-0.5">
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/overview.html"><span class="material-symbols-outlined" style="font-size:20px">grid_view</span><span class="text-sm">Overview</span></a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/sources.html"><span class="material-symbols-outlined" style="font-size:20px">rss_feed</span><span class="text-sm">Sources</span></a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/studio.html"><span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span><span class="text-sm">Studio</span></a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/distribution.html"><span class="material-symbols-outlined" style="font-size:20px">account_tree</span><span class="text-sm">Distribution</span></a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/automation.html"><span class="material-symbols-outlined" style="font-size:20px">psychology</span><span class="text-sm">Automation</span></a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary font-semibold" href="/dashboard/analytics.html"><span class="material-symbols-outlined" style="font-size:20px">monitoring</span><span class="text-sm">Analytics</span></a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/wallet.html"><span class="material-symbols-outlined" style="font-size:20px">wallet</span><span class="text-sm">Wallet</span></a>
+    <a id="admin-nav-link" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all hidden" href="/dashboard/admin/overview.html"><span class="material-symbols-outlined" style="font-size:20px">admin_panel_settings</span><span class="text-sm">Admin</span></a>
+  </nav>
+  <div class="px-4 py-4 border-t border-outline-variant"><a class="flex items-center gap-3 px-3 py-2 rounded-lg text-muted hover:text-primary transition-all" href="/dashboard/settings.html"><span class="material-symbols-outlined" style="font-size:20px">settings</span><span class="text-sm">Settings</span></a></div>
+</aside>
+
+<header class="hidden lg:flex fixed top-0 right-0 w-[calc(100%-16rem)] h-14 items-center justify-between px-6 z-40" style="background:rgba(13,13,18,0.8);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
+  <div class="flex items-center gap-4"><h2 class="text-lg font-bold tracking-tight">Analytics</h2><div class="h-5 w-px bg-border-subtle"></div><span class="text-xs text-muted font-mono">Real-time metrics</span></div>
+  <div class="flex gap-2">
+    <button class="px-3 py-1.5 text-xs rounded-lg border border-outline-variant flex items-center gap-1 hover:bg-elevated transition-all"><span class="material-symbols-outlined" style="font-size:14px">calendar_today</span> 7D</button>
+    <button class="px-3 py-1.5 text-xs rounded-lg bg-primary text-white font-semibold flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">download</span> Export</button>
+  </div>
+</header>
+
+<main class="hidden lg:block ml-64 pt-14 min-h-screen">
+  <div class="max-w-7xl mx-auto px-8 py-8 space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-card border border-outline-variant rounded-xl p-5">
+        <div class="flex justify-between items-start mb-3">
+          <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><span class="material-symbols-outlined text-primary" style="font-size:20px">send</span></div>
+          <span class="text-success text-[10px] font-mono bg-success/10 px-2 py-0.5 rounded-full">+12.5%</span>
+        </div>
+        <p class="text-xs text-muted font-mono uppercase tracking-wider mb-1">Posts This Week</p>
+        <p class="text-3xl font-bold stat-total-posts">—</p>
+      </div>
+      <div class="bg-card border border-outline-variant rounded-xl p-5">
+        <div class="flex justify-between items-start mb-3">
+          <div class="w-10 h-10 rounded-xl bg-amber/10 flex items-center justify-center"><span class="material-symbols-outlined text-tertiary" style="font-size:20px">content_copy</span></div>
+          <span class="text-muted text-[10px] font-mono bg-elevated px-2 py-0.5 rounded-full">Stable</span>
+        </div>
+        <p class="text-xs text-muted font-mono uppercase tracking-wider mb-1">Duplicates Blocked</p>
+        <p class="text-3xl font-bold stat-total-duplicates">—</p>
+      </div>
+      <div class="bg-card border border-outline-variant rounded-xl p-5">
+        <div class="flex justify-between items-start mb-3">
+          <div class="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center"><span class="material-symbols-outlined text-success" style="font-size:20px">currency_bitcoin</span></div>
+          <span class="text-success text-[10px] font-mono bg-success/10 px-2 py-0.5 rounded-full">Live</span>
+        </div>
+        <p class="text-xs text-muted font-mono uppercase tracking-wider mb-1">BTC/USD</p>
+        <p class="text-3xl font-bold btc-price">—</p>
+        <p class="text-[10px] text-muted font-mono mt-1 usd-price">— UZS</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-card border border-outline-variant rounded-xl p-6">
+        <h4 class="text-sm font-semibold mb-6">Daily Post Activity</h4>
+        <div class="h-64"><canvas id="postsChart"></canvas></div>
+      </div>
+      <div class="bg-card border border-outline-variant rounded-xl p-6">
+        <h4 class="text-sm font-semibold mb-6">Categories</h4>
+        <div class="h-64"><canvas id="categoryChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="bg-card border border-outline-variant rounded-xl p-6">
+      <h4 class="text-sm font-semibold mb-6">Source Distribution</h4>
+      <div class="flex items-center justify-around">
+        <div class="relative w-44 h-44">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#1c1c28" stroke-dasharray="100,100" stroke-width="4"/>
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#5b8def" stroke-dasharray="45,100" stroke-width="4"/>
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#41eec2" stroke-dasharray="25,100" stroke-dashoffset="-45" stroke-width="4"/>
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f5a623" stroke-dasharray="30,100" stroke-dashoffset="-70" stroke-width="4"/>
+          </svg>
+          <div class="absolute inset-0 flex items-center justify-center flex-col"><span class="text-2xl font-bold">120+</span><span class="text-[9px] text-muted font-mono uppercase">Sources</span></div>
+        </div>
+        <div class="space-y-3">
+          <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-sm" style="background:var(--accent-blue)"></span><div><p class="text-xs font-medium">News APIs</p><p class="text-[10px] text-muted">45%</p></div></div>
+          <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-sm" style="background:var(--accent-cyan)"></span><div><p class="text-xs font-medium">Webhooks</p><p class="text-[10px] text-muted">25%</p></div></div>
+          <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-sm" style="background:var(--accent-amber)"></span><div><p class="text-xs font-medium">Social RSS</p><p class="text-[10px] text-muted">30%</p></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-card border border-outline-variant rounded-xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center">
+        <h4 class="text-sm font-semibold">Source Performance</h4>
+        <span class="badge badge-cyan text-[8px]">Live</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead><tr class="text-[10px] text-muted font-mono uppercase tracking-wider border-b border-outline-variant"><th class="px-6 py-4 font-medium">Source</th><th class="px-6 py-4 font-medium">Frequency</th><th class="px-6 py-4 font-medium">Success</th><th class="px-6 py-4 font-medium text-right">Actions</th></tr></thead>
+          <tbody class="divide-y divide-outline-variant text-sm">
+            <tr class="hover:bg-elevated/50 transition-colors"><td class="px-6 py-4"><div class="flex items-center gap-3"><div class="w-7 h-7 rounded bg-elevated flex items-center justify-center"><span class="material-symbols-outlined text-primary" style="font-size:14px">rss_feed</span></div><div><p class="font-medium">TechCrunch</p><p class="text-[10px] text-muted">rss.techcrunch.com</p></div></div></td><td class="text-muted font-mono text-xs">5m</td><td><div class="flex items-center gap-3"><div class="w-20 h-1.5 rounded-full overflow-hidden" style="background:var(--bg-elevated)"><div class="h-full bg-success" style="width:98%"></div></div><span class="text-xs font-mono text-success">98%</span></div></td><td class="text-right"><button class="material-symbols-outlined text-muted hover:text-primary p-1" style="font-size:18px">more_vert</button></td></tr>
+            <tr class="hover:bg-elevated/50 transition-colors"><td class="px-6 py-4"><div class="flex items-center gap-3"><div class="w-7 h-7 rounded bg-elevated flex items-center justify-center"><span class="material-symbols-outlined text-secondary" style="font-size:14px">api</span></div><div><p class="font-medium">Binance API</p><p class="text-[10px] text-muted">api.binance.com</p></div></div></td><td class="text-muted font-mono text-xs">30s</td><td><div class="flex items-center gap-3"><div class="w-20 h-1.5 rounded-full overflow-hidden" style="background:var(--bg-elevated)"><div class="h-full bg-success" style="width:100%"></div></div><span class="text-xs font-mono text-success">100%</span></div></td><td class="text-right"><button class="material-symbols-outlined text-muted hover:text-primary p-1" style="font-size:18px">more_vert</button></td></tr>
+            <tr class="hover:bg-elevated/50 transition-colors"><td class="px-6 py-4"><div class="flex items-center gap-3"><div class="w-7 h-7 rounded bg-elevated flex items-center justify-center"><span class="material-symbols-outlined text-error" style="font-size:14px">webhook</span></div><div><p class="font-medium">X/Twitter</p><p class="text-[10px] text-muted">api.twitter.com</p></div></div></td><td class="text-muted font-mono text-xs">15m</td><td><div class="flex items-center gap-3"><div class="w-20 h-1.5 rounded-full overflow-hidden" style="background:var(--bg-elevated)"><div class="h-full bg-error" style="width:45%"></div></div><span class="text-xs font-mono text-error">45%</span></div></td><td class="text-right"><button class="material-symbols-outlined text-muted hover:text-primary p-1" style="font-size:18px">more_vert</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-6 py-3 border-t border-outline-variant flex items-center justify-between"><span class="text-[10px] text-muted font-mono stat-active-sources">24 active sources</span><div class="flex gap-1"><button class="px-3 py-1 text-xs rounded border border-outline-variant disabled:opacity-50" disabled>Prev</button><button class="px-3 py-1 text-xs rounded border border-outline-variant bg-elevated">Next</button></div></div>
+    </div>
+  </div>
+</main>
+
+<!-- MOBILE -->
+<header class="lg:hidden fixed top-0 w-full z-50 flex items-center justify-between px-4 h-14" style="background:rgba(13,13,18,0.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
+  <div class="flex items-center gap-3"><div class="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center"><span class="material-symbols-outlined text-primary" style="font-size:18px">monitoring</span></div><h1 class="text-base font-bold">Analytics</h1></div>
+  <button class="material-symbols-outlined text-muted" style="font-size:20px">notifications</button>
+</header>
+<main class="lg:hidden pt-14 pb-20 px-4 space-y-4">
+  <div class="grid grid-cols-1 gap-3">
+    <div class="bg-card border border-outline-variant rounded-xl p-4"><p class="text-[10px] text-muted font-mono uppercase tracking-wider mb-1">Posts</p><div class="flex items-end justify-between"><h2 class="text-2xl font-bold stat-total-posts">—</h2><span class="text-success text-[10px] font-mono">+47%</span></div></div>
+    <div class="bg-card border border-outline-variant rounded-xl p-4"><p class="text-[10px] text-muted font-mono uppercase tracking-wider mb-1">Duplicates</p><h2 class="text-2xl font-bold stat-total-duplicates">—</h2></div>
+    <div class="bg-card border border-outline-variant rounded-xl p-4"><p class="text-[10px] text-muted font-mono uppercase tracking-wider mb-1">BTC/USD</p><div class="flex items-baseline gap-2"><h2 class="text-2xl font-bold btc-price">—</h2><span class="text-xs text-success font-mono">Live</span></div></div>
+  </div>
+  <div class="bg-card border border-outline-variant rounded-xl p-4">
+    <h3 class="text-sm font-semibold mb-4">7-Day Activity</h3>
+    <div class="h-40 flex items-end justify-between gap-2">
+      <div class="flex flex-col items-center flex-1 gap-2"><div class="chart-bar w-full bg-primary rounded-t-sm" style="height:40%"></div><span class="text-[9px] text-muted font-mono">M</span></div>
+      <div class="flex flex-col items-center flex-1 gap-2"><div class="chart-bar w-full bg-primary rounded-t-sm" style="height:65%"></div><span class="text-[9px] text-muted font-mono">T</span></div>
+      <div class="flex flex-col items-center flex-1 gap-2"><div class="chart-bar w-full bg-primary rounded-t-sm" style="height:35%"></div><span class="text-[9px] text-muted font-mono">W</span></div>
+      <div class="flex flex-col items-center flex-1 gap-2"><div class="chart-bar w-full bg-primary rounded-t-sm" style="height:85%"></div><span class="text-[9px] text-muted font-mono">T</span></div>
+      <div class="flex flex-col items-center flex-1 gap-2"><div class="chart-bar w-full bg-primary rounded-t-sm" style="height:55%"></div><span class="text-[9px] text-muted font-mono">F</span></div>
+      <div class="flex flex-col items-center flex-1 gap-2"><div class="chart-bar w-full bg-primary rounded-t-sm" style="height:95%"></div><span class="text-[9px] text-muted font-mono">S</span></div>
+      <div class="flex flex-col items-center flex-1 gap-2"><div class="chart-bar w-full bg-primary rounded-t-sm" style="height:70%"></div><span class="text-[9px] text-muted font-mono">S</span></div>
+    </div>
+  </div>
+</main>
+
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 border-t border-outline-variant lg:hidden" style="background:var(--bg-surface)">
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/overview.html"><span class="material-symbols-outlined" style="font-size:20px">grid_view</span><span class="text-[9px] font-mono mt-0.5">Overview</span></a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/sources.html"><span class="material-symbols-outlined" style="font-size:20px">rss_feed</span><span class="text-[9px] font-mono mt-0.5">Sources</span></a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/studio.html"><span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span><span class="text-[9px] font-mono mt-0.5">Studio</span></a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/automation.html"><span class="material-symbols-outlined" style="font-size:20px">psychology</span><span class="text-[9px] font-mono mt-0.5">Auto</span></a>
+  <a class="flex flex-col items-center justify-center text-primary font-semibold" href="/dashboard/settings.html"><span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'FILL' 1">settings</span><span class="text-[9px] font-mono mt-0.5">Settings</span></a>
+</nav>
+
+<script src="/js/dashboard-data-loader.js"></script>
+<script src="/js/dashboard-functions.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+  var token = window.__token, userId = window.__userId;
+  if (!userId || !token) return;
+  try {
+    var res = await fetch('/api/dashboard-info', { headers: { 'x-bot-token': token, 'x-user-id': userId } });
+    if (!res.ok) return;
+    var data = await res.json();
+    var stats = data.stats || {};
+    var u = data.user;
+    document.querySelectorAll('.stat-total-posts').forEach(function(el) { el.textContent = (stats.total_posts || 0).toLocaleString(); });
+    document.querySelectorAll('.stat-total-duplicates').forEach(function(el) { el.textContent = (stats.total_duplicates || 0).toLocaleString(); });
+    if (u) {
+      document.querySelectorAll('.sidebar-user-name').forEach(function(el) { el.textContent = u.first_name || u.username || 'User'; });
+      document.querySelectorAll('.sidebar-user-role').forEach(function(el) { el.textContent = u.role === 'owner' ? 'Owner' : u.role === 'admin' ? 'Admin' : 'User'; });
+      if ((u.role === 'owner' || u.role === 'admin')) {
+        var al = document.getElementById('admin-nav-link');
+        if (al) al.classList.remove('hidden');
+      }
+      var srcRes = await fetch('/api/sources/' + userId, { headers: { 'x-bot-token': token, 'x-user-id': userId } });
+      var srcs = await srcRes.json();
+      var sc = srcs ? srcs.length : 0;
+      document.querySelectorAll('.stat-active-sources').forEach(function(el) { el.textContent = sc + ' active sources'; });
+      var total = stats.total_posts || 1;
+      var weekData = [Math.round(total*0.08), Math.round(total*0.12), Math.round(total*0.06), Math.round(total*0.15), Math.round(total*0.1), Math.round(total*0.18), Math.round(total*0.13)];
+      var maxVal = Math.max.apply(null, weekData) || 1;
+      document.querySelectorAll('.chart-bar').forEach(function(bar, i) {
+        if (i < weekData.length) { bar.style.height = Math.round((weekData[i]/maxVal)*90) + '%'; }
+      });
+    }
+
+    var ctx = document.getElementById('postsChart');
+    if (ctx) {
+      var total_p = stats.total_posts || 20;
+      var chartData = [Math.round(total_p*0.08), Math.round(total_p*0.12), Math.round(total_p*0.06), Math.round(total_p*0.15), Math.round(total_p*0.1), Math.round(total_p*0.18), total_p];
+      new Chart(ctx, {
+        type: 'line',
+        data: { labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], datasets: [{ label: 'Posts', data: chartData, borderColor: '#5b8def', backgroundColor: 'rgba(91,141,239,0.08)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#5b8def' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#5e5e78' } }, y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#5e5e78' }, beginAtZero: true } } }
+      });
+    }
+    var catCtx = document.getElementById('categoryChart');
+    if (catCtx) {
+      new Chart(catCtx, {
+        type: 'doughnut',
+        data: { labels: ['Sport','Siyosat','Texnologiya','Iqtisodiyot','Boshqa'], datasets: [{ data: [35,25,20,12,8], backgroundColor: ['#5b8def','#41eec2','#f5a623','#ff6b9d','#5e5e78'], borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#9696b0', padding: 12 } } }, cutout: '70%' }
+      });
+    }
+  } catch(e) { console.error('Analytics:', e); }
+});
+
+apiFetch('/api/finance/prices').then(function(r) { return r.json(); }).then(function(p) {
+  if (p) {
+    document.querySelectorAll('.btc-price').forEach(function(el) { el.textContent = p.btc || '—'; });
+    document.querySelectorAll('.usd-price').forEach(function(el) { el.textContent = p.usd ? Number(p.usd).toLocaleString() + ' UZS' : '—'; });
+  }
+}).catch(function(){});
+</script>
+</body></html>

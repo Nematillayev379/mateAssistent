@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: uzbekistan-news-bot-nematillayev
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/main.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=1024"
+      - key: TELEGRAM_TOKEN
+        sync: false
+      - key: OWNER_ID
+        value: "8566566223"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: GROQ_KEYS
+        sync: false
+      - key: CEREBRAS_KEYS
+        sync: false
+      - key: OPENROUTER_KEYS
+        sync: false
+      - key: GEMINI_KEYS
+        sync: false
+      - key: DASHBOARD_SECRET
+        # IMPORTANT: Paste your actual DASHBOARD_SECRET here before deploying
+        # Generate on your local machine:
+        #   Linux/Mac:  openssl rand -hex 32
+        #   Windows:    [Guid]::NewGuid().ToString('N')
+        # The value below is a placeholder — REPLACE IT with your own secret
+        sync: false
+      - key: TELEGRAM_CHANNEL_ID
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_URLS
+        sync: false
+      - key: PUBLIC_URL
+        value: https://mateassistant.onrender.com
+    region: oregon
