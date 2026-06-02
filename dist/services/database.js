@@ -439,7 +439,7 @@ exports.DBService = {
         await (0, BaseRepository_1.getSupabase)().from('users').update({ daily_digest: enabled, digest_time: time }).eq('telegram_id', userId);
     },
     async getUsersWithDigest() {
-        const { data } = await (0, BaseRepository_1.getSupabase)().from('users').select('*').eq('daily_digest', true).eq('is_approved', 1);
+        const { data } = await (0, BaseRepository_1.getSupabase)().from('users').select('*').eq('daily_digest', true).eq('is_approved', 1).eq('is_active', 1);
         return data || [];
     },
     async getRecentTitlesForDigest(userId, hours = 24) {

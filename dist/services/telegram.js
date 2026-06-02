@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notify = exports.bot = exports.__testing = void 0;
+exports.safeSend = exports.notify = exports.bot = exports.__testing = void 0;
 exports.startBot = startBot;
 const config_1 = require("../config/config");
 const logger_1 = require("../utils/logger");
@@ -44,6 +44,8 @@ const bot_instance_1 = require("./bot_instance");
 Object.defineProperty(exports, "bot", { enumerable: true, get: function () { return bot_instance_1.bot; } });
 Object.defineProperty(exports, "notify", { enumerable: true, get: function () { return bot_instance_1.notify; } });
 const commands_1 = require("../commands");
+const sender_1 = require("./sender");
+Object.defineProperty(exports, "safeSend", { enumerable: true, get: function () { return sender_1.safeSend; } });
 const crypto_1 = __importDefault(require("crypto"));
 const instanceId = crypto_1.default.randomUUID();
 const MAX_RESTART_ATTEMPTS = 10;

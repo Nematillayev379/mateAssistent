@@ -6,15 +6,47 @@ const ai_1 = require("./ai");
 const database_1 = require("./database");
 const logger_1 = require("../utils/logger");
 const activeSearches = new Map();
+function normalizeKeywords(keywords, topic) {
+    const cleaned = (Array.isArray(keywords) ? keywords : [])
+        .map((kw) => String(kw || '').trim().toLowerCase())
+        .filter(Boolean);
+    if (cleaned.length > 0) {
+        return [...new Set(cleaned)].slice(0, 10);
+    }
+    const fallback = String(topic || '').trim().toLowerCase();
+    return fallback ? [fallback] : [];
+}
+function normalizeSearchRecord(search) {
+    if (!search || typeof search !== 'object')
+        return null;
+    const id = String(search.id || '').trim();
+    const topic = String(search.topic || '').trim();
+    if (!id || !topic)
+        return null;
+    const mode = search.mode === 'daily' ? 'daily' : 'instant';
+    const keywords = normalizeKeywords(search.keywords, topic);
+    return {
+        id,
+        userId: Number(search.userId) || 0,
+        topic,
+        keywords,
+        maxResults: Math.min(Math.max(Number(search.maxResults) || 10, 1), 50),
+        mode,
+        isActive: search.isActive !== false,
+        createdAt: Number(search.createdAt) || Date.now(),
+        lastRunAt: typeof search.lastRunAt === 'number' ? search.lastRunAt : undefined,
+    };
+}
 exports.RssSearchService = {
     async createSearch(userId, topic, keywords, maxResults, mode) {
+        const safeTopic = String(topic || '').trim();
         const search = {
             id: `search_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
             userId,
-            topic,
-            keywords,
+            topic: safeTopic,
+            keywords: normalizeKeywords(keywords, safeTopic),
             maxResults: Math.min(Math.max(maxResults, 1), 50),
-            mode,
+            mode: mode === 'daily' ? 'daily' : 'instant',
             isActive: true,
             createdAt: Date.now(),
         };
@@ -42,7 +74,10 @@ exports.RssSearchService = {
             if (user?.rss_searches) {
                 try {
                     const searches = JSON.parse(user.rss_searches);
-                    activeSearches.set(userId, searches);
+                    const normalized = Array.isArray(searches)
+                        ? searches.map(normalizeSearchRecord).filter(Boolean)
+                        : [];
+                    activeSearches.set(userId, normalized);
                 }
                 catch {
                     activeSearches.set(userId, []);
@@ -64,18 +99,19 @@ exports.RssSearchService = {
         if (!search)
             return [];
         const user = await database_1.DBService.getUser(search.userId);
-        if (!user || !user.target_channel)
+        if (!user)
             return [];
         const sources = await database_1.DBService.getUserSources(search.userId);
         if (!sources.length)
             return [];
+        const keywords = normalizeKeywords(search.keywords, search.topic);
         const allResults = [];
         for (const source of sources.slice(0, 5)) {
             try {
                 const articles = await scraper_1.ScraperService.fetchRSS(source.url);
                 for (const article of articles.slice(0, 20)) {
                     const text = `${article.title || ''} ${article.contentSnippet || article.content || ''}`.toLowerCase();
-                    const matchesKeyword = search.keywords.some(kw => text.includes(kw.toLowerCase()));
+                    const matchesKeyword = keywords.some(kw => text.includes(kw.toLowerCase()));
                     const matchesTopic = text.includes(search.topic.toLowerCase());
                     if (matchesKeyword || matchesTopic) {
                         const score = this.calculateRelevance(article, search);
@@ -102,9 +138,10 @@ exports.RssSearchService = {
     calculateRelevance(article, search) {
         let score = 0;
         const text = `${article.title || ''} ${article.contentSnippet || article.content || ''}`.toLowerCase();
+        const keywords = normalizeKeywords(search.keywords, search.topic);
         if (text.includes(search.topic.toLowerCase()))
             score += 10;
-        for (const kw of search.keywords) {
+        for (const kw of keywords) {
             if (text.includes(kw.toLowerCase()))
                 score += 5;
         }

@@ -39,22 +39,49 @@ const logger_1 = require("../utils/logger");
 const ai_1 = require("../services/ai");
 const bot_instance_1 = require("../services/bot_instance");
 const i18n_1 = require("../services/i18n");
+const config_1 = require("../config/config");
+let digestJobRunning = false;
+function getZonedParts(date, timeZone) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).formatToParts(date);
+    const map = {};
+    for (const part of parts) {
+        if (part.type !== 'literal')
+            map[part.type] = part.value;
+    }
+    return {
+        date: `${map.year}-${map.month}-${map.day}`,
+        hour: Number(map.hour || 0),
+        minute: Number(map.minute || 0),
+    };
+}
 async function processDailyDigests() {
-    const now = new Date();
+    if (digestJobRunning) {
+        logger_1.logger.debug('Daily digest already running; skipping this tick.');
+        return;
+    }
+    digestJobRunning = true;
     try {
         const users = await database_1.DBService.getUsersWithDigest();
-        const uzbNow = new Date(now.getTime() + (5 * 60 * 60 * 1000));
-        const today = uzbNow.toISOString().split('T')[0];
+        const now = new Date();
+        const zonedNow = getZonedParts(now, config_1.CONFIG.TIMEZONE);
+        const currentTotal = zonedNow.hour * 60 + zonedNow.minute;
         for (const user of users) {
             if (!user.digest_time)
                 continue;
             const [targetH, targetM] = user.digest_time.split(':').map(Number);
+            if (Number.isNaN(targetH) || Number.isNaN(targetM))
+                continue;
             const targetTotal = targetH * 60 + targetM;
-            const currentTotal = uzbNow.getUTCHours() * 60 + uzbNow.getUTCMinutes();
-            let timeDiff = currentTotal - targetTotal;
-            if (timeDiff < 0)
-                timeDiff += 1440;
-            if (timeDiff >= 0 && timeDiff < 60 && user.digest_last_sent !== today) {
+            const today = zonedNow.date;
+            if (currentTotal === targetTotal && user.digest_last_sent !== today) {
                 logger_1.logger.info(`Sending daily digest to user ${user.telegram_id}`);
                 const success = await sendDigest(user, today);
                 if (success) {
@@ -65,6 +92,9 @@ async function processDailyDigests() {
     }
     catch (err) {
         logger_1.logger.error(`Digest Cron Error: ${err.message}`);
+    }
+    finally {
+        digestJobRunning = false;
     }
 }
 async function sendDigest(user, today) {

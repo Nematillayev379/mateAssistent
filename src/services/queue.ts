@@ -26,7 +26,18 @@ export const scraperQueue = redisOptions ? new Queue('scraper-queue', {
   }
 }) : null;
 
+export const aiQueue = redisOptions ? new Queue('ai-queue', {
+  connection: redisOptions,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: { type: 'exponential', delay: 5000 },
+    removeOnComplete: true,
+    removeOnFail: true,
+  }
+}) : null;
+
 if (scraperQueue) scraperQueue.on('error', handleLimitError);
+if (aiQueue) aiQueue.on('error', handleLimitError);
 
 export function isRedisAvailable(): boolean {
   const pool = getRedisPool();
@@ -47,6 +58,25 @@ export async function addScraperJob(data: any): Promise<boolean> {
     return true;
   } catch (err: any) {
     logger.error(`addScraperJob failed: ${err.message}`);
+    return false;
+  }
+}
+
+export async function addAIJob(data: any): Promise<boolean> {
+  if (!aiQueue) {
+    logger.debug('addAIJob: Redis not available, skipping queue');
+    return false;
+  }
+  const pool = getRedisPool();
+  if (!pool || !pool.hasAvailable()) {
+    logger.debug('addAIJob: all Redis tokens exhausted, skipping queue');
+    return false;
+  }
+  try {
+    await aiQueue.add('process-ai', data);
+    return true;
+  } catch (err: any) {
+    logger.error(`addAIJob failed: ${err.message}`);
     return false;
   }
 }

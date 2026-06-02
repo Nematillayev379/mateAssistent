@@ -52,6 +52,10 @@ if (typeof globalThis.WebSocket === 'undefined') {
 const _startTime = Date.now();
 logger_1.logger.info(`Process started at ${new Date().toISOString()}, PID ${process.pid}`);
 (0, sentry_1.initSentry)();
+function shouldRunSingletonJobs() {
+    const instance = process.env.NODE_APP_INSTANCE;
+    return !instance || instance === '0';
+}
 async function bootstrap() {
     logger_1.logger.info(`Bootstrap started, elapsed ${Date.now() - _startTime}ms`);
     logger_1.logger.info(`Bot deployed at ${new Date().toISOString()}, version ${package_json_1.default.version}`);
@@ -91,12 +95,18 @@ async function bootstrap() {
         (0, dashboard_1.startDashboardServer)(PORT, telegram_1.bot);
         await (0, telegram_1.startBot)();
         await (0, jobs_1.startWorkers)();
-        const { SchedulerService } = await Promise.resolve().then(() => __importStar(require('./services/scheduler')));
-        SchedulerService.setup();
-        (0, rss_cron_1.setupRSSCron)();
-        (0, jobs_1.setupSystemCrons)();
-        const { setupHealthMonitoring } = await Promise.resolve().then(() => __importStar(require('./services/health_monitor')));
-        setupHealthMonitoring();
+        if (shouldRunSingletonJobs()) {
+            const { SchedulerService } = await Promise.resolve().then(() => __importStar(require('./services/scheduler')));
+            SchedulerService.setup();
+            (0, rss_cron_1.setupRSSCron)();
+            (0, jobs_1.setupSystemCrons)();
+            const { setupHealthMonitoring } = await Promise.resolve().then(() => __importStar(require('./services/health_monitor')));
+            setupHealthMonitoring();
+            logger_1.logger.info('Singleton cron jobs enabled on this instance');
+        }
+        else {
+            logger_1.logger.info(`Singleton cron jobs skipped on PM2 instance ${process.env.NODE_APP_INSTANCE}`);
+        }
         if (config_1.CONFIG.OWNER_ID) {
             telegram_1.bot.sendMessage(config_1.CONFIG.OWNER_ID, `✅ Bot started\nVersion: ${package_json_1.default.version}\nUptime: ${Math.round(process.uptime())}s`).catch(() => { });
         }

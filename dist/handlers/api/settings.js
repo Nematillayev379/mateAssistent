@@ -5,6 +5,21 @@ const database_1 = require("../../services/database");
 const bot_instance_1 = require("../../services/bot_instance");
 const auth_1 = require("../auth");
 function registerSettingsRoutes(app) {
+    function normalizeDigestTime(value) {
+        if (typeof value !== 'string')
+            return null;
+        const trimmed = value.trim();
+        const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+        if (!match)
+            return null;
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        if (!Number.isInteger(hours) || !Number.isInteger(minutes))
+            return null;
+        if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59)
+            return null;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
     app.post('/api/settings/:userId/toggle', auth_1.checkAuth, async (req, res) => {
         const uid = parseInt(req.authenticatedUserId);
         const u = await database_1.DBService.getUser(uid);
@@ -32,6 +47,10 @@ function registerSettingsRoutes(app) {
     app.post('/api/settings/:userId', auth_1.checkAuth, async (req, res) => {
         const { language, target_channel, keywords, daily_digest, digest_time, interval_minutes } = req.body;
         const userId = parseInt(req.authenticatedUserId);
+        const normalizedDigestTime = digest_time !== undefined ? normalizeDigestTime(digest_time) : null;
+        if (digest_time !== undefined && !normalizedDigestTime) {
+            return res.status(400).json({ error: 'Invalid digest_time format. Use HH:MM.' });
+        }
         if (typeof target_channel === 'string' && target_channel.trim()) {
             const normalized = database_1.DBService.normalizeTargetChannel(target_channel);
             if (!normalized.startsWith('@') && !normalized.startsWith('-100'))
@@ -54,8 +73,8 @@ function registerSettingsRoutes(app) {
             updates.target_channel = target_channel;
         if (daily_digest !== undefined)
             updates.daily_digest = daily_digest;
-        if (digest_time !== undefined)
-            updates.digest_time = digest_time;
+        if (normalizedDigestTime !== null)
+            updates.digest_time = normalizedDigestTime;
         if (interval_minutes !== undefined)
             updates.interval_minutes = Math.max(Math.min(Number(interval_minutes) || 15, 1440), 1);
         const ok = Object.keys(updates).length ? await database_1.DBService.updateUser(userId, updates) : true;
@@ -76,6 +95,10 @@ function registerSettingsRoutes(app) {
         const { language, target_channel, keywords, daily_digest, digest_time, schedule_times, interval_minutes } = req.body;
         const userId = parseInt(req.authenticatedUserId);
         const safeInterval = Math.max(Math.min(Number(interval_minutes) || 15, 1440), 1);
+        const normalizedDigestTime = digest_time !== undefined ? normalizeDigestTime(digest_time) : null;
+        if (digest_time !== undefined && !normalizedDigestTime) {
+            return res.status(400).json({ error: 'Invalid digest_time format. Use HH:MM.' });
+        }
         if (typeof target_channel === 'string' && target_channel.trim()) {
             const normalized = database_1.DBService.normalizeTargetChannel(target_channel);
             if (!normalized.startsWith('@') && !normalized.startsWith('-100'))
@@ -99,8 +122,8 @@ function registerSettingsRoutes(app) {
         }
         if (daily_digest !== undefined)
             updates.daily_digest = daily_digest;
-        if (digest_time !== undefined)
-            updates.digest_time = digest_time;
+        if (normalizedDigestTime !== null)
+            updates.digest_time = normalizedDigestTime;
         if (schedule_times !== undefined)
             updates.schedule_times = schedule_times;
         if (interval_minutes !== undefined)

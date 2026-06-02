@@ -2,6 +2,7 @@ import { CONFIG } from "../config/config";
 import { logger } from "../utils/logger";
 import { bot, notify } from "./bot_instance";
 import { registerCommands } from "../commands";
+import { safeSend } from "./sender";
 import crypto from "crypto";
 
 const instanceId = crypto.randomUUID();
@@ -162,3 +163,4 @@ export const __testing = {
 };
 
 export { bot, notify };
+export { safeSend };

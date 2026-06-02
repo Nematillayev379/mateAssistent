@@ -113,7 +113,7 @@ function scheduleDailyRssSearch() {
     });
 }
 function scheduleDailyDigest() {
-    node_cron_1.default.schedule("*/15 * * * *", async () => {
+    node_cron_1.default.schedule("* * * * *", async () => {
         try {
             const { processDailyDigests } = await Promise.resolve().then(() => __importStar(require("./digest_cron")));
             await processDailyDigests();
