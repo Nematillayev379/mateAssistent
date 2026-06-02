@@ -32,8 +32,9 @@
     if (!prompt) { showToast('Mavzu kiriting!', 'error'); return; }
     var btn = $('#btn-ai'); if (btn) btn.disabled = true;
     var lang = window.__userLang || 'uz';
+    var size = $('#ai-size')?.value || 'medium';
     try {
-      var r = await apiFetch('/api/ai/smm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt:prompt, language:lang, withImage:!!$('#ai-image')?.checked }) });
+      var r = await apiFetch('/api/ai/smm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt:prompt, language:lang, size:size, withImage:!!$('#ai-image')?.checked }) });
       if (!r.ok) { var e = await r.json(); throw new Error(e.error || 'Xatolik'); }
       var d = await r.json();
       if (!d.text || d.text.length < 10) throw new Error('AI post yaratmadi. API kalitlarini tekshiring.');

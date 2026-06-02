@@ -19,12 +19,13 @@ export function registerAiRoutes(app: express.Application) {
   });
 
   app.post('/api/ai/smm', checkAuth, aiLimiter, async (req: any, res: any) => {
-    const { prompt, withImage, language } = req.body;
+    const { prompt, withImage, language, size } = req.body;
     if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return res.status(400).json({ error: 'Prompt bo\'sh bo\'lishi mumkin emas.' });
     try {
       const user = await DBService.getUser(parseInt(req.authenticatedUserId));
       const postLanguage = typeof language === 'string' && language.trim() ? language.trim().slice(0, 8) : user?.language || 'uz';
-      const [text, img] = await Promise.all([generateSmmPost(prompt.trim(), postLanguage), withImage === true || withImage === 'true' ? generateSmmImage(prompt.trim()) : Promise.resolve(null)]);
+      const postSize = size === 'short' || size === 'medium' || size === 'long' ? size : 'medium';
+      const [text, img] = await Promise.all([generateSmmPost(prompt.trim(), postLanguage, postSize), withImage === true || withImage === 'true' ? generateSmmImage(prompt.trim()) : Promise.resolve(null)]);
       res.json({ text, imageUrl: img?.imageUrl || null, imageBase64: img?.imageBase64 || null });
     } catch (e: any) { logger.error(`SMM generate error: ${e.message}`); res.status(500).json({ error: 'AI xatolik' }); }
   });

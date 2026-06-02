@@ -520,7 +520,7 @@ export function getActiveKeyStats() {
   };
 }
 
-export async function generateSmmPost(topic: string, lang: string = "uz"): Promise<string> {
+export async function generateSmmPost(topic: string, lang: string = "uz", size: 'short' | 'medium' | 'long' = 'medium'): Promise<string> {
   if (activeKeys.length === 0) {
     await refreshKeyPool();
   }
@@ -548,12 +548,18 @@ export async function generateSmmPost(topic: string, lang: string = "uz"): Promi
     ko: "한국어로만 작성하세요.",
     fa: "فقط به فارسی بنویسید.",
   };
+  const sizeGuides: Record<typeof size, string> = {
+    short: "45-70 so'z, 1 qisqa paragraph va 1 CTA.",
+    medium: "80-140 so'z, 2-3 qisqa paragraph va 1 CTA.",
+    long: "150-220 so'z, 3-4 paragraph va aniq CTA.",
+  };
   const systemPrompt =
     "Siz mashhur Telegram kanallari uchun SMM post yozuvchisisiz.\n" +
     `${languagePromptMap[lang] || languagePromptMap.uz}\n` +
     "Foydalanuvchi bergan MAVZU — postning yagona mavzusi; boshqa mavzuga o'tmang.\n" +
-    "Format: qiziqarli sarlavha (1 qator), keyin 3-4 qisqa paragraph, oxirida CTA.\n" +
-    "80-140 so'z, tegishli emojilar (4-8 ta).\n" +
+    `Post hajmi: ${sizeGuides[size]}\n` +
+    "Format: qiziqarli sarlavha (1 qator), keyin qisqa, ixcham matn va oxirida CTA.\n" +
+    "Tegishli emojilar ishlating, lekin ortiqcha bezatmang.\n" +
     "Taqiqlangan: umumiy salomlashish, 'bugun sizga', mavzudan uzoq matn, inglizcha so'zlar.\n" +
     "Faqat tayyor post matnini qaytaring.";
 

@@ -34,26 +34,35 @@ function tt(key, fallback) {
     return fallback || key;
 }
 
+function $(selector) {
+    var els = document.querySelectorAll(selector);
+    if (els.length <= 1) return els[0];
+    return Array.from(els).find(function (el) {
+        return el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0;
+    }) || els[0];
+}
+
 async function generateAIPost() {
-    var prompt = document.getElementById('ai-prompt').value;
+    var prompt = $('#ai-prompt')?.value;
     if (!prompt) { showToast(tt('search_query_required', 'Please enter a search term.'), 'error'); return; }
-    var btn = document.getElementById('btn-ai');
+    var btn = $('#btn-ai');
     var originalInnerHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = document.getElementById('ai-image').checked
+    btn.innerHTML = $('#ai-image')?.checked
         ? '<i class="fas fa-spinner fa-spin"></i> ' + tt('loading', 'Loading...') + '...'
         : '<i class="fas fa-spinner fa-spin"></i> ' + tt('loading', 'Loading...') + '...';
     try {
-        var language = document.getElementById('post-lang')?.value || userData?.user?.language || 'uz';
-        var res = await apiFetch('/api/ai/smm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ prompt: prompt, language: language, withImage: document.getElementById('ai-image').checked }) });
+        var language = $('#post-lang')?.value || userData?.user?.language || 'uz';
+        var size = $('#ai-size')?.value || 'medium';
+        var res = await apiFetch('/api/ai/smm', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ prompt: prompt, language: language, size: size, withImage: !!$('#ai-image')?.checked }) });
         if (!res.ok) { var error = await res.json(); throw new Error(error.error || tt('common_error', 'An error occurred')); }
         var data = await res.json();
         if (!data.text || data.text.length < 10) throw new Error(tt('ai_post_not_generated', 'AI post was not generated. Check your API keys (GROQ/GEMINI).'));
-        document.getElementById('ai-result').style.display = 'block';
-        document.getElementById('ai-res-text').textContent = data.text;
-        var copyBtn = document.getElementById('ai-copy-btn');
+        $('#ai-result').style.display = 'block';
+        $('#ai-res-text').textContent = data.text;
+        var copyBtn = $('#ai-copy-btn');
         if (copyBtn) copyBtn.style.display = 'inline-block';
-        var img = document.getElementById('ai-res-img');
+        var img = $('#ai-res-img');
         window.lastSmmImageBase64 = data.imageBase64 || null;
         var imgSrc = data.imageBase64 || data.imageUrl;
         if (imgSrc) {
@@ -62,23 +71,23 @@ async function generateAIPost() {
             img.src = imgSrc;
             img.style.display = 'block';
         } else { img.style.display = 'none'; }
-    } catch (error) { showToast(tt('common_error', 'An error occurred') + ': ' + error.message, 'error'); document.getElementById('ai-result').style.display = 'none'; }
+    } catch (error) { showToast(tt('common_error', 'An error occurred') + ': ' + error.message, 'error'); $('#ai-result').style.display = 'none'; }
     finally { btn.disabled = false; btn.innerHTML = originalInnerHTML; }
 }
 
 function copyAIPostText() {
-    var text = document.getElementById('ai-res-text').textContent;
+    var text = $('#ai-res-text').textContent;
     navigator.clipboard.writeText(text).then(function () { showToast(tt('common_copied', 'Link copied!'), 'success'); }).catch(function () { showToast(tt('common_error', 'An error occurred'), 'error'); });
 }
 
 async function sendAIPostToChannel() {
-    var text = document.getElementById('ai-res-text').textContent;
-    var img = document.getElementById('ai-res-img');
-    var prompt = document.getElementById('ai-prompt')?.value || '';
+    var text = $('#ai-res-text').textContent;
+    var img = $('#ai-res-img');
+    var prompt = $('#ai-prompt')?.value || '';
     var imageBase64 = img.style.display === 'block' && img.src?.startsWith('data:') ? img.src : window.lastSmmImageBase64;
     var imageUrl = img.style.display === 'block' && img.src?.startsWith('http') ? img.src : null;
     if (!text) return;
-    var btn = document.getElementById('btn-send-ai');
+    var btn = $('#btn-send-ai');
     btn.disabled = true;
     try {
         var res = await apiFetch('/api/ai/post-to-channel', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-bot-token': token }, body: JSON.stringify({ text: text, prompt: prompt, imageUrl: imageUrl, imageBase64: imageBase64 }) });
@@ -88,9 +97,9 @@ async function sendAIPostToChannel() {
 }
 
 async function searchMusic() {
-    var q = document.getElementById('music-q').value;
+    var q = $('#music-q').value;
     if (!q) return;
-    var list = document.getElementById('music-list'); list.innerHTML = '<p>' + tt('loading', 'Qidirilmoqda...') + '</p>';
+    var list = $('#music-list'); list.innerHTML = '<p>' + tt('loading', 'Qidirilmoqda...') + '</p>';
     var res = await apiFetch('/api/music/search?q=' + encodeURIComponent(q), { headers: { 'x-bot-token': token } });
     var data = await res.json();
     list.innerHTML = '';
@@ -135,10 +144,10 @@ async function downloadM(videoId, title, btnEl) { return downloadMusic(videoId, 
 async function downloadAndSendMusic(videoId, title, btnEl) { return sendMusic(videoId, title, btnEl); }
 
 async function downloadMedia(type, btnEl) {
-    var url = document.getElementById('dl-url').value.trim();
+    var url = $('#dl-url').value.trim();
     if (!url) { showToast(tt('video_download_hint', 'Share a YouTube, Instagram, or TikTok link.'), 'error'); return; }
-    var videoBtn = document.getElementById('btn-dl-video');
-    var audioBtn = document.getElementById('btn-dl-audio');
+    var videoBtn = $('#btn-dl-video');
+    var audioBtn = $('#btn-dl-audio');
     var originalBtn = btnEl?.innerHTML;
     if (videoBtn) videoBtn.disabled = true;
     if (audioBtn) audioBtn.disabled = true;
@@ -161,13 +170,13 @@ async function downloadMedia(type, btnEl) {
 }
 
 async function generateVoiceNews() {
-    var status = document.getElementById('voice-status');
-    var title = document.getElementById('voice-title')?.value?.trim() || '';
-    var text = document.getElementById('voice-text')?.value?.trim() || '';
+    var status = $('#voice-status');
+    var title = $('#voice-title')?.value?.trim() || '';
+    var text = $('#voice-text')?.value?.trim() || '';
     if (!title && !text) { showToast(tt('voice_news_empty', 'Please enter a title or text.'), 'error'); if (status) status.textContent = tt('voice_news_empty', 'Please enter a title or text.'); return; }
     if (status) status.textContent = tt('loading', 'Loading...');
     try {
-        var res = await apiFetch('/api/ai/voice-news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title, text: text, sendToChannel: document.getElementById('voice-to-channel')?.checked }) });
+        var res = await apiFetch('/api/ai/voice-news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title, text: text, sendToChannel: !!$('#voice-to-channel')?.checked }) });
         var data = await res.json();
         if (res.ok) { if (status) status.textContent = tt('bot_media_sent_channel', 'Media was sent to your channel.'); showToast(tt('bot_media_sent_channel', 'Media was sent to your channel.'), 'success'); }
         else { if (status) status.textContent = data.error || tt('common_error', 'An error occurred'); showToast(data.error || tt('voice_generation_failed', 'Voice generation failed'), 'error'); }
@@ -175,7 +184,7 @@ async function generateVoiceNews() {
 }
 
 (function() {
-    var musicInput = document.getElementById('music-q');
+    var musicInput = $('#music-q');
     if (musicInput) {
         musicInput.placeholder = tt('music_search_placeholder', musicInput.placeholder || 'Artist or song...');
         musicInput.addEventListener('keydown', function (event) {

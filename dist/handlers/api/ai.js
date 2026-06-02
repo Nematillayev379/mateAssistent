@@ -23,13 +23,14 @@ function registerAiRoutes(app) {
         message: { error: 'AI request limit exceeded.' }
     });
     app.post('/api/ai/smm', auth_1.checkAuth, aiLimiter, async (req, res) => {
-        const { prompt, withImage, language } = req.body;
+        const { prompt, withImage, language, size } = req.body;
         if (!prompt || typeof prompt !== 'string' || prompt.trim() === '')
             return res.status(400).json({ error: 'Prompt bo\'sh bo\'lishi mumkin emas.' });
         try {
             const user = await database_1.DBService.getUser(parseInt(req.authenticatedUserId));
             const postLanguage = typeof language === 'string' && language.trim() ? language.trim().slice(0, 8) : user?.language || 'uz';
-            const [text, img] = await Promise.all([(0, ai_1.generateSmmPost)(prompt.trim(), postLanguage), withImage === true || withImage === 'true' ? (0, ai_1.generateSmmImage)(prompt.trim()) : Promise.resolve(null)]);
+            const postSize = size === 'short' || size === 'medium' || size === 'long' ? size : 'medium';
+            const [text, img] = await Promise.all([(0, ai_1.generateSmmPost)(prompt.trim(), postLanguage, postSize), withImage === true || withImage === 'true' ? (0, ai_1.generateSmmImage)(prompt.trim()) : Promise.resolve(null)]);
             res.json({ text, imageUrl: img?.imageUrl || null, imageBase64: img?.imageBase64 || null });
         }
         catch (e) {
