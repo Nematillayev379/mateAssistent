@@ -18,6 +18,11 @@ logger.info(`Process started at ${new Date().toISOString()}, PID ${process.pid}`
 
 initSentry();
 
+function shouldRunSingletonJobs(): boolean {
+  const instance = process.env.NODE_APP_INSTANCE;
+  return !instance || instance === '0';
+}
+
 async function bootstrap() {
   logger.info(`Bootstrap started, elapsed ${Date.now() - _startTime}ms`);
   logger.info(`Bot deployed at ${new Date().toISOString()}, version ${pkg.version}`);
@@ -58,13 +63,18 @@ async function bootstrap() {
     startDashboardServer(PORT, bot);
     await startBot();
     await startWorkers();
-    const { SchedulerService } = await import('./services/scheduler');
-    SchedulerService.setup();
-    setupRSSCron();
-    setupSystemCrons();
+    if (shouldRunSingletonJobs()) {
+      const { SchedulerService } = await import('./services/scheduler');
+      SchedulerService.setup();
+      setupRSSCron();
+      setupSystemCrons();
 
-    const { setupHealthMonitoring } = await import('./services/health_monitor');
-    setupHealthMonitoring();
+      const { setupHealthMonitoring } = await import('./services/health_monitor');
+      setupHealthMonitoring();
+      logger.info('Singleton cron jobs enabled on this instance');
+    } else {
+      logger.info(`Singleton cron jobs skipped on PM2 instance ${process.env.NODE_APP_INSTANCE}`);
+    }
 
     if (CONFIG.OWNER_ID) {
       bot.sendMessage(CONFIG.OWNER_ID, `✅ Bot started\nVersion: ${pkg.version}\nUptime: ${Math.round(process.uptime())}s`).catch(() => {});

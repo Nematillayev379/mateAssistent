@@ -77,7 +77,7 @@ function scheduleDailyRssSearch() {
 }
 
 function scheduleDailyDigest() {
-  cron.schedule("*/15 * * * *", async () => {
+  cron.schedule("* * * * *", async () => {
     try {
       const { processDailyDigests } = await import("./digest_cron");
       await processDailyDigests();

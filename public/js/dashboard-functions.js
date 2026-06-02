@@ -274,6 +274,23 @@
   };
 
   // ─── Premium / Wallet ─────────────────────
+  function syncPayMethodButtons() {
+    var activeMethod = window.__payMethod || 'stars';
+    $$('.pay-method-btn').forEach(function(btn) {
+      var method = btn.dataset.payMethod || 'stars';
+      var baseClass = btn.dataset.baseClass || btn.className;
+      var activeClass = btn.dataset.activeClass || '';
+      var inactiveClass = btn.dataset.inactiveClass || '';
+      btn.className = [baseClass, method === activeMethod ? activeClass : inactiveClass].filter(Boolean).join(' ').trim();
+    });
+  }
+
+  window.setPayMethod = function (method) {
+    if (!method) return;
+    window.__payMethod = method;
+    syncPayMethodButtons();
+  };
+
   window.loadPremium = async function () {
     try {
       var r = await apiFetch('/api/premium-info');
@@ -300,18 +317,16 @@
         container.innerHTML = '';
         [['stars','Stars','⭐'], ['usdt','USDT (TRC-20)','💎'], ['ton','TON','💎']].forEach(function(item){
           var btn = document.createElement('button');
-          btn.className = 'pay-method-btn px-4 py-2 border border-outline-variant rounded-lg text-sm hover:bg-surface-container ' + (window.__payMethod===item[0]?'bg-primary-container text-on-primary-container':'');
+          btn.dataset.payMethod = item[0];
+          btn.dataset.baseClass = 'pay-method-btn px-4 py-2 border rounded-lg text-sm transition-all';
+          btn.dataset.activeClass = 'border-primary/30 bg-primary-container text-on-primary-container';
+          btn.dataset.inactiveClass = 'border-outline-variant hover:bg-surface-container';
           btn.type = 'button';
           btn.textContent = item[1] + (m[item[0]] ? '' : ' (—)');
-          btn.onclick = function(){
-            window.__payMethod = item[0];
-            $$('#payment-methods .pay-method-btn').forEach(function(b){
-              b.className = 'pay-method-btn px-4 py-2 border border-outline-variant rounded-lg text-sm hover:bg-surface-container';
-            });
-            btn.className = 'pay-method-btn px-4 py-2 border border-outline-variant rounded-lg text-sm bg-primary-container text-on-primary-container';
-          };
+          btn.onclick = function(){ window.setPayMethod(item[0]); };
           container.appendChild(btn);
         });
+        syncPayMethodButtons();
       }
     } catch(e) {}
   };
@@ -331,6 +346,144 @@
       if (d.success) showToast('Premium aktiv!','success');
       else showToast(d.error||'Xatolik','error');
     } catch(e) { showToast('Xatolik','error'); }
+  };
+
+  // ─── Studio: RSS Search ─────────────────────
+  function renderRssSearchResults(results, summary, topic) {
+    var box = $('#rss-search-results');
+    if (!box) return;
+
+    if ((!results || !results.length) && !summary) {
+      box.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-muted"><span class="material-symbols-outlined opacity-30" style="font-size:36px">manage_search</span><p class="text-xs mt-2">Natijalar shu yerda</p></div>';
+      return;
+    }
+
+    var html = '';
+    if (summary) {
+      html += '<div class="mb-4 p-3 rounded-xl border border-outline-variant bg-[#111113]">';
+      html += '<div class="text-[10px] uppercase tracking-wider text-muted font-mono mb-2">Summary</div>';
+      html += '<div class="text-sm leading-relaxed">' + esc(summary) + '</div>';
+      html += '</div>';
+    }
+
+    if (results && results.length) {
+      html += '<div class="space-y-3">';
+      results.forEach(function (item, index) {
+        html += '<div class="p-3 rounded-xl border border-outline-variant bg-[#111113]">';
+        html += '<div class="flex items-start justify-between gap-3">';
+        html += '<div class="min-w-0">';
+        html += '<div class="text-[10px] text-muted font-mono uppercase tracking-wider mb-1">Result ' + (index + 1) + '</div>';
+        html += '<h4 class="text-sm font-semibold leading-snug">' + esc(item.title || topic || 'RSS result') + '</h4>';
+        if (item.source) html += '<p class="text-xs text-muted mt-1">' + esc(item.source) + '</p>';
+        if (item.pubDate) html += '<p class="text-[10px] text-muted font-mono mt-1">' + esc(item.pubDate) + '</p>';
+        if (item.url) html += '<a class="text-[11px] text-primary break-all mt-2 inline-block" href="' + esc(item.url) + '" target="_blank" rel="noopener noreferrer">' + esc(item.url) + '</a>';
+        if (item.content) html += '<p class="text-xs text-on-surface-variant mt-2 line-clamp-3">' + esc(item.content) + '</p>';
+        html += '</div>';
+        if (item.relevanceScore != null) {
+          html += '<div class="shrink-0 text-[10px] font-mono px-2 py-1 rounded bg-primary/10 text-primary">Score ' + esc(item.relevanceScore) + '</div>';
+        }
+        html += '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="flex flex-col items-center justify-center h-full text-muted"><span class="material-symbols-outlined opacity-30" style="font-size:36px">search_off</span><p class="text-xs mt-2">Natija topilmadi</p></div>';
+    }
+
+    box.innerHTML = html;
+  }
+
+  window.loadSearchList = async function () {
+    if (!userId) return;
+    var list = $('#rss-search-list');
+    if (!list) return;
+    try {
+      var r = await apiFetch('/api/rss-search/' + userId);
+      var d = await r.json();
+      var searches = Array.isArray(d.searches) ? d.searches : [];
+      if (!searches.length) {
+        list.innerHTML = 'Hozircha qidiruvlar yo\'q';
+        return;
+      }
+      list.innerHTML = searches.map(function (s) {
+        var mode = s.mode === 'daily' ? 'Daily' : 'Instant';
+        var active = s.isActive ? 'Active' : 'Paused';
+        return '<div class="flex items-center justify-between gap-3 p-3 mb-2 rounded-lg border border-outline-variant bg-[#111113]">' +
+          '<div class="min-w-0">' +
+          '<p class="text-sm font-semibold truncate">' + esc(s.topic || 'RSS search') + '</p>' +
+          '<p class="text-[10px] text-muted font-mono mt-1">' + esc(mode) + ' · ' + esc(active) + '</p>' +
+          '</div>' +
+          '<button type="button" class="text-error hover:opacity-80" onclick="deleteRssSearch(\'' + esc(s.id) + '\')">' +
+          '<span class="material-symbols-outlined" style="font-size:16px">delete</span>' +
+          '</button>' +
+          '</div>';
+      }).join('');
+    } catch (e) {
+      list.textContent = 'Qidiruvlar yuklanmadi';
+    }
+  };
+
+  window.deleteRssSearch = async function (searchId) {
+    if (!searchId) return;
+    if (!confirm('Qidiruv o\'chirilsinmi?')) return;
+    try {
+      var r = await apiFetch('/api/rss-search/' + userId + '/' + encodeURIComponent(searchId), { method: 'DELETE' });
+      var d = await r.json();
+      if (d && d.success) {
+        showToast('Qidiruv o\'chirildi', 'success');
+        window.loadSearchList();
+      } else {
+        showToast(d.error || 'Xatolik', 'error');
+      }
+    } catch (e) {
+      showToast('Xatolik', 'error');
+    }
+  };
+
+  window.runRssSearch = async function () {
+    var topicEl = $('#rss-search-topic');
+    var keywordsEl = $('#rss-search-keywords');
+    var maxEl = $('#rss-search-max');
+    var modeEl = $('#rss-search-mode');
+    var topic = topicEl ? topicEl.value.trim() : '';
+    if (!topic) { showToast('Mavzu kiriting', 'error'); return; }
+
+    var keywords = keywordsEl && keywordsEl.value.trim()
+      ? keywordsEl.value.split(',').map(function (k) { return k.trim(); }).filter(Boolean)
+      : [];
+    var maxResults = parseInt(maxEl && maxEl.value ? maxEl.value : '10', 10) || 10;
+    var mode = modeEl && modeEl.value ? modeEl.value : 'instant';
+    var resultsBox = $('#rss-search-results');
+    if (resultsBox) {
+      resultsBox.innerHTML = '<div class="flex items-center gap-2 text-muted"><span class="material-symbols-outlined animate-pulse" style="font-size:18px">progress_activity</span><span class="text-xs">Qidirilmoqda...</span></div>';
+    }
+
+    try {
+      var r = await apiFetch('/api/rss-search/' + userId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: topic, keywords: keywords, maxResults: maxResults, mode: mode })
+      });
+      var d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || 'Qidiruv bajarilmadi');
+
+      if (mode === 'instant') {
+        renderRssSearchResults(d.results || [], d.summary || '', topic);
+        showToast('Instant qidiruv yakunlandi', 'success');
+      } else {
+        renderRssSearchResults([], d.message || 'Qidiruv saqlandi va kunlik ishlaydi', topic);
+        showToast('Kunlik qidiruv saqlandi', 'success');
+      }
+
+      if (topicEl) topicEl.value = '';
+      if (keywordsEl) keywordsEl.value = '';
+      window.loadSearchList();
+    } catch (e) {
+      if (resultsBox) {
+        resultsBox.innerHTML = '<div class="flex flex-col items-center justify-center h-full text-error"><span class="material-symbols-outlined opacity-40" style="font-size:36px">error</span><p class="text-xs mt-2">' + esc(e.message || 'Xatolik') + '</p></div>';
+      }
+      showToast('Xatolik: ' + (e.message || 'Qidiruv bajarilmadi'), 'error');
+    }
   };
 
   function closeCryptoModal() {

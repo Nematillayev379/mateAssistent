@@ -454,7 +454,7 @@ export const DBService = {
   },
 
   async getUsersWithDigest(): Promise<any[]> {
-    const { data } = await getSupabase().from('users').select('*').eq('daily_digest', true).eq('is_approved', 1);
+    const { data } = await getSupabase().from('users').select('*').eq('daily_digest', true).eq('is_approved', 1).eq('is_active', 1);
     return data || [];
   },
 

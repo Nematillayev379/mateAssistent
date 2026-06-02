@@ -4,6 +4,18 @@ import { bot } from '../../services/bot_instance';
 import { checkAuth } from '../auth';
 
 export function registerSettingsRoutes(app: express.Application) {
+  function normalizeDigestTime(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null;
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
   app.post('/api/settings/:userId/toggle', checkAuth, async (req: any, res: any) => {
     const uid = parseInt(req.authenticatedUserId);
     const u = await DBService.getUser(uid);
@@ -31,6 +43,10 @@ export function registerSettingsRoutes(app: express.Application) {
   app.post('/api/settings/:userId', checkAuth, async (req: any, res: any) => {
     const { language, target_channel, keywords, daily_digest, digest_time, interval_minutes } = req.body;
     const userId = parseInt(req.authenticatedUserId);
+    const normalizedDigestTime = digest_time !== undefined ? normalizeDigestTime(digest_time) : null;
+    if (digest_time !== undefined && !normalizedDigestTime) {
+      return res.status(400).json({ error: 'Invalid digest_time format. Use HH:MM.' });
+    }
     if (typeof target_channel === 'string' && target_channel.trim()) {
       const normalized = DBService.normalizeTargetChannel(target_channel);
       if (!normalized.startsWith('@') && !normalized.startsWith('-100')) return res.status(400).json({ error: 'Invalid target channel format' });
@@ -45,7 +61,7 @@ export function registerSettingsRoutes(app: express.Application) {
     if (language !== undefined) updates.language = language;
     if (target_channel !== undefined) updates.target_channel = target_channel;
     if (daily_digest !== undefined) updates.daily_digest = daily_digest;
-    if (digest_time !== undefined) updates.digest_time = digest_time;
+    if (normalizedDigestTime !== null) updates.digest_time = normalizedDigestTime;
     if (interval_minutes !== undefined) updates.interval_minutes = Math.max(Math.min(Number(interval_minutes) || 15, 1440), 1);
     const ok = Object.keys(updates).length ? await DBService.updateUser(userId, updates) : true;
     if (!ok) return res.status(500).json({ error: 'Settings update failed' });
@@ -64,6 +80,10 @@ export function registerSettingsRoutes(app: express.Application) {
     const { language, target_channel, keywords, daily_digest, digest_time, schedule_times, interval_minutes } = req.body;
     const userId = parseInt(req.authenticatedUserId);
     const safeInterval = Math.max(Math.min(Number(interval_minutes) || 15, 1440), 1);
+    const normalizedDigestTime = digest_time !== undefined ? normalizeDigestTime(digest_time) : null;
+    if (digest_time !== undefined && !normalizedDigestTime) {
+      return res.status(400).json({ error: 'Invalid digest_time format. Use HH:MM.' });
+    }
     if (typeof target_channel === 'string' && target_channel.trim()) {
       const normalized = DBService.normalizeTargetChannel(target_channel);
       if (!normalized.startsWith('@') && !normalized.startsWith('-100')) return res.status(400).json({ error: 'Invalid target channel format' });
@@ -80,7 +100,7 @@ export function registerSettingsRoutes(app: express.Application) {
       updates.target_channel = typeof target_channel === 'string' && !target_channel.trim() ? '' : target_channel;
     }
     if (daily_digest !== undefined) updates.daily_digest = daily_digest;
-    if (digest_time !== undefined) updates.digest_time = digest_time;
+    if (normalizedDigestTime !== null) updates.digest_time = normalizedDigestTime;
     if (schedule_times !== undefined) updates.schedule_times = schedule_times;
     if (interval_minutes !== undefined) updates.interval_minutes = safeInterval;
     const ok = Object.keys(updates).length ? await DBService.updateUser(userId, updates) : true;

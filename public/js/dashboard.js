@@ -171,9 +171,10 @@
         }
 
         async function initTonWalletUi() {
-            if (tonConnectUi || !window.TON_CONNECT_UI) return;
+            const TonConnectCtor = window.TonConnectUI || (window.TON_CONNECT_UI && window.TON_CONNECT_UI.TonConnectUI);
+            if (tonConnectUi || !TonConnectCtor) return;
             try {
-                tonConnectUi = new window.TON_CONNECT_UI.TonConnectUI({
+                tonConnectUi = new TonConnectCtor({
                     manifestUrl: `${window.location.origin}/tonconnect-manifest.json`,
                     buttonRootId: 'ton-connect',
                 });

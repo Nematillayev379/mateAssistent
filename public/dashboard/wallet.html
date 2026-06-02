@@ -199,19 +199,19 @@
         <div class="bg-card border border-outline-variant rounded-xl p-6" id="payment-methods">
           <h4 class="text-[10px] text-muted font-mono uppercase tracking-widest mb-4">Payment Method</h4>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <button class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 transition-all">
+            <button type="button" class="pay-method-btn flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all" data-pay-method="stars" data-base-class="pay-method-btn flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all" data-active-class="border-primary/30 bg-primary/5 text-primary" data-inactive-class="border-outline-variant hover:border-muted" onclick="setPayMethod('stars')">
               <span class="material-symbols-outlined" style="font-size:24px">payments</span>
               <span class="text-[10px] font-mono font-semibold">Stars</span>
             </button>
-            <button class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-outline-variant hover:border-muted transition-all">
+            <button type="button" class="pay-method-btn flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all" data-pay-method="ton" data-base-class="pay-method-btn flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all" data-active-class="border-primary/30 bg-primary/5 text-primary" data-inactive-class="border-outline-variant hover:border-muted" onclick="setPayMethod('ton')">
               <span class="material-symbols-outlined text-muted" style="font-size:24px">currency_bitcoin</span>
               <span class="text-[10px] font-mono text-muted">TON</span>
             </button>
-            <button class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-outline-variant hover:border-muted transition-all">
+            <button type="button" class="pay-method-btn flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all" data-pay-method="usdt" data-base-class="pay-method-btn flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all" data-active-class="border-primary/30 bg-primary/5 text-primary" data-inactive-class="border-outline-variant hover:border-muted" onclick="setPayMethod('usdt')">
               <span class="material-symbols-outlined text-muted" style="font-size:24px">monetization_on</span>
               <span class="text-[10px] font-mono text-muted">USDT</span>
             </button>
-            <button class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-outline-variant hover:border-muted transition-all" onclick="connectTonWallet()">
+            <button type="button" class="flex flex-col items-center justify-center gap-2 p-4 rounded-lg border border-outline-variant hover:border-muted transition-all" onclick="connectTonWallet()">
               <span class="material-symbols-outlined text-muted" style="font-size:24px">wallet</span>
               <span class="text-[10px] font-mono text-muted">Wallet</span>
             </button>
@@ -519,10 +519,15 @@
     }
   }
 
+  function getTonConnectCtor() {
+    return window.TonConnectUI || (window.TON_CONNECT_UI && window.TON_CONNECT_UI.TonConnectUI) || null;
+  }
+
   async function connectTonWallet() {
-    if (tonConnectUi || !window.TonConnectUI) return;
+    var TonConnectCtor = getTonConnectCtor();
+    if (tonConnectUi || !TonConnectCtor) return;
     try {
-      tonConnectUi = new window.TonConnectUI({
+      tonConnectUi = new TonConnectCtor({
         manifestUrl: window.location.origin + '/tonconnect-manifest.json',
         buttonRootId: 'ton-connect',
       });
@@ -545,7 +550,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    if (window.TonConnectUI) connectTonWallet();
+    if (getTonConnectCtor()) connectTonWallet();
   });
 
   document.querySelectorAll('button, a').forEach(function(el) {
