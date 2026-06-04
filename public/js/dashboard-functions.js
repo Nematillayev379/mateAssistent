@@ -563,22 +563,71 @@
       var r = await apiFetch('/api/admin/users');
       var data = await r.json();
       if (!Array.isArray(data)) return;
-      var list = $('#admin-users-list'); if (!list) return;
-      list.innerHTML = '';
-      data.forEach(function(u){
-        list.innerHTML += '<div class="bg-[#111113] border border-[#1E1E22] rounded-xl p-stack-md mt-2"><div class="flex justify-between items-center"><div><p class="font-body-md font-bold">'+esc(u.first_name||u.username||u.telegram_id)+'</p><p class="text-on-surface-variant text-sm">ID: '+u.telegram_id+' | '+(u.role||'user')+' | '+(u.is_premium?'Premium':'Free')+'</p></div><div class="flex gap-2 flex-wrap">'+(u.is_approved?'':'<button class="px-2 py-1 bg-secondary-container/10 text-secondary rounded text-xs" onclick="adminUserAction('+u.telegram_id+',\'approve\')">Approve</button>')+'<button class="px-2 py-1 border border-error/30 text-error rounded text-xs" onclick="adminUserAction('+u.telegram_id+',\'block\')">Block</button>'+(u.is_premium?'<button class="px-2 py-1 border border-error/30 text-error rounded text-xs" onclick="adminUserAction('+u.telegram_id+',\'revoke\')">Revoke</button>':'<button class="px-2 py-1 bg-primary-container/10 text-primary rounded text-xs" onclick="adminUserAction('+u.telegram_id+',\'premium\')">Premium</button>')+'</div></div></div>';
-      });
-    } catch(e) {}
+      var tbody = $('#admin-users-tbody');
+      if (!tbody) return;
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="px-5 py-12 text-center text-muted font-mono text-sm">Foydalanuvchilar yo\'q</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(function(u){
+        var role = (u.role || 'user');
+        var roleLabel = role.toUpperCase();
+        var roleStyle = role === 'owner' ? 'background:rgba(245,166,35,0.12);color:var(--accent-amber);border:1px solid rgba(245,166,35,0.2)'
+          : role === 'admin' ? 'background:rgba(91,141,239,0.12);color:var(--accent-blue);border:1px solid rgba(91,141,239,0.2)'
+          : role === 'premium' ? 'background:rgba(65,238,194,0.12);color:var(--accent-cyan);border:1px solid rgba(65,238,194,0.2)'
+          : u.is_blocked || !u.is_active ? 'background:rgba(255,71,87,0.12);color:var(--accent-red);border:1px solid rgba(255,71,87,0.2)'
+          : 'background:rgba(94,94,120,0.12);color:var(--text-muted);border:1px solid rgba(94,94,120,0.2)';
+        var initial = (u.first_name || u.username || '?').charAt(0).toUpperCase();
+        var initialBg = role === 'owner' ? 'bg-amber/10 text-tertiary'
+          : role === 'admin' ? 'bg-primary/10 text-primary'
+          : role === 'premium' || u.is_premium ? 'bg-secondary/10 text-secondary'
+          : u.is_blocked || !u.is_active ? 'bg-error/10 text-error'
+          : 'bg-elevated text-muted';
+        var isPremium = u.is_premium;
+        var isActive = u.is_active !== false && !u.is_blocked;
+        var dotClass = isActive ? 'bg-success shadow-[0_0_8px_rgba(46,213,115,0.5)]' : (u.is_blocked || !u.is_active ? 'bg-error shadow-[0_0_8px_rgba(255,71,87,0.5)]' : 'bg-muted');
+        var actions = [];
+        if (!u.is_approved) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-success" onclick="adminUserAction('+u.telegram_id+',\'approve\')">✓ Approve</button>');
+        if (u.is_active !== false && !u.is_blocked) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-error" onclick="adminUserAction('+u.telegram_id+',\'block\')">⊘ Block</button>');
+        else actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-success" onclick="adminUserAction('+u.telegram_id+',\'unblock\')">↻ Unblock</button>');
+        if (isPremium) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-error" onclick="adminUserAction('+u.telegram_id+',\'revoke\')">✕ Revoke Premium</button>');
+        else actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-primary" onclick="adminUserAction('+u.telegram_id+',\'premium\')">★ Grant Premium</button>');
+        return '<tr class="admin-row hover:bg-elevated/50 transition-all">' +
+          '<td class="px-5 py-4 text-xs font-mono text-muted">'+u.telegram_id+'</td>' +
+          '<td class="px-5 py-4"><div class="flex items-center gap-2.5"><div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold '+initialBg+'">'+initial+'</div><span class="text-sm font-medium">@'+esc(u.username || u.first_name || 'user')+'</span></div></td>' +
+          '<td class="px-5 py-4"><span class="badge" style="'+roleStyle+'">'+roleLabel+'</span></td>' +
+          '<td class="px-5 py-4">'+(isPremium ? '<span class="material-symbols-outlined text-secondary" style="font-size:18px;font-variation-settings:\'FILL\' 1">verified</span>' : '<span class="material-symbols-outlined text-muted" style="font-size:18px">remove_circle</span>')+'</td>' +
+          '<td class="px-5 py-4 text-sm font-mono">'+(u.source_count != null ? u.source_count : 0)+'</td>' +
+          '<td class="px-5 py-4 text-sm text-muted">'+esc((u.joined || u.created_at || '').toString().substring(0,10))+'</td>' +
+          '<td class="px-5 py-4"><div class="w-2 h-2 rounded-full '+dotClass+'"></div></td>' +
+          '<td class="px-5 py-4"><div class="relative"><button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserActionMenu(this,'+u.telegram_id+')"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button><div class="admin-action-menu hidden absolute right-0 mt-1 w-40 bg-card border border-outline-variant rounded-lg shadow-lg z-50 py-1">'+actions.join('')+'</div></div></td>' +
+        '</tr>';
+      }).join('');
+      var paginationEl = document.getElementById('admin-users-pagination');
+      if (paginationEl) paginationEl.textContent = 'Jami: ' + data.length + ' ta foydalanuvchi';
+    } catch(e) { console.error('loadAdminUsers:', e); }
   };
+
+  window.adminUserActionMenu = function (btn, tid) {
+    document.querySelectorAll('.admin-action-menu').forEach(function(m){ if (m !== btn.nextElementSibling) m.classList.add('hidden'); });
+    var menu = btn.nextElementSibling;
+    if (menu) menu.classList.toggle('hidden');
+  };
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.admin-action-menu') && !e.target.closest('[onclick*="adminUserActionMenu"]')) {
+      document.querySelectorAll('.admin-action-menu').forEach(function(m){ m.classList.add('hidden'); });
+    }
+  });
 
   window.adminUserAction = async function (tid, action) {
     var urls = { approve:'/api/admin/users/'+tid+'/approve', block:'/api/admin/users/'+tid+'/block', unblock:'/api/admin/users/'+tid+'/unblock', reject:'/api/admin/users/'+tid+'/reject', premium:'/api/admin/users/'+tid+'/premium', revoke:'/api/admin/users/'+tid+'/premium' };
-    var url = urls[action]; if (!url) return;
+    var url = urls[action]; if (!url) { showToast('Unknown action: '+action, 'error'); return; }
     var body = (action==='premium'||action==='revoke') ? JSON.stringify({ days: action==='revoke' ? 0 : 30 }) : undefined;
     try {
       var r = await apiFetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:body });
       if (r.ok) { showToast('OK','success'); loadAdminUsers(); }
-      else showToast('Error','error');
+      else { var err = await r.json().catch(function(){return {};}); showToast(err.error || 'Error','error'); }
     } catch(e) { showToast('Error','error'); }
   };
 
@@ -618,13 +667,292 @@
       var r = await apiFetch('/api/admin/system');
       var d = await r.json();
       if (d) {
-        setText('.sys-uptime', Math.floor((d.uptime||0)/3600)+' soat');
-        setText('.sys-version', d.version||'—');
-        setText('.sys-memory', d.memory_usage||'—');
-        setText('.sys-node', d.nodeVersion||'—');
+        var hours = Math.floor((d.uptime || 0) / 3600);
+        var mins = Math.floor(((d.uptime || 0) % 3600) / 60);
+        setText('.sys-uptime', hours + 's ' + mins + 'm');
+        setText('.sys-version', d.version || d.nodeVersion || '—');
+        setText('.sys-memory', d.memory_usage || (d.memory ? Math.round(d.memory.heapUsed/1024/1024)+' MB' : '—'));
+        setText('.sys-node', d.nodeVersion || '—');
         setText('.sys-redis', d.redis ? 'Online' : 'Offline');
+
+        if (typeof d.memory_pct === 'number') {
+          var cpuBar = $('#cpu-bar'); if (cpuBar) cpuBar.style.width = d.memory_pct + '%';
+          var cpuBarM = $('#cpu-bar-mobile'); if (cpuBarM) cpuBarM.style.width = d.memory_pct + '%';
+          var cpuText = $('#cpu-text'); if (cpuText) cpuText.textContent = d.memory_pct + '%';
+        }
+        if (d.user_count != null) {
+          var pendingBadge = $('.admin-stat-pending');
+          if (pendingBadge) pendingBadge.textContent = d.pending_users || 0;
+        }
       }
+    } catch(e) { console.error('loadSystemStatus:', e); }
+  };
+
+  window.loadAdminStats = async function () {
+    try {
+      var r = await apiFetch('/api/admin/stats');
+      if (!r.ok) return;
+      var d = await r.json();
+      if (!d) return;
+      setAllText('.admin-stat-users', (d.total_users || 0).toLocaleString());
+      setAllText('.admin-stat-sources', (d.premium_users || 0).toLocaleString());
+      setAllText('.admin-stat-posts', (d.posts_today || 0).toLocaleString());
+      setAllText('.admin-stat-pending', String(d.pending_users || 0));
+      setAllText('.admin-stat-uptime', (d.uptime_pct || '99.8') + '%');
+      setAllText('.admin-stat-users-total', (d.total_users || 0).toLocaleString());
+      setAllText('.admin-stat-free', (d.free_users || 0).toLocaleString());
+      setAllText('.admin-stat-premium', (d.premium_users || 0).toLocaleString());
+      setAllText('.admin-stat-revenue-month', d.revenue_month || '—');
     } catch(e) {}
+  };
+
+  window.loadApprovalQueue = async function () {
+    var tbody = $('#approval-queue-tbody');
+    var countEl = $('#approval-queue-count');
+    if (!tbody) return;
+    try {
+      var r = await apiFetch('/api/admin/users?is_approved=false');
+      var list = await r.json();
+      if (!Array.isArray(list) || !list.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-on-surface-variant font-mono">Kutilayotgan so\'rovlar yo\'q</td></tr>';
+        if (countEl) countEl.textContent = '0 ta so\'rov';
+        return;
+      }
+      tbody.innerHTML = list.map(function(u) {
+        var lang = (u.language || 'uz').toUpperCase();
+        var flags = { UZ:'🇺🇿', RU:'🇷🇺', EN:'🇺🇸', UZ:'🇺🇿', ZH:'🇨🇳', IT:'🇮🇹', JA:'🇯🇵', TR:'🇹🇷', DE:'🇩🇪' };
+        var flag = flags[lang] || '🌐';
+        return '<tr class="hover:bg-surface-container transition-colors">' +
+          '<td class="px-6 py-4 font-label-sm text-primary">#'+u.telegram_id+'</td>' +
+          '<td class="px-6 py-4 font-medium">@'+esc(u.username || '—')+'</td>' +
+          '<td class="px-6 py-4">'+esc(u.first_name || '—')+'</td>' +
+          '<td class="px-6 py-4 text-on-surface-variant text-sm">'+esc((u.joined || u.created_at || '').toString().substring(0,10))+'</td>' +
+          '<td class="px-6 py-4"><div class="flex items-center gap-2"><span class="text-lg">'+flag+'</span><span class="text-on-surface-variant text-sm uppercase">'+lang+'</span></div></td>' +
+          '<td class="px-6 py-4 text-right"><div class="flex items-center justify-end gap-2">' +
+            '<button onclick="adminUserAction('+u.telegram_id+',\'approve\')" class="w-8 h-8 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary hover:text-white transition-all flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">check</span></button>' +
+            '<button onclick="adminUserAction('+u.telegram_id+',\'reject\')" class="w-8 h-8 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">close</span></button>' +
+          '</div></td>' +
+        '</tr>';
+      }).join('');
+      if (countEl) countEl.textContent = list.length + ' ta so\'rov';
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-error font-mono">Yuklashda xatolik</td></tr>';
+    }
+  };
+
+  window.loadBroadcasts = async function () {
+    var countEl = document.getElementById('broadcast-recipients-count');
+    if (countEl) {
+      try {
+        var rc = await apiFetch('/api/admin/users?is_active=true');
+        var list = await rc.json();
+        countEl.textContent = (Array.isArray(list) ? list.length : 0).toLocaleString();
+      } catch(e) { countEl.textContent = '—'; }
+    }
+  };
+
+  // ─── Wallet: plan selection, TON, referral ────
+  window.selectPlan = function (plan) {
+    window.__selectedPlan = plan;
+    var mCard = document.getElementById('plan-monthly-card');
+    var yCard = document.getElementById('plan-yearly-card');
+    if (mCard) mCard.className = (plan === 'monthly')
+      ? 'gradient-border-card cursor-pointer active:scale-[0.97] transition-transform'
+      : 'bg-card border border-outline-variant rounded-xl cursor-pointer hover:border-primary/50 active:scale-[0.97] transition-all';
+    if (yCard) yCard.className = (plan === 'yearly')
+      ? 'gradient-border-card cursor-pointer active:scale-[0.97] transition-transform'
+      : 'bg-card border border-outline-variant rounded-xl cursor-pointer hover:border-primary/50 active:scale-[0.97] transition-all';
+    var mRad = document.getElementById('plan-monthly');
+    var yRad = document.getElementById('plan-yearly');
+    if (mRad) mRad.checked = (plan === 'monthly');
+    if (yRad) yRad.checked = (plan === 'yearly');
+    var summary = document.querySelector('.wallet-summary-price');
+    var mPrice = document.querySelector('.wallet-monthly-price');
+    var yPrice = document.querySelector('.wallet-yearly-price');
+    if (summary) {
+      summary.textContent = plan === 'monthly'
+        ? (mPrice ? mPrice.textContent.trim() : '125,000 UZS')
+        : (yPrice ? yPrice.textContent.trim() : '1,200,000 UZS');
+    }
+  };
+
+  window.copyRef = function (btn) {
+    var link = document.getElementById('referral-link');
+    var text = link ? link.textContent.trim() : (window.location.origin + '/register');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(window.location.origin + '/?ref=' + encodeURIComponent(text.replace(/^.*ref\//, ''))).catch(function(){});
+    }
+    if (btn) {
+      var span = btn.querySelector('.material-symbols-outlined');
+      if (span) { span.textContent = 'done'; setTimeout(function() { span.textContent = 'content_copy'; }, 2000); }
+    }
+    showToast('Referral link copied!', 'success');
+  };
+
+  window.shareRef = function () {
+    var link = document.getElementById('referral-link');
+    var code = link ? link.textContent.replace(/^.*ref\//, '').trim() : '';
+    var refUrl = window.location.origin + '/?ref=' + encodeURIComponent(code);
+    if (navigator.share) {
+      navigator.share({ title: 'mateAssistent', text: 'Join mateAssistent!', url: refUrl }).catch(function(){});
+    } else {
+      window.copyRef(null);
+    }
+  };
+
+  window.connectTonWallet = function () {
+    var el = document.getElementById('ton-connect');
+    var stateEl = document.getElementById('wallet-connection-state');
+    if (!window.TonConnectUI) {
+      if (stateEl) stateEl.textContent = 'TON Connect SDK not loaded';
+      showToast('TON Connect SDK loading...', 'info');
+      return;
+    }
+    if (window.__tonConnectUi) return;
+    try {
+      window.__tonConnectUi = new window.TonConnectUI({
+        manifestUrl: window.location.origin + '/tonconnect-manifest.json',
+        buttonRootId: 'ton-connect'
+      });
+      window.__tonConnectUi.onStatusChange(function (wallet) {
+        if (stateEl) {
+          if (wallet && wallet.account) {
+            stateEl.textContent = 'Connected: ' + wallet.account.address.slice(0, 8) + '...' + wallet.account.address.slice(-6);
+            apiFetch('/api/premium/wallet-claim', {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ walletAddress: wallet.account.address })
+            }).then(function(r){ return r.json(); }).then(function(d){
+              if (d && d.success) showToast(d.message || 'Premium activated!', 'success');
+            }).catch(function(){});
+          } else {
+            stateEl.textContent = '';
+          }
+        }
+      });
+    } catch(e) {
+      if (stateEl) stateEl.textContent = 'TON Connect failed: ' + e.message;
+    }
+  };
+
+  // ─── Automation: RSS Auto-Search ─────
+  window.createAutoSearch = async function () {
+    var topicEl = document.getElementById('rss-search-topic');
+    var kwEl = document.getElementById('rss-search-keywords');
+    var maxEl = document.getElementById('rss-search-max');
+    var modeEl = document.getElementById('rss-search-mode');
+    if (!topicEl || !topicEl.value.trim()) { showToast('Mavzu kiriting!', 'error'); return; }
+    try {
+      var r = await apiFetch('/api/auto-search/' + userId, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          topic: topicEl.value.trim(),
+          keywords: kwEl ? kwEl.value.trim() : '',
+          max_results: maxEl ? parseInt(maxEl.value) || 10 : 10,
+          mode: modeEl ? modeEl.value : 'realtime'
+        })
+      });
+      var d = await r.json();
+      if (r.ok && d.success) {
+        showToast('Auto-search yaratildi!', 'success');
+        if (window.loadAutoSearches) window.loadAutoSearches();
+      } else {
+        showToast(d.error || 'Xatolik', 'error');
+      }
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  };
+
+  window.deleteAutoSearch = async function (id) {
+    if (!confirm('Auto-search o\'chirilsinmi?')) return;
+    try {
+      var r = await apiFetch('/api/auto-search/' + userId + '/' + encodeURIComponent(id), { method: 'DELETE' });
+      if (r.ok) {
+        showToast('O\'chirildi', 'success');
+        if (window.loadAutoSearches) window.loadAutoSearches();
+      } else showToast('Xatolik', 'error');
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  };
+
+  window.loadAutoSearches = async function () {
+    var container = document.getElementById('auto-search-list');
+    if (!container) return;
+    try {
+      var r = await apiFetch('/api/auto-search/' + userId);
+      var list = await r.json();
+      if (!Array.isArray(list) || !list.length) {
+        container.innerHTML = '<p class="text-xs text-muted font-mono p-4">Auto-search mavjud emas. Yuqoridagi forma orqali yarating.</p>';
+        return;
+      }
+      container.innerHTML = list.map(function (item) {
+        return '<div class="bg-card border border-outline-variant rounded-xl p-4 flex items-center justify-between" data-id="' + esc(item.id) + '">' +
+          '<div><p class="text-sm font-semibold">' + esc(item.topic || item.name || 'Untitled') + '</p>' +
+          '<p class="text-[10px] text-muted font-mono mt-1">' + esc(item.keywords || '') + '</p></div>' +
+          '<button onclick="deleteAutoSearch(\'' + esc(item.id) + '\')" class="text-error/70 hover:text-error"><span class="material-symbols-outlined" style="font-size:18px">delete</span></button>' +
+          '</div>';
+      }).join('');
+    } catch (e) {}
+  };
+
+  // ─── Admin: tabs and toolbar helpers ──────
+  window.switchTab = function (tab) {
+    var queueTab = document.getElementById('tab-queue');
+    var allTab = document.getElementById('tab-all');
+    var queuePanel = document.getElementById('queue-panel');
+    var allPanel = document.getElementById('all-panel');
+    if (queueTab && allTab) {
+      [queueTab, allTab].forEach(function (t) {
+        t.classList.remove('bg-primary/10', 'text-primary', 'border-primary');
+        t.classList.add('text-muted');
+      });
+      var active = tab === 'queue' ? queueTab : allTab;
+      active.classList.add('bg-primary/10', 'text-primary', 'border-primary');
+      active.classList.remove('text-muted');
+    }
+    if (queuePanel) queuePanel.style.display = (tab === 'queue') ? 'block' : 'none';
+    if (allPanel) allPanel.style.display = (tab === 'all') ? 'block' : 'none';
+  };
+
+  window.wrapTag = function (tag) {
+    var ta = document.getElementById('broadcast-msg');
+    if (!ta) return;
+    var s = ta.selectionStart, e = ta.selectionEnd;
+    var sel = ta.value.substring(s, e);
+    var open = (tag === 'a') ? '<a href="">' : '<' + tag + '>';
+    var close = '</' + tag + '>';
+    var next = ta.value.substring(0, s) + open + sel + close + ta.value.substring(e);
+    ta.value = next;
+    ta.focus();
+    if (typeof updatePreview === 'function') updatePreview();
+  };
+
+  window.approveAllPending = async function () {
+    if (!confirm('Hammasi tasdiqlansinmi?')) return;
+    try {
+      var r = await apiFetch('/api/admin/users/approve-all', { method: 'POST' });
+      if (r.ok) { showToast('Tasdiqlandi!', 'success'); setTimeout(function() { location.reload(); }, 800); }
+      else showToast('Xatolik', 'error');
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  };
+
+  window.exportUsersCSV = async function () {
+    try {
+      var r = await apiFetch('/api/admin/users');
+      var list = await r.json();
+      if (!Array.isArray(list) || !list.length) { showToast('Foydalanuvchi yo\'q', 'info'); return; }
+      var headers = ['telegram_id','username','first_name','role','is_active','is_approved','is_premium','target_channel','referral_code'];
+      var rows = [headers.join(',')];
+      list.forEach(function (u) {
+        rows.push(headers.map(function (h) {
+          var v = u[h]; if (typeof v === 'string') v = '"' + v.replace(/"/g, '""') + '"';
+          return v == null ? '' : v;
+        }).join(','));
+      });
+      var blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'users-' + Date.now() + '.csv'; a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV yuklandi', 'success');
+    } catch (e) { showToast('Export xatosi', 'error'); }
   };
 
   // ─── Auto-init based on data-page ──────────
@@ -633,9 +961,12 @@
   if (page === 'distribution') { loadChannels(); }
   if (page === 'wallet') { loadPremium(); }
   if (page === 'admin-users' || page === 'admin-users-approvals') { loadAdminUsers(); }
-  if (page === 'admin-system' || page === 'admin-overview') { loadSystemStatus(); }
+  if (page === 'admin-system' || page === 'admin-overview') { loadSystemStatus(); loadAdminStats(); }
+  if (page === 'admin-approval-queue') { loadApprovalQueue(); }
+  if (page === 'admin-broadcast' || page === 'admin-broadcast-center') { loadBroadcasts(); }
   if (page === 'admin-system-config') { loadAdminSettings(); }
   if (page === 'analytics') { loadFinance(); }
+  if (page === 'automation') { if (window.loadAutoSearches) loadAutoSearches(); }
 
   // Backward-compat for old SPA-style onclick
   window.$ = $;

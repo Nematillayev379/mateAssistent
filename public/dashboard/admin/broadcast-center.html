@@ -74,7 +74,7 @@
 <!-- Top App Bar -->
 <header class="hidden lg:flex flex justify-between items-center w-full px-container-padding h-14 z-50 fixed top-0 bg-surface border-b border-outline-variant lg:left-64 lg:w-[calc(100%-16rem)]">
 <div class="flex items-center gap-4">
-<button class="flex items-center justify-center w-10 h-10 rounded-full active:opacity-80 transition-opacity hover:bg-surface-container-high">
+<button onclick="window.location='/dashboard/admin/overview.html'" class="flex items-center justify-center w-10 h-10 rounded-full active:opacity-80 transition-opacity hover:bg-surface-container-high">
 <span class="material-symbols-outlined text-primary">arrow_back</span>
 </button>
 <h1 class="font-headline-md text-headline-md font-bold text-on-surface">Broadcast</h1>
@@ -128,7 +128,7 @@ Check out our latest analytics dashboard with real-time tracking.</textarea>
 <!-- Recipients Estimate -->
 <div class="flex items-center justify-center gap-2 py-2 bg-surface-container-high/30 rounded-lg">
 <span class="material-symbols-outlined text-secondary text-sm">group</span>
-<span class="font-body-md text-body-md text-on-surface">Sending to <span class="font-bold text-secondary">1,247</span> users</span>
+<span class="font-body-md text-body-md text-on-surface">Sending to <span class="font-bold text-secondary" id="broadcast-recipients-count">—</span> users</span>
 </div>
 <!-- Action Button -->
 <button class="w-full h-14 bg-primary-container text-on-primary-container rounded-xl font-headline-md text-headline-md font-bold flex items-center justify-center gap-3 active:scale-95 transition-transform shadow-lg shadow-primary-container/20" onclick="sendBroadcast()">
@@ -139,7 +139,7 @@ Check out our latest analytics dashboard with real-time tracking.</textarea>
 <section class="mt-4 flex flex-col gap-stack-sm">
 <div class="flex justify-between items-center px-1">
 <label class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Recent Broadcasts</label>
-<button class="text-primary font-label-md text-label-md">View All</button>
+<button class="text-primary font-label-md text-label-md" onclick="loadBroadcasts()">Refresh</button>
 </div>
 <div class="flex flex-col gap-2">
 <!-- Item 1 -->

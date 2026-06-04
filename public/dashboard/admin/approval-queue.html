@@ -128,7 +128,7 @@
 </button>
 </div>
 <div class="h-8 w-[1px] bg-outline-variant"></div>
-<button class="bg-primary text-on-primary-container font-bold px-stack-md py-2 rounded-lg text-body-md hover:brightness-110 active:scale-95 transition-all flex items-center gap-2">
+<button onclick="approveAllPending()" class="bg-primary text-white font-bold px-stack-md py-2 rounded-lg text-body-md hover:brightness-110 active:scale-95 transition-all flex items-center gap-2">
 <span class="material-symbols-outlined text-[20px]" data-icon="done_all">done_all</span>
                             Approve All
                         </button>
@@ -147,131 +147,13 @@
 <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
 </tr>
 </thead>
-<tbody class="divide-y divide-outline-variant">
-<!-- Row 1 -->
-<tr class="hover:bg-surface-container transition-colors">
-<td class="px-6 py-4 font-label-sm text-label-sm text-primary">#901284551</td>
-<td class="px-6 py-4 font-body-md text-body-md font-medium">@crypto_dev_0x</td>
-<td class="px-6 py-4 font-body-md text-body-md">Dmitri Volkov</td>
-<td class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant">2m ago</td>
-<td class="px-6 py-4">
-<div class="flex items-center gap-2">
-<span class="text-lg">🇷🇺</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">RU</span>
-</div>
-</td>
-<td class="px-6 py-4 text-right">
-<div class="flex items-center justify-end gap-2">
-<button class="w-8 h-8 rounded-lg bg-secondary-container/10 text-secondary hover:bg-secondary hover:text-on-secondary transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="check">check</span>
-</button>
-<button class="w-8 h-8 rounded-lg bg-error-container/10 text-error hover:bg-error hover:text-on-error transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
-</button>
-</div>
-</td>
-</tr>
-<!-- Row 2 -->
-<tr class="hover:bg-surface-container transition-colors">
-<td class="px-6 py-4 font-label-sm text-label-sm text-primary">#449210082</td>
-<td class="px-6 py-4 font-body-md text-body-md font-medium">@sarah_m_arch</td>
-<td class="px-6 py-4 font-body-md text-body-md">Sarah Mitchell</td>
-<td class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant">14m ago</td>
-<td class="px-6 py-4">
-<div class="flex items-center gap-2">
-<span class="text-lg">🇺🇸</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">EN</span>
-</div>
-</td>
-<td class="px-6 py-4 text-right">
-<div class="flex items-center justify-end gap-2">
-<button class="w-8 h-8 rounded-lg bg-secondary-container/10 text-secondary hover:bg-secondary hover:text-on-secondary transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="check">check</span>
-</button>
-<button class="w-8 h-8 rounded-lg bg-error-container/10 text-error hover:bg-error hover:text-on-error transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
-</button>
-</div>
-</td>
-</tr>
-<!-- Row 3 -->
-<tr class="hover:bg-surface-container transition-colors">
-<td class="px-6 py-4 font-label-sm text-label-sm text-primary">#110827364</td>
-<td class="px-6 py-4 font-body-md text-body-md font-medium">@blockchain_boss</td>
-<td class="px-6 py-4 font-body-md text-body-md">Chen Wei</td>
-<td class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant">29m ago</td>
-<td class="px-6 py-4">
-<div class="flex items-center gap-2">
-<span class="text-lg">🇨🇳</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">ZH</span>
-</div>
-</td>
-<td class="px-6 py-4 text-right">
-<div class="flex items-center justify-end gap-2">
-<button class="w-8 h-8 rounded-lg bg-secondary-container/10 text-secondary hover:bg-secondary hover:text-on-secondary transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="check">check</span>
-</button>
-<button class="w-8 h-8 rounded-lg bg-error-container/10 text-error hover:bg-error hover:text-on-error transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
-</button>
-</div>
-</td>
-</tr>
-<!-- Row 4 -->
-<tr class="hover:bg-surface-container transition-colors">
-<td class="px-6 py-4 font-label-sm text-label-sm text-primary">#551200982</td>
-<td class="px-6 py-4 font-body-md text-body-md font-medium">@design_pixel</td>
-<td class="px-6 py-4 font-body-md text-body-md">Elena Rossi</td>
-<td class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant">1h ago</td>
-<td class="px-6 py-4">
-<div class="flex items-center gap-2">
-<span class="text-lg">🇮🇹</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">IT</span>
-</div>
-</td>
-<td class="px-6 py-4 text-right">
-<div class="flex items-center justify-end gap-2">
-<button class="w-8 h-8 rounded-lg bg-secondary-container/10 text-secondary hover:bg-secondary hover:text-on-secondary transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="check">check</span>
-</button>
-<button class="w-8 h-8 rounded-lg bg-error-container/10 text-error hover:bg-error hover:text-on-error transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
-</button>
-</div>
-</td>
-</tr>
-<!-- Row 5 -->
-<tr class="hover:bg-surface-container transition-colors">
-<td class="px-6 py-4 font-label-sm text-label-sm text-primary">#223948571</td>
-<td class="px-6 py-4 font-body-md text-body-md font-medium">@tech_lead_jp</td>
-<td class="px-6 py-4 font-body-md text-body-md">Kenji Tanaka</td>
-<td class="px-6 py-4 font-label-sm text-label-sm text-on-surface-variant">3h ago</td>
-<td class="px-6 py-4">
-<div class="flex items-center gap-2">
-<span class="text-lg">🇯🇵</span>
-<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">JA</span>
-</div>
-</td>
-<td class="px-6 py-4 text-right">
-<div class="flex items-center justify-end gap-2">
-<button class="w-8 h-8 rounded-lg bg-secondary-container/10 text-secondary hover:bg-secondary hover:text-on-secondary transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="check">check</span>
-</button>
-<button class="w-8 h-8 rounded-lg bg-error-container/10 text-error hover:bg-error hover:text-on-error transition-all flex items-center justify-center">
-<span class="material-symbols-outlined text-[20px]" data-icon="close">close</span>
-</button>
-</div>
-</td>
-</tr>
+<tbody class="divide-y divide-outline-variant" id="approval-queue-tbody">
+<tr><td colspan="6" class="px-6 py-12 text-center text-on-surface-variant font-mono">Yuklanmoqda...</td></tr>
 </tbody>
 </table>
 <!-- Table Footer / Stats -->
 <div class="p-6 bg-surface-container-low flex items-center justify-between border-t border-outline-variant">
-<span class="font-body-md text-body-md text-on-surface-variant">Showing <span class="text-on-surface font-bold">5</span> pending requests</span>
-<div class="flex items-center gap-2">
-<button class="px-3 py-1.5 rounded-lg border border-outline-variant text-label-md font-bold text-on-surface-variant hover:bg-surface-container transition-all">Previous</button>
-<button class="px-3 py-1.5 rounded-lg border border-primary text-label-md font-bold text-primary hover:bg-primary/10 transition-all">Next</button>
-</div>
+<span class="font-body-md text-body-md text-on-surface-variant" id="approval-queue-count">Yuklanmoqda...</span>
 </div>
 </div>
 <!-- System Health Micro-Dashboard -->
