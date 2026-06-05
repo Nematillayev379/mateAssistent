@@ -73,19 +73,49 @@ async function selectRotatingKey(keys: AiKeyEntry[], scope: 'global' | 'smm'): P
   });
 }
 
-async function requestAICompletion(currentKeyObj: AiKeyEntry, system: string, user: string, maxTokens: number, timeoutMs: number): Promise<string> {
+const GROQ_MODELS = [
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
+  "meta-llama/llama-4-scout-17b-16e-instruct",
+  "meta-llama/llama-4-maverick-17b-128e-instruct"
+];
+
+async function tryGroqModels(groq: Groq, system: string, user: string, maxTokens: number, exclude: string[] = []): Promise<string> {
+  const candidates = GROQ_MODELS.filter(m => !exclude.includes(m));
+  let lastErr: any = null;
+  for (const model of candidates) {
+    try {
+      const res = await groq.chat.completions.create({
+        messages: [{ role: "system", content: system }, { role: "user", content: user }],
+        model,
+        max_tokens: maxTokens,
+      });
+      const content = res.choices[0]?.message?.content ?? "";
+      if (content) {
+        if (model !== GROQ_MODELS[0]) logger.info(`[GROQ] Fallback model '${model}' ishladi.`);
+        return content;
+      }
+    } catch (e: any) {
+      lastErr = e;
+      const msg = String(e?.message || e || '');
+      if (msg.includes('model') || msg.includes('decommission') || msg.includes('not found') || e?.status === 400 || e?.status === 404) {
+        logger.warn(`[GROQ] Model '${model}' ishlamadi: ${msg.substring(0, 120)}. Keyingisiga o'tilmoqda...`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr || new Error("Barcha Groq modellari ishlamadi");
+}
+
+async function requestAICompletion(currentKeyObj: AiKeyEntry, system: string, user: string, maxTokens: number, timeoutMs: number, excludeModels: string[] = []): Promise<string> {
   if (currentKeyObj.type === "groq") {
     let groq = groqClients.get(currentKeyObj.key);
     if (!groq) {
       groq = new Groq({ apiKey: currentKeyObj.key, timeout: timeoutMs });
       groqClients.set(currentKeyObj.key, groq);
     }
-    const res = await groq.chat.completions.create({
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      model: "llama-3.3-70b-versatile",
-      max_tokens: maxTokens,
-    });
-    return res.choices[0]?.message?.content ?? "";
+    return tryGroqModels(groq, system, user, maxTokens, excludeModels);
   }
 
   if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
@@ -175,7 +205,7 @@ async function getSmartAIResponseInternal(
 
   try {
     const maxTokens = MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || CONFIG.MAX_TOKENS;
-    return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000);
+    return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000, (currentKeyObj as any)._excludeModels || []);
   } catch (error) {
     const errMsg = (error as any)?.message ?? '';
     const status = (error as any)?.status ?? (error as any)?.response?.status;
@@ -187,6 +217,14 @@ async function getSmartAIResponseInternal(
     if (errMsg.includes('does not support image') || errMsg.includes('image.png')) {
       logger.warn(`[${scope.toUpperCase()}] Groq image-input error on key #${idx}. Content contains image references. Falling through.`);
       return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
+    }
+    if (currentKeyObj.type === 'groq' && (errMsg.includes('model') || errMsg.includes('decommission') || errMsg.includes('not found') || status === 400 || status === 404)) {
+      const tried = (currentKeyObj as any)._excludeModels || [];
+      if (tried.length < GROQ_MODELS.length - 1) {
+        (currentKeyObj as any)._excludeModels = tried;
+        logger.warn(`[${scope.toUpperCase()}] Groq model xatosi. Boshqa model bilan urinib ko'riladi...`);
+        return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
+      }
     }
     throw error;
   }
