@@ -121,12 +121,6 @@ function scheduleClusterDigest() {
     }
   });
 }
-      }
-    } catch (err: any) {
-      logger.error(`Cluster digest cron: ${err.message}`);
-    }
-  });
-}
 
 function scheduleWorkspaceRebalance() {
   cron.schedule("0 */6 * * *", async () => {

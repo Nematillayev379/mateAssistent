@@ -13,6 +13,7 @@ import { registerPremiumRoutes } from './api/premium';
 import { registerSystemRoutes } from './api/system';
 import { registerWorkspaceRoutes } from './api/workspace';
 import { registerPublicApiRoutes } from './api/public_api';
+import { registerDashboardRoutes } from './api/dashboard';
 
 export function registerRoutes(app: express.Application) {
   const apiLimiter = rateLimit({
@@ -35,4 +36,5 @@ export function registerRoutes(app: express.Application) {
   registerSystemRoutes(app);
   registerWorkspaceRoutes(app);
   registerPublicApiRoutes(app);
+  registerDashboardRoutes(app);
 }

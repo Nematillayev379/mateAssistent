@@ -955,18 +955,179 @@
     } catch (e) { showToast('Export xatosi', 'error'); }
   };
 
+  // ─── User Overview Dashboard ──────────────
+  window.loadOverview = async function () {
+    try {
+      var r = await apiFetch('/api/overview/' + userId);
+      if (!r.ok) return;
+      var d = await r.json();
+      setText('.desktop-total-posts', d.total_posts ?? 0);
+      setText('.desktop-sources', d.active_sources ?? 0);
+      setText('.mobile-sources', d.active_sources ?? 0);
+      setText('.desktop-duplicates', d.duplicates_blocked ?? 0);
+      setText('.desktop-ai-requests', d.ai_requests ?? 0);
+      setText('.bot-memory', d.memory_mb ? d.memory_mb + ' MB' : '—');
+      setText('.bot-latency', d.api_latency_ms ? d.api_latency_ms + ' ms' : '—');
+      setText('.bot-instance', d.bot_status || 'ACTIVE');
+      var cap = d.capacity_pct || 0;
+      var bars = document.querySelectorAll('.bot-capacity-bar');
+      bars.forEach(function (b, i) {
+        b.classList.remove('bg-secondary', 'bg-warning', 'bg-error', 'bg-elevated');
+        if (i * 20 < cap) {
+          if (cap >= 80) b.classList.add('bg-error');
+          else if (cap >= 60) b.classList.add('bg-warning');
+          else b.classList.add('bg-secondary');
+        } else { b.classList.add('bg-elevated'); }
+      });
+      setText('.bot-capacity-text', cap ? (cap + '% capacity used') : '—');
+      var feed = document.getElementById('activity-feed');
+      if (feed && Array.isArray(d.activity) && d.activity.length) {
+        feed.innerHTML = d.activity.slice(0, 8).map(function (a) {
+          return '<div class="px-6 py-3 flex items-start gap-3"><span class="material-symbols-outlined text-primary mt-0.5" style="font-size:18px">'+(a.icon||'fiber_manual_record')+'</span><div class="flex-1 min-w-0"><p class="text-sm">'+esc(a.text)+'</p><p class="text-[10px] text-muted font-mono mt-0.5">'+esc(a.time||'')+'</p></div></div>';
+        }).join('');
+      } else if (feed) {
+        feed.innerHTML = '<div class="px-6 py-6 text-center text-sm text-muted">Hozircha faollik yo\'q</div>';
+      }
+    } catch (e) { console.error('loadOverview:', e); }
+  };
+
+  // ─── Settings Page ────────────────────────
+  window.loadSettings = async function () {
+    try {
+      var r = await apiFetch('/api/settings/' + userId + '/extended');
+      if (!r.ok) return;
+      var s = await r.json();
+      setFieldValue('set-lang', s.language || 'uz');
+      setFieldValue('set-channel', s.target_channel || '');
+      setFieldValue('set-keywords', s.keywords || '');
+      setFieldValue('set-interval', String(s.interval_minutes || 15));
+      setFieldValue('set-digest', s.daily_digest ? 'true' : 'false');
+      setFieldValue('set-digest-time', s.digest_time || '09:00');
+    } catch (e) { console.error('loadSettings:', e); }
+  };
+
+  // ─── Studio Page ──────────────────────────
+  window.loadStudio = async function () {
+    try {
+      var r = await apiFetch('/api/studio/' + userId);
+      if (!r.ok) return;
+      var d = await r.json();
+      setText('.studio-posts-today', d.posts_today ?? 0);
+      setText('.studio-posts-week', d.posts_week ?? 0);
+      setText('.studio-credits-left', d.ai_credits ?? 0);
+      setText('.studio-last-ai', d.last_ai_use || '—');
+      var recent = document.getElementById('studio-recent');
+      if (recent && Array.isArray(d.recent)) {
+        if (!d.recent.length) {
+          recent.innerHTML = '<div class="px-6 py-6 text-center text-sm text-muted">Hozircha postlar yo\'q</div>';
+        } else {
+          recent.innerHTML = d.recent.slice(0, 10).map(function (p) {
+            return '<div class="px-6 py-3 flex items-start gap-3"><span class="material-symbols-outlined text-primary mt-0.5" style="font-size:18px">article</span><div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">'+esc(p.title||'(no title)')+'</p><p class="text-[10px] text-muted font-mono mt-0.5">'+esc(p.time||'')+' · ' + esc(p.channel||'') + '</p></div><span class="text-[10px] font-mono text-muted">'+esc(p.status||'sent')+'</span></div>';
+          }).join('');
+        }
+      }
+    } catch (e) { console.error('loadStudio:', e); }
+  };
+
+  // ─── Distribution (extra channels) ────────
+  window.loadDistribution = async function () {
+    return loadChannels();
+  };
+
+  // ─── Automation (auto-searches) ───────────
+  window.loadAutomation = async function () {
+    if (typeof loadAutoSearches === 'function') await loadAutoSearches();
+    try {
+      var r = await apiFetch('/api/automation/' + userId);
+      if (!r.ok) return;
+      var d = await r.json();
+      setText('.auto-active', d.active_searches ?? 0);
+      setText('.auto-runs-today', d.runs_today ?? 0);
+      setText('.auto-runs-week', d.runs_week ?? 0);
+      setText('.auto-posts-generated', d.posts_generated ?? 0);
+    } catch (e) { console.error('loadAutomation:', e); }
+  };
+
+  // ─── Analytics Page ───────────────────────
+  window.loadAnalytics = async function () {
+    try {
+      var r = await apiFetch('/api/analytics/' + userId);
+      if (!r.ok) return;
+      var d = await r.json();
+      setText('.btc-price', d.btc_usd ? ('$' + Number(d.btc_usd).toLocaleString()) : '—');
+      setText('.usd-uzs', d.usd_uzs ? Number(d.usd_uzs).toLocaleString() : '—');
+      setText('.analytics-posts-week', d.posts_week ?? 0);
+      setText('.analytics-views', d.total_views ? Number(d.total_views).toLocaleString() : '—');
+      setText('.analytics-engagement', d.engagement_pct ? d.engagement_pct + '%' : '—');
+      var bar = document.querySelectorAll('.analytics-day-bar');
+      if (Array.isArray(d.daily_posts) && bar.length) {
+        var max = Math.max.apply(null, d.daily_posts.concat([1]));
+        bar.forEach(function (b, i) {
+          var v = d.daily_posts[i] || 0;
+          b.style.height = Math.max(8, (v / max) * 100) + '%';
+        });
+      }
+    } catch (e) { console.error('loadAnalytics:', e); }
+  };
+
+  // ─── Wallet / Premium Page ───────────────
+  window.loadWallet = async function () {
+    try {
+      var r = await apiFetch('/api/wallet/' + userId);
+      if (!r.ok) return;
+      var d = await r.json();
+      setText('.wallet-balance', d.balance ? d.balance.toLocaleString() + ' UZS' : '0 UZS');
+      setText('.wallet-plan', d.plan || 'Free');
+      setText('.wallet-status', d.is_premium ? 'Premium faol' : 'Bepul tarif');
+      setText('.wallet-expiry', d.premium_expires || '—');
+      setText('.wallet-monthly-price', (d.pricing && d.pricing.monthly) ? (d.pricing.monthly.toLocaleString() + ' UZS') : '—');
+      setText('.wallet-yearly-price', (d.pricing && d.pricing.yearly) ? (d.pricing.yearly.toLocaleString() + ' UZS') : '—');
+      setText('.wallet-summary-price', d.is_premium ? 'Faol' : '—');
+      var badge = document.querySelector('.premium-badge');
+      if (badge) badge.style.display = d.is_premium ? '' : 'none';
+    } catch (e) { console.error('loadWallet:', e); }
+  };
+
+  // ─── Admin Broadcast (send) ───────────────
+  window.sendBroadcast = async function (formEl) {
+    var fd = new FormData(formEl);
+    var body = {
+      message: fd.get('message') || '',
+      target: fd.get('target') || 'all',
+      filter_role: fd.get('filter_role') || 'all'
+    };
+    if (!body.message || !body.message.trim()) { showToast('Xabar bo\'sh', 'error'); return; }
+    try {
+      var r = await apiFetch('/api/admin/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (r.ok) { showToast('Yuborildi!', 'success'); formEl.reset(); loadBroadcasts(); }
+      else { var e = await r.json(); showToast(e.error || 'Xatolik', 'error'); }
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  };
+
+  // ─── Admin User Actions (block/unblock/approve/premium) ────
+  window.adminUserAction = async function (uid, action) {
+    try {
+      var r = await apiFetch('/api/admin/users/' + uid + '/' + action, { method: 'POST' });
+      if (r.ok) { showToast('OK', 'success'); loadAdminUsers(); }
+      else { var e = await r.json(); showToast(e.error || 'Xatolik', 'error'); }
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  };
+
   // ─── Auto-init based on data-page ──────────
   var page = document.body?.getAttribute('data-page');
   if (page === 'sources') { loadSources(); }
   if (page === 'distribution') { loadChannels(); }
-  if (page === 'wallet') { loadPremium(); }
+  if (page === 'wallet') { loadWallet(); }
   if (page === 'admin-users' || page === 'admin-users-approvals') { loadAdminUsers(); }
   if (page === 'admin-system' || page === 'admin-overview') { loadSystemStatus(); loadAdminStats(); }
   if (page === 'admin-approval-queue') { loadApprovalQueue(); }
   if (page === 'admin-broadcast' || page === 'admin-broadcast-center') { loadBroadcasts(); }
   if (page === 'admin-system-config') { loadAdminSettings(); }
-  if (page === 'analytics') { loadFinance(); }
-  if (page === 'automation') { if (window.loadAutoSearches) loadAutoSearches(); }
+  if (page === 'analytics') { loadAnalytics(); }
+  if (page === 'automation') { loadAutomation(); }
+  if (page === 'overview') { loadOverview(); }
+  if (page === 'settings') { loadSettings(); }
+  if (page === 'studio') { loadStudio(); }
 
   // Backward-compat for old SPA-style onclick
   window.$ = $;

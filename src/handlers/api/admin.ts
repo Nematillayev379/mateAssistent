@@ -60,6 +60,18 @@ export function registerAdminRoutes(app: express.Application) {
   app.post('/api/admin/users/:telegramId/block', checkAdmin, async (req, res) => { await DBService.updateUser(parseInt(req.params.telegramId), { is_active: 0 }); res.json({ success: true }); });
   app.post('/api/admin/users/:telegramId/unblock', checkAdmin, async (req, res) => { await DBService.updateUser(parseInt(req.params.telegramId), { is_active: 1 }); res.json({ success: true }); });
   app.post('/api/admin/users/:telegramId/reject', checkAdmin, async (req, res) => { await DBService.updateUser(parseInt(req.params.telegramId), { is_approved: 0 }); res.json({ success: true }); });
+  app.post('/api/admin/users/:telegramId/revoke', checkAdmin, async (req, res) => { await DBService.revokePremium(parseInt(req.params.telegramId)); res.json({ success: true }); });
+
+  app.post('/api/admin/users/approve-all', checkAdmin, async (req, res) => {
+    try {
+      const users = await DBService.getAllUsers();
+      const pending = users.filter((u: any) => !u.is_approved && u.is_active !== false);
+      for (const u of pending) {
+        await DBService.updateUser(u.telegram_id, { is_approved: 1 });
+      }
+      res.json({ success: true, approved: pending.length });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
 
   app.get('/api/admin/sources', checkAdmin, async (req, res) => res.json(await DBService.getAllSources()));
 
