@@ -142,7 +142,7 @@
 <span class="material-symbols-outlined text-on-surface-variant">key</span>
 </div>
 <div class="flex items-baseline gap-2">
-<span class="text-display font-display">1,284</span>
+<span class="text-display font-display ai-keys-total">—</span>
 <span class="text-[12px] text-secondary font-label-sm">+12%</span>
 </div>
 <div class="mt-4 h-1 bg-surface-container-highest rounded-full overflow-hidden">
@@ -156,7 +156,7 @@
 <span class="material-symbols-outlined text-secondary">check_circle</span>
 </div>
 <div class="flex items-baseline gap-2">
-<span class="text-display font-display">1,102</span>
+<span class="text-display font-display ai-keys-active">—</span>
 <span class="text-[12px] text-on-surface-variant font-label-sm">85.8%</span>
 </div>
 <div class="mt-4 h-1 bg-surface-container-highest rounded-full overflow-hidden">
@@ -170,7 +170,7 @@
 <span class="material-symbols-outlined text-error">block</span>
 </div>
 <div class="flex items-baseline gap-2">
-<span class="text-display font-display">182</span>
+<span class="text-display font-display ai-keys-blocked">—</span>
 <span class="text-[12px] text-error font-label-sm">-4.2%</span>
 </div>
 <div class="mt-4 h-1 bg-surface-container-highest rounded-full overflow-hidden">
@@ -282,72 +282,8 @@
 <th class="px-container-padding py-3 font-label-md text-label-md text-on-surface-variant text-right">QUOTA (24H)</th>
 </tr>
 </thead>
-<tbody class="divide-y divide-outline-variant">
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-container-padding py-4 text-on-surface font-medium">Main-Groq-01</td>
-<td class="px-container-padding py-4 text-on-surface-variant">Groq Cloud</td>
-<td class="px-container-padding py-4 font-label-sm opacity-60">gsk_Lq9w...xR2m</td>
-<td class="px-container-padding py-4">
-<span class="inline-flex items-center gap-1.5 text-secondary">
-<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                                        Active
-                                    </span>
-</td>
-<td class="px-container-padding py-4 text-on-surface-variant">2 mins ago</td>
-<td class="px-container-padding py-4 text-right font-label-sm">4.2k / 10k</td>
-</tr>
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-container-padding py-4 text-on-surface font-medium">GPT4-Backup-X</td>
-<td class="px-container-padding py-4 text-on-surface-variant">OpenAI</td>
-<td class="px-container-padding py-4 font-label-sm opacity-60">sk-proj...T6Yh</td>
-<td class="px-container-padding py-4">
-<span class="inline-flex items-center gap-1.5 text-error">
-<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
-                                        Rate Limited
-                                    </span>
-</td>
-<td class="px-container-padding py-4 text-on-surface-variant">14 hrs ago</td>
-<td class="px-container-padding py-4 text-right font-label-sm">10k / 10k</td>
-</tr>
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-container-padding py-4 text-on-surface font-medium">Gemini-Pro-Free-09</td>
-<td class="px-container-padding py-4 text-on-surface-variant">Google AI</td>
-<td class="px-container-padding py-4 font-label-sm opacity-60">AIzaSyB..._WpQ</td>
-<td class="px-container-padding py-4">
-<span class="inline-flex items-center gap-1.5 text-secondary">
-<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                                        Active
-                                    </span>
-</td>
-<td class="px-container-padding py-4 text-on-surface-variant">Just now</td>
-<td class="px-container-padding py-4 text-right font-label-sm">1.8k / 2.5k</td>
-</tr>
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-container-padding py-4 text-on-surface font-medium">Anthropic-High-Priority</td>
-<td class="px-container-padding py-4 text-on-surface-variant">Anthropic</td>
-<td class="px-container-padding py-4 font-label-sm opacity-60">ant-api-k0...9jK</td>
-<td class="px-container-padding py-4">
-<span class="inline-flex items-center gap-1.5 text-secondary">
-<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                                        Active
-                                    </span>
-</td>
-<td class="px-container-padding py-4 text-on-surface-variant">45 mins ago</td>
-<td class="px-container-padding py-4 text-right font-label-sm">82k / 500k</td>
-</tr>
-<tr class="hover:bg-surface-container-low/50 transition-colors">
-<td class="px-container-padding py-4 text-on-surface font-medium">Old-Key-Deprecated</td>
-<td class="px-container-padding py-4 text-on-surface-variant">OpenAI</td>
-<td class="px-container-padding py-4 font-label-sm opacity-60">sk-proj...0000</td>
-<td class="px-container-padding py-4">
-<span class="inline-flex items-center gap-1.5 text-on-surface-variant">
-<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
-                                        Revoked
-                                    </span>
-</td>
-<td class="px-container-padding py-4 text-on-surface-variant">3 months ago</td>
-<td class="px-container-padding py-4 text-right font-label-sm">0 / 0</td>
-</tr>
+<tbody id="ai-keys-tbody" class="divide-y divide-outline-variant">
+<tr><td colspan="6" class="px-container-padding py-8 text-center text-muted">Yuklanmoqda...</td></tr>
 </tbody>
 </table>
 </div>

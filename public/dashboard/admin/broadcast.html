@@ -589,16 +589,45 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
       confirmBtn.disabled = true;
       confirmBtn.innerHTML = '<span class="material-symbols-outlined animate-spin" style="font-size:16px">refresh</span> Sending...';
 
-      setTimeout(function() {
-        closeModal();
-        confirmBtn.disabled = false;
-        confirmBtn.innerText = btnText;
-        if (input) { input.value = ''; }
-        if (inputMob) { inputMob.value = ''; }
-        if (preview) { preview.textContent = "Your message will appear here in real-time as you type..."; }
-        if (previewMob) { previewMob.textContent = "Your message will appear here..."; }
-        showToast('Broadcast initialized successfully!', 'success');
-      }, 1500);
+      var ta = input || inputMob;
+      var message = ta ? ta.value : '';
+      var targetEl = document.querySelector('input[name="audience"]:checked') || document.querySelector('input[name="audience-mob"]:checked');
+      var target = targetEl ? targetEl.value : 'all';
+      if (typeof apiFetch === 'function') {
+        apiFetch('/api/admin/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: message, target: target }) })
+          .then(function(r) {
+            closeModal();
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = btnText;
+            if (input) { input.value = ''; }
+            if (inputMob) { inputMob.value = ''; }
+            if (preview) { preview.textContent = "Your message will appear here in real-time as you type..."; }
+            if (previewMob) { previewMob.textContent = "Your message will appear here..."; }
+            if (r.ok) {
+              if (typeof showToast === 'function') showToast('Broadcast yuborildi!', 'success');
+              if (typeof loadBroadcasts === 'function') loadBroadcasts();
+            } else {
+              if (typeof showToast === 'function') showToast('Xatolik yuz berdi', 'error');
+            }
+          })
+          .catch(function() {
+            closeModal();
+            confirmBtn.disabled = false;
+            confirmBtn.innerText = btnText;
+            if (typeof showToast === 'function') showToast('Tarmoq xatosi', 'error');
+          });
+      } else {
+        setTimeout(function() {
+          closeModal();
+          confirmBtn.disabled = false;
+          confirmBtn.innerText = btnText;
+          if (input) { input.value = ''; }
+          if (inputMob) { inputMob.value = ''; }
+          if (preview) { preview.textContent = "Your message will appear here in real-time as you type..."; }
+          if (previewMob) { previewMob.textContent = "Your message will appear here..."; }
+          showToast('Broadcast initialized successfully!', 'success');
+        }, 1500);
+      }
     });
   }
 

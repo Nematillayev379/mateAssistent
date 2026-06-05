@@ -564,7 +564,11 @@
       var data = await r.json();
       if (!Array.isArray(data)) return;
       var tbody = $('#admin-users-tbody');
-      if (!tbody) return;
+      if (!tbody) {
+        var list = document.getElementById('admin-users-list');
+        if (list) renderUsersApprovalsCards(list, data);
+        return;
+      }
       if (!data.length) {
         tbody.innerHTML = '<tr><td colspan="8" class="px-5 py-12 text-center text-muted font-mono text-sm">Foydalanuvchilar yo\'q</td></tr>';
         return;
@@ -607,6 +611,59 @@
       if (paginationEl) paginationEl.textContent = 'Jami: ' + data.length + ' ta foydalanuvchi';
     } catch(e) { console.error('loadAdminUsers:', e); }
   };
+
+  function renderUsersApprovalsCards(container, data) {
+    var pending = data.filter(function(u){ return !u.is_approved && u.is_active !== false; });
+    var all = data;
+    var pendingSection = container.querySelector('#view-queue .space-y-3');
+    if (pendingSection) {
+      if (!pending.length) {
+        pendingSection.innerHTML = '<div class="text-center text-muted py-8">Kutilayotgan so\'rovlar yo\'q</div>';
+      } else {
+        pendingSection.innerHTML = pending.map(function(u) {
+          var name = esc(u.first_name || u.username || 'User');
+          var username = esc(u.username || 'user_' + u.telegram_id);
+          var initial = name.charAt(0).toUpperCase();
+          var lang = esc(u.language || 'en');
+          return '<div class="bg-surface-container border border-outline-variant rounded-xl p-4 flex flex-col gap-4">'+
+            '<div class="flex justify-between items-start">'+
+              '<div class="flex gap-3">'+
+                '<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold">'+initial+'</div>'+
+                '<div><p class="font-medium">'+name+'</p><p class="text-xs text-muted">@'+username+' · '+lang.toUpperCase()+'</p></div>'+
+              '</div>'+
+              '<span class="text-[10px] text-muted font-mono">'+esc((u.created_at||'').toString().substring(0,10))+'</span>'+
+            '</div>'+
+            '<div class="flex gap-2">'+
+              '<button class="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-semibold" onclick="adminUserAction('+u.telegram_id+',\'approve\')">Approve</button>'+
+              '<button class="flex-1 bg-elevated text-error py-2 rounded-lg text-sm font-semibold border border-error/30" onclick="adminUserAction('+u.telegram_id+',\'reject\')">Reject</button>'+
+            '</div>'+
+          '</div>';
+        }).join('');
+      }
+    }
+    var allSection = container.querySelector('#view-all');
+    if (allSection) {
+      if (!all.length) {
+        allSection.innerHTML = '<div class="text-center text-muted py-8">Foydalanuvchilar yo\'q</div>';
+      } else {
+        allSection.innerHTML = '<div class="space-y-2">' + all.map(function(u) {
+          var name = esc(u.first_name || u.username || 'User');
+          var username = esc(u.username || 'user_' + u.telegram_id);
+          var initial = name.charAt(0).toUpperCase();
+          var role = u.role || (u.is_premium ? 'premium' : 'user');
+          return '<div class="bg-surface-container border border-outline-variant rounded-lg p-3 flex justify-between items-center">'+
+            '<div class="flex gap-3 items-center">'+
+              '<div class="w-8 h-8 rounded-full bg-elevated flex items-center justify-center text-xs font-bold">'+initial+'</div>'+
+              '<div><p class="text-sm font-medium">'+name+'</p><p class="text-[10px] text-muted">@'+username+'</p></div>'+
+            '</div>'+
+            '<span class="text-[10px] uppercase font-mono px-2 py-1 rounded bg-elevated">'+role+'</span>'+
+          '</div>';
+        }).join('') + '</div>';
+      }
+    }
+    var badge = document.getElementById('tab-queue');
+    if (badge) badge.textContent = 'Approval Queue (' + pending.length + ')';
+  }
 
   window.adminUserActionMenu = function (btn, tid) {
     document.querySelectorAll('.admin-action-menu').forEach(function(m){ if (m !== btn.nextElementSibling) m.classList.add('hidden'); });
@@ -1119,10 +1176,40 @@
   if (page === 'distribution') { loadChannels(); }
   if (page === 'wallet') { loadWallet(); }
   if (page === 'admin-users' || page === 'admin-users-approvals') { loadAdminUsers(); }
-  if (page === 'admin-system' || page === 'admin-overview') { loadSystemStatus(); loadAdminStats(); }
+  if (page === 'admin-system' || page === 'admin-overview' || page === 'admin-index') { loadSystemStatus(); loadAdminStats(); }
   if (page === 'admin-approval-queue') { loadApprovalQueue(); }
   if (page === 'admin-broadcast' || page === 'admin-broadcast-center') { loadBroadcasts(); }
-  if (page === 'admin-system-config') { loadAdminSettings(); }
+  if (page === 'admin-system-config' || page === 'admin-pricing') { loadAdminSettings(); }
+  if (page === 'admin-ai-keys') { loadAdminKeys(); }
+
+  // ─── Admin AI Keys ────────────────────────
+  window.loadAdminKeys = async function () {
+    try {
+      var r = await apiFetch('/api/admin/ai-keys');
+      if (!r.ok) return;
+      var d = await r.json();
+      var set = function (sel, v) { var el = document.querySelector(sel); if (el) el.textContent = v; };
+      set('.ai-keys-total', d.total ?? 0);
+      set('.ai-keys-active', d.active ?? 0);
+      set('.ai-keys-blocked', d.blocked ?? 0);
+      var tbody = document.getElementById('ai-keys-tbody');
+      if (tbody && Array.isArray(d.keys)) {
+        if (!d.keys.length) {
+          tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-6">Kalitlar yo\'q</td></tr>';
+        } else {
+          tbody.innerHTML = d.keys.map(function (k) {
+            return '<tr class="border-t border-outline-variant">'+
+              '<td class="px-4 py-3 text-sm font-mono">'+esc(k.name||k.id||'')+'</td>'+
+              '<td class="px-4 py-3 text-sm">'+esc(k.provider||'')+'</td>'+
+              '<td class="px-4 py-3 text-sm">'+esc(k.status||'unknown')+'</td>'+
+              '<td class="px-4 py-3 text-sm font-mono">'+esc(k.usage||'0')+'</td>'+
+              '<td class="px-4 py-3 text-sm">'+esc(k.last_used||'—')+'</td>'+
+            '</tr>';
+          }).join('');
+        }
+      }
+    } catch (e) { console.error('loadAdminKeys:', e); }
+  };
   if (page === 'analytics') { loadAnalytics(); }
   if (page === 'automation') { loadAutomation(); }
   if (page === 'overview') { loadOverview(); }

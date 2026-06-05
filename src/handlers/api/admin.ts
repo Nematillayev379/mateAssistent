@@ -142,6 +142,39 @@ export function registerAdminRoutes(app: express.Application) {
 
   app.post('/api/admin/ai-keys/refresh', checkAdmin, async (_req, res) => { await refreshKeyPool(); res.json({ success: true, ...getActiveKeyStats() }); });
 
+  app.get('/api/admin/ai-keys', checkAdmin, async (_req, res) => {
+    try {
+      const stats = getActiveKeyStats();
+      const envPool: any[] = buildKeyPoolFromEnv() as any[];
+      const providers: any = {};
+      let total = 0, active = 0, blocked = 0;
+      for (const k of envPool) {
+        const prov = k.provider || 'unknown';
+        if (!providers[prov]) providers[prov] = { active: 0, blocked: 0, total: 0 };
+        providers[prov].total += 1;
+        total += 1;
+        if (k.status === 'active' || k.status === 'valid') {
+          providers[prov].active += 1;
+          active += 1;
+        } else {
+          providers[prov].blocked += 1;
+          blocked += 1;
+        }
+      }
+      const keys = envPool.slice(0, 50).map((k: any, i: number) => ({
+        id: k.id || `key-${i}`,
+        name: k.name || k.id || `Key ${i+1}`,
+        provider: k.provider || 'unknown',
+        status: k.status || 'unknown',
+        usage: k.usage || 0,
+        last_used: k.lastUsed || k.last_used || '—'
+      }));
+      res.json({ total, active, blocked, providers, keys, stats });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post('/api/admin/broadcast', checkAdmin, adminAiLimiter, async (req: any, res: any) => {
     const { message } = req.body;
     if (!message || typeof message !== 'string') return res.status(400).json({ error: 'Invalid broadcast message' });
