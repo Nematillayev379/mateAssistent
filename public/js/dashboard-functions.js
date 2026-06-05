@@ -1272,6 +1272,21 @@
           }).join('');
         }
       }
+      var drafts = document.getElementById('studio-drafts-list');
+      if (drafts) {
+        try {
+          var saved = JSON.parse(localStorage.getItem('studio_drafts') || '[]');
+          if (saved.length) {
+            drafts.innerHTML = saved.slice(0, 10).map(function (d) {
+              return '<div class="min-w-[260px] bg-card border border-outline-variant rounded-xl p-4 flex-shrink-0 hover:border-primary/30 transition-all cursor-pointer" onclick="showToast('+ "'Draft: ' + '" + esc(d.text.substring(0, 50)) + "', 'success')" + '">'+
+                '<div class="flex justify-between items-start mb-2"><span class="badge badge-cyan">Local</span></div>'+
+                '<p class="text-sm line-clamp-3 mb-3">'+esc(d.text.substring(0, 120))+'</p>'+
+                '<p class="text-[10px] text-muted font-mono">'+esc(new Date(d.created_at).toLocaleString('uz-UZ'))+'</p>'+
+              '</div>';
+            }).join('');
+          } else { drafts.innerHTML = ''; }
+        } catch (e) { drafts.innerHTML = ''; }
+      }
     } catch (e) { console.error('loadStudio:', e); }
   };
 

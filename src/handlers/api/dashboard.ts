@@ -50,6 +50,9 @@ export function registerDashboardRoutes(app: express.Application) {
       const posts = await safeGetUserPosts(uid, 50);
       const postsWeek = posts.filter((p: any) => p.created_at && (Date.now() - new Date(p.created_at).getTime()) < 7 * 86400 * 1000).length;
 
+      const userStats = await DBService.getStats(uid).catch(() => ({ total_posts: 0, total_duplicates: 0 })) as any;
+      const totalDuplicates = Number(userStats?.total_duplicates) || 0;
+
       const activity = await safeGetUserPosts(uid, 8);
       const activityFeed = activity.map((p: any) => ({
         icon: p.status === 'failed' ? 'error' : (p.ai_used ? 'auto_awesome' : 'send'),
@@ -62,9 +65,9 @@ export function registerDashboardRoutes(app: express.Application) {
       const capacityPct = Math.min(100, Math.round((mem.heapUsed / mem.heapTotal) * 100));
 
       res.json({
-        total_posts: posts.length,
+        total_posts: Number(userStats?.total_posts) || posts.length,
         active_sources: activeSources,
-        duplicates_blocked: 0,
+        duplicates_blocked: totalDuplicates,
         ai_requests: 0,
         posts_week: postsWeek,
         memory_mb: memoryMB,
