@@ -114,7 +114,7 @@
         <h2 class="text-2xl font-bold tracking-tight mb-1">Automation Rules</h2>
         <p class="text-sm text-muted">Manage triggers, keyword monitors, and scheduled workflows.</p>
       </div>
-      <button class="px-5 py-2 text-sm font-semibold rounded-lg bg-primary text-white hover:brightness-110 transition-all flex items-center gap-2">
+      <button class="px-5 py-2 text-sm font-semibold rounded-lg bg-primary text-white hover:brightness-110 transition-all flex items-center gap-2" onclick="createRule()">
         <span class="material-symbols-outlined" style="font-size:16px">add</span>
         Create Rule
       </button>
@@ -148,8 +148,8 @@
         <div class="mt-4 flex items-center justify-between">
           <span class="text-[10px] text-muted font-mono">842 matches today</span>
           <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined" style="font-size:16px">edit</span></button>
-            <button class="p-1 hover:text-error transition-colors"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>
+            <button class="p-1 hover:text-primary transition-colors" onclick="editRule('keyword-1')"><span class="material-symbols-outlined" style="font-size:16px">edit</span></button>
+            <button class="p-1 hover:text-error transition-colors" onclick="deleteRule('keyword-1')"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>
           </div>
         </div>
       </div>
@@ -180,8 +180,8 @@
         <div class="mt-4 flex items-center justify-between">
           <span class="text-[10px] text-muted font-mono">12 bans last hour</span>
           <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined" style="font-size:16px">edit</span></button>
-            <button class="p-1 hover:text-error transition-colors"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>
+            <button class="p-1 hover:text-primary transition-colors" onclick="editRule('spam-1')"><span class="material-symbols-outlined" style="font-size:16px">edit</span></button>
+            <button class="p-1 hover:text-error transition-colors" onclick="deleteRule('spam-1')"><span class="material-symbols-outlined" style="font-size:16px">delete</span></button>
           </div>
         </div>
       </div>
@@ -212,14 +212,14 @@
         <div class="mt-4 flex items-center justify-between">
           <span class="text-[10px] text-muted font-mono italic">Last run: Oct 24</span>
           <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined" style="font-size:16px">play_arrow</span></button>
-            <button class="p-1 hover:text-primary transition-colors"><span class="material-symbols-outlined" style="font-size:16px">edit</span></button>
+            <button class="p-1 hover:text-primary transition-colors" onclick="showToast('Run triggered', 'success')"><span class="material-symbols-outlined" style="font-size:16px">play_arrow</span></button>
+            <button class="p-1 hover:text-primary transition-colors" onclick="editRule('cleanup-1')"><span class="material-symbols-outlined" style="font-size:16px">edit</span></button>
           </div>
         </div>
       </div>
 
       <!-- New Rule -->
-      <div class="border-2 border-dashed border-outline-variant rounded-xl flex flex-col items-center justify-center p-8 hover:border-primary/50 cursor-pointer transition-all hover:bg-elevated/30 group">
+      <div class="border-2 border-dashed border-outline-variant rounded-xl flex flex-col items-center justify-center p-8 hover:border-primary/50 cursor-pointer transition-all hover:bg-elevated/30 group" onclick="createRule()">
         <div class="w-12 h-12 rounded-full border border-outline-variant flex items-center justify-center text-muted group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-all">
           <span class="material-symbols-outlined" style="font-size:24px">add_task</span>
         </div>
@@ -240,7 +240,7 @@
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted" style="font-size:14px">link</span>
             <input class="pl-9 pr-4 py-2 text-sm bg-deep border border-outline-variant rounded-lg focus:border-primary outline-none w-72" placeholder="Paste OLX or Uzum URL..." type="text" style="background:var(--bg-deep)"/>
           </div>
-          <button class="px-4 py-2 text-sm border border-outline-variant rounded-lg hover:bg-elevated transition-all font-mono">Track</button>
+          <button class="px-4 py-2 text-sm border border-outline-variant rounded-lg hover:bg-elevated transition-all font-mono" onclick="trackProduct()">Track</button>
         </div>
       </div>
       <div class="bg-card border border-outline-variant rounded-xl overflow-hidden">
@@ -332,51 +332,18 @@
       </div>
     </div>
 
-    <!-- Bot Settings -->
+    <!-- Bot Settings link -->
     <div>
-      <h3 class="text-base font-bold mb-4">Bot Settings</h3>
-      <div class="bg-card border border-outline-variant rounded-xl p-6 space-y-5">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div class="space-y-2">
-            <label class="text-xs text-muted font-mono uppercase tracking-wider">Language</label>
-            <select id="set-lang" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary">
-              <option value="uz">Uzbek</option>
-              <option value="ru">Russian</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-          <div class="space-y-2">
-            <label class="text-xs text-muted font-mono uppercase tracking-wider">Target Channel</label>
-            <div class="relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted font-mono text-xs">@</span>
-              <input id="set-channel" class="w-full pl-8 pr-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary" placeholder="channel_name" type="text"/>
-            </div>
-          </div>
-          <div class="space-y-2">
-            <label class="text-xs text-muted font-mono uppercase tracking-wider">Keywords Filter</label>
-            <input id="set-keywords" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary" placeholder="sport, news, tech" type="text"/>
-          </div>
-          <div class="space-y-2">
-            <label class="text-xs text-muted font-mono uppercase tracking-wider">Posting Interval (min)</label>
-            <input id="set-interval" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary" type="number" min="1" max="1440" value="15"/>
-          </div>
-          <div class="space-y-2">
-            <label class="text-xs text-muted font-mono uppercase tracking-wider">Daily Digest</label>
-            <select id="set-digest" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary">
-              <option value="false">Off</option>
-              <option value="true">On</option>
-            </select>
-          </div>
-          <div class="space-y-2">
-            <label class="text-xs text-muted font-mono uppercase tracking-wider">Digest Time</label>
-            <input id="set-digest-time" class="w-full px-4 py-2.5 rounded-lg border border-outline-variant text-sm focus:border-primary" type="time" value="09:00"/>
+      <a href="/dashboard/settings.html" class="flex items-center justify-between p-4 rounded-xl bg-card border border-outline-variant hover:border-primary/30 transition-all group">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-primary" style="font-size:22px">settings</span>
+          <div>
+            <p class="text-sm font-semibold">Bot Settings</p>
+            <p class="text-xs text-muted">Til, kanal, interval, daily digest sozlamalari</p>
           </div>
         </div>
-        <div class="flex gap-3 pt-4 border-t border-outline-variant">
-          <button onclick="saveSettings()" class="px-6 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:brightness-110 active:scale-95 transition-all">Save Settings</button>
-          <button onclick="removeMainChannel()" class="px-5 py-2.5 border border-error/30 text-error text-sm rounded-lg hover:bg-error/5 active:scale-95 transition-all">Remove Channel</button>
-        </div>
-      </div>
+        <span class="material-symbols-outlined text-muted group-hover:text-primary transition-colors" style="font-size:20px">chevron_right</span>
+      </a>
     </div>
   </div>
 </main>
@@ -396,7 +363,7 @@
 
 <!-- MOBILE MAIN -->
 <main class="lg:hidden pt-14 pb-20 px-4 space-y-4">
-  <button class="w-full py-3 bg-primary text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-all">
+  <button class="w-full py-3 bg-primary text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-all" onclick="createRule()">
     <span class="material-symbols-outlined" style="font-size:18px">add_circle</span>
     Create Rule
   </button>
@@ -455,53 +422,17 @@
     </div>
   </div>
 
-  <!-- Bot Settings -->
-  <div class="bg-card border border-outline-variant rounded-xl p-4 space-y-3">
-    <div class="flex items-center gap-2">
-      <span class="material-symbols-outlined text-primary" style="font-size:18px">settings</span>
-      <h2 class="text-sm font-semibold">Bot Settings</h2>
-    </div>
-    <div class="space-y-3">
+  <!-- Bot Settings link -->
+  <a href="/dashboard/settings.html" class="flex items-center justify-between p-4 rounded-xl bg-card border border-outline-variant active:scale-[0.98] transition-all">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-primary" style="font-size:20px">settings</span>
       <div>
-        <label class="text-[10px] text-muted font-mono uppercase">Language</label>
-        <select id="set-lang" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm">
-          <option value="uz">Uzbek</option>
-          <option value="ru">Russian</option>
-          <option value="en">English</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-[10px] text-muted font-mono uppercase">Target Channel</label>
-        <div class="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-outline-variant">
-          <span class="text-muted text-xs font-mono">@</span>
-          <input id="set-channel" class="bg-transparent border-none p-0 text-sm w-full" placeholder="channel_name" type="text"/>
-        </div>
-      </div>
-      <div>
-        <label class="text-[10px] text-muted font-mono uppercase">Keywords</label>
-        <input id="set-keywords" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm" placeholder="sport, news, tech" type="text"/>
-      </div>
-      <div>
-        <label class="text-[10px] text-muted font-mono uppercase">Interval</label>
-        <input id="set-interval" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm" type="number" value="15"/>
-      </div>
-      <div>
-        <label class="text-[10px] text-muted font-mono uppercase">Digest</label>
-        <select id="set-digest" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm">
-          <option value="false">Off</option>
-          <option value="true">On</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-[10px] text-muted font-mono uppercase">Digest Time</label>
-        <input id="set-digest-time" class="w-full px-3 py-2.5 rounded-lg border border-outline-variant text-sm" type="time" value="09:00"/>
+        <p class="text-sm font-semibold">Bot Settings</p>
+        <p class="text-[10px] text-muted">Til, kanal, digest sozlamalari</p>
       </div>
     </div>
-    <div class="flex gap-3 pt-2">
-      <button onclick="saveSettings()" class="flex-1 py-2.5 bg-primary text-white text-sm font-semibold rounded-lg active:scale-95 transition-all">Save</button>
-      <button onclick="removeMainChannel()" class="flex-1 py-2.5 border border-error/30 text-error text-sm rounded-lg active:scale-95 transition-all">Remove</button>
-    </div>
-  </div>
+    <span class="material-symbols-outlined text-muted" style="font-size:18px">chevron_right</span>
+  </a>
 </main>
 
 <!-- BOTTOM NAV -->

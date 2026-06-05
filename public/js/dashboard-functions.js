@@ -929,6 +929,148 @@
     } catch (e) { showToast('Tarmoq xatosi', 'error'); }
   };
 
+  window.runRssSearch = async function () {
+    var queryEl = document.getElementById('rss-search-query');
+    var limitEl = document.getElementById('rss-search-limit');
+    var modeEl = document.getElementById('rss-search-mode');
+    var query = queryEl ? queryEl.value.trim() : '';
+    if (!query) { showToast('Qidiruv so\'zini kiriting', 'error'); return; }
+    var limit = limitEl ? parseInt(limitEl.value) : 10;
+    var mode = modeEl ? modeEl.value : 'instant';
+    try {
+      if (mode === 'daily') {
+        var r = await apiFetch('/api/rss-search/' + userId, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: query, maxResults: limit, mode: 'daily' })
+        });
+        if (r.ok) { showToast('Kunlik qidiruv saqlandi!', 'success'); if (window.loadAutoSearches) loadAutoSearches(); }
+        else { var e = await r.json().catch(function(){ return {}; }); showToast(e.error || 'Xatolik', 'error'); }
+      } else {
+        showToast('Qidirilmoqda...', 'success');
+        var r2 = await apiFetch('/api/rss-search/' + userId, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic: query, maxResults: limit, mode: 'instant' })
+        });
+        if (r2.ok) {
+          var d = await r2.json();
+          showToast('Topildi: ' + ((d.results && d.results.length) || 0) + ' ta natija', 'success');
+          if (d.summary) showToast(d.summary.substring(0, 100), 'success');
+        } else showToast('Xatolik', 'error');
+      }
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  };
+
+  window.saveDraft = function () {
+    var promptEl = document.getElementById('ai-prompt');
+    var resultEl = document.getElementById('ai-result');
+    var text = (promptEl ? promptEl.value : '') || (resultEl ? resultEl.innerText : '');
+    if (!text) { showToast('Hech narsa yo\'q saqlash uchun', 'error'); return; }
+    try {
+      var drafts = JSON.parse(localStorage.getItem('studio_drafts') || '[]');
+      drafts.unshift({ id: Date.now(), text: text, created_at: new Date().toISOString() });
+      localStorage.setItem('studio_drafts', JSON.stringify(drafts.slice(0, 50)));
+      showToast('Draft saqlandi!', 'success');
+    } catch (e) { showToast('Xatolik', 'error'); }
+  };
+
+  window.viewAllDrafts = function () {
+    var drafts = JSON.parse(localStorage.getItem('studio_drafts') || '[]');
+    if (!drafts.length) { showToast('Draftlar yo\'q', 'error'); return; }
+    var txt = drafts.map(function (d, i) { return (i+1) + '. ' + (d.text.substring(0, 100)) + '...'; }).join('\n\n');
+    alert('Sizning draftlaringiz (' + drafts.length + ' ta):\n\n' + txt);
+  };
+
+  window.newDraft = function () {
+    var promptEl = document.getElementById('ai-prompt');
+    var resultEl = document.getElementById('ai-result');
+    if (promptEl) promptEl.value = '';
+    if (resultEl) resultEl.innerHTML = '<span class="text-muted text-sm">AI natijasi shu yerda paydo bo\'ladi...</span>';
+    if (promptEl) promptEl.focus();
+  };
+
+  window.upgradeToPro = function (plan) {
+    if (typeof buyPremium === 'function') buyPremium(plan || 'monthly');
+    else window.location.href = '/dashboard/wallet.html';
+  };
+
+  window.unlockPremium = function () {
+    var card = document.getElementById('plan-monthly-card');
+    if (card) card.scrollIntoView({ behavior: 'smooth' });
+    else window.location.href = '/dashboard/wallet.html';
+  };
+
+  window.viewAffiliateStats = function () {
+    if (typeof apiFetch === 'function') {
+      apiFetch('/api/referral/' + userId).then(function(r) { return r.json(); }).then(function(d) {
+        var msg = 'Referral kod: ' + (d.code || '—') + '\n';
+        msg += 'Taklif qilganlar: ' + ((d.stats && d.stats.invited) || 0) + '\n';
+        msg += 'Bonus: ' + ((d.stats && d.stats.bonus) || 0) + ' UZS\n';
+        msg += 'Link: ' + (d.refLink || '—');
+        alert(msg);
+      }).catch(function() { alert('Ma\'lumot olishda xatolik'); });
+    }
+  };
+
+  window.logout = function () {
+    if (!confirm('Tizimdan chiqmoqchimisiz?')) return;
+    try { localStorage.removeItem('dashboard_token'); localStorage.removeItem('user_id'); } catch(e){}
+    window.location.href = '/login.html';
+  };
+
+  window.rotateApiKey = function () {
+    if (!confirm('API kalitni yangilashni xohlaysizmi?')) return;
+    showToast('Hozircha bu funksiya tez kunda qo\'shiladi', 'success');
+  };
+
+  window.copyApiKey = function (btn) {
+    var keyEl = document.getElementById('api-key-display');
+    if (!keyEl) return;
+    var txt = keyEl.innerText || keyEl.textContent || '';
+    if (!txt || txt === '—') { showToast('Kalit mavjud emas', 'error'); return; }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(txt).then(function() { showToast('Nusxalandi!', 'success'); }).catch(function() { showToast('Xatolik', 'error'); });
+    } else {
+      try { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); showToast('Nusxalandi!', 'success'); } catch(e) { showToast('Xatolik', 'error'); }
+    }
+  };
+
+  window.createRule = function () {
+    var queryEl = document.getElementById('rss-search-query');
+    var query = queryEl ? queryEl.value.trim() : '';
+    if (query) { createAutoSearch(); return; }
+    var name = prompt('Qoida nomi:');
+    if (!name) return;
+    var trigger = prompt('Trigger (keyword, source, time, category):', 'keyword') || 'keyword';
+    var action = prompt('Action (block, allow, tag, highlight):', 'allow') || 'allow';
+    apiFetch('/api/rules/' + userId, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trigger: trigger, condition: name, action: action, actionValue: '' })
+    }).then(function(r) {
+      if (r.ok) showToast('Qoida yaratildi!', 'success');
+      else showToast('Xatolik', 'error');
+    }).catch(function() { showToast('Tarmoq xatosi', 'error'); });
+  };
+
+  window.trackProduct = function () {
+    var url = prompt('Mahsulot URL (olx.uz, market yoki ijtimoiy tarmoq):');
+    if (!url) return;
+    apiFetch('/api/tracker/' + userId, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url, interval_minutes: 60 })
+    }).then(function(r) {
+      if (r.ok) showToast('Kuzatuv boshlandi!', 'success');
+      else showToast('Xatolik', 'error');
+    }).catch(function() { showToast('Tarmoq xatosi', 'error'); });
+  };
+
+  window.editRule = function (id) { showToast('Tez kunda: ' + id, 'success'); };
+  window.deleteRule = function (id) {
+    if (!confirm('O\'chirilsinmi?')) return;
+    apiFetch('/api/rules/' + userId + '/' + id, { method: 'DELETE' })
+      .then(function(r) { if (r.ok) { showToast('O\'chirildi', 'success'); location.reload(); } });
+  };
+  };
+
   window.loadAutoSearches = async function () {
     var container = document.getElementById('auto-search-list');
     if (!container) return;
