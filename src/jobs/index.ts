@@ -107,14 +107,20 @@ function scheduleCleanup() {
 function scheduleClusterDigest() {
   cron.schedule("0 */4 * * *", async () => {
     try {
-      const { ClusteringService } = await import("../services/clustering");
-      const { DBService } = await import("../services/database");
+      const { ClusteringService } = await import('../services/clustering');
+      const { DBService } = await import('../services/database');
       const activeUsers = await DBService.getActiveUsers();
       for (const u of activeUsers) {
-        if (u.target_channel) {
+        if (u.daily_digest && u.target_channel) {
           await ClusteringService.sendClusterDigest(u.telegram_id, u.target_channel);
           await new Promise(r => setTimeout(r, 200));
         }
+      }
+    } catch (err: any) {
+      logger.error(`Cluster digest cron: ${err.message}`);
+    }
+  });
+}
       }
     } catch (err: any) {
       logger.error(`Cluster digest cron: ${err.message}`);

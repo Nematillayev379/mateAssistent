@@ -40,16 +40,22 @@ export async function processDailyDigests() {
     const now = new Date();
     const zonedNow = getZonedParts(now, CONFIG.TIMEZONE);
     const currentTotal = zonedNow.hour * 60 + zonedNow.minute;
+    const today = zonedNow.date;
 
     for (const user of users) {
+      if (!user.daily_digest) continue;
       if (!user.digest_time) continue;
       const [targetH, targetM] = user.digest_time.split(':').map(Number);
       if (Number.isNaN(targetH) || Number.isNaN(targetM)) continue;
       const targetTotal = targetH * 60 + targetM;
-      const today = zonedNow.date;
 
-      if (currentTotal === targetTotal && user.digest_last_sent !== today) {
-        logger.info(`Sending daily digest to user ${user.telegram_id}`);
+      const diff = currentTotal - targetTotal;
+      const isOnTime = diff >= 0 && diff < 3;
+      const isAfterMidnight = currentTotal < 60 && targetTotal >= 1380;
+      const isMatch = isOnTime || isAfterMidnight;
+
+      if (isMatch && user.digest_last_sent !== today) {
+        logger.info(`Sending daily digest to user ${user.telegram_id} (target=${user.digest_time}, current=${String(zonedNow.hour).padStart(2,'0')}:${String(zonedNow.minute).padStart(2,'0')})`);
         const success = await sendDigest(user, today);
         if (success) {
           await DBService.updateUser(user.telegram_id, { digest_last_sent: today });
