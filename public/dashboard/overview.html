@@ -254,21 +254,21 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
         <div class="bg-card border border-outline-variant rounded-xl p-5">
           <h3 class="text-sm font-semibold mb-3">Quick Actions</h3>
           <div class="space-y-2">
-            <button class="w-full flex items-center justify-between p-3 rounded-lg bg-elevated hover:bg-hover transition-all active:scale-[0.98]">
+            <button class="w-full flex items-center justify-between p-3 rounded-lg bg-elevated hover:bg-hover transition-all active:scale-[0.98]" onclick="publishNow()">
               <div class="flex items-center gap-3">
                 <span class="material-symbols-outlined text-primary" style="font-size:18px">send</span>
                 <span class="text-sm font-medium">Publish Now</span>
               </div>
               <span class="material-symbols-outlined text-muted" style="font-size:16px">chevron_right</span>
             </button>
-            <button class="w-full flex items-center justify-between p-3 rounded-lg bg-elevated hover:bg-hover transition-all active:scale-[0.98]">
+            <button class="w-full flex items-center justify-between p-3 rounded-lg bg-elevated hover:bg-hover transition-all active:scale-[0.98]" onclick="window.location='/dashboard/sources.html'">
               <div class="flex items-center gap-3">
                 <span class="material-symbols-outlined text-secondary" style="font-size:18px">add_link</span>
                 <span class="text-sm font-medium">Add Source</span>
               </div>
               <span class="material-symbols-outlined text-muted" style="font-size:16px">chevron_right</span>
             </button>
-            <button class="w-full flex items-center justify-between p-3 rounded-lg bg-elevated hover:bg-hover transition-all active:scale-[0.98]">
+            <button class="w-full flex items-center justify-between p-3 rounded-lg bg-elevated hover:bg-hover transition-all active:scale-[0.98]" onclick="generateAI()">
               <div class="flex items-center gap-3">
                 <span class="material-symbols-outlined text-purple" style="font-size:18px">auto_awesome</span>
                 <span class="text-sm font-medium">Generate AI</span>
@@ -350,11 +350,11 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
 
   <!-- Quick Actions -->
   <div class="grid grid-cols-2 gap-3">
-    <button class="py-3 rounded-xl bg-primary text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all">
+    <button class="py-3 rounded-xl bg-primary text-white text-sm font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all" onclick="publishNow()">
       <span class="material-symbols-outlined" style="font-size:16px">send</span>
       Publish
     </button>
-    <button class="py-3 rounded-xl border border-outline-variant text-sm font-medium flex items-center justify-center gap-2 active:scale-95 transition-all">
+    <button class="py-3 rounded-xl border border-outline-variant text-sm font-medium flex items-center justify-center gap-2 active:scale-95 transition-all" onclick="generateAI()">
       <span class="material-symbols-outlined" style="font-size:16px">auto_awesome</span>
       Generate
     </button>
@@ -366,43 +366,8 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
       <h3 class="text-sm font-semibold">Recent Activity</h3>
       <button class="text-xs text-primary font-mono">View All</button>
     </div>
-    <div class="bg-card border border-outline-variant rounded-xl divide-y divide-outline-variant overflow-hidden">
-      <div class="p-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <span class="material-symbols-outlined text-primary" style="font-size:16px">rss_feed</span>
-          </div>
-          <div>
-            <p class="text-sm font-medium">Tech update published</p>
-            <p class="text-[10px] text-muted font-mono">2m ago</p>
-          </div>
-        </div>
-        <span class="text-[9px] font-mono font-semibold px-2 py-0.5 rounded-full bg-success/10 text-success">Done</span>
-      </div>
-      <div class="p-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-error/10 flex items-center justify-center">
-            <span class="material-symbols-outlined text-error" style="font-size:16px">filter_alt_off</span>
-          </div>
-          <div>
-            <p class="text-sm font-medium">Duplicate filtered</p>
-            <p class="text-[10px] text-muted font-mono">15m ago</p>
-          </div>
-        </div>
-        <span class="text-[9px] font-mono font-semibold px-2 py-0.5 rounded-full bg-elevated text-muted">Skip</span>
-      </div>
-      <div class="p-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-purple/10 flex items-center justify-center">
-            <span class="material-symbols-outlined text-purple" style="font-size:16px">auto_fix</span>
-          </div>
-          <div>
-            <p class="text-sm font-medium">AI summary generated</p>
-            <p class="text-[10px] text-muted font-mono">1h ago</p>
-          </div>
-        </div>
-        <span class="text-[9px] font-mono font-semibold px-2 py-0.5 rounded-full bg-purple/10 text-purple">AI</span>
-      </div>
+    <div id="activity-feed-mobile" class="bg-card border border-outline-variant rounded-xl divide-y divide-outline-variant overflow-hidden">
+      <div class="p-4 text-center text-sm text-muted">Yuklanmoqda...</div>
     </div>
   </div>
 </main>

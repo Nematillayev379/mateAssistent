@@ -21,6 +21,67 @@ export function registerContentRoutes(app: express.Application) {
     res.json({ success: true, sentTo: targets.length });
   });
 
+  app.post('/api/posts/publish-now/:userId', checkAuth, async (req: any, res: any) => {
+    try {
+      const uid = parseInt(req.authenticatedUserId);
+      const user = await DBService.getUser(uid);
+      if (!user) return res.status(404).json({ error: 'Not found' });
+      const targets = DBService.getUserOutputChannels(user);
+      if (!targets.length) return res.status(400).json({ error: 'Avval kanal qo\'shing' });
+
+      const titles = await DBService.getRecentNewsTitles(20).catch(() => []);
+      const sourceKeyword = (await DBService.getKeywords(uid))[0] || '';
+      let picked: string | null = null;
+      if (sourceKeyword) {
+        picked = titles.find((t: string) => t.toLowerCase().includes(sourceKeyword.toLowerCase())) || null;
+      }
+      if (!picked) picked = titles[Math.floor(Math.random() * titles.length)] || null;
+      if (!picked) return res.status(400).json({ error: 'Hozircha yangiliklar yo\'q' });
+
+      const text = `📰 <b>${picked}</b>\n\n@${(user.username || 'newsroom')}`;
+      let sent = 0;
+      for (const target of targets) {
+        try { await bot.sendMessage(target, text, { parse_mode: 'HTML' }); sent++; } catch (e: any) { /* skip */ }
+        await new Promise(r => setTimeout(r, 100));
+      }
+      await DBService.incrementStat(uid, 'total_posts');
+      res.json({ success: true, sentTo: sent, title: picked });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.post('/api/posts/generate/:userId', checkAuth, async (req: any, res: any) => {
+    try {
+      const uid = parseInt(req.authenticatedUserId);
+      const user = await DBService.getUser(uid);
+      if (!user) return res.status(404).json({ error: 'Not found' });
+      const targets = DBService.getUserOutputChannels(user);
+      if (!targets.length) return res.status(400).json({ error: 'Avval kanal qo\'shing' });
+
+      const titles = await DBService.getRecentNewsTitles(10).catch(() => []);
+      if (!titles.length) return res.status(400).json({ error: 'Yangiliklar yo\'q' });
+
+      const seed = titles[Math.floor(Math.random() * titles.length)];
+      const { getSmartAIResponse } = await import('../../services/ai');
+      const summary = await getSmartAIResponse(
+        'Siz yangiliklar muharriri siz. Qisqa, aniq va o\'zbek tilida 2-3 jumla yozing.',
+        `Quyidagi sarlavha asosida qisqa yangilik matni yozing:\n\n${seed}`
+      ).catch(() => '');
+
+      const text = `📰 <b>${seed}</b>\n\n${summary || 'Yangilik tafsilotlari tez orada...'}\n\n@${(user.username || 'newsroom')}`;
+      let sent = 0;
+      for (const target of targets) {
+        try { await bot.sendMessage(target, text, { parse_mode: 'HTML' }); sent++; } catch (e: any) { /* skip */ }
+        await new Promise(r => setTimeout(r, 100));
+      }
+      await DBService.incrementStat(uid, 'total_posts');
+      res.json({ success: true, sentTo: sent, title: seed, summary });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post('/api/posts/draft', checkAuth, async (req: any, res: any) => {
     const { title, body, image_url, channels } = req.body;
     if (!body) return res.status(400).json({ error: 'Body required' });

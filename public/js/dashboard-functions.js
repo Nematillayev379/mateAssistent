@@ -1018,11 +1018,18 @@
       var r = await apiFetch('/api/overview/' + userId);
       if (!r.ok) return;
       var d = await r.json();
-      setText('.desktop-total-posts', d.total_posts ?? 0);
-      setText('.desktop-sources', d.active_sources ?? 0);
-      setText('.mobile-sources', d.active_sources ?? 0);
-      setText('.desktop-duplicates', d.duplicates_blocked ?? 0);
-      setText('.desktop-ai-requests', d.ai_requests ?? 0);
+      var posts = d.total_posts ?? 0;
+      var srcs = d.active_sources ?? 0;
+      var blocked = d.duplicates_blocked ?? 0;
+      var aiReq = d.ai_requests ?? 0;
+      document.querySelectorAll('.desktop-total-posts').forEach(function (el) { el.textContent = posts.toLocaleString(); });
+      document.querySelectorAll('.mobile-total-posts').forEach(function (el) { el.textContent = posts.toLocaleString(); });
+      document.querySelectorAll('.desktop-sources').forEach(function (el) { el.textContent = srcs; });
+      document.querySelectorAll('.mobile-sources').forEach(function (el) { el.textContent = srcs; });
+      document.querySelectorAll('.desktop-duplicates').forEach(function (el) { el.textContent = blocked.toLocaleString(); });
+      document.querySelectorAll('.mobile-duplicates').forEach(function (el) { el.textContent = blocked.toLocaleString(); });
+      document.querySelectorAll('.desktop-ai-requests').forEach(function (el) { el.textContent = aiReq; });
+      document.querySelectorAll('.mobile-ai-requests').forEach(function (el) { el.textContent = aiReq; });
       setText('.bot-memory', d.memory_mb ? d.memory_mb + ' MB' : '—');
       setText('.bot-latency', d.api_latency_ms ? d.api_latency_ms + ' ms' : '—');
       setText('.bot-instance', d.bot_status || 'ACTIVE');
@@ -1045,7 +1052,47 @@
       } else if (feed) {
         feed.innerHTML = '<div class="px-6 py-6 text-center text-sm text-muted">Hozircha faollik yo\'q</div>';
       }
+      var mobileFeed = document.getElementById('activity-feed-mobile');
+      if (mobileFeed && Array.isArray(d.activity) && d.activity.length) {
+        mobileFeed.innerHTML = d.activity.slice(0, 5).map(function (a) {
+          var icon = a.icon || 'fiber_manual_record';
+          var color = a.icon === 'error' ? 'text-error' : (a.icon === 'auto_awesome' ? 'text-purple' : 'text-primary');
+          var bg = a.icon === 'error' ? 'bg-error/10' : (a.icon === 'auto_awesome' ? 'bg-purple/10' : 'bg-primary/10');
+          var badge = a.icon === 'auto_awesome' ? 'AI' : (a.icon === 'error' ? 'Skip' : 'Done');
+          var badgeClass = a.icon === 'auto_awesome' ? 'bg-purple/10 text-purple' : (a.icon === 'error' ? 'bg-elevated text-muted' : 'bg-success/10 text-success');
+          return '<div class="p-4 flex items-center justify-between">'+
+            '<div class="flex items-center gap-3">'+
+              '<div class="w-8 h-8 rounded-lg '+bg+' flex items-center justify-center">'+
+                '<span class="material-symbols-outlined '+color+'" style="font-size:16px">'+icon+'</span>'+
+              '</div>'+
+              '<div><p class="text-sm font-medium">'+esc(a.text)+'</p>'+
+              '<p class="text-[10px] text-muted font-mono">'+esc(a.time||'')+'</p></div>'+
+            '</div>'+
+            '<span class="text-[9px] font-mono font-semibold px-2 py-0.5 rounded-full '+badgeClass+'">'+badge+'</span>'+
+          '</div>';
+        }).join('');
+      } else if (mobileFeed) {
+        mobileFeed.innerHTML = '<div class="p-4 text-center text-sm text-muted">Hozircha faollik yo\'q</div>';
+      }
     } catch (e) { console.error('loadOverview:', e); }
+  };
+
+  window.publishNow = async function () {
+    try {
+      showToast('Yuborilmoqda...', 'success');
+      var r = await apiFetch('/api/posts/publish/' + userId, { method: 'POST' });
+      if (r.ok) { showToast('Post yuborildi!', 'success'); if (window.loadOverview) setTimeout(loadOverview, 500); }
+      else { var e = await r.json().catch(function(){ return {}; }); showToast(e.error || 'Xatolik', 'error'); }
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  };
+
+  window.generateAI = async function () {
+    try {
+      showToast('AI generatsiya qilinyapti...', 'success');
+      var r = await apiFetch('/api/posts/generate/' + userId, { method: 'POST' });
+      if (r.ok) { showToast('AI tayyor!', 'success'); if (window.loadOverview) setTimeout(loadOverview, 500); }
+      else { var e = await r.json().catch(function(){ return {}; }); showToast(e.error || 'Xatolik', 'error'); }
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
   };
 
   // ─── Settings Page ────────────────────────
