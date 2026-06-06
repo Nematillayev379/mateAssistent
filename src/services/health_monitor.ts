@@ -60,7 +60,7 @@ export async function checkSupabaseHealth(): Promise<boolean> {
   try {
     const { DBService } = await import('./database');
     const user = await DBService.getUser(0);
-    return true;
+    return user !== undefined && user !== null;
   } catch {
     return false;
   }
