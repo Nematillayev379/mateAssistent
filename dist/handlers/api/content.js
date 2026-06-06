@@ -59,6 +59,74 @@ function registerContentRoutes(app) {
         await database_1.DBService.incrementStat(uid, 'total_posts');
         res.json({ success: true, sentTo: targets.length });
     });
+    app.post('/api/posts/publish-now/:userId', auth_1.checkAuth, async (req, res) => {
+        try {
+            const uid = parseInt(req.authenticatedUserId);
+            const user = await database_1.DBService.getUser(uid);
+            if (!user)
+                return res.status(404).json({ error: 'Not found' });
+            const targets = database_1.DBService.getUserOutputChannels(user);
+            if (!targets.length)
+                return res.status(400).json({ error: 'Avval kanal qo\'shing' });
+            const titles = await database_1.DBService.getRecentNewsTitles(20).catch(() => []);
+            const sourceKeyword = (await database_1.DBService.getKeywords(uid))[0] || '';
+            let picked = null;
+            if (sourceKeyword) {
+                picked = titles.find((t) => t.toLowerCase().includes(sourceKeyword.toLowerCase())) || null;
+            }
+            if (!picked)
+                picked = titles[Math.floor(Math.random() * titles.length)] || null;
+            if (!picked)
+                return res.status(400).json({ error: 'Hozircha yangiliklar yo\'q' });
+            const text = `📰 <b>${picked}</b>\n\n@${(user.username || 'newsroom')}`;
+            let sent = 0;
+            for (const target of targets) {
+                try {
+                    await bot_instance_1.bot.sendMessage(target, text, { parse_mode: 'HTML' });
+                    sent++;
+                }
+                catch (e) { /* skip */ }
+                await new Promise(r => setTimeout(r, 100));
+            }
+            await database_1.DBService.incrementStat(uid, 'total_posts');
+            res.json({ success: true, sentTo: sent, title: picked });
+        }
+        catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+    app.post('/api/posts/generate/:userId', auth_1.checkAuth, async (req, res) => {
+        try {
+            const uid = parseInt(req.authenticatedUserId);
+            const user = await database_1.DBService.getUser(uid);
+            if (!user)
+                return res.status(404).json({ error: 'Not found' });
+            const targets = database_1.DBService.getUserOutputChannels(user);
+            if (!targets.length)
+                return res.status(400).json({ error: 'Avval kanal qo\'shing' });
+            const titles = await database_1.DBService.getRecentNewsTitles(10).catch(() => []);
+            if (!titles.length)
+                return res.status(400).json({ error: 'Yangiliklar yo\'q' });
+            const seed = titles[Math.floor(Math.random() * titles.length)];
+            const { getSmartAIResponse } = await Promise.resolve().then(() => __importStar(require('../../services/ai')));
+            const summary = await getSmartAIResponse('Siz yangiliklar muharriri siz. Qisqa, aniq va o\'zbek tilida 2-3 jumla yozing.', `Quyidagi sarlavha asosida qisqa yangilik matni yozing:\n\n${seed}`).catch(() => '');
+            const text = `📰 <b>${seed}</b>\n\n${summary || 'Yangilik tafsilotlari tez orada...'}\n\n@${(user.username || 'newsroom')}`;
+            let sent = 0;
+            for (const target of targets) {
+                try {
+                    await bot_instance_1.bot.sendMessage(target, text, { parse_mode: 'HTML' });
+                    sent++;
+                }
+                catch (e) { /* skip */ }
+                await new Promise(r => setTimeout(r, 100));
+            }
+            await database_1.DBService.incrementStat(uid, 'total_posts');
+            res.json({ success: true, sentTo: sent, title: seed, summary });
+        }
+        catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
     app.post('/api/posts/draft', auth_1.checkAuth, async (req, res) => {
         const { title, body, image_url, channels } = req.body;
         if (!body)

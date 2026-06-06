@@ -18,6 +18,7 @@ const premium_1 = require("./api/premium");
 const system_1 = require("./api/system");
 const workspace_1 = require("./api/workspace");
 const public_api_1 = require("./api/public_api");
+const dashboard_1 = require("./api/dashboard");
 function registerRoutes(app) {
     const apiLimiter = (0, express_rate_limit_1.default)({
         windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false,
@@ -38,4 +39,5 @@ function registerRoutes(app) {
     (0, system_1.registerSystemRoutes)(app);
     (0, workspace_1.registerWorkspaceRoutes)(app);
     (0, public_api_1.registerPublicApiRoutes)(app);
+    (0, dashboard_1.registerDashboardRoutes)(app);
 }

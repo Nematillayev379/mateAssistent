@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendAlert = sendAlert;
+exports.isRedisConfigured = isRedisConfigured;
 exports.checkRedisHealth = checkRedisHealth;
 exports.checkSupabaseHealth = checkSupabaseHealth;
 exports.checkAiKeysHealth = checkAiKeysHealth;
@@ -44,6 +45,7 @@ const logger_1 = require("../utils/logger");
 const config_1 = require("../config/config");
 const alertCooldowns = new Map();
 const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
+let redisStartupLogged = false;
 function canAlert(key) {
     const now = Date.now();
     const lastAlert = alertCooldowns.get(key) || 0;
@@ -64,7 +66,15 @@ async function sendAlert(type, message) {
         logger_1.logger.warn(`Alert send failed: ${e.message}`);
     }
 }
+function isRedisConfigured() {
+    return Boolean(config_1.CONFIG.REDIS_URL?.trim() ||
+        config_1.CONFIG.REDIS_URLS?.trim() ||
+        config_1.CONFIG.DEFAULT_REDIS_URL?.trim());
+}
 async function checkRedisHealth() {
+    if (!isRedisConfigured()) {
+        return false;
+    }
     try {
         const { getRedisConnection } = await Promise.resolve().then(() => __importStar(require('./redis')));
         const conn = await getRedisConnection();
@@ -81,7 +91,7 @@ async function checkSupabaseHealth() {
     try {
         const { DBService } = await Promise.resolve().then(() => __importStar(require('./database')));
         const user = await DBService.getUser(0);
-        return true;
+        return user !== undefined && user !== null;
     }
     catch {
         return false;
@@ -112,8 +122,16 @@ async function runHealthCheck() {
         lastRssRun: Date.now(),
         memoryUsage,
     };
-    if (!redis) {
+    if (!redis && isRedisConfigured()) {
         await sendAlert('Redis Down', 'Redis ulanishi buzildi. Queue ishlamayapti.');
+    }
+    else if (!redis && !isRedisConfigured() && !redisStartupLogged) {
+        logger_1.logger.info('Redis sozlanmagan - in-memory queue ishlayapti. Alert yuborilmaydi.');
+        redisStartupLogged = true;
+    }
+    else if (redis && isRedisConfigured() && !redisStartupLogged) {
+        logger_1.logger.info('Redis ulanishi muvaffaqiyatli - queue ishlayapti.');
+        redisStartupLogged = true;
     }
     if (!supabase) {
         await sendAlert('Database Down', 'Supabase ulanishi buzildi. Barcha operatsiyalar to\'xtadi.');

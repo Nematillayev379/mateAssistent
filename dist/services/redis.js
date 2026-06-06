@@ -403,6 +403,7 @@ function createPooledIORedis(pool) {
 let pool = null;
 let pooledRedis = null;
 let poolUrls = [];
+let noRedisLogged = false;
 function ensurePool() {
     if (pool)
         return;
@@ -418,7 +419,10 @@ function ensurePool() {
 function getRedisOptions() {
     ensurePool();
     if (!pool || !pooledRedis) {
-        logger_1.logger.info('REDIS_URLS & REDIS_URL not configured - in-memory fallback enabled');
+        if (!noRedisLogged) {
+            logger_1.logger.info('REDIS_URLS & REDIS_URL not configured - in-memory fallback enabled');
+            noRedisLogged = true;
+        }
         return null;
     }
     if (!pool.hasAvailable()) {

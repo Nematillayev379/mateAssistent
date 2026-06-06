@@ -104,6 +104,23 @@ export async function runHealthCheck(): Promise<HealthStatus> {
     redisStartupLogged = true;
   }
 
+  if (redis && isRedisConfigured()) {
+    try {
+      const { getRedisPool } = await import('./redis');
+      const pool = getRedisPool();
+      if (pool) {
+        const total = pool.totalCount;
+        const exhausted = pool.exhaustedCount;
+        const activeUrl = pool.activeUrl.replace(/:[^:@/]+@/, ':***@');
+        if (exhausted > 0) {
+          logger.warn(`Redis pool: ${total - exhausted}/${total} active, ${exhausted} exhausted. Active: ${activeUrl}`);
+        } else {
+          logger.info(`Redis pool: ${total}/${total} active. Active: ${activeUrl}`);
+        }
+      }
+    } catch {}
+  }
+
   if (!supabase) {
     await sendAlert('Database Down', 'Supabase ulanishi buzildi. Barcha operatsiyalar to\'xtadi.');
   }

@@ -143,11 +143,11 @@ function scheduleCleanup() {
 function scheduleClusterDigest() {
     node_cron_1.default.schedule("0 */4 * * *", async () => {
         try {
-            const { ClusteringService } = await Promise.resolve().then(() => __importStar(require("../services/clustering")));
-            const { DBService } = await Promise.resolve().then(() => __importStar(require("../services/database")));
+            const { ClusteringService } = await Promise.resolve().then(() => __importStar(require('../services/clustering')));
+            const { DBService } = await Promise.resolve().then(() => __importStar(require('../services/database')));
             const activeUsers = await DBService.getActiveUsers();
             for (const u of activeUsers) {
-                if (u.target_channel) {
+                if (u.daily_digest && u.target_channel) {
                     await ClusteringService.sendClusterDigest(u.telegram_id, u.target_channel);
                     await new Promise(r => setTimeout(r, 200));
                 }

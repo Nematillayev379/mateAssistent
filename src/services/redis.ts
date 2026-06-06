@@ -84,7 +84,10 @@ function parseRedisUrls(): string[] {
   }
 
   if (CONFIG.REDIS_URLS && CONFIG.REDIS_URLS.trim()) {
-    for (const u of CONFIG.REDIS_URLS.split(',')) {
+    const normalized = CONFIG.REDIS_URLS
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r');
+    for (const u of normalized.split(/[,;\n\r]+/)) {
       pushUrl(u, 'REDIS_URLS');
     }
   }
@@ -407,6 +410,49 @@ function ensurePool(): void {
   if (poolUrls.length === 0) return;
   pool = new RedisPool(poolUrls);
   pooledRedis = createPooledIORedis(pool);
+  logger.info(`Redis pool initialized: ${poolUrls.length} URL(s) loaded for rotation`);
+  for (let i = 0; i < pool.entries.length; i++) {
+    const url = pool.entries[i].url;
+    const masked = url.replace(/:[^:@/]+@/, ':***@');
+    logger.info(`  Token #${i + 1}: ${masked}`);
+  }
+  testAllUrls(pool).catch(() => {});
+}
+
+async function testAllUrls(pool: RedisPool): Promise<void> {
+  for (let i = 0; i < pool.entries.length; i++) {
+    const entry = pool.entries[i];
+    let conn: IORedis | null = null;
+    try {
+      conn = new IORedis(entry.url, {
+        lazyConnect: true,
+        connectTimeout: 5000,
+        maxRetriesPerRequest: 1,
+        retryStrategy: () => null,
+      });
+      await conn.connect();
+      const pong = await conn.ping();
+      if (pong === 'PONG') {
+        logger.info(`  Token #${i + 1}: reachable ✓`);
+      } else {
+        entry.exhausted = true;
+        logger.warn(`  Token #${i + 1}: ping returned ${pong}, marked as exhausted`);
+      }
+    } catch (err: any) {
+      entry.exhausted = true;
+      logger.warn(`  Token #${i + 1}: unreachable (${err.message}), marked as exhausted`);
+    } finally {
+      if (conn) {
+        try { await conn.quit(); } catch { try { conn.disconnect(); } catch {} }
+      }
+    }
+  }
+  const available = pool.totalCount - pool.exhaustedCount;
+  if (available === 0) {
+    logger.error(`Redis pool: all ${pool.totalCount} tokens are exhausted at startup! Falling back to in-memory.`);
+  } else {
+    logger.info(`Redis pool: ${available}/${pool.totalCount} tokens are reachable`);
+  }
 }
 
 // ─── Public API ────────────────────────────────────────────

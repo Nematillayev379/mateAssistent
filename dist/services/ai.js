@@ -87,19 +87,49 @@ async function selectRotatingKey(keys, scope) {
         return { key, idx };
     });
 }
-async function requestAICompletion(currentKeyObj, system, user, maxTokens, timeoutMs) {
+const GROQ_MODELS = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "meta-llama/llama-4-maverick-17b-128e-instruct"
+];
+async function tryGroqModels(groq, system, user, maxTokens, exclude = []) {
+    const candidates = GROQ_MODELS.filter(m => !exclude.includes(m));
+    let lastErr = null;
+    for (const model of candidates) {
+        try {
+            const res = await groq.chat.completions.create({
+                messages: [{ role: "system", content: system }, { role: "user", content: user }],
+                model,
+                max_tokens: maxTokens,
+            });
+            const content = res.choices[0]?.message?.content ?? "";
+            if (content) {
+                if (model !== GROQ_MODELS[0])
+                    logger_1.logger.info(`[GROQ] Fallback model '${model}' ishladi.`);
+                return content;
+            }
+        }
+        catch (e) {
+            lastErr = e;
+            const msg = String(e?.message || e || '');
+            if (msg.includes('model') || msg.includes('decommission') || msg.includes('not found') || e?.status === 400 || e?.status === 404) {
+                logger_1.logger.warn(`[GROQ] Model '${model}' ishlamadi: ${msg.substring(0, 120)}. Keyingisiga o'tilmoqda...`);
+                continue;
+            }
+            throw e;
+        }
+    }
+    throw lastErr || new Error("Barcha Groq modellari ishlamadi");
+}
+async function requestAICompletion(currentKeyObj, system, user, maxTokens, timeoutMs, excludeModels = []) {
     if (currentKeyObj.type === "groq") {
         let groq = groqClients.get(currentKeyObj.key);
         if (!groq) {
             groq = new groq_sdk_1.default({ apiKey: currentKeyObj.key, timeout: timeoutMs });
             groqClients.set(currentKeyObj.key, groq);
         }
-        const res = await groq.chat.completions.create({
-            messages: [{ role: "system", content: system }, { role: "user", content: user }],
-            model: "llama-3.3-70b-versatile",
-            max_tokens: maxTokens,
-        });
-        return res.choices[0]?.message?.content ?? "";
+        return tryGroqModels(groq, system, user, maxTokens, excludeModels);
     }
     if (currentKeyObj.type === "gemini" || currentKeyObj.type === "google") {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${currentKeyObj.key}`, {
@@ -175,7 +205,7 @@ async function getSmartAIResponseInternal(keys, system, user, retryCount = 0, sc
     const { key: currentKeyObj, idx } = await selectRotatingKey(keys, scope);
     try {
         const maxTokens = config_1.MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || config_1.CONFIG.MAX_TOKENS;
-        return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000);
+        return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000, currentKeyObj._excludeModels || []);
     }
     catch (error) {
         const errMsg = error?.message ?? '';
@@ -188,6 +218,14 @@ async function getSmartAIResponseInternal(keys, system, user, retryCount = 0, sc
         if (errMsg.includes('does not support image') || errMsg.includes('image.png')) {
             logger_1.logger.warn(`[${scope.toUpperCase()}] Groq image-input error on key #${idx}. Content contains image references. Falling through.`);
             return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
+        }
+        if (currentKeyObj.type === 'groq' && (errMsg.includes('model') || errMsg.includes('decommission') || errMsg.includes('not found') || status === 400 || status === 404)) {
+            const tried = currentKeyObj._excludeModels || [];
+            if (tried.length < GROQ_MODELS.length - 1) {
+                currentKeyObj._excludeModels = tried;
+                logger_1.logger.warn(`[${scope.toUpperCase()}] Groq model xatosi. Boshqa model bilan urinib ko'riladi...`);
+                return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
+            }
         }
         throw error;
     }
