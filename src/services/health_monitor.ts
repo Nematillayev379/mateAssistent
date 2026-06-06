@@ -58,9 +58,14 @@ export async function checkRedisHealth(): Promise<boolean> {
 
 export async function checkSupabaseHealth(): Promise<boolean> {
   try {
-    const { DBService } = await import('./database');
-    const user = await DBService.getUser(0);
-    return user !== undefined && user !== null;
+    const { getSupabase } = await import('../repositories/BaseRepository');
+    const supabase = getSupabase();
+    const { error } = await supabase.from('users').select('id', { count: 'exact', head: true }).limit(1);
+    if (error) {
+      logger.warn(`Supabase health check error: ${error.message}`);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
