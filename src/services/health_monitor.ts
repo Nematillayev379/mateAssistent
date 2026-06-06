@@ -12,6 +12,7 @@ interface HealthStatus {
 
 const alertCooldowns = new Map<string, number>();
 const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
+let redisStartupLogged = false;
 
 function canAlert(key: string): boolean {
   const now = Date.now();
@@ -32,7 +33,18 @@ export async function sendAlert(type: string, message: string): Promise<void> {
   }
 }
 
+export function isRedisConfigured(): boolean {
+  return Boolean(
+    CONFIG.REDIS_URL?.trim() ||
+    CONFIG.REDIS_URLS?.trim() ||
+    CONFIG.DEFAULT_REDIS_URL?.trim()
+  );
+}
+
 export async function checkRedisHealth(): Promise<boolean> {
+  if (!isRedisConfigured()) {
+    return false;
+  }
   try {
     const { getRedisConnection } = await import('./redis');
     const conn = await getRedisConnection();
@@ -82,8 +94,14 @@ export async function runHealthCheck(): Promise<HealthStatus> {
     memoryUsage,
   };
 
-  if (!redis) {
+  if (!redis && isRedisConfigured()) {
     await sendAlert('Redis Down', 'Redis ulanishi buzildi. Queue ishlamayapti.');
+  } else if (!redis && !isRedisConfigured() && !redisStartupLogged) {
+    logger.info('Redis sozlanmagan - in-memory queue ishlayapti. Alert yuborilmaydi.');
+    redisStartupLogged = true;
+  } else if (redis && isRedisConfigured() && !redisStartupLogged) {
+    logger.info('Redis ulanishi muvaffaqiyatli - queue ishlayapti.');
+    redisStartupLogged = true;
   }
 
   if (!supabase) {
