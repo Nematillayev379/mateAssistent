@@ -33,6 +33,10 @@ services:
         sync: false
       - key: REDIS_URL
         value: ""
+      - key: REDIS_URLS
+        # Comma-separated Redis URLs for rotation (10+ supported).
+        # Leave empty to use in-memory queue (no Redis required).
+        sync: false
       - key: PUBLIC_URL
         value: https://uzbekistan-news-bot.onrender.com
     region: oregon
