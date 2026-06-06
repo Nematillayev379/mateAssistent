@@ -145,5 +145,9 @@ export function setupHealthMonitoring(): void {
     }
   }, 5 * 60 * 1000);
 
-  logger.info('Health monitoring started (every 5 min)');
+  setTimeout(() => {
+    runHealthCheck().catch((e: any) => logger.error(`Initial health check failed: ${e.message}`));
+  }, 3000);
+
+  logger.info('Health monitoring started (every 5 min, first run in 3s)');
 }

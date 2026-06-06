@@ -12,6 +12,43 @@ import { checkAuth, checkAdmin } from '../auth';
 export function registerSystemRoutes(app: express.Application) {
   app.get('/health', (req, res) => res.json({ status: 'ok', bot: 'active', uptime: process.uptime() }));
 
+  app.get('/api/redis/status', checkAdmin, async (_req, res) => {
+    const envSet = Boolean(
+      (CONFIG.REDIS_URLS && CONFIG.REDIS_URLS.trim()) ||
+      (CONFIG.REDIS_URL && CONFIG.REDIS_URL.trim()) ||
+      (CONFIG.DEFAULT_REDIS_URL && CONFIG.DEFAULT_REDIS_URL.trim())
+    );
+    const rawCount =
+      (CONFIG.REDIS_URLS ? CONFIG.REDIS_URLS.split(/[,;\n\r]+/).filter(s => s.trim()).length : 0) +
+      (CONFIG.REDIS_URL && CONFIG.REDIS_URL.trim() ? 1 : 0) +
+      (CONFIG.DEFAULT_REDIS_URL && CONFIG.DEFAULT_REDIS_URL.trim() ? 1 : 0);
+    let pool: any = null;
+    try {
+      const { getRedisPool } = await import('../../services/redis');
+      pool = getRedisPool();
+    } catch {}
+    let live = false;
+    try {
+      const { getRedisConnection } = await import('../../services/redis');
+      const conn = await getRedisConnection();
+      if (conn) {
+        const pong = await conn.ping();
+        live = pong === 'PONG';
+      }
+    } catch {}
+    res.json({
+      configured: envSet,
+      urlsDeclared: rawCount,
+      poolInitialized: !!pool,
+      poolTotal: pool?.totalCount || 0,
+      poolExhausted: pool?.exhaustedCount || 0,
+      poolActive: pool ? pool.totalCount - pool.exhaustedCount : 0,
+      activeUrl: pool?.activeUrl ? pool.activeUrl.replace(/:[^:@/]+@/, ':***@') : null,
+      live,
+      mode: envSet && live ? 'redis' : 'in-memory',
+    });
+  });
+
   app.post('/api/bot/webhook', rateLimit({ windowMs: 1000, max: 100, keyGenerator: () => 'webhook' }), (req, res) => {
     const secret = req.headers['x-telegram-bot-api-secret-token'];
     if (secret !== CONFIG.WEBHOOK_SECRET) return res.sendStatus(403);
