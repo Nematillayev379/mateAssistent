@@ -14,7 +14,12 @@ const alertCooldowns = new Map<string, number>();
 const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
 let redisStartupLogged = false;
 
+function healthAlertsEnabled(): boolean {
+  return process.env.HEALTH_ALERTS_ENABLED !== 'false';
+}
+
 function canAlert(key: string): boolean {
+  if (!healthAlertsEnabled()) return false;
   const now = Date.now();
   const lastAlert = alertCooldowns.get(key) || 0;
   if (now - lastAlert < ALERT_COOLDOWN_MS) return false;
@@ -45,19 +50,35 @@ export async function checkRedisHealth(): Promise<boolean> {
   if (!isRedisConfigured()) {
     return false;
   }
-  try {
+  const result = await withTimeout((async () => {
     const { getRedisConnection } = await import('./redis');
     const conn = await getRedisConnection();
     if (!conn) return false;
     const pong = await conn.ping();
     return pong === 'PONG';
-  } catch {
-    return false;
+  })(), 3000, 'Redis ping');
+  return result === true;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T | null> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T | null>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+      }),
+    ]);
+  } catch (err: any) {
+    logger.warn(`Health check ${label}: ${err.message}`);
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
 export async function checkSupabaseHealth(): Promise<boolean> {
-  try {
+  const result = await withTimeout((async () => {
     const { getSupabase } = await import('../repositories/BaseRepository');
     const supabase = getSupabase();
     const { error } = await supabase.from('users').select('id', { count: 'exact', head: true }).limit(1);
@@ -66,9 +87,8 @@ export async function checkSupabaseHealth(): Promise<boolean> {
       return false;
     }
     return true;
-  } catch {
-    return false;
-  }
+  })(), 4000, 'Supabase ping');
+  return result === true;
 }
 
 export async function checkAiKeysHealth(): Promise<number> {

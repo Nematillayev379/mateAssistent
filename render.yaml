@@ -37,6 +37,10 @@ services:
         # Comma-separated Redis URLs for rotation (10+ supported).
         # Leave empty to use in-memory queue (no Redis required).
         sync: false
+      - key: HEALTH_ALERTS_ENABLED
+        # Set to "false" to silence Redis/Database/AI Keys alerts entirely.
+        # Default: enabled.
+        value: "true"
       - key: PUBLIC_URL
         value: https://uzbekistan-news-bot.onrender.com
     region: oregon
