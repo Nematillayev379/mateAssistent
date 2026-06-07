@@ -7,6 +7,12 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { resolveYtDlpCommand } from '../utils/ytdlp';
 
+interface CobaltApiResponse {
+  url?: string;
+  status?: string;
+  picker?: Array<{ url?: string }>;
+}
+
 const execPromise = promisify(exec);
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_media');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -35,8 +41,9 @@ export const DownloaderService = {
 
       // Fallback: Cobalt URL (less reliable but better than nothing)
       return this.getCobaltMedia(url);
-    } catch (e: any) {
-      logger.error(`yt-dlp download failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`yt-dlp download failed: ${msg}`);
       return this.getCobaltMedia(url);
     }
   },
@@ -61,12 +68,12 @@ export const DownloaderService = {
         ], { timeout: 30000 });
         if (fs.existsSync(filePath)) return filePath;
       }
-    } catch (e: any) { logger.warn(`Instagram yt-dlp fallback: ${e?.message || 'unknown'}`); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Instagram yt-dlp fallback: ${msg}`); }
 
     // Strategy 2: ddinstagram proxy (Returns URL)
     try {
       const proxyUrl = url.replace(/instagram\.com/i, 'ddinstagram.com');
-      const res = await axios.get(proxyUrl, { 
+      const res = await axios.get<string>(proxyUrl, { 
         headers: { 'User-Agent': 'Mozilla/5.0' },
         timeout: 10000
       });
@@ -102,10 +109,10 @@ export const DownloaderService = {
       'https://grapefruit.clxxped.lol',
     ];
 
-    const fetchFromInstance = async (base: string) => {
+    const fetchFromInstance = async (base: string): Promise<string> => {
       // 1. Try Cobalt v10 API parameters (POST to base URL)
       try {
-        const res = await axios.post(`${base}/`, {
+        const res = await axios.post<CobaltApiResponse>(`${base}/`, {
           url,
           vQuality: '720',
           aFormat: 'mp3',
@@ -124,14 +131,14 @@ export const DownloaderService = {
         if (res.data?.url) return res.data.url;
         if (res.data?.status === 'stream' && res.data?.url) return res.data.url;
         if (res.data?.status === 'redirect' && res.data?.url) return res.data.url;
-        if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
-          return res.data.picker[0].url;
+        if (res.data?.status === 'picker' && res.data.picker && res.data.picker.length > 0) {
+          return res.data.picker[0].url || '';
         }
       } catch { logger.warn(`Cobalt v10 API failed`); }
 
       // 2. Try Cobalt v7/v8 API parameters (POST to base URL)
       try {
-        const res = await axios.post(`${base}/`, {
+        const res = await axios.post<CobaltApiResponse>(`${base}/`, {
           url,
           videoQuality: '720',
           filenameStyle: 'basic',
@@ -151,14 +158,14 @@ export const DownloaderService = {
         if (res.data?.url) return res.data.url;
         if (res.data?.status === 'stream' && res.data?.url) return res.data.url;
         if (res.data?.status === 'redirect' && res.data?.url) return res.data.url;
-        if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
-          return res.data.picker[0].url;
+        if (res.data?.status === 'picker' && res.data.picker && res.data.picker.length > 0) {
+          return res.data.picker[0].url || '';
         }
       } catch { logger.warn(`Cobalt v7/v8 API failed`); }
 
       // 3. Try /api/json endpoint (Some older instances)
       try {
-        const res = await axios.post(`${base}/api/json`, {
+        const res = await axios.post<CobaltApiResponse>(`${base}/api/json`, {
           url,
           vQuality: '720',
           filenamePattern: 'basic',
@@ -173,8 +180,8 @@ export const DownloaderService = {
         });
         if (res.data?.url) return res.data.url;
         if (res.data?.status === 'stream' && res.data?.url) return res.data.url;
-        if (res.data?.status === 'picker' && res.data.picker?.length > 0) {
-          return res.data.picker[0].url;
+        if (res.data?.status === 'picker' && res.data.picker && res.data.picker.length > 0) {
+          return res.data.picker[0].url || '';
         }
       } catch { logger.warn(`Cobalt /api/json endpoint failed`); }
 
@@ -205,6 +212,6 @@ export const DownloaderService = {
           }
         } catch { logger.warn(`Cleanup: failed to remove temp file`); }
       }
-    } catch (e: any) { logger.warn(`Cleanup error: ${e?.message || 'unknown'}`); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Cleanup error: ${msg}`); }
   }
 };

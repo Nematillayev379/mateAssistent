@@ -85,8 +85,9 @@ export const PriceTrackerService = {
         return { price, title };
       }
       return null;
-    } catch (e: any) {
-      logger.warn(`Price check failed for ${sanitizeLogInput(url)}: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`Price check failed for ${sanitizeLogInput(url)}: ${msg}`);
       return null;
     }
   },
@@ -104,8 +105,9 @@ export const PriceTrackerService = {
         if (!unique.has(item.url)) unique.set(item.url, item);
       }
       return Array.from(unique.values()).sort((a, b) => a.price - b.price);
-    } catch (e: any) {
-      logger.error(`Price search failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`Price search failed: ${msg}`);
       return [];
     }
   },
@@ -161,8 +163,9 @@ export const PriceTrackerService = {
       );
 
       return resolved.filter((item): item is SearchResult => !!item);
-    } catch (e: any) {
-      logger.warn(`${source} DDG search failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`${source} DDG search failed: ${msg}`);
       return [];
     }
   },
@@ -192,7 +195,7 @@ export const PriceTrackerService = {
                 `${item.url}`,
                 { parse_mode: 'HTML' }
               );
-              } catch (e: any) { logger.warn(`API call failed: ${e?.message || 'unknown error'}`); }
+              } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`API call failed: ${msg}`); }
           } else if (result.price > item.price && item.price > 0) {
             const diff = result.price - item.price;
             try {
@@ -206,7 +209,7 @@ export const PriceTrackerService = {
                 `${item.url}`,
                 { parse_mode: 'HTML' }
               );
-              } catch (e: any) { logger.warn(`API call failed: ${e?.message || 'unknown error'}`); }
+              } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`API call failed: ${msg}`); }
           }
           if (result.price !== item.price) {
             await DBService.updatePrice(item.id, result.price);

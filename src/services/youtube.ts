@@ -5,11 +5,43 @@ import os from 'os';
 import path from 'path';
 import { logger } from '../utils/logger';
 import { findNewestFile, resolveYtDlpCommand } from '../utils/ytdlp';
+
+interface YouTubeInitialData {
+  contents?: {
+    twoColumnSearchResultsRenderer?: {
+      primaryContents?: {
+        sectionListRenderer?: {
+          contents?: Array<{
+            itemSectionRenderer?: {
+              contents?: Array<{
+                videoRenderer?: {
+                  videoId?: string;
+                  title?: {
+                    runs?: Array<{ text?: string }>;
+                    simpleText?: string;
+                  };
+                };
+              }>;
+            };
+          }>;
+        };
+      };
+    };
+  };
+}
+
+interface YoutubeFeedEntry {
+  id: string;
+  title: string;
+  url: string | undefined;
+  published: string;
+}
+
 let ffmpegStatic: string | null = null;
-try { ffmpegStatic = require('ffmpeg-static'); } catch (e: any) { logger.warn(`Failed to require ffmpeg-static: ${e?.message || 'unknown error'}`); }
+try { ffmpegStatic = require('ffmpeg-static'); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Failed to require ffmpeg-static: ${msg}`); }
 
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_yt');
-try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: any) { logger.warn(`Failed to create TEMP_DIR: ${e?.message || 'unknown error'}`); }
+try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Failed to create TEMP_DIR: ${msg}`); }
 const MAX_MEDIA_SIZE = 49 * 1024 * 1024;
 
 function detectExtensionFromContentType(contentType?: string, fallback: string = 'bin'): string {
@@ -41,7 +73,7 @@ function findDownloadedMedia(basePrefix: string, preferredExts: string[]): strin
 }
 
 export const YoutubeService = {
-  async getLatestVideo(channelId: string) {
+  async getLatestVideo(channelId: string): Promise<YoutubeFeedEntry | null> {
     try {
       const url = channelId.startsWith('UC')
         ? `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`
@@ -64,8 +96,9 @@ export const YoutubeService = {
         url: latestEntry.find('link').attr('href'),
         published: latestEntry.find('published').text(),
       };
-    } catch (e: any) {
-      logger.error(`YoutubeService error: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`YoutubeService error: ${msg}`);
       return null;
     }
   },
@@ -100,13 +133,13 @@ export const YoutubeService = {
               const jsonEnd = scriptText.lastIndexOf('}');
               if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
                 const jsonStr = scriptText.slice(jsonStart, jsonEnd + 1);
-                const data = JSON.parse(jsonStr);
+                const data: YouTubeInitialData = JSON.parse(jsonStr);
                 const videos =
                   data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
                     ?.contents?.[0]?.itemSectionRenderer?.contents || [];
                 for (const item of videos) {
-                  if (item.videoRenderer) {
-                    const video = item.videoRenderer;
+                  const video = item.videoRenderer;
+                  if (video) {
                     results.push({
                       title: video.title?.runs?.[0]?.text || video.title?.simpleText || '',
                       url: `https://www.youtube.com/watch?v=${video.videoId}`,
@@ -116,13 +149,14 @@ export const YoutubeService = {
               }
             }
           } catch {
-            /* ignore */
+            logger.warn('YouTube search: failed to parse ytInitialData from script tag');
           }
         }
       }
       return results;
-    } catch (e: any) {
-      logger.error(`YouTube search error: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`YouTube search error: ${msg}`);
       return [];
     }
   },
@@ -146,8 +180,9 @@ export const YoutubeService = {
         const [id, title] = line.split('|||');
         return { title, url: `https://www.youtube.com/watch?v=${id}` };
       });
-    } catch (e: any) {
-      logger.error(`Playlist extraction error: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`Playlist extraction error: ${msg}`);
       return [];
     }
   },
@@ -166,7 +201,6 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
   const ytdlpCommand = await resolveYtDlpCommand();
   let ytdlpFailed = false;
 
-  // BUG-XXX Fix: Capture stderr from yt-dlp to diagnose binary/execution issues on Windows
   if (ytdlpCommand) {
     try {
       const { spawn } = await import('child_process');
@@ -221,7 +255,6 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
         proc.on('close', (code) => {
           clearTimeout(timer);
           if (code === 0) return resolve();
-          // BUG-XXX Fix: Include stderr in error to help diagnose yt-dlp binary issues
           const errMsg = stderrOutput
             ? `yt-dlp exited with code ${code}: ${stderrOutput.slice(0, 200)}`
             : `yt-dlp exited with code ${code}`;
@@ -238,14 +271,13 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
       if (filePath) {
         return filePath;
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       ytdlpFailed = true;
-      // BUG-XXX Fix: Log full error including stderr to aid debugging
-      logger.warn(`yt-dlp strategy failed (${e.message.slice(0, 300)}). Trying Cobalt…`);
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`yt-dlp strategy failed (${msg.slice(0, 300)}). Trying Cobalt…`);
     }
   }
 
-  // Only attempt Cobalt as fallback if yt-dlp is absent or failed
   try {
     const { DownloaderService } = await import('./downloader');
     const cobaltUrl = await DownloaderService.getCobaltMedia(safeUrl, {
@@ -270,13 +302,15 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
         const filePath = path.join(TEMP_DIR, `yt_${stamp}.${ext}`);
         fs.writeFileSync(filePath, Buffer.from(response.data));
         if (validateDownloadedFile(filePath)) return filePath;
-        try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
-      } catch (dlErr: any) {
-        logger.warn(`Failed to persist Cobalt media locally: ${dlErr.message}`);
+        try { fs.unlinkSync(filePath); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Cleanup: ${msg}`); }
+      } catch (dlErr: unknown) {
+        const msg = dlErr instanceof Error ? dlErr.message : String(dlErr);
+        logger.warn(`Failed to persist Cobalt media locally: ${msg}`);
       }
     }
-  } catch (e: any) {
-    const reason = ytdlpFailed ? `yt-dlp ham ishlamadi (${e.message.slice(0, 100)})` : '';
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const reason = ytdlpFailed ? `yt-dlp ham ishlamadi (${msg.slice(0, 100)})` : '';
     logger.warn(`Cobalt fallback failed: ${reason}`);
   }
 
@@ -285,5 +319,5 @@ export async function downloadYouTube(urlParam: string, typeParam: 'video' | 'au
     : ytdlpFailed
     ? 'yt-dlp ishlamadi va Cobalt API javob bermadi'
     : 'Cobalt API javob bermadi';
-  throw new Error(`Audio/video yuklab bo‘lmadi: ${reason}. Iltimos qayta urinib ko‘ring yoki boshqa link yuboring.`);
+  throw new Error(`Audio/video yuklab bo'lmadi: ${reason}. Iltimos qayta urinib ko'ring yoki boshqa link yuboring.`);
 }

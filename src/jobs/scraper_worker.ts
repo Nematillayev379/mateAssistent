@@ -42,8 +42,9 @@ if (!connectionOptions) {
             pubDate: article.pubDate,
           }, lang);
         }
-      } catch (error) {
-        logger.error(`Scraper Worker Error: ${error}`);
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        logger.error(`Scraper Worker Error: ${msg}`);
         throw error;
       }
     },

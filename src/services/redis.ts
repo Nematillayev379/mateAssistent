@@ -124,7 +124,7 @@ function parseRedisUrls(): string[] {
 }
 
 // Global registry of defined Lua commands to replay on rotated connections
-const definedCommands = new Map<string, any>();
+const definedCommands = new Map<string, { lua: string; numberOfKeys?: number; readOnly?: boolean }>();
 
 interface PoolEntry {
   url: string;
@@ -258,7 +258,7 @@ class RedisPool {
 // instance so BullMQ's `instanceof IORedis` check passes.
 
 function createPooledIORedis(pool: RedisPool): IORedis {
-  const registered = new Map<string, Set<(...args: any[]) => void>>();
+  const registered = new Map<string, Set<(...args: unknown[]) => void>>();
   const ee = new EventEmitter();
 
   let currentConn = pool.active;
@@ -318,20 +318,24 @@ function createPooledIORedis(pool: RedisPool): IORedis {
     if (typeof propName !== 'string') return;
     const baseName = propName.replace(/\d+$/, '');
     const definition = definedCommands.get(baseName) || definedCommands.get(propName);
-    if (definition && typeof (conn as any)[propName] !== 'function') {
+    if (definition && typeof (conn as unknown as Record<string, unknown>)[propName] !== 'function') {
       try {
-        (conn as any).defineCommand(baseName, definition);
+        conn.defineCommand(baseName, definition);
       } catch {}
     }
   }
 
   const proxy = new Proxy(dummy, {
     get(target, prop) {
-      const currentValue = (currentConn as any)[prop];
-      const targetValue = (target as any)[prop];
+      const connRecord = currentConn as unknown as Record<string | symbol, unknown>;
+      const currentValue = connRecord[prop];
+      const targetRecord = target as unknown as Record<string | symbol, unknown>;
+      const targetValue = targetRecord[prop];
       // EventEmitter methods -> delegate to ee (local EventEmitter)
       if (typeof prop === 'string' && eventMethods.has(prop)) {
-        return (ee as any)[prop].bind(ee);
+        return (ee as unknown as Record<string | symbol, unknown>)[prop] instanceof Function
+          ? ((ee as unknown as Record<string, (...args: unknown[]) => unknown>)[prop] as Function).bind(ee)
+          : undefined;
       }
 
       if (prop === 'status') return currentConn.status;
@@ -340,23 +344,23 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       if (prop === 'quit') return async () => { for (const e of pool.entries) { if (e.conn) { try { await e.conn.quit(); } catch {} e.conn = null; } } };
       if (prop === 'duplicate') return () => proxy;
       if (prop === 'defineCommand') {
-        return (name: string, definition: any) => {
+        return (name: string, definition: { lua: string; numberOfKeys?: number; readOnly?: boolean }) => {
           definedCommands.set(name, definition);
           try {
-            (dummy as any).defineCommand(name, definition);
+            dummy.defineCommand(name, definition);
           } catch {}
-          return (currentConn as any).defineCommand(name, definition);
+          return currentConn.defineCommand(name, definition);
         };
       }
 
       // Event listener registration -> track and delegate to currentConn
-      if (prop === 'on') return (event: string, handler: (...a: any[]) => void) => {
+      if (prop === 'on') return (event: string, handler: (...a: unknown[]) => void) => {
         if (!registered.has(event)) registered.set(event, new Set());
         registered.get(event)!.add(handler);
         currentConn.on(event, handler);
         return proxy;
       };
-      if (prop === 'off' || prop === 'removeListener') return (event: string, handler: (...a: any[]) => void) => {
+      if (prop === 'off' || prop === 'removeListener') return (event: string, handler: (...a: unknown[]) => void) => {
         registered.get(event)?.delete(handler);
         currentConn.off(event, handler);
         return proxy;
@@ -366,14 +370,14 @@ function createPooledIORedis(pool: RedisPool): IORedis {
         currentConn.removeAllListeners(event);
         return proxy;
       };
-      if (prop === 'emit') return (event: string, ...args: any[]) => ee.emit(event, ...args);
+      if (prop === 'emit') return (event: string, ...args: unknown[]) => ee.emit(event, ...args);
       if (prop === 'listenerCount') return (event?: string) => event ? (registered.get(event)?.size || 0) : registered.size;
       if (prop === 'eventNames') return () => Array.from(registered.keys());
 
       if (typeof currentValue === 'function') {
-        return (...args: any[]) => execCmd(c => {
+        return (...args: unknown[]) => execCmd(async c => {
           ensureCommandOnConnection(c, prop as string);
-          const fn = (c as any)[prop];
+          const fn = (c as unknown as Record<string, (...a: unknown[]) => unknown>)[prop as string];
           return typeof fn === 'function' ? fn.apply(c, args) : fn;
         });
       }
@@ -382,11 +386,11 @@ function createPooledIORedis(pool: RedisPool): IORedis {
 
       if (typeof prop === 'string') {
         ensureCommandOnConnection(currentConn, prop);
-        const retryValue = (currentConn as any)[prop];
+        const retryValue = (currentConn as unknown as Record<string | symbol, unknown>)[prop];
         if (typeof retryValue === 'function') {
-          return (...args: any[]) => execCmd(c => {
+          return (...args: unknown[]) => execCmd(async c => {
             ensureCommandOnConnection(c, prop as string);
-            const fn = (c as any)[prop];
+            const fn = (c as unknown as Record<string, (...a: unknown[]) => unknown>)[prop as string];
             return typeof fn === 'function' ? fn.apply(c, args) : fn;
           });
         }
@@ -395,12 +399,12 @@ function createPooledIORedis(pool: RedisPool): IORedis {
       return targetValue;
     },
     set(_target, prop, value) {
-      (currentConn as any)[prop] = value;
+      (currentConn as unknown as Record<string | symbol, unknown>)[prop] = value;
       return true;
     },
     defineProperty(target, prop, descriptor) {
       try {
-        Object.defineProperty(currentConn as any, prop, descriptor);
+        Object.defineProperty(currentConn as object, prop as string | symbol, descriptor);
       } catch {}
       return Reflect.defineProperty(target, prop, descriptor);
     }

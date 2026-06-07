@@ -50,8 +50,9 @@ export const WorkspaceService = {
         await bot.sendMessage(channel.channel_id, msg, { parse_mode: 'HTML' });
         logger.info(`Rebalanced "${topic.topic}" → ${channel.channel_id}`);
         await new Promise(r => setTimeout(r, 1000));
-      } catch (e: any) {
-        logger.warn(`Rebalance failed for ${channel.channel_id}: ${e.message}`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.warn(`Rebalance failed for ${channel.channel_id}: ${msg}`);
       }
     }
   },

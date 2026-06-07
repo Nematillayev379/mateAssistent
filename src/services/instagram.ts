@@ -1,7 +1,19 @@
 import axios from 'axios';
 import { logger, sanitizeLogInput } from '../utils/logger';
 
-const PROXIES = [
+interface InstagramParseResult {
+  id: string;
+  url: string;
+  title: string;
+}
+
+interface InstagramProxy {
+  name: string;
+  url: (u: string) => string;
+  parse: (html: string, username: string) => InstagramParseResult | null;
+}
+
+const PROXIES: InstagramProxy[] = [
   {
     name: 'ddinstagram',
     url: (u: string) => `https://ddinstagram.com/u/${u}`,
@@ -35,13 +47,13 @@ const PROXIES = [
 ];
 
 export const InstagramService = {
-  async getLatestPost(username: string) {
+  async getLatestPost(username: string): Promise<InstagramParseResult | null> {
     const clean = username.replace('@', '').trim();
     if (!clean) return null;
 
     for (const proxy of PROXIES) {
       try {
-        const res = await axios.get(proxy.url(clean), {
+        const res = await axios.get<string>(proxy.url(clean), {
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
           timeout: 10000,
           responseType: 'text'
@@ -50,8 +62,9 @@ export const InstagramService = {
           const result = proxy.parse(res.data, clean);
           if (result) return result;
         }
-      } catch (e: any) {
-        logger.warn(`Instagram proxy ${proxy.name} failed: ${sanitizeLogInput(e.message)}`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.warn(`Instagram proxy ${proxy.name} failed: ${sanitizeLogInput(msg)}`);
       }
     }
     return null;

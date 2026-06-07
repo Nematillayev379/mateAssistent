@@ -2,6 +2,7 @@ import axios from "axios";
 import { wrapper } from "axios-cookiejar-support";
 import { CookieJar } from "tough-cookie";
 import * as cheerio from "cheerio";
+import type { Element as DomElement } from "domhandler";
 import dns from 'dns';
 import { logger, sanitizeLogInput } from "../utils/logger";
 import { getSmartAIResponse } from "./ai";
@@ -157,7 +158,7 @@ export const ScraperService = {
       }
     }
   },
-  extractLink(el: any, $: any): string {
+  extractLink(el: DomElement, $: cheerio.CheerioAPI): string {
     // RSS: <link> text content
     let link = $(el).find("link").text().trim();
     if (!link.startsWith("http")) {
@@ -183,7 +184,7 @@ export const ScraperService = {
     return "";
   },
 
-  extractMedia(el: any, $: any) {
+  extractMedia(el: DomElement, $: cheerio.CheerioAPI) {
     const descriptionHtml = $(el).find("description").text().trim() ||
       $(el).find("content\\:encoded").text().trim() ||
       $(el).find("content").text().trim();
@@ -352,13 +353,16 @@ export const ScraperService = {
             const html = $(el).html();
             if (!html || html.trim() === '') return;
             const data = JSON.parse(html);
-            const checkProduct = (obj: any) => {
+            const checkProduct = (obj: Record<string, unknown>) => {
               if (obj && obj['@type'] === 'Product') {
-                if (obj.name) name = obj.name;
-                if (obj.image) imageUrl = Array.isArray(obj.image) ? obj.image[0] : obj.image;
-                if (obj.offers && obj.offers.price) {
-                  priceText = String(obj.offers.price);
-                  foundLd = true;
+                if (obj.name) name = String(obj.name);
+                if (obj.image) imageUrl = Array.isArray(obj.image) ? String(obj.image[0]) : String(obj.image);
+                if (obj.offers && typeof obj.offers === 'object' && obj.offers !== null) {
+                  const offers = obj.offers as Record<string, unknown>;
+                  if (offers.price) {
+                    priceText = String(offers.price);
+                    foundLd = true;
+                  }
                 }
               }
             };
@@ -420,7 +424,7 @@ export const ScraperService = {
       });
       if (olxRes.data && olxRes.data.data) {
         for (const item of olxRes.data.data.slice(0, 4)) {
-          const priceParam = item.params?.find((p: any) => p.key === 'price');
+          const priceParam = item.params?.find((p: { key: string; value?: Record<string, unknown> }) => p.key === 'price');
           let convertedPrice = 0;
           
           if (priceParam?.value?.converted_currency === 'UZS' && priceParam?.value?.converted_value) {

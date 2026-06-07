@@ -8,6 +8,22 @@ import type { AiKeyEntry } from "../config/config";
 import { logger } from "../utils/logger";
 import { DBService } from "./database";
 
+interface GeminiCandidate {
+  content?: { parts?: Array<{ text?: string }> };
+}
+
+interface GeminiResponse {
+  candidates?: GeminiCandidate[];
+}
+
+interface GeminiEmbeddingResponse {
+  embedding?: { values?: number[] };
+}
+
+interface GroqModelResponse {
+  choices: Array<{ message?: { content?: string } }>;
+}
+
 let globalKeyIndex = 0;
 let embeddingKeyIndex = 0;
 let activeKeys: AiKeyEntry[] = buildKeyPoolFromEnv();
@@ -136,8 +152,8 @@ async function requestAICompletion(currentKeyObj: AiKeyEntry, system: string, us
       throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), { status: response.status });
     }
 
-    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
-    const candidates = data.candidates as Array<{ content?: { parts?: Array<{ text?: string }> } }> | undefined;
+    const data = await response.json().catch(() => ({})) as GeminiResponse;
+    const candidates = data.candidates;
     return candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   }
 
@@ -410,11 +426,11 @@ export async function translateToUzbek(title: string, content: string) {
     const res = await getSmartAIResponse(prompt, `Title: ${title}\nContent: ${safeContent}`);
     const jsonMatch = res.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed: Record<string, unknown> = JSON.parse(jsonMatch[0]);
       if (!parsed.title || !parsed.content) {
         return { title: title || 'Untitled', content: content || '' };
       }
-      return parsed;
+      return { title: String(parsed.title), content: String(parsed.content) };
     }
     throw new Error("No JSON found in response");
   } catch (err: unknown) {
@@ -455,8 +471,8 @@ export async function getEmbedding(text: string, retryCount = 0): Promise<number
        return null;
     }
 
-    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
-    const embedding = data.embedding as { values?: number[] } | undefined;
+    const data = await response.json().catch(() => ({})) as GeminiEmbeddingResponse;
+    const embedding = data.embedding;
     return embedding?.values ?? null;
   } catch (e: unknown) {
     logger.error(`Embedding error: ${e instanceof Error ? e.message : String(e)}`);
@@ -490,10 +506,11 @@ Output JSON format: {"category": "...", "sentiment": "..."}`,
     );
     const jsonMatch = res.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      const normalizedCategory = parsed.category?.replace(/[''ʻʼ`]/g, '') || '';
+      const parsed: Record<string, unknown> = JSON.parse(jsonMatch[0]);
+      const normalizedCategory = String(parsed.category || '').replace(/[''ʻʼ`]/g, '');
       const category = validCategories.find(c => normalizedCategory.includes(c)) || 'Boshqa';
-      const sentiment = ['positive', 'negative', 'neutral'].includes(parsed.sentiment?.toLowerCase()) ? parsed.sentiment.toLowerCase() : 'neutral';
+      const sentimentStr = String(parsed.sentiment || '').toLowerCase();
+      const sentiment = ['positive', 'negative', 'neutral'].includes(sentimentStr) ? sentimentStr : 'neutral';
       return { category, sentiment };
     }
     return { category: 'Boshqa', sentiment: 'neutral' };

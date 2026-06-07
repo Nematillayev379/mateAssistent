@@ -2,6 +2,7 @@ import TelegramBot from "node-telegram-bot-api";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { ScraperService } from "../services/scraper";
+import { logger } from "../utils/logger";
 
 export const trackCommand: BotCommand = {
   pattern: /^\/track\s*(.*)|\/kuzatish\s*(.*)|\/manba\s*(.*)$/i,
@@ -11,16 +12,22 @@ export const trackCommand: BotCommand = {
     const url = (match?.[1] || match?.[2] || match?.[3])?.trim();
 
     if (!url) {
-      const items = await DBService.getTrackedPrices(chatId);
-      const list = items.length > 0 
-        ? items.map((i: { url: string; item_name: string; last_price?: number }, idx: number) => `${idx + 1}. <a href="${i.url}">${i.item_name}</a> — ${(i.last_price || 0).toLocaleString()} UZS`).join('\n') 
-        : "Hozircha kuzatilayotgan tovarlar yo'q.";
-      
-      const text = `🔔 <b>Price Tracker</b>\n\n` +
-                   `Uzum yoki OLX dagi tovarlarni kuzating. Narx tushganda darhol xabar beramiz!\n\n` +
-                   `<b>Qo'shish:</b>\n<code>/track URL</code>\n\n` +
-                   `<b>Kuzatilayotgan tovarlar:</b>\n${list}`;
-      return bot.sendMessage(chatId, text, { parse_mode: 'HTML', disable_web_page_preview: true });
+      try {
+        const items = await DBService.getTrackedPrices(chatId);
+        const list = items.length > 0 
+          ? items.map((i: { url: string; item_name: string; last_price?: number }, idx: number) => `${idx + 1}. <a href="${i.url}">${i.item_name}</a> — ${(i.last_price || 0).toLocaleString()} UZS`).join('\n') 
+          : "Hozircha kuzatilayotgan tovarlar yo'q.";
+        
+        const text = `🔔 <b>Price Tracker</b>\n\n` +
+                     `Uzum yoki OLX dagi tovarlarni kuzating. Narx tushganda darhol xabar beramiz!\n\n` +
+                     `<b>Qo'shish:</b>\n<code>/track URL</code>\n\n` +
+                     `<b>Kuzatilayotgan tovarlar:</b>\n${list}`;
+        await bot.sendMessage(chatId, text, { parse_mode: 'HTML', disable_web_page_preview: true });
+      } catch (e: unknown) {
+        logger.error(`Track list error: ${e instanceof Error ? e.message : String(e)}`);
+        await bot.sendMessage(chatId, `❌ Xato: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      return;
     }
     try {
       await bot.sendMessage(chatId, "🔍 Narx tekshirilmoqda...");

@@ -14,13 +14,18 @@ function detectBackend(): SecretBackend {
   return "env";
 }
 
+function getLogger() {
+  try { return require('../utils/logger').logger; } catch { return console; }
+}
+
 async function fetchVaultSecrets(): Promise<Record<string, string>> {
+  const logger = getLogger();
   const addr = process.env.VAULT_ADDR;
   const token = process.env.VAULT_TOKEN;
   const path = process.env.VAULT_PATH || "secret/data/bot";
 
   if (!addr || !token) {
-    console.error("VAULT_ADDR and VAULT_TOKEN must be set when SECRET_BACKEND=vault");
+    logger.error("VAULT_ADDR and VAULT_TOKEN must be set when SECRET_BACKEND=vault");
     return {};
   }
 
@@ -34,28 +39,32 @@ async function fetchVaultSecrets(): Promise<Record<string, string>> {
     });
 
     if (!res.ok) {
-      console.error(`Vault fetch failed: ${res.status} ${res.statusText}`);
+      logger.error(`Vault fetch failed: ${res.status} ${res.statusText}`);
       return {};
     }
 
-    const body = await res.json() as any;
-    const data = body?.data?.data || body?.data || {};
+    const body: Record<string, unknown> = await res.json() as Record<string, unknown>;
+    const data = (body?.data && typeof body.data === 'object' && 'data' in (body.data as Record<string, unknown>))
+      ? (body.data as Record<string, unknown>).data
+      : body?.data || {};
     vaultSecrets = {};
-    for (const [k, v] of Object.entries(data)) {
+    for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
       if (typeof v === "string") vaultSecrets[k] = v;
     }
-    console.info(`SecretManager: loaded ${Object.keys(vaultSecrets).length} secrets from Vault`);
+    logger.info(`SecretManager: loaded ${Object.keys(vaultSecrets).length} secrets from Vault`);
     return vaultSecrets;
-  } catch (e: any) {
-    console.error(`Vault connection error: ${e.message}`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.error(`Vault connection error: ${msg}`);
     return {};
   }
 }
 
 export const SecretManager = {
   async init(): Promise<void> {
+    const logger = getLogger();
     const backend = detectBackend();
-    console.info(`SecretManager backend: ${backend}`);
+    logger.info(`SecretManager backend: ${backend}`);
     if (backend === "vault") {
       await fetchVaultSecrets();
     }

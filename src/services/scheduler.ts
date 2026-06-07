@@ -16,8 +16,9 @@ export const SchedulerService = {
     cron.schedule('* * * * *', async () => {
       try {
         await this.processScheduledPosts();
-      } catch (err: any) {
-        logger.error(`Scheduler loop failed: ${err.message}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(`Scheduler loop failed: ${msg}`);
       }
     }, { timezone: CONFIG.TIMEZONE });
 
@@ -36,7 +37,10 @@ export const SchedulerService = {
         const user = await DBService.getUser(post.user_id);
         if (!user || !user.target_channel) {
           logger.warn(`Skip post ${post.id}: user ${post.user_id} has no target channel`);
-          await DBService.updateScheduledPostStatus(post.id, 'failed').catch((e: any) => logger.warn(`Scheduler status update failed: ${e.message}`));
+          await DBService.updateScheduledPostStatus(post.id, 'failed').catch((e: unknown) => {
+            const msg = e instanceof Error ? e.message : String(e);
+            logger.warn(`Scheduler status update failed: ${msg}`);
+          });
           continue;
         }
 
@@ -63,9 +67,13 @@ export const SchedulerService = {
         await safeSend(user, article);
         await DBService.markScheduledPostSent(post.id);
         logger.info(`Scheduled post ${post.id} sent to ${user.target_channel}`);
-      } catch (err: any) {
-        logger.error(`Failed to send scheduled post ${post.id}: ${err.message}`);
-        await DBService.updateScheduledPostStatus(post.id, 'failed').catch((e: any) => logger.warn(`Scheduler status update failed: ${e.message}`));
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(`Failed to send scheduled post ${post.id}: ${msg}`);
+        await DBService.updateScheduledPostStatus(post.id, 'failed').catch((e: unknown) => {
+          const m = e instanceof Error ? e.message : String(e);
+          logger.warn(`Scheduler status update failed: ${m}`);
+        });
       }
     }
   }

@@ -16,7 +16,8 @@ export const MAX_TOKENS_BY_PROVIDER: Record<string, number> = {
 export const CONFIG = {
   TELEGRAM_TOKEN: (() => {
     if (process.env.TELEGRAM_BOT_TOKEN && !process.env.TELEGRAM_TOKEN) {
-      console.warn('TELEGRAM_BOT_TOKEN is deprecated. Use TELEGRAM_TOKEN instead.');
+      // Lazy require to avoid circular dependency (logger imports CONFIG)
+      try { require("../utils/logger").logger.warn('TELEGRAM_BOT_TOKEN is deprecated. Use TELEGRAM_TOKEN instead.'); } catch {}
     }
     return SecretManager.get('TELEGRAM_TOKEN') || process.env.TELEGRAM_BOT_TOKEN || '';
   })(),
@@ -64,7 +65,7 @@ export const CONFIG = {
 };
 
 if (!process.env.OWNER_ID) {
-  console.warn('⚠️  OWNER_ID muhit o\'zgaruvchisi o\'rnatilmagan! Owner huquqlari faqat bu sozlamalar bilan ishlaydi.');
+  try { require("../utils/logger").logger.warn('⚠️  OWNER_ID muhit o\'zgaruvchisi o\'rnatilmagan! Owner huquqlari faqat bu sozlamalar bilan ishlaydi.'); } catch {}
 }
 
 export const isOwnerId = (id?: number | string | null): boolean => {

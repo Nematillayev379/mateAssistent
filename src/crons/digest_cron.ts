@@ -66,10 +66,11 @@ async function sendDigest(user: TelegramUser): Promise<boolean> {
       return true;
     }
     return false;
-  } catch (err: any) {
-    logger.error(`Failed to send digest to ${user.telegram_id}: ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`Failed to send digest to ${user.telegram_id}: ${msg}`);
     // BUG-138 Fix: Return true on terminal errors like blocked bot to prevent retry loops
-    if (err.message?.includes('Forbidden') || err.message?.includes('blocked')) {
+    if (msg.includes('Forbidden') || msg.includes('blocked')) {
       return true; 
     }
     return false;

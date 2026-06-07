@@ -32,7 +32,8 @@ export const workspaceCommand: BotCommand = {
                        ? `<b>Kanallar:</b>\n<code>/workspace channels WS_ID</code>\n`
                        : '') +
                      `<b>Dashboard:</b>\nWeb dashboard orqali workspace yaratish va kanal qo'shish.`;
-        return bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
+        await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });
+        return;
       }
 
       const parts = raw.split(/\s+/);
@@ -42,29 +43,36 @@ export const workspaceCommand: BotCommand = {
         const wsId = parseInt(parts[1], 10);
         const targetWs = workspaces.find((w: { id: number }) => w.id === wsId);
         if (!targetWs) {
-          return bot.sendMessage(chatId, 'Workspace topilmadi.', { parse_mode: 'HTML' });
+          await bot.sendMessage(chatId, 'Workspace topilmadi.', { parse_mode: 'HTML' });
+          return;
         }
         await DBService.setSetting(`active_ws_${chatId}`, String(wsId));
-        return bot.sendMessage(chatId, `✅ Aktiv workspace: <b>${targetWs.name}</b>\n\nEndi barcha kanallarga post yuboriladi.`, { parse_mode: 'HTML' });
+        await bot.sendMessage(chatId, `✅ Aktiv workspace: <b>${targetWs.name}</b>\n\nEndi barcha kanallarga post yuboriladi.`, { parse_mode: 'HTML' });
+        return;
       }
 
       if (sub === 'off' || sub === 'none') {
         await DBService.setSetting(`active_ws_${chatId}`, '');
-        return bot.sendMessage(chatId, 'Workspace o\'chirildi. Faqat asosiy kanalga post yuboriladi.');
+        await bot.sendMessage(chatId, 'Workspace o\'chirildi. Faqat asosiy kanalga post yuboriladi.');
+        return;
       }
 
       if (sub === 'channels' && parts[1]) {
         const wsId = parseInt(parts[1], 10);
         const ws = workspaces.find((w: { id: number }) => w.id === wsId);
-        if (!ws) return bot.sendMessage(chatId, 'Workspace topilmadi.', { parse_mode: 'HTML' });
+        if (!ws) {
+          await bot.sendMessage(chatId, 'Workspace topilmadi.', { parse_mode: 'HTML' });
+          return;
+        }
         const channels = await DBService.getWorkspaceChannels(wsId);
         const list = channels.length > 0
           ? channels.map((ch: { name: string; channel_id: string }) => `— ${ch.name} (${ch.channel_id})`).join('\n')
           : 'Kanallar yo\'q. Dashboardda qo\'shing.';
-        return bot.sendMessage(chatId, `📋 <b>${ws.name}</b> kanallari:\n\n${list}`, { parse_mode: 'HTML' });
+        await bot.sendMessage(chatId, `📋 <b>${ws.name}</b> kanallari:\n\n${list}`, { parse_mode: 'HTML' });
+        return;
       }
 
-      return bot.sendMessage(chatId, 'Buyruq: /workspace — ro\'yxat, /workspace switch ID — tanlash, /workspace off — o\'chirish', { parse_mode: 'HTML' });
+      await bot.sendMessage(chatId, 'Buyruq: /workspace — ro\'yxat, /workspace switch ID — tanlash, /workspace off — o\'chirish', { parse_mode: 'HTML' });
     } catch (e: unknown) {
       logger.error(`workspace command error: ${e instanceof Error ? e.message : String(e)}`);
       await bot.sendMessage(chatId, i18n.t("server_error", { lng: lang || "uz" })).catch(() => {});

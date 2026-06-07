@@ -10,7 +10,7 @@ import { initSentry, captureError } from './services/sentry';
 import pkg from '../package.json';
 
 if (typeof globalThis.WebSocket === 'undefined') {
-  (globalThis as any).WebSocket = WebSocket;
+  (globalThis as Record<string, unknown>).WebSocket = WebSocket;
 }
 
 const _startTime = Date.now();
@@ -55,8 +55,9 @@ async function bootstrap() {
       const ytDlpBinary = await resolveYtDlpPath();
       if (ytDlpBinary) logger.info(`yt-dlp found: ${ytDlpBinary}`);
       else logger.warn('yt-dlp not found. Downloads will use Cobalt API.');
-    } catch (e: any) {
-      logger.warn(`yt-dlp check error: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`yt-dlp check error: ${msg}`);
     }
 
     const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -79,28 +80,32 @@ async function bootstrap() {
     if (CONFIG.OWNER_ID) {
       bot.sendMessage(CONFIG.OWNER_ID, `✅ Bot started\nVersion: ${pkg.version}\nUptime: ${Math.round(process.uptime())}s`).catch(() => {});
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
     captureError(err, { type: 'bootstrap' });
-    logger.error(`Fatal Initialization Error: ${err.message}`, { stack: err.stack });
+    logger.error(`Fatal Initialization Error: ${msg}`, { stack });
     process.exit(1);
   }
 }
 
-bootstrap().catch(err => {
-  logger.error(`🔥 Fatal Bootstrap Error: ${err.message}`);
+bootstrap().catch((err: unknown) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  logger.error(`🔥 Fatal Bootstrap Error: ${msg}`);
   process.exit(1);
 });
 
 // Global error handlers
-process.on("uncaughtException", (err) => {
+process.on("uncaughtException", (err: Error) => {
   captureError(err, { type: 'uncaughtException' });
   logger.error(`Uncaught Exception: ${err.message}`, { stack: err.stack });
   process.exit(1);
 });
 
-process.on("unhandledRejection", (reason: any) => {
+process.on("unhandledRejection", (reason: unknown) => {
   captureError(reason instanceof Error ? reason : new Error(String(reason)), { type: 'unhandledRejection' });
-  logger.error(`Unhandled Rejection: ${reason?.message || reason}`);
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  logger.error(`Unhandled Rejection: ${msg}`);
 });
 
 let shuttingDown = false;

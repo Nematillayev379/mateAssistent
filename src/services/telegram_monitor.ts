@@ -5,6 +5,7 @@ import { DBService } from './database';
 import { logger } from '../utils/logger';
 import { safeSend, safeSendToChannels } from './sender';
 import { getSmartAIResponse } from './ai';
+import { Article } from '../types';
 
 /** Normalize @channel, -100id, or numeric id */
 export function normalizeTelegramChannelId(input: string): string {
@@ -85,7 +86,7 @@ export const TelegramMonitorService = {
             "Rewrite this Telegram post as a professional news post in Uzbek with emojis. Keep facts accurate.",
             text.slice(0, 2000) || title
           );
-          const article: Record<string, any> = {
+          const article: Article = {
             title,
             content: rewritten,
             url: username ? `https://t.me/${username}/${msg.message_id}` : `https://t.me/c/${String(chatId).replace('-100', '')}/${msg.message_id}`,
@@ -110,8 +111,9 @@ export const TelegramMonitorService = {
 
         await this.markMessageSeen(sub.user_id, sourceKey, msg.message_id);
         await DBService.incrementStat(sub.user_id, 'total_posts');
-      } catch (e: any) {
-        logger.warn(`TG forward failed user ${sub.user_id}: ${e.message}`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.warn(`TG forward failed user ${sub.user_id}: ${msg}`);
       }
     }
   },
@@ -126,8 +128,9 @@ export const TelegramMonitorService = {
         return { ok: false, error: 'Bot manba kanalda admin emas' };
       }
       return { ok: true, chatId: String(chat.id), title: chat.title || normalized };
-    } catch (e: any) {
-      return { ok: false, error: e.message };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return { ok: false, error: msg };
     }
   },
 };

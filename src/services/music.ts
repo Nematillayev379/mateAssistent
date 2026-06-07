@@ -8,9 +8,39 @@ import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
+interface YouTubeInitialData {
+  contents?: {
+    twoColumnSearchResultsRenderer?: {
+      primaryContents?: {
+        sectionListRenderer?: {
+          contents?: Array<{
+            itemSectionRenderer?: {
+              contents?: Array<{
+                videoRenderer?: {
+                  videoId?: string;
+                  title?: {
+                    runs?: Array<{ text?: string }>;
+                    simpleText?: string;
+                  };
+                };
+              }>;
+            };
+          }>;
+        };
+      };
+    };
+  };
+}
+
+interface CobaltApiResponse {
+  url?: string;
+  status?: string;
+  picker?: Array<{ url?: string }>;
+}
+
 const execPromise = promisify(exec);
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_music');
-try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: any) { logger.warn(`Failed to create TEMP_DIR: ${e?.message || 'unknown error'}`); }
+try { if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true }); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Failed to create TEMP_DIR: ${msg}`); }
 
 const MAX_FILE_SIZE = 49 * 1024 * 1024; // 49MB (Telegram limit = 50MB)
 
@@ -48,16 +78,18 @@ export const MusicService = {
       logger.info(`MusicService: yt-dlp orqali "${sanitizeLogInput(artist)}" qidirilmoqda...`);
       const ytdlpResults = await this.searchWithYtDlp(artist, amount);
       results.push(...ytdlpResults);
-    } catch (e: any) {
-      logger.warn(`MusicService: yt-dlp strategy failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`MusicService: yt-dlp strategy failed: ${msg}`);
     }
     if (results.length === 0) {
       try {
         logger.info(`MusicService: Cobalt API orqali qidirilmoqda...`);
         const cobaltResults = await this.searchWithCobalt(artist, amount);
         results.push(...cobaltResults);
-      } catch (e: any) {
-        logger.warn(`MusicService: Cobalt strategy failed: ${e.message}`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.warn(`MusicService: Cobalt strategy failed: ${msg}`);
       }
     }
 
@@ -67,8 +99,9 @@ export const MusicService = {
         logger.info(`MusicService: YouTube scrape orqali qidirilmoqda...`);
         const ytResults = await this.searchWithYouTubeScrape(artist, amount);
         results.push(...ytResults);
-      } catch (e: any) {
-        logger.warn(`MusicService: YouTube scrape strategy failed: ${e.message}`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.warn(`MusicService: YouTube scrape strategy failed: ${msg}`);
       }
     }
     if (results.length === 0) {
@@ -109,7 +142,7 @@ export const MusicService = {
           '--no-warnings'
         ]);
         let data = '';
-        proc.stdout.on('data', (d) => data += d.toString());
+        proc.stdout.on('data', (d: Buffer) => data += d.toString());
         proc.on('close', (code) => code === 0 ? resolve(data) : reject(new Error(`yt-dlp exited with code ${code}`)));
         proc.on('error', reject);
       });
@@ -143,11 +176,12 @@ export const MusicService = {
               results.push({ title: title.trim(), path: filePath });
               logger.info(`✅ Music downloaded: ${sanitizeLogInput(title.trim())} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
             } else {
-              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
+              try { fs.unlinkSync(filePath); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Cleanup: ${msg}`); }
             }
           }
-        } catch (e: any) {
-          logger.warn(`yt-dlp download error: ${e.message?.slice(0, 200)}`);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logger.warn(`yt-dlp download error: ${msg.slice(0, 200)}`);
         }
       }
 
@@ -159,8 +193,9 @@ export const MusicService = {
         }
       }
       return Array.from(uniqueResults.values());
-    } catch (e: any) {
-      logger.warn(`yt-dlp search error: ${e.message?.slice(0, 200)}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`yt-dlp search error: ${msg.slice(0, 200)}`);
     }
     return results;
   },
@@ -200,7 +235,7 @@ export const MusicService = {
 
       for (const base of cobaltInstances) {
         try {
-          const res = await axios.post(`${base}/`, {
+          const res = await axios.post<CobaltApiResponse>(`${base}/`, {
             url: video.url,
             downloadMode: "audio",
             audioFormat: "mp3",
@@ -237,7 +272,7 @@ export const MusicService = {
                 resolve();
               }
             });
-            writer.on('error', (err) => {
+            writer.on('error', (err: Error) => {
               if (!resolved) {
                 resolved = true;
                 clearTimeout(timer);
@@ -253,10 +288,10 @@ export const MusicService = {
               logger.info(`✅ Cobalt download: ${sanitizeLogInput(video.title)} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`);
               break; // Success, move to next video
             } else {
-              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup failed: ${e?.message || 'unknown'}`); }
+              try { fs.unlinkSync(filePath); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Cleanup failed: ${msg}`); }
             }
           }
-        } catch (e: any) {
+        } catch {
           // Try next Cobalt instance
           continue;
         }
@@ -295,14 +330,14 @@ export const MusicService = {
             if (stats.size > 0 && stats.size < MAX_FILE_SIZE) {
               results.push({ title: video.title, path: filePath });
             } else {
-              try { fs.unlinkSync(filePath); } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
+              try { fs.unlinkSync(filePath); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Cleanup: ${msg}`); }
             }
           }
-        } catch (e: any) {
+        } catch (e: unknown) {
           try {
             const filePath = findDownloadedMusicFile(basePrefix, ['.m4a', '.mp3', '.webm', '.opus']);
             if (filePath) fs.unlinkSync(filePath);
-          } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
+          } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Cleanup: ${msg}`); }
         }
       }
     }
@@ -329,11 +364,11 @@ export const MusicService = {
         }
       });
 
-      const body = res.data;
+      const body: string = res.data;
       const jsonMatch = body.match(/(?:var ytInitialData|window\["ytInitialData"\])\s*=\s*({[\s\S]*?});/);
       if (jsonMatch) {
         try {
-          const data = JSON.parse(jsonMatch[1]);
+          const data: YouTubeInitialData = JSON.parse(jsonMatch[1]);
           const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents;
 
           if (contents) {
@@ -352,12 +387,14 @@ export const MusicService = {
               }
             }
           }
-        } catch (parseErr: any) {
-          logger.warn(`YouTube JSON parsing failed: ${parseErr.message}`);
+        } catch (parseErr: unknown) {
+          const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+          logger.warn(`YouTube JSON parsing failed: ${msg}`);
         }
       }
-    } catch (e: any) {
-      logger.warn(`YouTube search error: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`YouTube search error: ${msg}`);
     }
 
     // Strategy 2: Fallback to yt-dlp for video IDs
@@ -396,8 +433,9 @@ export const MusicService = {
           });
         }
       }
-    } catch (e: any) {
-      logger.warn(`yt-dlp music search failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`yt-dlp music search failed: ${msg}`);
     }
 
     return results;
@@ -433,9 +471,9 @@ export const MusicService = {
             fs.unlinkSync(filePath);
             cleaned++;
           }
-        } catch (e: any) { logger.warn(`Cleanup: ${e?.message || 'unknown error'}`); }
+        } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Cleanup: ${msg}`); }
       }
       if (cleaned > 0) logger.info(`MusicService: ${cleaned} temp files cleaned.`);
-    } catch (e: any) { logger.warn(`Cleanup failed: ${e?.message || 'unknown error'}`); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Cleanup failed: ${msg}`); }
   }
 };

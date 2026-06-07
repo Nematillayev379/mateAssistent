@@ -38,8 +38,9 @@ export async function sendAlert(type: string, message: string): Promise<void> {
 
   try {
     await bot.sendMessage(CONFIG.OWNER_ID, `🚨 <b>${type}</b>\n\n${message}`, { parse_mode: 'HTML' });
-  } catch (e: any) {
-    logger.warn(`Alert send failed: ${e.message}`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.warn(`Alert send failed: ${msg}`);
   }
 }
 
@@ -75,8 +76,9 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
         timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
       }),
     ]);
-  } catch (err: any) {
-    logger.warn(`Health check ${label}: ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn(`Health check ${label}: ${msg}`);
     return null;
   } finally {
     if (timer) clearTimeout(timer);
@@ -174,8 +176,9 @@ export async function runHealthCheck(): Promise<HealthStatus> {
       if (CONFIG.OWNER_ID) {
         try {
           await bot.sendMessage(CONFIG.OWNER_ID, `✅ <b>Database Up</b>\n\nSupabase ulanishi tiklandi. Barcha operatsiyalar qayta faollashtirildi.`, { parse_mode: 'HTML' });
-        } catch (e: any) {
-          logger.warn(`Recovery alert send failed: ${e.message}`);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logger.warn(`Recovery alert send failed: ${msg}`);
         }
       }
     } else {
@@ -199,13 +202,17 @@ export function setupHealthMonitoring(): void {
   setInterval(async () => {
     try {
       await runHealthCheck();
-    } catch (e: any) {
-      logger.error(`Health check failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`Health check failed: ${msg}`);
     }
   }, 5 * 60 * 1000);
 
   setTimeout(() => {
-    runHealthCheck().catch((e: any) => logger.error(`Initial health check failed: ${e.message}`));
+    runHealthCheck().catch((e: unknown) => {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`Initial health check failed: ${msg}`);
+    });
   }, 3000);
 
   logger.info('Health monitoring started (every 5 min, first run in 3s)');

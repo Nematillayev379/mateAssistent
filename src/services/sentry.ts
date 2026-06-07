@@ -18,12 +18,13 @@ export function initSentry() {
     });
     initialized = true;
     logger.info('Sentry initialized');
-  } catch (e: any) {
-    logger.warn(`Sentry init failed: ${e.message}`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.warn(`Sentry init failed: ${msg}`);
   }
 }
 
-export function captureError(error: any, context?: Record<string, any>) {
+export function captureError(error: unknown, context?: Record<string, unknown>) {
   if (!initialized) return;
   Sentry.withScope((scope) => {
     if (context) scope.setExtras(context);

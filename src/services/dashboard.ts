@@ -4,8 +4,9 @@ import path from 'path';
 import { logger } from '../utils/logger';
 import { CONFIG } from '../config/config';
 import { registerRoutes } from '../handlers/dashboard';
+import TelegramBot from 'node-telegram-bot-api';
 
-export function startDashboardServer(port: number | string, _bot?: any) {
+export function startDashboardServer(port: number | string, _bot?: TelegramBot) {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json());

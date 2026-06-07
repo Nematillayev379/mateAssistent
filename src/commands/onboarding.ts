@@ -2,6 +2,7 @@ import TelegramBot from "node-telegram-bot-api";
 import { DBService } from "../services/database";
 import { ScraperService } from "../services/scraper";
 import { i18n } from "../services/i18n";
+import { logger } from "../utils/logger";
 import { sendNextOnboardingStep } from "./start";
 
 export async function handleOnboardingMessage(
@@ -70,7 +71,8 @@ async function handleChannelStep(bot: TelegramBot, chatId: number, text: string,
     await DBService.checkAndMarkReferralActive(chatId);
     await bot.sendMessage(chatId, i18n.t("setchannel_success", { lng: lang }));
     await sendNextOnboardingStep(bot, chatId);
-  } catch {
+  } catch (e: unknown) {
+    logger.warn(`handleChannelStep error for chat ${chatId}: ${e instanceof Error ? e.message : String(e)}`);
     await bot.sendMessage(chatId, i18n.t("setchannel_error", { lng: lang }));
   }
 }
