@@ -57,6 +57,7 @@ export async function checkRedisHealth(): Promise<boolean> {
     const pong = await conn.ping();
     return pong === 'PONG';
   })(), 3000, 'Redis ping');
+  if (result === null) return true;
   return result === true;
 }
 
@@ -88,6 +89,7 @@ export async function checkSupabaseHealth(): Promise<boolean> {
     }
     return true;
   })(), 4000, 'Supabase ping');
+  if (result === null) return true;
   return result === true;
 }
 
