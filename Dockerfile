@@ -23,6 +23,7 @@ RUN npm run build
 FROM base AS production
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY public ./public
 COPY package*.json ./
 
 EXPOSE 3000
