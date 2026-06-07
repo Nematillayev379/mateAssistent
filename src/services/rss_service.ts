@@ -4,6 +4,18 @@ import { ScraperService } from "./scraper";
 import { processArticleInline } from "../jobs/scraper_worker";
 import { logger, sanitizeLogInput } from "../utils/logger";
 
+interface MonitoredPost {
+  id: string;
+  title: string;
+  url?: string;
+}
+
+interface RssSource {
+  url: string;
+  name: string;
+  lang?: string;
+}
+
 export const RssService = {
   async pruneCache(activeIds: Set<number>) {
     for (const id of userLastRun.keys()) {
@@ -15,7 +27,7 @@ export const RssService = {
     try {
       const channels = await DBService.getMonitoredChannels();
       for (const channel of channels) {
-        let latestPost: any = null;
+        let latestPost: MonitoredPost | null = null;
         if (channel.platform === 'youtube') {
           const { YoutubeService } = await import('../services/youtube');
           latestPost = await YoutubeService.getLatestVideo(channel.channel_id);
@@ -31,28 +43,28 @@ export const RssService = {
             const caption = `📢 <b>Yangi ${channel.platform} xabari!</b>\n\n${latestPost.title}\n\n🔗 <a href="${latestPost.url}">Ko'rish</a>`;
             try {
               await bot.sendMessage(user.target_channel, caption, { parse_mode: 'HTML' });
-            } catch (e: any) {
-              logger.warn(`Failed to send monitored channel update: ${e.message}`);
+            } catch (e: unknown) {
+              logger.warn(`Failed to send monitored channel update: ${e instanceof Error ? e.message : String(e)}`);
               try {
                 const errMsg = `⚠️ <b>Kanalga post yuborib bo'lmadi!</b>\n\nBot <code>${user.target_channel}</code> kanalida administrator emas yoki xabar yuborish huquqi yo'q. Iltimos, botni kanalga admin qilib qo'shing.\n\nPost: ${latestPost.title}`;
                 await bot.sendMessage(channel.user_id, errMsg, { parse_mode: 'HTML' });
-              } catch (alertErr: any) {
-                logger.error(`Failed to alert user ${channel.user_id} about channel permissions: ${alertErr.message}`);
+              } catch (alertErr: unknown) {
+                logger.error(`Failed to alert user ${channel.user_id} about channel permissions: ${alertErr instanceof Error ? alertErr.message : String(alertErr)}`);
               }
             }
           }
           await DBService.updateMonitoredChannel(channel.id, latestPost.id);
         }
       }
-    } catch (err: any) {
-      logger.error(`checkMonitoredChannels error: ${err.message}`);
+    } catch (err: unknown) {
+      logger.error(`checkMonitoredChannels error: ${err instanceof Error ? err.message : String(err)}`);
     }
   },
 
-  async processDirectly(userId: number, source: any): Promise<void> {
+  async processDirectly(userId: number, source: RssSource): Promise<void> {
     try {
-      const articles: any[] = await ScraperService.fetchRSS(source.url);
-      articles.sort((a: any, b: any) => {
+      const articles = await ScraperService.fetchRSS(source.url);
+      articles.sort((a, b) => {
         const left = new Date(b?.pubDate || 0).getTime();
         const right = new Date(a?.pubDate || 0).getTime();
         return left - right;
@@ -78,15 +90,15 @@ export const RssService = {
           try {
             await DBService.markSeen(userId, article.link, article.title);
             await processArticleInline(userId, articleData, lang);
-          } catch (articleErr: any) {
-            logger.error(`Error inline processing article ${sanitizeLogInput(article.link)}: ${articleErr.message}`);
+          } catch (articleErr: unknown) {
+            logger.error(`Error inline processing article ${sanitizeLogInput(article.link)}: ${articleErr instanceof Error ? articleErr.message : String(articleErr)}`);
           }
-        } catch (articleErr: any) {
-          logger.error(`Error handling article ${sanitizeLogInput(article.link)}: ${articleErr.message}`);
+        } catch (articleErr: unknown) {
+          logger.error(`Error handling article ${sanitizeLogInput(article.link)}: ${articleErr instanceof Error ? articleErr.message : String(articleErr)}`);
         }
       }
-    } catch (err: any) {
-      logger.warn(`Direct RSS process error for ${sanitizeLogInput(source.url)}: ${err.message}`);
+    } catch (err: unknown) {
+      logger.warn(`Direct RSS process error for ${sanitizeLogInput(source.url)}: ${err instanceof Error ? err.message : String(err)}`);
     }
   },
 };

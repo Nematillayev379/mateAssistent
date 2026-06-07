@@ -222,8 +222,9 @@ class RedisPool {
     for (const [name, definition] of definedCommands.entries()) {
       try {
         conn.defineCommand(name, definition);
-      } catch (err: any) {
-        logger.error(`Failed to replay defined command "${name}" on rotated connection: ${err.message}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        logger.error(`Failed to replay defined command "${name}" on rotated connection: ${message}`);
       }
     }
 
@@ -288,8 +289,9 @@ function createPooledIORedis(pool: RedisPool): IORedis {
   async function execCmd<T>(fn: (c: IORedis) => Promise<T>): Promise<T> {
     try {
       return await fn(currentConn);
-    } catch (err: any) {
-      if (err.message?.includes('limit exceeded') || err.message?.toLowerCase().includes('exceeded')) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('limit exceeded') || message.toLowerCase().includes('exceeded')) {
         if (pool.markExhausted()) {
           currentConn = pool.active;
           attachPoolListeners(currentConn);
@@ -448,9 +450,10 @@ async function testAllUrls(pool: RedisPool): Promise<void> {
         entry.exhausted = true;
         logger.warn(`  Token #${i + 1}: ping returned ${pong}, marked as exhausted`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       entry.exhausted = true;
-      logger.warn(`  Token #${i + 1}: unreachable (${err.message}), marked as exhausted`);
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(`  Token #${i + 1}: unreachable (${message}), marked as exhausted`);
     } finally {
       if (conn) {
         try { await conn.quit(); } catch { try { conn.disconnect(); } catch {} }

@@ -36,8 +36,8 @@ export const statusCommand: BotCommand = {
       try {
         await bot.sendPhoto(chatId, chartUrl, { caption: text, parse_mode: 'HTML' });
         return;
-      } catch (e: any) {
-        logger.warn(`Chart generation failed: ${e?.message || 'unknown'}`);
+      } catch (e: unknown) {
+        logger.warn(`Chart generation failed: ${e instanceof Error ? e.message : 'unknown'}`);
       }
     }
     await bot.sendMessage(chatId, text, { parse_mode: 'HTML' });

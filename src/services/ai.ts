@@ -82,7 +82,7 @@ const GROQ_MODELS = [
 
 async function tryGroqModels(groq: Groq, system: string, user: string, maxTokens: number, exclude: string[] = []): Promise<string> {
   const candidates = GROQ_MODELS.filter(m => !exclude.includes(m));
-  let lastErr: any = null;
+  let lastErr: unknown = null;
   for (const model of candidates) {
     try {
       const res = await groq.chat.completions.create({
@@ -95,10 +95,11 @@ async function tryGroqModels(groq: Groq, system: string, user: string, maxTokens
         if (model !== GROQ_MODELS[0]) logger.info(`[GROQ] Fallback model '${model}' ishladi.`);
         return content;
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       lastErr = e;
-      const msg = String(e?.message || e || '');
-      if (msg.includes('model') || msg.includes('decommission') || msg.includes('not found') || e?.status === 400 || e?.status === 404) {
+      const msg = String((e instanceof Error ? e.message : e) || '');
+      const status = (e as { status?: number })?.status;
+      if (msg.includes('model') || msg.includes('decommission') || msg.includes('not found') || status === 400 || status === 404) {
         logger.warn(`[GROQ] Model '${model}' ishlamadi: ${msg.substring(0, 120)}. Keyingisiga o'tilmoqda...`);
         continue;
       }
@@ -135,8 +136,9 @@ async function requestAICompletion(currentKeyObj: AiKeyEntry, system: string, us
       throw Object.assign(new Error(`Gemini API error: ${response.statusText} ${errorBody}`), { status: response.status });
     }
 
-    const data = await response.json().catch(() => ({})) as any;
-    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const candidates = data.candidates as Array<{ content?: { parts?: Array<{ text?: string }> } }> | undefined;
+    return candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   }
 
   if (currentKeyObj.type === "openai") {
@@ -187,6 +189,10 @@ async function requestAICompletion(currentKeyObj: AiKeyEntry, system: string, us
   return res.choices[0]?.message?.content ?? "";
 }
 
+interface AiKeyEntryWithExclude extends AiKeyEntry {
+  _excludeModels?: string[];
+}
+
 async function getSmartAIResponseInternal(
   keys: AiKeyEntry[],
   system: string,
@@ -202,13 +208,14 @@ async function getSmartAIResponseInternal(
   }
 
   const { key: currentKeyObj, idx } = await selectRotatingKey(keys, scope);
+  const keyWithExclude = currentKeyObj as AiKeyEntryWithExclude;
 
   try {
     const maxTokens = MAX_TOKENS_BY_PROVIDER[currentKeyObj.type] || CONFIG.MAX_TOKENS;
-    return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000, (currentKeyObj as any)._excludeModels || []);
-  } catch (error) {
-    const errMsg = (error as any)?.message ?? '';
-    const status = (error as any)?.status ?? (error as any)?.response?.status;
+    return await requestAICompletion(currentKeyObj, system, user, maxTokens, scope === 'smm' ? 20000 : 15000, keyWithExclude._excludeModels || []);
+  } catch (error: unknown) {
+    const errMsg = String((error instanceof Error ? error.message : error) || '');
+    const status = (error as { status?: number })?.status ?? (error as { response?: { status?: number } })?.response?.status;
     if (status === 429 || status === 401 || status === 403 || status === 503 || status === 500) {
       blockedKeys.set(currentKeyObj.key, Date.now() + 5 * 60 * 1000);
       logger.warn(`[${scope.toUpperCase()} ${currentKeyObj?.type?.toUpperCase()}] Kalit #${idx} xato berdi (${status}). Keyingisiga o'tilmoqda...`);
@@ -219,9 +226,9 @@ async function getSmartAIResponseInternal(
       return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
     }
     if (currentKeyObj.type === 'groq' && (errMsg.includes('model') || errMsg.includes('decommission') || errMsg.includes('not found') || status === 400 || status === 404)) {
-      const tried = (currentKeyObj as any)._excludeModels || [];
+      const tried = keyWithExclude._excludeModels || [];
       if (tried.length < GROQ_MODELS.length - 1) {
-        (currentKeyObj as any)._excludeModels = tried;
+        keyWithExclude._excludeModels = tried;
         logger.warn(`[${scope.toUpperCase()}] Groq model xatosi. Boshqa model bilan urinib ko'riladi...`);
         return getSmartAIResponseInternal(keys, system, user, retryCount + 1, scope);
       }
@@ -254,8 +261,8 @@ export async function refreshKeyPool() {
 
       const byProvider = countKeysByProvider(activeKeys);
       logger.info(`🔄 AI Key Pool yangilandi. Jami: ${activeKeys.length} ta kalit.`, byProvider);
-    } catch (e: any) {
-      logger.error(`Key pool refresh failed: ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`Key pool refresh failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   });
 }
@@ -279,8 +286,9 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
     } else if (type === "gemini" || type === "google") {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${key}`);
       if (!response.ok) return false;
-      const data = await response.json() as any;
-      return Array.isArray(data.models) && data.models.length > 0;
+      const data = await response.json() as Record<string, unknown>;
+      const models = data.models as unknown[];
+      return Array.isArray(models) && models.length > 0;
     } else if (type === "openai") {
       const response = await fetch("https://api.openai.com/v1/models", {
         headers: { "Authorization": `Bearer ${key}` }
@@ -298,8 +306,8 @@ export async function validateKey(type: "groq" | "cerebras" | "openrouter" | "ge
       });
       return response.ok;
     }
-    } catch (e: any) {
-    logger.error(`API Key validation failed (${type}): ${e.message}`);
+    } catch (e: unknown) {
+    logger.error(`API Key validation failed (${type}): ${e instanceof Error ? e.message : String(e)}`);
     return false;
   }
 }
@@ -316,8 +324,8 @@ export async function isDuplicateAI(userId: number, title: string, content: stri
     const isDup = res.toUpperCase().includes("DUPLICATE");
     if (isDup) logger.info(`🚫 AI Dublikat aniqlandi (User: ${userId}): ${title.slice(0, 40)}...`);
     return isDup;
-  } catch (err: any) {
-    logger.error(`Dublikat tekshirishda AI xatosi: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(`Dublikat tekshirishda AI xatosi: ${err instanceof Error ? err.message : String(err)}`);
     return true;
   }
 }
@@ -341,8 +349,8 @@ export async function checkSemanticDuplicate(userId: number, title: string, cont
     await DBService.saveEmbedding(userId, hash, embedding);
     
     return false;
-  } catch (e: any) {
-    logger.error(`Semantic duplicate check error: ${e.message}`);
+  } catch (e: unknown) {
+    logger.error(`Semantic duplicate check error: ${e instanceof Error ? e.message : String(e)}`);
     return false;
   }
 }
@@ -389,8 +397,8 @@ export async function moderateContent(title: string, content: string): Promise<{
       return {status: 'BLOCKED', reason: match[1].trim()};
     }
     return {status: 'SAFE'};
-  } catch (e:any) {
-    logger.error(`Content moderation error: ${e.message}`);
+  } catch (e: unknown) {
+    logger.error(`Content moderation error: ${e instanceof Error ? e.message : String(e)}`);
     return {status: 'BLOCKED', reason: 'Moderation service unavailable'};
   }
 }
@@ -409,8 +417,8 @@ export async function translateToUzbek(title: string, content: string) {
       return parsed;
     }
     throw new Error("No JSON found in response");
-  } catch (err: any) {
-    logger.warn(`⚠️ AI tarjima muvaffaqiyatsiz, original matn ishlatiladi: ${err.message}`);
+  } catch (err: unknown) {
+    logger.warn(`⚠️ AI tarjima muvaffaqiyatsiz, original matn ishlatiladi: ${err instanceof Error ? err.message : String(err)}`);
     return { title: title || 'Untitled', content: content || '' };
   }
 }
@@ -418,7 +426,7 @@ export async function translateToUzbek(title: string, content: string) {
 /** Gemini orqali matnli embedding (vektor) olish */
 export async function getEmbedding(text: string, retryCount = 0): Promise<number[] | null> {
   if (retryCount > 5) return null;
-  let keyObj: any;
+  let keyObj: AiKeyEntry | undefined;
   await withKeyMutex(async () => {
     if (activeKeys.length === 0) return;
     const geminiKeys = activeKeys.filter(k => k.type === 'gemini' || k.type === 'google');
@@ -447,10 +455,11 @@ export async function getEmbedding(text: string, retryCount = 0): Promise<number
        return null;
     }
 
-    const data = await response.json() as any;
-    return data.embedding?.values ?? null;
-  } catch (e: any) {
-    logger.error(`Embedding error: ${e.message}`);
+    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const embedding = data.embedding as { values?: number[] } | undefined;
+    return embedding?.values ?? null;
+  } catch (e: unknown) {
+    logger.error(`Embedding error: ${e instanceof Error ? e.message : String(e)}`);
     return null;
   }
 }
@@ -619,7 +628,7 @@ export async function generateSmmPost(topic: string, lang: string = "uz", size: 
 
 export type SmmImageResult = { imageUrl: string; imageBase64: string | null };
 
-function extractJsonBlock(text: string): Record<string, any> | null {
+function extractJsonBlock(text: string): Record<string, unknown> | null {
   const cleaned = String(text || '').trim();
   const match = cleaned.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -656,8 +665,8 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
         mustAvoid: String(parsed.mustAvoid || visualSpec.mustAvoid).trim().slice(0, 160),
       };
     }
-  } catch (e: any) {
-    logger.warn(`SMM visual brief fallback used: ${e.message}`);
+  } catch (e: unknown) {
+    logger.warn(`SMM visual brief fallback used: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   const promptVariants = [
@@ -680,8 +689,8 @@ export async function generateSmmImage(topic: string): Promise<SmmImageResult> {
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.length < 8 * 1024) return null;
       return { imageUrl, imageBase64: `data:image/jpeg;base64,${buf.toString('base64')}` };
-    } catch (e: any) {
-      logger.warn(`SMM image fetch failed: ${e.message}`);
+    } catch (e: unknown) {
+      logger.warn(`SMM image fetch failed: ${e instanceof Error ? e.message : String(e)}`);
       return null;
     }
   };
@@ -760,8 +769,8 @@ export async function generateTTS(text: string, lang: string = 'uz'): Promise<Bu
         logger.info(`TTS: Google generated ${audioBuffers.length} chunks, ${audioBuffers.reduce((s, b) => s + b.length, 0)} bytes`);
         return Buffer.concat(audioBuffers);
       }
-    } catch (googleErr: any) {
-      logger.warn(`Google TTS failed: ${googleErr.message}`);
+    } catch (googleErr: unknown) {
+      logger.warn(`Google TTS failed: ${googleErr instanceof Error ? googleErr.message : String(googleErr)}`);
     }
 
     // Strategy 2: Edge TTS as fallback
@@ -783,17 +792,17 @@ export async function generateTTS(text: string, lang: string = 'uz'): Promise<Bu
             logger.info(`TTS: Edge generated ${buf.length} bytes (voice: ${voice})`);
             return buf;
           }
-        } catch (voiceErr: any) {
-          logger.warn(`TTS voice ${voice} failed: ${voiceErr.message}`);
+        } catch (voiceErr: unknown) {
+          logger.warn(`TTS voice ${voice} failed: ${voiceErr instanceof Error ? voiceErr.message : String(voiceErr)}`);
         }
       }
-    } catch (edgeErr: any) {
-      logger.error(`Edge TTS failed: ${edgeErr.message}`);
+    } catch (edgeErr: unknown) {
+      logger.error(`Edge TTS failed: ${edgeErr instanceof Error ? edgeErr.message : String(edgeErr)}`);
     }
 
     return null;
-  } catch (e: any) {
-    logger.error(`TTS Error: ${e.message}`);
+  } catch (e: unknown) {
+    logger.error(`TTS Error: ${e instanceof Error ? e.message : String(e)}`);
     return null;
   }
 }

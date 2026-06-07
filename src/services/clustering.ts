@@ -3,7 +3,19 @@ import { getSmartAIResponse } from './ai';
 import { logger } from '../utils/logger';
 import { bot } from './bot_instance';
 
-let cachedClusters: { clusters: any[]; summary: string; at: number } | null = null;
+interface ClusterItem {
+  topic: string;
+  items: string[];
+  summary: string;
+}
+
+interface ClusterResult {
+  clusters: ClusterItem[];
+  summary: string;
+  at: number;
+}
+
+let cachedClusters: ClusterResult | null = null;
 const CACHE_TTL = 15 * 60 * 1000;
 
 export const ClusteringService = {
@@ -30,8 +42,8 @@ Sarlavhalar:\n${titles.slice(0, 60).join('\n')}`;
       const result = { clusters, summary: parsed.today_main || '', at: Date.now() };
       cachedClusters = result;
       return result;
-    } catch (e: any) {
-      logger.error(`Clustering error: ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`Clustering error: ${e instanceof Error ? e.message : String(e)}`);
       return { clusters: [], summary: 'Klasterlash vaqtincha ishlamayapti.', at: Date.now() };
     }
   },
@@ -59,8 +71,8 @@ Sarlavhalar:\n${titles.slice(0, 60).join('\n')}`;
     try {
       await bot.sendMessage(target, msg, { parse_mode: 'HTML' });
       return true;
-    } catch (e: any) {
-      logger.error(`Cluster digest send failed: ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`Cluster digest send failed: ${e instanceof Error ? e.message : String(e)}`);
       return false;
     }
   },

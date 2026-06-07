@@ -20,7 +20,7 @@ export const NewsRepository = {
       .order('created_at', { ascending: false }).limit(200);
     if (error) logger.error(`isSeenByTitle error: ${error.message}`);
     if (!data || data.length === 0) return false;
-    return data.some((row: any) => isLikelyDuplicate(row.title, title));
+    return data.some((row: { title: string }) => isLikelyDuplicate(row.title, title));
   },
 
   async markSeen(userId: number, url: string, title: string) {
@@ -40,6 +40,6 @@ export const NewsRepository = {
   async getRecentTitles(limit = 80): Promise<string[]> {
     const { data, error } = await getSupabase().from('processed_news').select('title').order('created_at', { ascending: false }).limit(limit);
     if (error) logger.error(`getRecentNewsTitles error: ${error.message}`);
-    return (data || []).map((r: any) => r?.title).filter(Boolean) as string[];
+    return (data || []).map((r: { title?: string }) => r?.title).filter(Boolean) as string[];
   },
 };

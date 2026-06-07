@@ -23,14 +23,14 @@ export const UserRepository = {
       .not('target_channel', 'is', null)
       .eq('is_approved', 1);
     if (error) logger.error(`getActiveUsers error: ${error.message}`);
-    return (data || []).filter((u: any) => typeof u.target_channel === 'string' && u.target_channel.trim() !== '');
+    return (data || []).filter((u: Record<string, unknown>) => typeof u.target_channel === 'string' && u.target_channel.trim() !== '');
   },
 
   async upsert(telegramId: number, isOwner = 0, username?: string, firstName?: string) {
     const existing = await this.get(telegramId);
 
     if (existing) {
-      const updates: Record<string, any> = {
+      const updates: Record<string, unknown> = {
         username: username || existing.username,
         first_name: firstName || existing.first_name,
         is_active: 1,
@@ -44,7 +44,7 @@ export const UserRepository = {
       return data;
     }
 
-    const insertData: Record<string, any> = {
+    const insertData: Record<string, unknown> = {
       telegram_id: telegramId, is_owner: isOwner, is_active: 1, is_approved: 1,
       role: isOwner === 1 ? 'owner' : 'user', interval_minutes: 15, language: 'uz',
       username: username || null, first_name: firstName || null,
@@ -54,7 +54,7 @@ export const UserRepository = {
     return data;
   },
 
-  async update(telegramId: number, updates: Record<string, any>): Promise<boolean> {
+  async update(telegramId: number, updates: Record<string, unknown>): Promise<boolean> {
     const safe = { ...updates };
     if (typeof safe.target_channel === 'string') {
       let ch = String(safe.target_channel || '').trim();
@@ -78,7 +78,7 @@ export const UserRepository = {
     return (data || []);
   },
 
-  outputChannels(user: any): string[] {
+  outputChannels(user: { target_channel?: string | null; extra_channels?: string }): string[] {
     const list: string[] = [];
     if (user?.target_channel) list.push(String(user.target_channel).trim());
     if (user?.extra_channels) {
@@ -87,7 +87,7 @@ export const UserRepository = {
     return [...new Set(list)];
   },
 
-  async getAllChannels(user: any): Promise<string[]> {
+  async getAllChannels(user: { target_channel?: string | null; extra_channels?: string; telegram_id?: number }): Promise<string[]> {
     const list = UserRepository.outputChannels(user);
     if (user?.telegram_id) {
       try {

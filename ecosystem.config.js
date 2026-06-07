@@ -2,7 +2,7 @@ module.exports = {
   apps: [{
     name: 'rss-bot',
     script: './dist/main.js',
-    instances: process.env.NODE_ENV === 'production' ? 0 : 1,
+    instances: process.env.NODE_ENV === 'production' ? 'max' : 1,
     exec_mode: 'cluster',
     node_args: '--max-old-space-size=1024',
     env: {

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
@@ -10,7 +10,7 @@ import { buildChannelPostMarkup } from '../../services/sender';
 export function registerAiRoutes(app: express.Application) {
   const aiLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: async (req: any) => {
+    max: async (req: Request) => {
       const userId = req.headers['x-user-id'] || req.query.userId || req.body?.userId;
       if (userId) return (await DBService.isPremiumActive(parseInt(userId as string))) ? 30 : 10;
       return 10;
@@ -18,23 +18,23 @@ export function registerAiRoutes(app: express.Application) {
     message: { error: 'AI request limit exceeded.' }
   });
 
-  app.post('/api/ai/smm', checkAuth, aiLimiter, async (req: any, res: any) => {
-    const { prompt, withImage, language, size } = req.body;
-    if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return res.status(400).json({ error: 'Prompt bo\'sh bo\'lishi mumkin emas.' });
+  app.post('/api/ai/smm', checkAuth, aiLimiter, async (req: Request, res: Response) => {
     try {
-      const user = await DBService.getUser(parseInt(req.authenticatedUserId));
+      const { prompt, withImage, language, size } = req.body;
+      if (!prompt || typeof prompt !== 'string' || prompt.trim() === '') return res.status(400).json({ error: 'Prompt bo\'sh bo\'lishi mumkin emas.' });
+      const user = await DBService.getUser(parseInt(req.authenticatedUserId as string));
       const postLanguage = typeof language === 'string' && language.trim() ? language.trim().slice(0, 8) : user?.language || 'uz';
       const postSize = size === 'short' || size === 'medium' || size === 'long' ? size : 'medium';
       const [text, img] = await Promise.all([generateSmmPost(prompt.trim(), postLanguage, postSize), withImage === true || withImage === 'true' ? generateSmmImage(prompt.trim()) : Promise.resolve(null)]);
       res.json({ text, imageUrl: img?.imageUrl || null, imageBase64: img?.imageBase64 || null });
-    } catch (e: any) { logger.error(`SMM generate error: ${e.message}`); res.status(500).json({ error: 'AI xatolik' }); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`SMM generate error: ${msg}`); res.status(500).json({ error: 'AI xatolik' }); }
   });
 
-  app.post('/api/ai/post-to-channel', checkAuth, async (req: any, res: any) => {
-    const { text, imageUrl, imageBase64, prompt } = req.body;
-    if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Invalid text' });
+  app.post('/api/ai/post-to-channel', checkAuth, async (req: Request, res: Response) => {
     try {
-      const user = await DBService.getUser(parseInt(req.authenticatedUserId));
+      const { text, imageUrl, imageBase64, prompt } = req.body;
+      if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Invalid text' });
+      const user = await DBService.getUser(parseInt(req.authenticatedUserId as string));
       if (!user?.target_channel) return res.status(400).json({ error: 'No channel configured' });
       const title = typeof prompt === 'string' && prompt.trim() ? prompt.trim().slice(0, 120) : 'AI Studio Post';
       if (imageBase64 && typeof imageBase64 === 'string' && imageBase64.startsWith('data:image')) {
@@ -48,6 +48,6 @@ export function registerAiRoutes(app: express.Application) {
         await bot.sendMessage(user.target_channel, message, { parse_mode: 'HTML' });
       }
       res.json({ success: true });
-    } catch (e: any) { logger.error(`SMM post-to-channel error: ${e.message}`); res.status(500).json({ error: 'Telegram send failed' }); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`SMM post-to-channel error: ${msg}`); res.status(500).json({ error: 'Telegram send failed' }); }
   });
 }

@@ -28,11 +28,11 @@ const UserService = {
   getAll: () => UserRepository.getAll(),
   getActive: () => UserRepository.getActive(),
   upsert: (id: number, o?: number, u?: string, f?: string) => UserRepository.upsert(id, o, u, f),
-  update: (id: number, u: Record<string, any>) => UserRepository.update(id, u),
+  update: (id: number, u: Record<string, unknown>) => UserRepository.update(id, u),
   getByReferralCode: (c: string) => UserRepository.getByReferralCode(c),
   getForAdmin: () => UserRepository.getForAdmin(),
-  outputChannels: (u: any) => UserRepository.outputChannels(u),
-  getAllUserChannels: (u: any) => UserRepository.getAllChannels(u),
+  outputChannels: (u: { target_channel?: string | null; extra_channels?: string }) => UserRepository.outputChannels(u),
+  getAllUserChannels: (u: { target_channel?: string | null; extra_channels?: string; telegram_id?: number }) => UserRepository.getAllChannels(u),
   setExtraChannels: (userId: number, channels: string[]) => UserRepository.update(userId, { extra_channels: channels.filter(Boolean).join(',') }),
 
   async ensureReferralCode(userId: number): Promise<string> {
@@ -131,7 +131,7 @@ const SettingsService = {
 };
 
 const ScheduleService = {
-  add: (id: number, t: 'video'|'audio'|'text', c: any, s: string) => ScheduleRepository.add(id, t, c, s),
+  add: (id: number, t: 'video'|'audio'|'text', c: Record<string, unknown>, s: string) => ScheduleRepository.add(id, t, c, s),
   cancel: (id: number, s: number) => ScheduleRepository.cancel(id, s),
   getPending: () => ScheduleRepository.getPending(),
   getByUser: (id: number) => ScheduleRepository.getByUser(id),
@@ -153,8 +153,8 @@ const CryptoPaymentService = {
 
 const MonitorService = {
   getByUser: (id: number) => MonitorRepository.getByUser(id),
-  add: (id: number, p: string, c: string, n: string, o?: any) => MonitorRepository.add(id, p, c, n, o),
-  updateSettings: (id: number, u: number, up: any) => MonitorRepository.updateSettings(id, u, up),
+  add: (id: number, p: string, c: string, n: string, o?: { forward_mode?: string; use_ai?: number }) => MonitorRepository.add(id, p, c, n, o),
+  updateSettings: (id: number, u: number, up: Record<string, unknown>) => MonitorRepository.updateSettings(id, u, up),
   remove: (id: number, ch: number) => MonitorRepository.remove(id, ch),
   getAll: () => MonitorRepository.getAll(),
   updateLastPost: (id: number, l: string) => MonitorRepository.updateLastPost(id, l),
@@ -166,7 +166,7 @@ const TelegramMessageService = {
 };
 
 const TrendsService = {
-  saveSnapshot: (t: any[], s: string) => TrendsRepository.saveSnapshot(t, s),
+  saveSnapshot: (t: Array<{ topic: string; score: number }>, s: string) => TrendsRepository.saveSnapshot(t, s),
   getLatest: () => TrendsRepository.getLatest(),
 };
 
@@ -205,7 +205,7 @@ const TicketService = {
 };
 
 const DraftService = {
-  save: (id: number, d: any) => DraftRepository.save(id, d),
+  save: (id: number, d: { title?: string; body: string; image_url?: string; channels?: string[] }) => DraftRepository.save(id, d),
   getByUser: (id: number) => DraftRepository.getByUser(id),
 };
 
@@ -249,11 +249,11 @@ export const DBService = {
   getAllUsers: () => UserService.getAll(),
   getActiveUsers: () => UserService.getActive(),
   upsertUser: (id: number, o?: number, u?: string, f?: string) => UserService.upsert(id, o, u, f),
-  updateUser: (id: number, u: Record<string, any>) => UserService.update(id, u),
+  updateUser: (id: number, u: Record<string, unknown>) => UserService.update(id, u),
   getUserByReferralCode: (c: string) => UserService.getByReferralCode(c),
   getUsersForAdmin: () => UserService.getForAdmin(),
-  getUserOutputChannels: (u: any) => UserService.outputChannels(u),
-  getAllUserChannels: (u: any) => UserService.getAllUserChannels(u),
+  getUserOutputChannels: (u: { target_channel?: string | null; extra_channels?: string }) => UserService.outputChannels(u),
+  getAllUserChannels: (u: { target_channel?: string | null; extra_channels?: string; telegram_id?: number }) => UserService.getAllUserChannels(u),
   getWebUserByEmail: (email: string) => WebUserService.getByEmail(email),
   getWebUsers: () => WebUserService.list(),
   createWebUser: (record: { telegram_id: number; email: string; password_hash: string; salt: string; approved: boolean }) => WebUserService.create(record),
@@ -302,7 +302,7 @@ export const DBService = {
   setSetting: (k: string, v: string) => SettingsService.set(k, v),
 
   // ── Scheduled Posts (legacy flat methods) ──
-  addScheduledPost: (id: number, t: 'video'|'audio'|'text', c: any, s: string) => ScheduleService.add(id, t, c, s),
+  addScheduledPost: (id: number, t: 'video'|'audio'|'text', c: Record<string, unknown>, s: string) => ScheduleService.add(id, t, c, s),
   cancelScheduledPost: (id: number, s: number) => ScheduleService.cancel(id, s),
   getPendingScheduledPosts: () => ScheduleService.getPending(),
   getUserScheduledPosts: (id: number) => ScheduleService.getByUser(id),
@@ -320,8 +320,8 @@ export const DBService = {
 
   // ── Monitored Channels (legacy flat methods) ──
   getUserMonitoredChannels: (id: number) => MonitorService.getByUser(id),
-  addMonitoredChannel: (id: number, p: string, c: string, n: string, o?: any) => MonitorService.add(id, p, c, n, o),
-  updateMonitoredChannelSettings: (id: number, u: number, up: any) => MonitorService.updateSettings(id, u, up),
+  addMonitoredChannel: (id: number, p: string, c: string, n: string, o?: { forward_mode?: string; use_ai?: number }) => MonitorService.add(id, p, c, n, o),
+  updateMonitoredChannelSettings: (id: number, u: number, up: Record<string, unknown>) => MonitorService.updateSettings(id, u, up),
   removeMonitoredChannel: (id: number, ch: number) => MonitorService.remove(id, ch),
   getMonitoredChannels: () => MonitorService.getAll(),
   updateMonitoredChannel: (id: number, l: string) => MonitorService.updateLastPost(id, l),
@@ -331,7 +331,7 @@ export const DBService = {
   markTelegramMessageSeen: (id: number, c: string, m: number) => TelegramMessageService.markSeen(id, c, m),
 
   // ── Trends (legacy flat methods) ──
-  saveTrendsSnapshot: (t: any[], s: string) => TrendsService.saveSnapshot(t, s),
+  saveTrendsSnapshot: (t: Array<{ topic: string; score: number }>, s: string) => TrendsService.saveSnapshot(t, s),
   getLatestTrendsSnapshot: () => TrendsService.getLatest(),
 
   // ── Referrals (legacy flat methods) ──
@@ -365,7 +365,7 @@ export const DBService = {
   updateTicketStatus: (id: number, s: string) => TicketService.updateStatus(id, s),
 
   // ── Drafts (legacy flat methods) ──
-  savePostDraft: (id: number, d: any) => DraftService.save(id, d),
+  savePostDraft: (id: number, d: { title?: string; body: string; image_url?: string; channels?: string[] }) => DraftService.save(id, d),
   getUserPostDrafts: (id: number) => DraftService.getByUser(id),
 
   // ── Embeddings ──
@@ -457,12 +457,12 @@ export const DBService = {
     await getSupabase().from('users').update({ daily_digest: enabled, digest_time: time }).eq('telegram_id', userId);
   },
 
-  async getUsersWithDigest(): Promise<any[]> {
+  async getUsersWithDigest(): Promise<import('../types').TelegramUser[]> {
     const { data } = await getSupabase().from('users').select('*').eq('daily_digest', true).eq('is_approved', 1).eq('is_active', 1);
     return data || [];
   },
 
-  async getRecentTitlesForDigest(userId: number, hours: number = 24): Promise<any[]> {
+  async getRecentTitlesForDigest(userId: number, hours: number = 24): Promise<Array<{ title: string; url: string; created_at: string }>> {
     const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
     const { data } = await getSupabase().from('processed_news').select('title, url, created_at').eq('user_id', userId).gte('created_at', since).order('created_at', { ascending: false }).limit(100);
     return data || [];
@@ -516,7 +516,7 @@ export const DBService = {
   },
 
   async updateUserRole(telegramId: number, role: string) {
-    const updates: Record<string, any> = { role };
+    const updates: Record<string, unknown> = { role };
     if (role === 'owner') { updates.is_owner = 1; updates.is_approved = 1; }
     else updates.is_owner = 0;
     const { error } = await getSupabase().from('users').update(updates).eq('telegram_id', telegramId);
@@ -527,7 +527,7 @@ export const DBService = {
     return true;
   },
 
-  async getRecentTitlesForChannel(channelId: string): Promise<any[]> {
+  async getRecentTitlesForChannel(channelId: string): Promise<Array<{ title: string }>> {
     const { data, error } = await getSupabase().from('processed_news').select('title').eq('target_channel', channelId).order('created_at', { ascending: false }).limit(10);
     if (error) return [];
     return data || [];

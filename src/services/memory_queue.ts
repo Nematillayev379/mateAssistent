@@ -3,7 +3,7 @@ import { logger } from "../utils/logger";
 interface QueueTask {
   id: string;
   type: string;
-  data: any;
+  data: unknown;
   attempts: number;
   maxAttempts: number;
   addedAt: number;
@@ -20,7 +20,7 @@ interface QueueState {
 }
 
 interface MemoryQueue {
-  add: (type: string, data: any, opts?: { jobId?: string; attempts?: number }) => Promise<void>;
+  add: (type: string, data: unknown, opts?: { jobId?: string; attempts?: number }) => Promise<void>;
   process: (handler: TaskHandler) => void;
   getWaitingCount: () => number;
   pause: () => Promise<void>;
@@ -33,7 +33,7 @@ const apiCache = new Map<string, MemoryQueue>();
 
 function createAPI(name: string, state: QueueState): MemoryQueue {
   return {
-    add: async (type: string, data: any, opts?: { jobId?: string; attempts?: number }) => {
+    add: async (type: string, data: unknown, opts?: { jobId?: string; attempts?: number }) => {
       const id = opts?.jobId || `${name}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const existing = state.tasks.find(t => t.id === id);
       if (existing) return;
@@ -92,12 +92,13 @@ async function processTask(name: string, task: QueueTask) {
 
   try {
     await state.handler(task);
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (task.attempts < task.maxAttempts - 1) {
       task.attempts++;
       state.tasks.push(task);
     } else {
-      logger.warn(`[MemoryQueue:${name}] Task ${task.id} failed after ${task.attempts + 1} attempts: ${err.message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(`[MemoryQueue:${name}] Task ${task.id} failed after ${task.attempts + 1} attempts: ${message}`);
     }
   }
 }
@@ -131,7 +132,7 @@ export async function gracefulShutdown(timeoutMs = 10000): Promise<void> {
     await new Promise(r => setTimeout(r, 200));
   }
   for (const cb of shutdownCallbacks) {
-    try { await cb(); } catch (e: any) { logger.warn(`Shutdown callback failed: ${e?.message || 'unknown error'}`); }
+    try { await cb(); } catch (e: unknown) { const msg = e instanceof Error ? e.message : 'unknown error'; logger.warn(`Shutdown callback failed: ${msg}`); }
   }
   logger.info('[MemoryQueue] Shutdown complete');
 }

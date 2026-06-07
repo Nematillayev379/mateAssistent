@@ -8,7 +8,8 @@ export const StatsRepository = {
   },
 
   async get(userId: number) {
-    const { data } = await getSupabase().from('stats').select('*').eq('user_id', userId).maybeSingle();
+    const { data, error } = await getSupabase().from('stats').select('*').eq('user_id', userId).maybeSingle();
+    if (error) logger.error(`getStats error: ${error.message}`);
     return data || { total_posts: 0, total_duplicates: 0 };
   },
 };

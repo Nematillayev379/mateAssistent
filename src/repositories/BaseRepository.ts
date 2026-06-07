@@ -14,7 +14,7 @@ export function getSupabase(): SupabaseClient {
     supabase = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
-        fetch: (input: any, init: any = {}) => {
+        fetch: (input: string | URL | Request, init: RequestInit = {}) => {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 8000);
           return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeout));

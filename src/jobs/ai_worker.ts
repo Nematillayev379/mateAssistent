@@ -86,15 +86,16 @@ if (!connectionOptions) {
           await DBService.markSeen(userId, article.url, article.title);
         }
         logger.info(`Post sent to channel ${user.target_channel} for user ${userId}`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         DBService.releaseUserSendSlot(userId);
-        const isPermanent = error.message?.includes("400") || error.message?.includes("Bad Request");
+        const message = error instanceof Error ? error.message : String(error);
+        const isPermanent = message.includes("400") || message.includes("Bad Request");
         if (isPermanent) {
-          logger.error(`Permanent AI error for job ${job.id}: ${error.message}. Skipping.`);
+          logger.error(`Permanent AI error for job ${job.id}: ${message}. Skipping.`);
           return;
         }
 
-        logger.error(`AI Worker Error for job ${job.id}: ${error.message}`);
+        logger.error(`AI Worker Error for job ${job.id}: ${message}`);
         throw error;
       }
     },

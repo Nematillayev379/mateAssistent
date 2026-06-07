@@ -9,6 +9,7 @@ import { registerAiRoutes } from './api/ai';
 import { registerTrackerRoutes } from './api/tracker';
 import { registerChannelsRoutes } from './api/channels';
 import { registerContentRoutes } from './api/content';
+import { registerScheduledRoutes } from './api/scheduled';
 import { registerPremiumRoutes } from './api/premium';
 import { registerSystemRoutes } from './api/system';
 import { registerWorkspaceRoutes } from './api/workspace';
@@ -32,6 +33,7 @@ export function registerRoutes(app: express.Application) {
   registerTrackerRoutes(app);
   registerChannelsRoutes(app);
   registerContentRoutes(app);
+  registerScheduledRoutes(app);
   registerPremiumRoutes(app);
   registerSystemRoutes(app);
   registerWorkspaceRoutes(app);

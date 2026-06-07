@@ -7,6 +7,7 @@ import { trackCommand } from "./track";
 import { workspaceCommand } from "./workspace";
 import { sendNextOnboardingStep, startCommand } from "./start";
 import { langCommand } from "./lang";
+import { scheduleCommand } from "./schedule";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
@@ -27,6 +28,7 @@ export const commands: BotCommand[] = [
   setChannelCommand,
   helpCommand,
   langCommand,
+  scheduleCommand,
 ];
 
 export interface UserStateEntry {
@@ -42,6 +44,12 @@ let cachedBotInfo: TelegramBot.User | null = null;
 function extractUrlFromText(text: string): string | null {
   const match = text.match(/(https?:\/\/[^\s]+)/);
   return match ? match[0] : null;
+}
+
+function pickLocaleForFormat(lang: string): string {
+  if (lang === "ru") return "ru-RU";
+  if (lang === "uz") return "uz-UZ";
+  return "en-GB";
 }
 
 export function registerCommands(bot: TelegramBot) {
@@ -101,7 +109,7 @@ export function registerCommands(bot: TelegramBot) {
         const esc = (value: string) => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const caption = article?.title ? `<b>${esc(article.title)}</b>\n\n${esc((article.content || "").slice(0, 400))}` : i18n.t("scheduled_post", { lng: lang });
 
-        await DBService.addScheduledPost(chatId, mediaType as any, { url: state.url, caption }, scheduledDate.toISOString());
+        await DBService.addScheduledPost(chatId, mediaType as "video" | "audio" | "text", { url: state.url, caption }, scheduledDate.toISOString());
         userStates.delete(chatId);
         await bot.sendMessage(chatId, `${i18n.t("bot_schedule_saved", { lng: lang })}\n${scheduledDate.toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent" })}`);
         return;
@@ -125,12 +133,41 @@ export function registerCommands(bot: TelegramBot) {
           await bot.sendMessage(targetUser.telegram_id, text, { parse_mode: "HTML" });
           count++;
           await new Promise((resolve) => setTimeout(resolve, 50));
-        } catch (e: any) {
-          logger.warn(`Broadcast failed for ${targetUser.telegram_id}: ${e.message}`);
+        } catch (e: unknown) {
+          logger.warn(`Broadcast failed for ${targetUser.telegram_id}: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
       await bot.sendMessage(chatId, i18n.t("broadcast_complete", { lng: lang }).replace("{count}", String(count)));
       userStates.delete(chatId);
+      return;
+    }
+
+    if (/^schedule$/i.test(text) && msg.reply_to_message) {
+      try {
+        const replyMsg = msg.reply_to_message;
+        const replyText: string | undefined = (replyMsg.text as string | undefined) || (replyMsg.caption as string | undefined);
+        if (!replyText) {
+          await bot.sendMessage(chatId, i18n.t("bot_schedule_reply_prompt", { lng: lang }));
+          return;
+        }
+        const canSchedule = await DBService.checkUserLimit(chatId, "scheduled");
+        if (!canSchedule) {
+          await bot.sendMessage(chatId, i18n.t("scheduling_limit_reached", { lng: lang }));
+          return;
+        }
+        const scheduledAt = new Date(Date.now() + 60 * 60 * 1000);
+        await DBService.addScheduledPost(
+          chatId,
+          "text",
+          { text: replyText, caption: replyText },
+          scheduledAt.toISOString(),
+        );
+        const when = scheduledAt.toLocaleString(pickLocaleForFormat(lang), { timeZone: "Asia/Tashkent" });
+        const template = i18n.t("bot_schedule_saved_manual", { lng: lang });
+        await bot.sendMessage(chatId, template.replace("{time}", when), { parse_mode: "HTML" });
+      } catch (e: unknown) {
+        logger.error(`reply-schedule error: ${e instanceof Error ? e.message : String(e)}`);
+      }
       return;
     }
 
@@ -174,8 +211,8 @@ export function registerCommands(bot: TelegramBot) {
         }
         logger.info(`Pattern Match: ${cmd.pattern} by ${msg.from?.id}`);
         await cmd.handler(bot, msg, match);
-      } catch (error: any) {
-        logger.error(`Error handling ${cmd.pattern}: ${error.message}`);
+      } catch (error: unknown) {
+        logger.error(`Error handling ${cmd.pattern}: ${error instanceof Error ? error.message : String(error)}`);
       }
     });
   }
@@ -188,12 +225,12 @@ export function registerCommands(bot: TelegramBot) {
         return;
       }
       await bot.answerPreCheckoutQuery(query.id, true);
-    } catch (e: any) {
-      logger.error(`pre_checkout_query error: ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`pre_checkout_query error: ${e instanceof Error ? e.message : String(e)}`);
       try {
         await bot.answerPreCheckoutQuery(query.id, false, { error_message: i18n.t("server_error", { lng: "en" }) });
-      } catch (inner: any) {
-        logger.warn(`PreCheckoutQuery answer failed: ${inner.message}`);
+      } catch (inner: unknown) {
+        logger.warn(`PreCheckoutQuery answer failed: ${inner instanceof Error ? inner.message : String(inner)}`);
       }
     }
   });
@@ -217,8 +254,8 @@ export function registerCommands(bot: TelegramBot) {
         const paidUser = await DBService.getUser(chatId);
         await bot.sendMessage(chatId, i18n.t("bot_premium_activated", { lng: paidUser?.language || "uz" }));
       }
-    } catch (e: any) {
-      logger.error(`successful_payment error: ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`successful_payment error: ${e instanceof Error ? e.message : String(e)}`);
     }
   });
 

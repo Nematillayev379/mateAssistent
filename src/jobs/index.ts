@@ -13,8 +13,9 @@ export async function startWorkers(): Promise<void> {
   try {
     await import('./scraper_worker');
     logger.info('Scraper worker started (AI processing runs inline)');
-  } catch (err: any) {
-    logger.warn(`Workers failed to start: ${err.message} — falling back to inline processing`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn(`Workers failed to start: ${message} — falling back to inline processing`);
   }
 }
 
@@ -37,8 +38,9 @@ function scheduleSelfPing() {
     try {
       await axios.get(CONFIG.PUBLIC_URL, { timeout: 10000 });
       logger.debug('Self-ping OK');
-    } catch (e: any) {
-      logger.warn(`Self-ping failed: ${e?.message || 'unknown error'}`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'unknown error';
+      logger.warn(`Self-ping failed: ${message}`);
     }
   });
   logger.info(`Self-ping scheduled every 10 min → ${CONFIG.PUBLIC_URL}`);
@@ -63,15 +65,17 @@ function scheduleDailyRssSearch() {
               const summary = await RssSearchService.summarizeResults(results, search.topic, user.language || 'uz');
               await bot.sendMessage(user.target_channel || user.telegram_id, summary, { parse_mode: 'HTML' }).catch(() => {});
             }
-          } catch (e: any) {
-            logger.warn(`Daily RSS search failed for ${user.telegram_id}: ${e.message}`);
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            logger.warn(`Daily RSS search failed for ${user.telegram_id}: ${message}`);
           }
           await new Promise(r => setTimeout(r, 500));
         }
       }
       logger.info('Daily RSS search completed');
-    } catch (err: any) {
-      logger.error(`Daily RSS Search Cron Error: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`Daily RSS Search Cron Error: ${message}`);
     }
   });
 }
@@ -81,8 +85,9 @@ function scheduleDailyDigest() {
     try {
       const { processDailyDigests } = await import("./digest_cron");
       await processDailyDigests();
-    } catch (err: any) {
-      logger.warn(`Daily digest cron: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(`Daily digest cron: ${message}`);
     }
   });
 }
@@ -98,8 +103,9 @@ function scheduleCleanup() {
       await DBService.cleanupOldEmbeddings(7);
       await DBService.cleanupExpiredPremium();
       logger.info("System cleanup completed");
-    } catch (err: any) {
-      logger.error(`System Cleanup Error: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`System Cleanup Error: ${message}`);
     }
   });
 }
@@ -116,8 +122,9 @@ function scheduleClusterDigest() {
           await new Promise(r => setTimeout(r, 200));
         }
       }
-    } catch (err: any) {
-      logger.error(`Cluster digest cron: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`Cluster digest cron: ${message}`);
     }
   });
 }
@@ -135,8 +142,9 @@ function scheduleWorkspaceRebalance() {
           await new Promise(r => setTimeout(r, 500));
         }
       }
-    } catch (err: any) {
-      logger.error(`Workspace rebalance cron: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`Workspace rebalance cron: ${message}`);
     }
   });
 }
@@ -146,8 +154,9 @@ function scheduleKeyPoolRefresh() {
     try {
       const { refreshKeyPool } = await import("../services/ai");
       await refreshKeyPool();
-    } catch (err: any) {
-      logger.error(`Key Pool Refresh Error: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`Key Pool Refresh Error: ${message}`);
     }
   });
 }

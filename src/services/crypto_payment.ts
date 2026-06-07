@@ -4,6 +4,31 @@ import { DBService } from './database';
 import { logger } from '../utils/logger';
 const USDT_JETTON_MASTER = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCzRVZ5F2pD2v4TO';
 
+interface DBPaymentRecord {
+  id: string;
+  user_id: number;
+  amount_uzs: number;
+  currency: 'USDT' | 'TON';
+  crypto_amount: string;
+  wallet_address: string;
+  memo: string;
+  status: 'pending' | 'paid' | 'expired';
+  created_at: number;
+  plan: string;
+}
+
+interface CoinGeckoResponse {
+  toncoin?: { usd?: number };
+}
+
+interface BinanceResponse {
+  price?: string;
+}
+
+interface ExchangeRateResponse {
+  rates?: { UZS?: number };
+}
+
 interface PaymentRequest {
   id: string;
   userId: number;
@@ -17,19 +42,34 @@ interface PaymentRequest {
   plan: string;
 }
 
-function mapPaymentRecord(record: any): PaymentRequest | null {
-  if (!record) return null;
+function mapPaymentRecord(record: unknown): PaymentRequest | null {
+  if (!record || typeof record !== 'object') return null;
+  const r = record as Record<string, unknown>;
+  if (
+    typeof r.id !== 'string' ||
+    typeof r.user_id !== 'number' ||
+    typeof r.amount_uzs !== 'number' ||
+    (r.currency !== 'USDT' && r.currency !== 'TON') ||
+    typeof r.crypto_amount !== 'string' ||
+    typeof r.wallet_address !== 'string' ||
+    typeof r.memo !== 'string' ||
+    (r.status !== 'pending' && r.status !== 'paid' && r.status !== 'expired') ||
+    typeof r.created_at !== 'number' ||
+    typeof r.plan !== 'string'
+  ) {
+    return null;
+  }
   return {
-    id: record.id,
-    userId: record.user_id,
-    amountUZS: record.amount_uzs,
-    currency: record.currency,
-    cryptoAmount: record.crypto_amount,
-    walletAddress: record.wallet_address,
-    memo: record.memo,
-    status: record.status,
-    createdAt: record.created_at,
-    plan: record.plan,
+    id: r.id,
+    userId: r.user_id,
+    amountUZS: r.amount_uzs,
+    currency: r.currency as 'USDT' | 'TON',
+    cryptoAmount: r.crypto_amount,
+    walletAddress: r.wallet_address,
+    memo: r.memo,
+    status: r.status as 'pending' | 'paid' | 'expired',
+    createdAt: r.created_at,
+    plan: r.plan,
   };
 }
 
@@ -67,7 +107,7 @@ function tryDecodeHex(value: string): string | null {
   }
 }
 
-function collectStringLeaves(value: any, out = new Set<string>()): Set<string> {
+function collectStringLeaves(value: unknown, out = new Set<string>()): Set<string> {
   if (typeof value === 'string') {
     const cleaned = normalizeMemo(value);
     if (cleaned) out.add(cleaned);
@@ -84,7 +124,7 @@ function collectStringLeaves(value: any, out = new Set<string>()): Set<string> {
   }
 
   if (value && typeof value === 'object') {
-    for (const nested of Object.values(value)) collectStringLeaves(nested, out);
+    for (const nested of Object.values(value as Record<string, unknown>)) collectStringLeaves(nested, out);
   }
 
   return out;
@@ -121,18 +161,18 @@ async function refreshPrices() {
     const now = Date.now();
     try {
       const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=toncoin,tether&vs_currencies=usd', { signal: AbortSignal.timeout(5000) });
-      if (r.ok) { const d: any = await r.json(); if (d.toncoin?.usd) tonPriceUsdt = d.toncoin.usd; }
+      if (r.ok) { const d = await r.json() as CoinGeckoResponse; if (d.toncoin?.usd) tonPriceUsdt = d.toncoin.usd; }
     } catch { logger.warn(`CoinGecko price fetch failed`); }
     if (!tonPriceUsdt || tonPriceUsdt === 6) {
       try {
         const r = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT', { signal: AbortSignal.timeout(5000) });
-        if (r.ok) { const d: any = await r.json(); if (d.price) tonPriceUsdt = parseFloat(d.price); }
+        if (r.ok) { const d = await r.json() as BinanceResponse; if (d.price) tonPriceUsdt = parseFloat(d.price); }
       } catch { logger.warn(`Binance price fetch failed`); }
     }
     for (const url of ['https://api.exchangerate-api.com/v4/latest/USD', 'https://open.er-api.com/v6/latest/USD']) {
       try {
         const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
-        if (r.ok) { const d: any = await r.json(); if (d.rates?.UZS) { usdtPrice = d.rates.UZS; break; } }
+        if (r.ok) { const d = await r.json() as ExchangeRateResponse; if (d.rates?.UZS) { usdtPrice = d.rates.UZS; break; } }
       } catch { logger.warn(`Exchange rate fetch failed`); }
     }
     lastPriceFetch = now;
@@ -148,10 +188,18 @@ function apiHeaders(): Record<string, string> {
   return CONFIG.TONCENTER_KEY ? { 'X-API-Key': CONFIG.TONCENTER_KEY } : {};
 }
 
-async function fetchJson(url: string): Promise<any> {
+interface TonCenterTransactionsResponse {
+  transactions?: Array<Record<string, unknown>>;
+}
+
+interface TonCenterEventsResponse {
+  events?: Array<Record<string, unknown>>;
+}
+
+async function fetchJson(url: string): Promise<TonCenterTransactionsResponse | TonCenterEventsResponse | null> {
   const r = await fetch(url, { headers: apiHeaders(), signal: AbortSignal.timeout(8000) });
   if (!r.ok) return null;
-  return r.json();
+  return r.json() as Promise<TonCenterTransactionsResponse | TonCenterEventsResponse>;
 }
 
 export const CryptoPaymentService = {
@@ -248,33 +296,38 @@ async function checkTonTransaction(req: PaymentRequest): Promise<boolean> {
       sort: 'desc',
       start_utime: Math.floor(req.createdAt / 1000) - 300,
     }));
-    const transactions = data?.transactions;
+    if (!data || !('transactions' in data)) return false;
+    const transactions = data.transactions;
     if (!Array.isArray(transactions)) return false;
 
     for (const tx of transactions) {
-      const msg = tx?.in_msg;
-      if (!msg || msg.destination !== req.walletAddress) continue;
+      if (typeof tx !== 'object' || tx === null) continue;
+      const msg = (tx as Record<string, unknown>).in_msg;
+      if (!msg || typeof msg !== 'object') continue;
+      const msgObj = msg as Record<string, unknown>;
+      if (msgObj.destination !== req.walletAddress) continue;
 
-      const mc = msg.message_content || {};
+      const mc = (typeof msgObj.message_content === 'object' && msgObj.message_content !== null ? msgObj.message_content : {}) as Record<string, unknown>;
+      const bodyStr = typeof mc.body === 'string' ? mc.body : null;
       const candidates = collectStringLeaves([
-        msg.message,
-        mc.body,
+        msgObj.message,
+        bodyStr,
         mc.decoded,
-        mc.body && typeof mc.body === 'string' && mc.body.startsWith('te6cc') ? mc.body : null,
-        msg.decoded_opcode,
+        bodyStr && bodyStr.startsWith('te6cc') ? bodyStr : null,
+        msgObj.decoded_opcode,
       ]);
-      if (!candidates.size && mc.body && typeof mc.body === 'string') {
-        const raw = mc.body.replace(/\0/g, '').trim();
+      if (!candidates.size && bodyStr) {
+        const raw = bodyStr.replace(/\0/g, '').trim();
         if (raw) candidates.add(raw);
       }
 
       if (memoMatches(candidates, req.memo)) {
-        const value = parseFloat(msg.value) / 1e9;
+        const value = parseFloat(String(msgObj.value)) / 1e9;
         const expected = parseFloat(req.cryptoAmount);
         if (isAmountMatch(value, expected)) return true;
       }
     }
-  } catch (e: any) { logger.warn(`TON tx check: ${e?.message || 'unknown'}`); }
+  } catch (e: unknown) { logger.warn(`TON tx check: ${e instanceof Error ? e.message : 'unknown'}`); }
   return false;
 }
 
@@ -286,33 +339,38 @@ async function checkUsdtJettonTransaction(req: PaymentRequest): Promise<boolean>
       sort: 'desc',
       start_utime: Math.floor(req.createdAt / 1000) - 300,
     }));
-    const events = data?.events;
+    if (!data || !('events' in data)) return false;
+    const events = data.events;
     if (!Array.isArray(events)) return false;
 
     for (const event of events) {
-      const actions = event?.actions;
+      if (typeof event !== 'object' || event === null) continue;
+      const actions = (event as Record<string, unknown>).actions;
       if (!Array.isArray(actions)) continue;
       for (const action of actions) {
-        const transfer = action?.TonTransfer || action?.JettonTransfer || action?.JettonSwap;
+        if (typeof action !== 'object' || action === null) continue;
+        const actionObj = action as Record<string, unknown>;
+        const transfer = (actionObj.TonTransfer || actionObj.JettonTransfer || actionObj.JettonSwap) as Record<string, unknown> | undefined;
         if (!transfer || transfer.amount === undefined) continue;
-        const isUsdt = action.type === 'JettonTransfer' || action.type === 'JettonSwap';
+        const isUsdt = actionObj.type === 'JettonTransfer' || actionObj.type === 'JettonSwap';
         if (!isUsdt) continue;
 
+        const details = (typeof actionObj.details === 'object' && actionObj.details !== null ? actionObj.details : {}) as Record<string, unknown>;
         const candidates = collectStringLeaves([
           transfer.comment,
           transfer.forward_payload,
           transfer.custom_payload,
-          action.details?.comment,
-          action.details?.memo,
+          typeof details.comment === 'string' ? details.comment : undefined,
+          typeof details.memo === 'string' ? details.memo : undefined,
         ]);
 
         if (memoMatches(candidates, req.memo)) {
-          const value = parseFloat(transfer.amount) / 1e6;
+          const value = parseFloat(String(transfer.amount)) / 1e6;
           const expected = parseFloat(req.cryptoAmount);
           if (isAmountMatch(value, expected)) return true;
         }
       }
     }
-  } catch (e: any) { logger.warn(`USDT Jetton check: ${e?.message || 'unknown'}`); }
+  } catch (e: unknown) { logger.warn(`USDT Jetton check: ${e instanceof Error ? e.message : 'unknown'}`); }
   return false;
 }

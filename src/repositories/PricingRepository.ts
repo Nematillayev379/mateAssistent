@@ -19,11 +19,13 @@ export const PriceRepository = {
   },
 
   async updatePrice(id: number, newPrice: number) {
-    await getSupabase().from('tracked_prices').update({ last_price: newPrice }).eq('id', id);
+    const { error } = await getSupabase().from('tracked_prices').update({ last_price: newPrice }).eq('id', id);
+    if (error) logger.error(`updatePrice error: ${error.message}`);
   },
 
   async remove(userId: number, id: number) {
-    await getSupabase().from('tracked_prices').delete().eq('id', id).eq('user_id', userId);
+    const { error } = await getSupabase().from('tracked_prices').delete().eq('id', id).eq('user_id', userId);
+    if (error) logger.error(`removePrice error: ${error.message}`);
   },
 };
 
@@ -39,7 +41,7 @@ export const SettingsRepository = {
 };
 
 export const ScheduleRepository = {
-  async add(userId: number, type: 'video' | 'audio' | 'text', content: any, scheduledAt: string) {
+  async add(userId: number, type: 'video' | 'audio' | 'text', content: Record<string, unknown>, scheduledAt: string) {
     const validTypes = ['video', 'audio', 'text'];
     if (!validTypes.includes(type)) throw new Error(`Invalid scheduled post type: ${type}`);
     if (!scheduledAt || isNaN(Date.parse(scheduledAt))) throw new Error(`Invalid scheduledAt: ${scheduledAt}`);

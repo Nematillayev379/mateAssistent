@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { Request, Response } from 'express';
 import { getRedisConnection } from '../services/redis';
 import { logger } from '../utils/logger';
 
@@ -35,17 +36,17 @@ export async function createSession(userId: string | number): Promise<Session> {
   return session;
 }
 
-export function setSessionCookie(res: any, sid: string): void {
+export function setSessionCookie(res: Response, sid: string): void {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${sid}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}${secure}`);
 }
 
-export function clearSessionCookie(res: any): void {
+export function clearSessionCookie(res: Response): void {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
 }
 
-export async function readSessionUserId(req: any): Promise<string | null> {
+export async function readSessionUserId(req: Request): Promise<string | null> {
   const cookieHeader: string = req.headers?.cookie || '';
   const m = cookieHeader.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`));
   if (!m) return null;
@@ -66,7 +67,7 @@ export async function readSessionUserId(req: any): Promise<string | null> {
   }
 }
 
-export async function destroySession(req: any): Promise<void> {
+export async function destroySession(req: Request): Promise<void> {
   const cookieHeader: string = req.headers?.cookie || '';
   const m = cookieHeader.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`));
   if (!m) return;

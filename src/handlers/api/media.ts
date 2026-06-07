@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
@@ -12,14 +12,14 @@ import { promisify } from 'util';
 import { exec } from 'child_process';
 import { serveFileDownload } from '../utils';
 
-function getLang(user: any): string {
+function getLang(user: Record<string, unknown> | null): string {
   return typeof user?.language === 'string' && user.language.trim() ? user.language.trim() : 'uz';
 }
 
 export function registerMediaRoutes(app: express.Application) {
   const mediaAiLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: async (req: any) => {
+    max: async (req: Request) => {
       const userId = req.headers['x-user-id'] || req.query.userId || req.body?.userId;
       if (userId) return (await DBService.isPremiumActive(parseInt(userId as string))) ? 30 : 10;
       return 10;
@@ -27,11 +27,14 @@ export function registerMediaRoutes(app: express.Application) {
     message: { error: i18n.t('ai_request_limit_exceeded', { lng: 'en' }) }
   });
 
-  app.get('/api/music/search', checkAuth, async (req, res) => res.json(await MusicService.getYouTubeVideoIds(req.query.q as string, 8)));
+  app.get('/api/music/search', checkAuth, async (req: Request, res: Response) => {
+    try { res.json(await MusicService.getYouTubeVideoIds(req.query.q as string, 8)); }
+    catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+  });
 
-  app.get('/api/music/download/:id', checkAuth, async (req: any, res: any) => {
-    const videoId = req.params.id;
-    const userId = parseInt(req.authenticatedUserId);
+  app.get('/api/music/download/:id', checkAuth, async (req: Request, res: Response) => {
+    const videoId = req.params.id as string;
+    const userId = parseInt(req.authenticatedUserId as string);
     const userData = await DBService.getUser(userId);
     const lang = getLang(userData);
     if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return res.status(400).json({ error: i18n.t('invalid_video_id', { lng: lang }) });
@@ -57,8 +60,9 @@ export function registerMediaRoutes(app: express.Application) {
       const { downloadYouTube } = await import('../../services/youtube');
       const filePath = await downloadYouTube(`https://youtube.com/watch?v=${videoId}`, 'audio');
       await serveFromPath(filePath);
-    } catch (e: any) {
-      logger.warn(`Music download failed for ${videoId}: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`Music download failed for ${videoId}: ${msg}`);
 
       // Title-based fallback: if direct video extraction fails, try a local audio search by title.
       try {
@@ -77,8 +81,8 @@ export function registerMediaRoutes(app: express.Application) {
             return;
           }
         }
-      } catch (fallbackErr: any) {
-        logger.warn(`Music title fallback failed for ${videoId}: ${fallbackErr.message}`);
+      } catch (fallbackErr: unknown) {
+        logger.warn(`Music title fallback failed for ${videoId}: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
       }
 
       // Channel delivery fallback: try direct Cobalt URL only when sending to a channel.
@@ -93,18 +97,18 @@ export function registerMediaRoutes(app: express.Application) {
             logger.info(`Music sent to channel via direct fallback ${target} for user ${userId}`);
             return res.json({ success: true, message: i18n.t('music_sent_to_channel', { lng: lang }) });
           }
-        } catch (fallbackErr: any) {
-          logger.warn(`Music direct fallback failed for ${videoId}: ${fallbackErr.message}`);
+        } catch (fallbackErr: unknown) {
+          logger.warn(`Music direct fallback failed for ${videoId}: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`);
         }
       }
 
-      res.status(502).json({ error: e.message || i18n.t('music_download_failed', { lng: lang }) });
+      res.status(502).json({ error: e instanceof Error ? e.message : i18n.t('music_download_failed', { lng: lang }) });
     }
   });
 
-  app.post('/api/media/download', checkAuth, async (req: any, res: any) => {
+  app.post('/api/media/download', checkAuth, async (req: Request, res: Response) => {
     const { url, type } = req.body;
-    const userId = parseInt(req.authenticatedUserId);
+    const userId = parseInt(req.authenticatedUserId as string);
     const userData = await DBService.getUser(userId);
     const lang = getLang(userData);
     const webOnly = req.query.web === '1' || req.body?.delivery === 'web';
@@ -116,13 +120,14 @@ export function registerMediaRoutes(app: express.Application) {
       const ext = path.extname(filePath) || (type === 'video' ? '.mp4' : '.mp3');
       const filename = `media_${Date.now()}${ext}`;
       await serveFileDownload(res, filePath, filename, { userId, notifyBot: webOnly ? undefined : (type === 'video' ? 'video' : 'audio') });
-    } catch (e: any) {
-      logger.warn(`Media download failed: ${e.message}`);
-      res.status(502).json({ error: e.message || i18n.t('media_download_failed', { lng: lang }) });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.warn(`Media download failed: ${msg}`);
+      res.status(502).json({ error: msg || i18n.t('media_download_failed', { lng: lang }) });
     }
   });
 
-  app.get('/api/debug/ytdlp', checkAuth, async (req: any, res: any) => {
+  app.get('/api/debug/ytdlp', checkAuth, async (req: Request, res: Response) => {
     try {
       const { resolveYtDlpPath } = await import('../../utils/ytdlp');
       const ytdlpPath = await resolveYtDlpPath();
@@ -133,32 +138,34 @@ export function registerMediaRoutes(app: express.Application) {
         version: ytdlpPath ? (await promisify(exec)((ytdlpPath.includes(' ') || ytdlpPath.includes('\\') ? `"${ytdlpPath}"` : ytdlpPath) + ' --version', { timeout: 5000 }).then(r => r.stdout.trim()).catch(() => 'error')) : 'not found',
         cwd: process.cwd(),
       });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
   });
 
-  app.post('/api/ai/voice-news', checkAuth, mediaAiLimiter, async (req: any, res: any) => {
-    const uid = parseInt(req.authenticatedUserId);
-    const { text, title, sendToChannel } = req.body;
-    const user = await DBService.getUser(uid);
-    const lang = getLang(user);
-    if (!user) return res.status(404).json({ error: i18n.t('media_not_found', { lng: lang }) });
-    const cleanTitle = typeof title === 'string' ? title.trim() : '';
-    const cleanText = typeof text === 'string' ? text.trim() : '';
-    if (!cleanTitle && !cleanText) return res.status(400).json({ error: i18n.t('voice_news_empty', { lng: lang }) });
-    const { generateAudioSummary, generateTTS } = await import('../../services/ai');
-    const script = cleanText || await generateAudioSummary(cleanTitle || 'Yangilik', cleanText || cleanTitle || '', lang);
-    const audio = await generateTTS(script, lang);
-    if (!audio) return res.status(500).json({ error: i18n.t('voice_generation_failed', { lng: lang }) });
-    const caption = `AI Voice News: <b>${cleanTitle || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
-    const targets = sendToChannel ? DBService.getUserOutputChannels(user) : [uid];
-    let sentCount = 0;
-    for (const ch of targets) {
-      try {
-        await bot.sendAudio(sendToChannel ? ch : uid, audio as any, { caption, parse_mode: 'HTML' }, { filename: 'voice-news-file.mp3', contentType: 'audio/mpeg' } as any);
-        sentCount++;
-      } catch (e: any) { logger.warn(`Voice send failed ${ch}: ${e.message}`); }
-    }
-    if (sentCount === 0) return res.status(502).json({ error: i18n.t('voice_send_failed', { lng: lang }) });
-    res.json({ success: true, sent: sentCount, script: script.slice(0, 800) });
+  app.post('/api/ai/voice-news', checkAuth, mediaAiLimiter, async (req: Request, res: Response) => {
+    try {
+      const uid = parseInt(req.authenticatedUserId as string);
+      const { text, title, sendToChannel } = req.body;
+      const user = await DBService.getUser(uid);
+      const lang = getLang(user);
+      if (!user) return res.status(404).json({ error: i18n.t('media_not_found', { lng: lang }) });
+      const cleanTitle = typeof title === 'string' ? title.trim() : '';
+      const cleanText = typeof text === 'string' ? text.trim() : '';
+      if (!cleanTitle && !cleanText) return res.status(400).json({ error: i18n.t('voice_news_empty', { lng: lang }) });
+      const { generateAudioSummary, generateTTS } = await import('../../services/ai');
+      const script = cleanText || await generateAudioSummary(cleanTitle || 'Yangilik', cleanText || cleanTitle || '', lang);
+      const audio = await generateTTS(script, lang);
+      if (!audio) return res.status(500).json({ error: i18n.t('voice_generation_failed', { lng: lang }) });
+      const caption = `AI Voice News: <b>${cleanTitle || 'AI Ovoz Yangilik'}</b>\n\n${script.slice(0, 500)}`;
+      const targets = sendToChannel ? DBService.getUserOutputChannels(user) : [uid];
+      let sentCount = 0;
+      for (const ch of targets) {
+        try {
+          await bot.sendAudio(sendToChannel ? ch : uid, audio as Buffer, { caption, parse_mode: 'HTML' }, { filename: 'voice-news-file.mp3', contentType: 'audio/mpeg' });
+          sentCount++;
+        } catch (e: unknown) { logger.warn(`Voice send failed ${ch}: ${e instanceof Error ? e.message : String(e)}`); }
+      }
+      if (sentCount === 0) return res.status(502).json({ error: i18n.t('voice_send_failed', { lng: lang }) });
+      res.json({ success: true, sent: sentCount, script: script.slice(0, 800) });
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
   });
 }

@@ -7,6 +7,7 @@ import { getSmartAIResponse, moderateContent, checkSemanticDuplicate, categorize
 import { safeSend } from "../services/sender";
 import { logger, sanitizeLogInput } from "../utils/logger";
 import crypto from "crypto";
+import { Article } from "../types";
 
 const lowerAdKeywords = (CONFIG.AD_KEYWORDS || []).map((k) => k.toLowerCase());
 const connectionOptions = getRedisOptions();
@@ -21,8 +22,8 @@ if (!connectionOptions) {
 
       try {
         logger.info(`Job ${job.id}: Scraping ${sanitizeLogInput(sourceUrl)} for user ${userId}`);
-        const articles: any[] = await ScraperService.fetchRSS(sourceUrl);
-        articles.sort((a: any, b: any) => new Date(b?.pubDate || 0).getTime() - new Date(a?.pubDate || 0).getTime());
+        const articles = await ScraperService.fetchRSS(sourceUrl);
+        articles.sort((a: { pubDate?: string }, b: { pubDate?: string }) => new Date(b?.pubDate || 0).getTime() - new Date(a?.pubDate || 0).getTime());
 
         for (const article of articles) {
           const isDuplicate = await DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
@@ -67,7 +68,7 @@ if (!connectionOptions) {
   logger.info("Scraper Worker started with Redis connection options");
 }
 
-export async function processArticleInline(userId: number, article: any, sourceLang: string): Promise<void> {
+export async function processArticleInline(userId: number, article: Article, sourceLang: string): Promise<void> {
   try {
     const user = await DBService.getUser(userId);
     if (!user || !user.target_channel || user.is_active === 0) return;
@@ -134,9 +135,10 @@ export async function processArticleInline(userId: number, article: any, sourceL
       category,
       source: article.source || "mateAssistent",
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     DBService.releaseUserSendSlot(userId);
-    logger.error(`Inline article processing error for user ${userId}: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`Inline article processing error for user ${userId}: ${message}`);
     throw err;
   }
 }

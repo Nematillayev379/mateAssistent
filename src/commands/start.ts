@@ -162,7 +162,7 @@ async function sendIntervalStep(bot: TelegramBot, chatId: number, lang: string):
 export async function sendNextOnboardingStep(
   bot: TelegramBot,
   chatId: number,
-  userOverride?: any
+  userOverride?: { language?: string; has_seen_lang?: boolean; target_channel?: string; interval_minutes?: number | string; role?: string; is_premium?: number | boolean; is_approved?: number } | null
 ): Promise<"language" | "channel" | "source" | "interval" | "menu"> {
   const user = userOverride || (await DBService.getUser(chatId));
   if (!user) return "language";
@@ -219,8 +219,8 @@ export const startCommand: BotCommand = {
                 await DBService.checkAndGivePremium(referrer.telegram_id);
               }
               await bot.sendMessage(referrer.telegram_id, refMsg);
-            } catch (e: any) {
-              logger.warn(`Could not notify referrer ${referrer.telegram_id}: ${e.message}`);
+            } catch (e: unknown) {
+              logger.warn(`Could not notify referrer ${referrer.telegram_id}: ${e instanceof Error ? e.message : String(e)}`);
             }
           }
         }

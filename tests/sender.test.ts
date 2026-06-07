@@ -106,6 +106,6 @@ describe('Sender - safeSend', () => {
   });
 
   test('skips if article is missing', async () => {
-    await safeSend({ telegram_id: 123, target_channel: '@test' }, null);
+    await safeSend({ telegram_id: 123, target_channel: '@test' }, null as unknown as { title?: string });
   });
 });

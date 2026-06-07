@@ -35,7 +35,7 @@ export function buildDashboardUrl(userId: number | string): string | null {
 export async function notify(chatId: number | string, text: string, options: TelegramBot.SendMessageOptions = {}) {
   try {
     return await bot.sendMessage(chatId, text, { parse_mode: "HTML", ...options });
-  } catch (e: any) {
-    logger.warn(`Message notify error to ${chatId}: ${e.message}`);
+  } catch (e: unknown) {
+    logger.warn(`Message notify error to ${chatId}: ${e instanceof Error ? e.message : String(e)}`);
   }
 }

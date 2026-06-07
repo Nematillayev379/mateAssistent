@@ -1,11 +1,12 @@
 import crypto from 'crypto';
+import { Request, Response, NextFunction } from 'express';
 import { CONFIG, isOwnerId } from '../config/config';
 import { DBService } from '../services/database';
 import { generateDashboardToken } from '../services/bot_instance';
 import { logger } from '../utils/logger';
 import { readSessionUserId } from './session';
 
-export const extractUserId = async (req: any): Promise<string> => {
+export const extractUserId = async (req: Request): Promise<string> => {
   const fromSession = await readSessionUserId(req);
   if (fromSession) return fromSession;
   return String(
@@ -26,17 +27,17 @@ export const timingSafeCompare = (str1: string, str2: string): boolean => {
   return crypto.timingSafeEqual(b1, b2);
 };
 
-export const checkAuth = async (req: any, res: any, next: any) => {
+export const checkAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const sessionUserId = await readSessionUserId(req);
     if (sessionUserId) {
       req.authenticatedUserId = sessionUserId;
       if (isOwnerId(parseInt(sessionUserId))) {
-        DBService.getUser(parseInt(sessionUserId)).then(async (user: any) => {
+        DBService.getUser(parseInt(sessionUserId)).then(async (user: Record<string, unknown> | null) => {
           if (user && user.role !== 'owner') {
             await DBService.updateUserRole(parseInt(sessionUserId), 'owner');
           }
-        }).catch((e: any) => logger.warn(`Owner role sync failed: ${e.message}`));
+        }).catch((e: unknown) => logger.warn(`Owner role sync failed: ${e instanceof Error ? e.message : String(e)}`));
       }
       return next();
     }
@@ -44,7 +45,7 @@ export const checkAuth = async (req: any, res: any, next: any) => {
     const token = req.headers['x-bot-token'] || req.query.token || (req.headers.authorization?.split(' ')[1] ?? '');
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
-    if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {
+    if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token as string, CONFIG.DASHBOARD_SECRET)) {
       if (CONFIG.OWNER_ID == null) return res.status(500).json({ error: 'Owner ID not configured' });
       req.authenticatedUserId = String(CONFIG.OWNER_ID);
       return next();
@@ -56,52 +57,59 @@ export const checkAuth = async (req: any, res: any, next: any) => {
 
     req.authenticatedUserId = userId;
     if (isOwnerId(parseInt(userId))) {
-      DBService.getUser(parseInt(userId)).then(async (user: any) => {
+      DBService.getUser(parseInt(userId)).then(async (user: Record<string, unknown> | null) => {
         if (user && user.role !== 'owner') {
           await DBService.updateUserRole(parseInt(userId), 'owner');
         }
-      }).catch((e: any) => logger.warn(`Owner role sync failed: ${e.message}`));
+      }).catch((e: unknown) => logger.warn(`Owner role sync failed: ${e instanceof Error ? e.message : String(e)}`));
     }
 
     next();
-  } catch (e: any) {
-    logger.error(`checkAuth error: ${e.message}`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.error(`checkAuth error: ${msg}`);
     res.status(500).json({ error: 'Authentication error' });
   }
 };
 
-export const checkAdmin = async (req: any, res: any, next: any) => {
-  const sessionUserId = await readSessionUserId(req);
-  if (sessionUserId) {
-    const sessionUid = parseInt(sessionUserId);
-    const user = await DBService.getUser(sessionUid);
-    const isAdmin = user && (user.role === 'owner' || user.role === 'admin' || user.is_owner === 1 || isOwnerId(sessionUid));
+export const checkAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sessionUserId = await readSessionUserId(req);
+    if (sessionUserId) {
+      const sessionUid = parseInt(sessionUserId);
+      const user = await DBService.getUser(sessionUid);
+      const isAdmin = user && (user.role === 'owner' || user.role === 'admin' || user.is_owner === 1 || isOwnerId(sessionUid));
+      if (!isAdmin) return res.status(403).json({ error: 'Forbidden: Admin access only' });
+      req.authenticatedUserId = sessionUserId;
+      return next();
+    }
+
+    const token = req.headers['x-bot-token'] || req.query.token || (req.headers.authorization?.split(' ')[1] ?? '');
+    const adminId = await extractUserId(req);
+
+    if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token as string, CONFIG.DASHBOARD_SECRET)) {
+      if (CONFIG.OWNER_ID == null) return res.status(500).json({ error: 'Owner ID not configured' });
+      req.authenticatedUserId = String(CONFIG.OWNER_ID);
+      return next();
+    }
+
+    if (!adminId || !token) return res.status(401).json({ error: 'Unauthorized' });
+    if (token !== generateDashboardToken(adminId)) return res.status(401).json({ error: 'Invalid admin token' });
+
+    const adminUid = parseInt(adminId);
+    const user = await DBService.getUser(adminUid);
+    const isAdmin = user && (user.role === 'owner' || user.role === 'admin' || user.is_owner === 1 || isOwnerId(adminUid));
     if (!isAdmin) return res.status(403).json({ error: 'Forbidden: Admin access only' });
-    req.authenticatedUserId = sessionUserId;
-    return next();
+    req.authenticatedUserId = adminId;
+    next();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.error(`checkAdmin error: ${msg}`);
+    res.status(500).json({ error: 'Authorization error' });
   }
-
-  const token = req.headers['x-bot-token'] || req.query.token || (req.headers.authorization?.split(' ')[1] ?? '');
-  const adminId = await extractUserId(req);
-
-  if (token && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {
-    if (CONFIG.OWNER_ID == null) return res.status(500).json({ error: 'Owner ID not configured' });
-    req.authenticatedUserId = String(CONFIG.OWNER_ID);
-    return next();
-  }
-
-  if (!adminId || !token) return res.status(401).json({ error: 'Unauthorized' });
-  if (token !== generateDashboardToken(adminId)) return res.status(401).json({ error: 'Invalid admin token' });
-
-  const adminUid = parseInt(adminId);
-  const user = await DBService.getUser(adminUid);
-  const isAdmin = user && (user.role === 'owner' || user.role === 'admin' || user.is_owner === 1 || isOwnerId(adminUid));
-  if (!isAdmin) return res.status(403).json({ error: 'Forbidden: Admin access only' });
-  req.authenticatedUserId = adminId;
-  next();
 };
 
-export const verifyTelegramWebAppData = (telegramInitData: string): any => {
+export const verifyTelegramWebAppData = (telegramInitData: string): Record<string, unknown> | null => {
   try {
     const initData = new URLSearchParams(telegramInitData);
     const hash = initData.get('hash');
@@ -124,12 +132,13 @@ export const verifyTelegramWebAppData = (telegramInitData: string): any => {
 
     if (calculatedHash === hash) {
       const userStr = initData.get('user');
-      return userStr ? JSON.parse(userStr) : null;
+      return userStr ? JSON.parse(userStr) as Record<string, unknown> : null;
     }
     logger.warn(`Telegram auth failed: hash mismatch`);
     return null;
-  } catch (e: any) {
-    logger.error(`Telegram auth exception: ${e.message}`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logger.error(`Telegram auth exception: ${msg}`);
     return null;
   }
 };

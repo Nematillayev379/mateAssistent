@@ -14,6 +14,33 @@ interface TxState {
   provider?: 'payme' | 'click';
 }
 
+interface PaymeWebhookParams {
+  id?: number;
+  account?: {
+    user_id?: number | { user_id?: number; id?: number };
+    days?: number;
+  };
+  amount?: number;
+}
+
+interface PaymeWebhookData {
+  method: string;
+  id?: number;
+  params?: PaymeWebhookParams;
+}
+
+interface ClickWebhookPayload {
+  click_trans_id?: number | string;
+  merchant_trans_id?: string;
+  amount?: number | string;
+  action?: number | string;
+  sign_time?: string;
+  sign_string?: string;
+  service_id?: number | string;
+  error?: number;
+  error_note?: string;
+}
+
 async function getTx(txId: string): Promise<TxState | null> {
   try {
     const raw = await DBService.getSetting(`pay_tx_${txId}`);
@@ -64,7 +91,7 @@ export const PaymentService = {
     return `https://my.click.uz/services/pay?service_id=${serviceId}&merchant_id=${merchantId}&amount=${amount}&transaction_param=${merchantTransId}`;
   },
 
-  async handlePaymeWebhook(data: any, headers?: any) {
+  async handlePaymeWebhook(data: PaymeWebhookData, headers?: { authorization?: string }) {
     const paymeKey = SecretManager.get('PAYME_KEY');
     if (!paymeKey) {
       logger.error('PAYME_KEY not configured. Webhook rejected.');
@@ -83,6 +110,7 @@ export const PaymentService = {
 
     const method = data.method;
     const requestId = data.id ?? data.params?.id ?? 0;
+    const txId = String(data.params?.id || '');
     const rawUserId = data.params?.account?.user_id;
     let parsedUserId: number;
     if (typeof rawUserId === 'object' && rawUserId !== null) {
@@ -99,7 +127,6 @@ export const PaymentService = {
     }
     const hasValidUser = !Number.isNaN(parsedUserId) && parsedUserId > 0;
     const baseResult = { id: requestId, jsonrpc: '2.0' };
-    const txId = data.params?.id || '';
 
     switch (method) {
       case 'CheckPerformTransaction': {
@@ -173,7 +200,7 @@ export const PaymentService = {
     };
   },
 
-  async handleClickWebhook(payload: any) {
+  async handleClickWebhook(payload: ClickWebhookPayload) {
     const secret = SecretManager.get('CLICK_SECRET_KEY');
     const serviceId = SecretManager.get('CLICK_SERVICE_ID');
     if (!secret || !serviceId) {

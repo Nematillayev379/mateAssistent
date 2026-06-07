@@ -17,8 +17,9 @@ export function setupRSSCron() {
         if (!activeIds.has(id)) userLastRun.delete(id);
       }
       logger.info(`Memory cleanup: userLastRun pruned, ${userLastRun.size} entries remaining`);
-    } catch (err: any) {
-      logger.error(`Memory cleanup cron failed: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`Memory cleanup cron failed: ${message}`);
     }
   });
 
@@ -82,8 +83,9 @@ export function setupRSSCron() {
           }
         }
       }
-    } catch (error) {
-      logger.error(`RSS Cron Error: ${error}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`RSS Cron Error: ${message}`);
     }
   });
 

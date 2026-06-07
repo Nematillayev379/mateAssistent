@@ -1,17 +1,7 @@
 import { DBService } from './database';
 import { getSmartAIResponse } from './ai';
 import { logger } from '../utils/logger';
-
-interface AutomationRule {
-  id: number;
-  userId: number;
-  trigger: 'keyword' | 'source' | 'time' | 'category';
-  condition: string;
-  action: 'rss_search' | 'forward_to_channel' | 'add_keyword' | 'schedule_post' | 'notify';
-  actionValue: string;
-  isActive: boolean;
-  createdAt: string;
-}
+import { AutomationRuleRecord } from '../repositories/RuleRepository';
 
 export const RuleEngine = {
   async evaluateNews(news: { title: string; content: string; url: string; source?: string; category?: string; userId: number }): Promise<void> {
@@ -21,17 +11,17 @@ export const RuleEngine = {
     const text = `${news.title} ${news.content || ''}`.toLowerCase();
 
     for (const rule of rules) {
-      if (!rule.isActive) continue;
+      if (!rule.is_active) continue;
       try {
         const matched = this.matchRule(rule, text, news);
         if (matched) await this.executeAction(rule, news);
-      } catch (e: any) {
-        logger.warn(`Rule ${rule.id} eval error: ${e.message}`);
+      } catch (e: unknown) {
+        logger.warn(`Rule ${rule.id} eval error: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
   },
 
-  matchRule(rule: AutomationRule, text: string, news: { title: string; content: string; url: string; source?: string; category?: string }): boolean {
+  matchRule(rule: AutomationRuleRecord, text: string, news: { title: string; content: string; url: string; source?: string; category?: string }): boolean {
     switch (rule.trigger) {
       case 'keyword':
         return rule.condition.split(',').some(k => text.includes(k.trim().toLowerCase()));
@@ -46,14 +36,14 @@ export const RuleEngine = {
     }
   },
 
-  async executeAction(rule: AutomationRule, news: { title: string; content: string; url: string; userId: number }): Promise<void> {
+  async executeAction(rule: AutomationRuleRecord, news: { title: string; content: string; url: string; userId: number }): Promise<void> {
     switch (rule.action) {
       case 'rss_search':
         logger.info(`Rule #${rule.id}: RSS search triggered for ${news.title.slice(0, 30)}`);
         break;
       case 'add_keyword':
-        await DBService.setKeywords(rule.userId, rule.actionValue);
-        logger.info(`Rule #${rule.id}: keyword "${rule.actionValue}" added`);
+        await DBService.setKeywords(rule.user_id, rule.action_value);
+        logger.info(`Rule #${rule.id}: keyword "${rule.action_value}" added`);
         break;
       default:
         logger.debug(`Rule #${rule.id}: action ${rule.action} not implemented`);
@@ -81,8 +71,8 @@ JSON format: [{"trigger":"keyword","condition":"dollar, valyuta","action":"rss_s
       if (!match) return [];
       const suggestions = JSON.parse(match[0]);
       return Array.isArray(suggestions) ? suggestions.slice(0, 3) : [];
-    } catch (e: any) {
-      logger.warn(`Rule suggestion failed: ${e.message}`);
+    } catch (e: unknown) {
+      logger.warn(`Rule suggestion failed: ${e instanceof Error ? e.message : String(e)}`);
       return [];
     }
   },

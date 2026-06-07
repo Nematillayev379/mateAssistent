@@ -2,8 +2,20 @@ import { DBService } from './database';
 import { getSmartAIResponse } from './ai';
 import { logger } from '../utils/logger';
 
+interface TrendTopic {
+  name: string;
+  score: number;
+  note: string;
+}
+
+interface TrendResult {
+  topics: TrendTopic[];
+  summary: string;
+  at: number;
+}
+
 const CACHE_TTL_MS = 30 * 60 * 1000;
-let cachedTrends: { topics: any[]; summary: string; at: number } | null = null;
+let cachedTrends: TrendResult | null = null;
 
 export const TrendsService = {
   async scanUZTrends(force = false) {
@@ -36,8 +48,8 @@ Sarlavhalar:\n${titles.slice(0, 60).join('\n')}`;
       cachedTrends = result;
       await DBService.saveTrendsSnapshot(result.topics, result.summary);
       return result;
-    } catch (e: any) {
-      logger.error(`Trends scan error: ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`Trends scan error: ${e instanceof Error ? e.message : String(e)}`);
       return { topics: [], summary: 'Trend tahlili vaqtincha ishlamayapti.', at: Date.now() };
     }
   },

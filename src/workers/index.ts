@@ -13,7 +13,8 @@ export async function startWorkers(): Promise<void> {
     await import('./scraper_worker');
     await import('./ai_worker');
     logger.info('🚀 Queue workers started');
-  } catch (err: any) {
-    logger.warn(`⚠️ Workers failed to start: ${err.message} — falling back to inline processing`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn(`⚠️ Workers failed to start: ${message} — falling back to inline processing`);
   }
 }

@@ -4,6 +4,7 @@ import { getSmartAIResponse, generateTTS, generateAudioSummary } from '../servic
 import { bot } from '../services/bot_instance';
 import { i18n } from '../services/i18n';
 import { CONFIG } from '../config/config';
+import { TelegramUser } from '../types';
 
 let digestJobRunning = false;
 
@@ -62,14 +63,15 @@ export async function processDailyDigests() {
         }
       }
     }
-  } catch (err: any) {
-    logger.error(`Digest Cron Error: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`Digest Cron Error: ${message}`);
   } finally {
     digestJobRunning = false;
   }
 }
 
-async function sendDigest(user: any, today: string): Promise<boolean> {
+async function sendDigest(user: TelegramUser, today: string): Promise<boolean> {
   try {
     const news = await DBService.getRecentTitlesForDigest(user.telegram_id, 24);
     if (!news || news.length === 0) return false;
@@ -99,14 +101,16 @@ async function sendDigest(user: any, today: string): Promise<boolean> {
           logger.info(`Audio digest sent to ${user.telegram_id}`);
         }
       }
-    } catch (audioErr: any) {
-      logger.warn(`Audio digest failed for ${user.telegram_id}: ${audioErr.message}`);
+    } catch (audioErr: unknown) {
+      const message = audioErr instanceof Error ? audioErr.message : String(audioErr);
+      logger.warn(`Audio digest failed for ${user.telegram_id}: ${message}`);
     }
 
     return true;
-  } catch (err: any) {
-    logger.error(`Failed to send digest to ${user.telegram_id}: ${err.message}`);
-    if (err.message?.includes('Forbidden') || err.message?.includes('blocked')) return true;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`Failed to send digest to ${user.telegram_id}: ${message}`);
+    if (message.includes('Forbidden') || message.includes('blocked')) return true;
     return false;
   }
 }

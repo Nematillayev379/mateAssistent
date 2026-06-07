@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>mateAssistent — Schedule</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>tailwind.config = { darkMode: "class", theme: { extend: {} } }</script>
+<meta name="theme-color" content="#07070a"/>
+<script src="/js/dashboard-api.js"></script>
+<link href="/css/dashboard.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+  body { background: #07070a; font-family: 'Inter', sans-serif; color: #ededf2; }
+  .post-row { animation: slideUp 0.32s ease both; }
+  .post-row:nth-child(1) { animation-delay: 0.02s; }
+  .post-row:nth-child(2) { animation-delay: 0.05s; }
+  .post-row:nth-child(3) { animation-delay: 0.08s; }
+  .post-row:nth-child(4) { animation-delay: 0.11s; }
+  .post-row:nth-child(5) { animation-delay: 0.14s; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  select, input, textarea { background: #111118; border: 1px solid #1e1e2a; color: #ededf2; }
+  select:focus, input:focus, textarea:focus { border-color: #5b8def; outline: none; }
+  table th { font-size: 10px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.05em; color: #5e5e78; }
+  table td { font-size: 13px; }
+  .stat-card { animation: slideUp 0.4s ease both; }
+  .stat-card:nth-child(1) { animation-delay: 0.04s; }
+  .stat-card:nth-child(2) { animation-delay: 0.08s; }
+  .stat-card:nth-child(3) { animation-delay: 0.12s; }
+  .stat-card:nth-child(4) { animation-delay: 0.16s; }
+</style></head>
+<body data-page="schedule" class="min-h-screen">
+
+<!-- DESKTOP SIDEBAR -->
+<aside class="hidden lg:flex w-64 fixed left-0 top-0 h-full bg-surface border-r border-outline-variant flex-col z-50" style="background:#0d0d12">
+  <div class="px-5 py-6 border-b border-outline-variant">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
+        <span class="material-symbols-outlined text-primary" style="font-size:20px">neurology</span>
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight">mateAssistent</h1>
+        <p class="text-[10px] text-muted font-mono uppercase tracking-widest">Bot Dashboard</p>
+      </div>
+    </div>
+  </div>
+  <nav class="flex-1 px-3 py-4 space-y-0.5">
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/overview.html">
+      <span class="material-symbols-outlined" style="font-size:20px">grid_view</span>
+      <span class="text-sm">Overview</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/sources.html">
+      <span class="material-symbols-outlined" style="font-size:20px">rss_feed</span>
+      <span class="text-sm">Sources</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/studio.html">
+      <span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span>
+      <span class="text-sm">Studio</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/distribution.html">
+      <span class="material-symbols-outlined" style="font-size:20px">account_tree</span>
+      <span class="text-sm">Distribution</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/automation.html">
+      <span class="material-symbols-outlined" style="font-size:20px">psychology</span>
+      <span class="text-sm">Automation</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary font-semibold" href="/dashboard/schedule.html">
+      <span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'FILL' 1">schedule</span>
+      <span class="text-sm">Schedule</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/analytics.html">
+      <span class="material-symbols-outlined" style="font-size:20px">monitoring</span>
+      <span class="text-sm">Analytics</span>
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/wallet.html#premium">
+      <span class="material-symbols-outlined" style="font-size:20px">workspace_premium</span>
+      <span class="text-sm">Premium</span>
+    </a>
+    <a id="admin-nav-link" class="hidden items-center gap-3 px-3 py-2.5 rounded-lg text-muted hover:text-primary hover:bg-elevated transition-all" href="/dashboard/admin/overview.html">
+      <span class="material-symbols-outlined" style="font-size:20px">shield</span>
+      <span class="text-sm">Admin</span>
+    </a>
+  </nav>
+  <div class="px-4 py-4 border-t border-outline-variant">
+    <a class="flex items-center gap-3 px-3 py-2 rounded-lg text-muted hover:text-primary transition-all" href="/dashboard/settings.html">
+      <span class="material-symbols-outlined" style="font-size:20px">settings</span>
+      <span class="text-sm">Settings</span>
+    </a>
+    <div class="flex items-center gap-3 px-3 py-3 mt-2">
+      <div class="w-8 h-8 rounded-full bg-elevated border border-outline-variant flex items-center justify-center text-xs font-bold text-muted sidebar-user-name">U</div>
+      <div class="overflow-hidden">
+        <p class="text-xs font-semibold truncate sidebar-user-name">User</p>
+        <p class="text-[9px] text-muted font-mono uppercase tracking-widest sidebar-user-role">User</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- DESKTOP TOPBAR -->
+<header class="hidden lg:flex fixed top-0 right-0 w-[calc(100%-16rem)] h-14 items-center justify-between px-6 z-40" style="background:rgba(13,13,18,0.8);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
+  <div class="flex items-center gap-4">
+    <h2 class="text-lg font-bold tracking-tight">Schedule</h2>
+    <div class="h-5 w-px bg-border-subtle"></div>
+    <div class="relative">
+      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted" style="font-size:16px">search</span>
+      <input id="search-input" class="pl-9 pr-4 py-1.5 text-sm bg-deep border border-outline-variant rounded-lg focus:border-primary outline-none w-56" placeholder="Search posts..." type="text" style="background:var(--bg-deep)"/>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <button class="relative p-2 rounded-lg hover:bg-elevated transition-all">
+      <span class="material-symbols-outlined text-muted" style="font-size:20px">notifications</span>
+    </button>
+    <button class="p-2 rounded-lg hover:bg-elevated transition-all">
+      <span class="material-symbols-outlined text-muted" style="font-size:20px">help</span>
+    </button>
+  </div>
+</header>
+
+<!-- DESKTOP MAIN -->
+<main class="hidden lg:block ml-64 pt-14 min-h-screen">
+  <div class="max-w-7xl mx-auto px-8 py-8 space-y-8">
+
+    <!-- Page Header -->
+    <div class="flex items-end justify-between border-b border-outline-variant pb-6">
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight mb-1 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary" style="font-size:24px;font-variation-settings:'FILL' 1">event</span>
+          Scheduled Posts
+        </h2>
+        <p class="text-sm text-muted">Schedule posts to auto-publish later — text, video yoki audio.</p>
+      </div>
+      <button class="px-5 py-2 text-sm font-semibold rounded-lg bg-primary text-white hover:brightness-110 transition-all flex items-center gap-2" onclick="openScheduleModal()">
+        <span class="material-symbols-outlined" style="font-size:16px">add</span>
+        New Schedule
+      </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="stat-card bg-card border border-outline-variant rounded-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:rgba(245,166,35,0.12)">
+            <span class="material-symbols-outlined text-tertiary" style="font-size:20px">schedule</span>
+          </div>
+          <span class="badge badge-amber">Waiting</span>
+        </div>
+        <p class="text-[10px] text-muted font-mono uppercase tracking-widest mb-1">Pending</p>
+        <p class="text-2xl font-bold" id="stat-pending">0</p>
+      </div>
+      <div class="stat-card bg-card border border-outline-variant rounded-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:rgba(46,213,115,0.12)">
+            <span class="material-symbols-outlined text-success" style="font-size:20px">check_circle</span>
+          </div>
+          <span class="badge" style="background:rgba(46,213,115,0.12);color:var(--accent-green)">Delivered</span>
+        </div>
+        <p class="text-[10px] text-muted font-mono uppercase tracking-widest mb-1">Sent</p>
+        <p class="text-2xl font-bold" id="stat-sent">0</p>
+      </div>
+      <div class="stat-card bg-card border border-outline-variant rounded-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:rgba(255,71,87,0.12)">
+            <span class="material-symbols-outlined text-error" style="font-size:20px">error</span>
+          </div>
+          <span class="badge" style="background:rgba(255,71,87,0.12);color:var(--accent-red)">Errors</span>
+        </div>
+        <p class="text-[10px] text-muted font-mono uppercase tracking-widest mb-1">Failed</p>
+        <p class="text-2xl font-bold" id="stat-failed">0</p>
+      </div>
+      <div class="stat-card bg-card border border-outline-variant rounded-xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="w-10 h-10 rounded-lg bg-elevated flex items-center justify-center">
+            <span class="material-symbols-outlined text-muted" style="font-size:20px">cancel</span>
+          </div>
+          <span class="badge" style="background:var(--bg-elevated);color:var(--text-muted)">Stopped</span>
+        </div>
+        <p class="text-[10px] text-muted font-mono uppercase tracking-widest mb-1">Cancelled</p>
+        <p class="text-2xl font-bold" id="stat-cancelled">0</p>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="flex items-center gap-2 border-b border-outline-variant pb-4">
+      <button class="tab-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+      <button class="tab-btn" data-filter="pending" onclick="setFilter('pending')">Pending</button>
+      <button class="tab-btn" data-filter="sent" onclick="setFilter('sent')">Sent</button>
+      <button class="tab-btn" data-filter="failed" onclick="setFilter('failed')">Failed</button>
+      <button class="tab-btn" data-filter="cancelled" onclick="setFilter('cancelled')">Cancelled</button>
+      <div class="ml-auto text-[10px] text-muted font-mono" id="result-count">0 posts</div>
+    </div>
+
+    <!-- Posts Table -->
+    <div class="bg-card border border-outline-variant rounded-xl overflow-hidden">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-outline-variant" style="background:var(--bg-elevated)">
+            <th class="px-5 py-3 text-left">Type</th>
+            <th class="px-5 py-3 text-left">Content</th>
+            <th class="px-5 py-3 text-left">Scheduled</th>
+            <th class="px-5 py-3 text-left">Status</th>
+            <th class="px-5 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="posts-tbody" class="divide-y divide-outline-variant">
+          <tr><td colspan="5" class="px-5 py-12 text-center text-sm text-muted">Yuklanmoqda...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+
+<!-- MOBILE HEADER -->
+<header class="lg:hidden fixed top-0 w-full z-50 flex items-center justify-between px-4 h-14" style="background:rgba(13,13,18,0.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+      <span class="material-symbols-outlined text-primary" style="font-size:18px;font-variation-settings:'FILL' 1">event</span>
+    </div>
+    <h1 class="text-base font-bold">Schedule</h1>
+  </div>
+  <button class="p-2">
+    <span class="material-symbols-outlined text-muted" style="font-size:20px">notifications</span>
+  </button>
+</header>
+
+<!-- MOBILE MAIN -->
+<main class="lg:hidden pt-14 pb-20 px-4 space-y-4">
+  <button class="w-full py-3 bg-primary text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 active:scale-95 transition-all" onclick="openScheduleModal()">
+    <span class="material-symbols-outlined" style="font-size:18px">add_circle</span>
+    New Schedule
+  </button>
+
+  <!-- Mobile Stats (2x2 grid) -->
+  <div class="grid grid-cols-2 gap-3">
+    <div class="bg-card border border-outline-variant rounded-xl p-3" style="border-left:3px solid var(--accent-amber)">
+      <p class="text-[9px] text-muted font-mono uppercase tracking-widest mb-1">Pending</p>
+      <p class="text-xl font-bold" id="m-stat-pending">0</p>
+    </div>
+    <div class="bg-card border border-outline-variant rounded-xl p-3" style="border-left:3px solid var(--accent-green)">
+      <p class="text-[9px] text-muted font-mono uppercase tracking-widest mb-1">Sent</p>
+      <p class="text-xl font-bold" id="m-stat-sent">0</p>
+    </div>
+    <div class="bg-card border border-outline-variant rounded-xl p-3" style="border-left:3px solid var(--accent-red)">
+      <p class="text-[9px] text-muted font-mono uppercase tracking-widest mb-1">Failed</p>
+      <p class="text-xl font-bold" id="m-stat-failed">0</p>
+    </div>
+    <div class="bg-card border border-outline-variant rounded-xl p-3" style="border-left:3px solid var(--border-default)">
+      <p class="text-[9px] text-muted font-mono uppercase tracking-widest mb-1">Cancelled</p>
+      <p class="text-xl font-bold" id="m-stat-cancelled">0</p>
+    </div>
+  </div>
+
+  <!-- Mobile Filter Tabs -->
+  <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+    <button class="tab-btn active flex-shrink-0" data-filter="all" onclick="setFilter('all')">All</button>
+    <button class="tab-btn flex-shrink-0" data-filter="pending" onclick="setFilter('pending')">Pending</button>
+    <button class="tab-btn flex-shrink-0" data-filter="sent" onclick="setFilter('sent')">Sent</button>
+    <button class="tab-btn flex-shrink-0" data-filter="failed" onclick="setFilter('failed')">Failed</button>
+    <button class="tab-btn flex-shrink-0" data-filter="cancelled" onclick="setFilter('cancelled')">Cancelled</button>
+  </div>
+
+  <!-- Mobile Posts List -->
+  <div id="mobile-posts-list" class="space-y-3">
+    <div class="text-center text-sm text-muted py-12">Yuklanmoqda...</div>
+  </div>
+</main>
+
+<!-- BOTTOM NAV -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-14 px-2 border-t border-outline-variant lg:hidden" style="background:var(--bg-surface)">
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/overview.html">
+    <span class="material-symbols-outlined" style="font-size:20px">grid_view</span>
+    <span class="text-[9px] font-mono mt-0.5">Overview</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/sources.html">
+    <span class="material-symbols-outlined" style="font-size:20px">rss_feed</span>
+    <span class="text-[9px] font-mono mt-0.5">Sources</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/studio.html">
+    <span class="material-symbols-outlined" style="font-size:20px">auto_awesome</span>
+    <span class="text-[9px] font-mono mt-0.5">Studio</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-primary font-semibold" href="/dashboard/schedule.html">
+    <span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'FILL' 1">event</span>
+    <span class="text-[9px] font-mono mt-0.5">Schedule</span>
+  </a>
+  <a class="flex flex-col items-center justify-center text-muted" href="/dashboard/settings.html">
+    <span class="material-symbols-outlined" style="font-size:20px">settings</span>
+    <span class="text-[9px] font-mono mt-0.5">Settings</span>
+  </a>
+</nav>
+
+<!-- NEW SCHEDULE MODAL -->
+<div id="schedule-modal" class="modal-backdrop hidden" onclick="if(event.target===this)closeScheduleModal()">
+  <div class="modal-panel">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
+          <span class="material-symbols-outlined text-primary" style="font-size:20px;font-variation-settings:'FILL' 1">event</span>
+        </div>
+        <div>
+          <h3 class="text-base font-bold">New Schedule</h3>
+          <p class="text-[10px] text-muted font-mono">Auto-publish post later</p>
+        </div>
+      </div>
+      <button class="p-2 rounded-lg hover:bg-elevated transition-all" onclick="closeScheduleModal()">
+        <span class="material-symbols-outlined text-muted" style="font-size:20px">close</span>
+      </button>
+    </div>
+
+    <div class="p-5 space-y-4">
+      <!-- Type Selector -->
+      <div>
+        <label class="text-[10px] text-muted font-mono uppercase tracking-widest mb-2 block">Type</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" class="type-pill active" data-type="text" onclick="selectType('text')">
+            <span class="material-symbols-outlined" style="font-size:16px">description</span>
+            Text
+          </button>
+          <button type="button" class="type-pill" data-type="video" onclick="selectType('video')">
+            <span class="material-symbols-outlined" style="font-size:16px">videocam</span>
+            Video
+          </button>
+          <button type="button" class="type-pill" data-type="audio" onclick="selectType('audio')">
+            <span class="material-symbols-outlined" style="font-size:16px">graphic_eq</span>
+            Audio
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div>
+        <label for="modal-content" class="text-[10px] text-muted font-mono uppercase tracking-widest mb-2 block">
+          <span id="content-label">Message Text</span>
+        </label>
+        <textarea id="modal-content" placeholder="Post matnini kiriting yoki URL joylashtiring..." rows="5"></textarea>
+        <p class="text-[10px] text-muted font-mono mt-1">Text: yozing. Video/Audio: URL kiriting.</p>
+      </div>
+
+      <!-- DateTime -->
+      <div>
+        <label for="modal-datetime" class="text-[10px] text-muted font-mono uppercase tracking-widest mb-2 block">Scheduled For</label>
+        <input id="modal-datetime" type="datetime-local"/>
+        <p class="text-[10px] text-muted font-mono mt-1">Hozirdan keyin, max 30 kun ichida.</p>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-outline-variant" style="background:var(--bg-elevated)">
+      <button class="px-4 py-2 text-sm rounded-lg border border-outline-variant text-muted hover:text-primary transition-all" onclick="closeScheduleModal()">Cancel</button>
+      <button id="modal-submit-btn" class="px-5 py-2 text-sm font-semibold rounded-lg bg-primary text-white hover:brightness-110 transition-all flex items-center gap-2" onclick="submitSchedule()">
+        <span class="material-symbols-outlined" style="font-size:16px">send</span>
+        Schedule
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var allPosts = [];
+  var currentFilter = 'all';
+  var currentType = 'text';
+  var searchTerm = '';
+
+  function $(sel) { return document.querySelector(sel); }
+  function $$(sel) { return document.querySelectorAll(sel); }
+
+  function escapeHtml(text) {
+    if (text == null) return '';
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function formatDateTime(iso) {
+    if (!iso) return '—';
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleString('uz-UZ', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return iso; }
+  }
+
+  function relativeTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var diff = d.getTime() - Date.now();
+    var abs = Math.abs(diff);
+    var mins = Math.floor(abs / 60000);
+    var hrs = Math.floor(mins / 60);
+    var days = Math.floor(hrs / 24);
+    var prefix = diff < 0 ? '' : 'in ';
+    var suffix = diff < 0 ? ' ago' : '';
+    if (days > 0) return prefix + days + 'd' + suffix;
+    if (hrs > 0) return prefix + hrs + 'h' + suffix;
+    if (mins > 0) return prefix + mins + 'm' + suffix;
+    return diff < 0 ? 'just now' : 'soon';
+  }
+
+  function typeIcon(type) {
+    if (type === 'video') return { icon: 'videocam', cls: 'type-icon-video' };
+    if (type === 'audio') return { icon: 'graphic_eq', cls: 'type-icon-audio' };
+    return { icon: 'description', cls: 'type-icon-text' };
+  }
+
+  function statusBadge(status) {
+    var map = {
+      pending: { cls: 'badge-pending', label: 'Pending' },
+      sent: { cls: 'badge-sent', label: 'Sent' },
+      failed: { cls: 'badge-failed', label: 'Failed' },
+      cancelled: { cls: 'badge-cancelled', label: 'Cancelled' }
+    };
+    var s = map[status] || { cls: 'badge-cancelled', label: status || 'unknown' };
+    return '<span class="badge ' + s.cls + '">' + s.label + '</span>';
+  }
+
+  function contentPreview(content) {
+    if (content == null) return '';
+    var text;
+    if (typeof content === 'string') {
+      text = content;
+    } else if (typeof content === 'object') {
+      text = content.caption || content.url || content.text || JSON.stringify(content);
+    } else {
+      text = String(content);
+    }
+    if (text.length > 80) text = text.slice(0, 80) + '…';
+    return text;
+  }
+
+  function computeStats(posts) {
+    var stats = { pending: 0, sent: 0, failed: 0, cancelled: 0 };
+    for (var i = 0; i < posts.length; i++) {
+      var s = (posts[i] && posts[i].status) || 'pending';
+      if (stats.hasOwnProperty(s)) stats[s]++;
+    }
+    return stats;
+  }
+
+  function renderStats(stats) {
+    stats = stats || { pending: 0, sent: 0, failed: 0, cancelled: 0 };
+    var ids = ['pending', 'sent', 'failed', 'cancelled'];
+    for (var i = 0; i < ids.length; i++) {
+      var key = ids[i];
+      var val = stats[key] || 0;
+      var d = document.getElementById('stat-' + key);
+      var m = document.getElementById('m-stat-' + key);
+      if (d) d.textContent = val;
+      if (m) m.textContent = val;
+    }
+  }
+
+  function filteredPosts() {
+    var list = allPosts.slice();
+    if (currentFilter !== 'all') list = list.filter(function (p) { return (p.status || 'pending') === currentFilter; });
+    if (searchTerm) {
+      var q = searchTerm.toLowerCase();
+      list = list.filter(function (p) { return contentPreview(p.content).toLowerCase().indexOf(q) !== -1; });
+    }
+    return list;
+  }
+
+  function renderPosts(posts) {
+    allPosts = Array.isArray(posts) ? posts : [];
+    renderStats(computeStats(allPosts));
+    renderList();
+  }
+
+  function renderList() {
+    var list = filteredPosts();
+    var countEl = document.getElementById('result-count');
+    if (countEl) countEl.textContent = list.length + (list.length === 1 ? ' post' : ' posts');
+
+    var tbody = document.getElementById('posts-tbody');
+    var mobile = document.getElementById('mobile-posts-list');
+
+    if (list.length === 0) {
+      var empty = '<div class="text-center py-12">'
+        + '<div class="w-14 h-14 rounded-full bg-elevated mx-auto mb-3 flex items-center justify-center">'
+        + '<span class="material-symbols-outlined text-muted" style="font-size:28px">event_busy</span>'
+        + '</div>'
+        + '<p class="text-sm text-muted mb-1">Hozircha rejalashtirilgan postlar yo\'q</p>'
+        + '<p class="text-[10px] text-muted font-mono">Yangi schedule yaratish uchun yuqoridagi tugmadan foydalaning</p>'
+        + '</div>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-0">' + empty + '</td></tr>';
+      if (mobile) mobile.innerHTML = empty;
+      return;
+    }
+
+    // Desktop table
+    if (tbody) {
+      var rows = '';
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        var ti = typeIcon(p.type);
+        var schedTime = p.scheduled_at || p.scheduledAt;
+        var canCancel = (p.status === 'pending');
+        var canRunNow = (p.status === 'pending');
+        rows += '<tr class="post-row hover:bg-elevated/30 transition-colors">';
+        rows += '<td class="px-5 py-4">'
+          + '<div class="w-9 h-9 rounded-lg flex items-center justify-center ' + ti.cls + '">'
+          + '<span class="material-symbols-outlined" style="font-size:18px">' + ti.icon + '</span>'
+          + '</div></td>';
+        rows += '<td class="px-5 py-4"><p class="text-sm truncate max-w-md">' + escapeHtml(contentPreview(p.content)) + '</p>'
+          + '<p class="text-[10px] text-muted font-mono uppercase">' + escapeHtml(p.type || 'text') + '</p></td>';
+        rows += '<td class="px-5 py-4"><p class="text-sm font-mono">' + escapeHtml(formatDateTime(schedTime)) + '</p>'
+          + '<p class="text-[10px] text-muted font-mono">' + escapeHtml(relativeTime(schedTime)) + '</p></td>';
+        rows += '<td class="px-5 py-4">' + statusBadge(p.status) + '</td>';
+        rows += '<td class="px-5 py-4 text-right"><div class="inline-flex gap-1">';
+        if (canRunNow) rows += '<button class="p-1.5 rounded hover:bg-elevated hover:text-secondary transition-colors" title="Run now" onclick="runNow(' + Number(p.id) + ')"><span class="material-symbols-outlined" style="font-size:16px">play_arrow</span></button>';
+        if (canCancel) rows += '<button class="p-1.5 rounded hover:bg-elevated hover:text-error transition-colors" title="Cancel" onclick="cancelSchedule(' + Number(p.id) + ')"><span class="material-symbols-outlined" style="font-size:16px">cancel</span></button>';
+        rows += '<button class="p-1.5 rounded hover:bg-elevated hover:text-primary transition-colors" title="View" onclick="viewPost(' + Number(p.id) + ')"><span class="material-symbols-outlined" style="font-size:16px">visibility</span></button>';
+        rows += '</div></td>';
+        rows += '</tr>';
+      }
+      tbody.innerHTML = rows;
+    }
+
+    // Mobile cards
+    if (mobile) {
+      var cards = '';
+      for (var j = 0; j < list.length; j++) {
+        var mp = list[j];
+        var mti = typeIcon(mp.type);
+        var mSched = mp.scheduled_at || mp.scheduledAt;
+        var mCanCancel = (mp.status === 'pending');
+        cards += '<div class="post-row bg-card border border-outline-variant rounded-xl p-3" onclick="viewPost(' + Number(mp.id) + ')">';
+        cards += '<div class="flex items-start gap-3 mb-2">'
+          + '<div class="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center ' + mti.cls + '">'
+          + '<span class="material-symbols-outlined" style="font-size:18px">' + mti.icon + '</span>'
+          + '</div>'
+          + '<div class="flex-1 min-w-0">'
+          + '<p class="text-sm font-medium line-clamp-2">' + escapeHtml(contentPreview(mp.content)) + '</p>'
+          + '<p class="text-[10px] text-muted font-mono mt-0.5">' + escapeHtml(formatDateTime(mSched)) + ' · ' + escapeHtml(relativeTime(mSched)) + '</p>'
+          + '</div>'
+          + statusBadge(mp.status)
+          + '</div>';
+        if (mCanCancel) {
+          cards += '<div class="flex gap-2 pt-2 border-t border-outline-variant" onclick="event.stopPropagation()">'
+            + '<button class="flex-1 py-1.5 text-xs rounded border border-outline-variant text-secondary active:scale-95 transition-all" onclick="runNow(' + Number(mp.id) + ')">'
+            + '<span class="material-symbols-outlined align-middle" style="font-size:14px">play_arrow</span> Run Now</button>'
+            + '<button class="flex-1 py-1.5 text-xs rounded border border-outline-variant text-error active:scale-95 transition-all" onclick="cancelSchedule(' + Number(mp.id) + ')">'
+            + '<span class="material-symbols-outlined align-middle" style="font-size:14px">cancel</span> Cancel</button>'
+            + '</div>';
+        }
+        cards += '</div>';
+      }
+      mobile.innerHTML = cards;
+    }
+  }
+
+  function setFilter(filter) {
+    currentFilter = filter;
+    $$('.tab-btn').forEach(function (btn) {
+      if (btn.getAttribute('data-filter') === filter) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+    renderList();
+  }
+
+  function selectType(type) {
+    currentType = type;
+    $$('.type-pill').forEach(function (p) {
+      if (p.getAttribute('data-type') === type) p.classList.add('active');
+      else p.classList.remove('active');
+    });
+    var label = document.getElementById('content-label');
+    if (label) {
+      if (type === 'video') label.textContent = 'Video URL';
+      else if (type === 'audio') label.textContent = 'Audio URL';
+      else label.textContent = 'Message Text';
+    }
+    var ta = document.getElementById('modal-content');
+    if (ta) {
+      if (type === 'video') ta.placeholder = 'https://... video URL';
+      else if (type === 'audio') ta.placeholder = 'https://... audio URL';
+      else ta.placeholder = 'Post matnini kiriting...';
+    }
+  }
+
+  function openScheduleModal() {
+    var modal = document.getElementById('schedule-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    selectType('text');
+    document.getElementById('modal-content').value = '';
+    var dt = document.getElementById('modal-datetime');
+    var now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset() + 15);
+    dt.min = now.toISOString().slice(0, 16);
+    var max = new Date();
+    max.setDate(max.getDate() + 30);
+    max.setMinutes(max.getMinutes() - max.getTimezoneOffset());
+    dt.max = max.toISOString().slice(0, 16);
+    dt.value = now.toISOString().slice(0, 16);
+  }
+
+  function closeScheduleModal() {
+    var modal = document.getElementById('schedule-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  async function submitSchedule() {
+    var content = document.getElementById('modal-content').value.trim();
+    var dt = document.getElementById('modal-datetime').value;
+    if (!content) { showToast('Content kiriting', 'error'); return; }
+    if (!dt) { showToast('Sanani tanlang', 'error'); return; }
+    var iso = new Date(dt).toISOString();
+    if (new Date(iso).getTime() <= Date.now()) { showToast('Vaqt o\'tib ketgan', 'error'); return; }
+    var payload;
+    if (currentType === 'text') {
+      payload = { caption: content };
+    } else {
+      payload = { url: content, caption: '' };
+    }
+    var btn = document.getElementById('modal-submit-btn');
+    if (btn) btn.disabled = true;
+    try {
+      var res = await apiFetch('/api/scheduled/' + window.__userId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: currentType, content: payload, scheduledAt: iso })
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (res.ok && (data.success !== false)) {
+        showToast('Schedule yaratildi!', 'success');
+        closeScheduleModal();
+        loadScheduledPosts();
+      } else {
+        showToast(data.error || 'Xatolik yuz berdi', 'error');
+      }
+    } catch (e) {
+      showToast('Tarmoq xatosi', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function cancelSchedule(id) {
+    if (!confirm('Bekor qilinsinmi?')) return;
+    try {
+      var res = await apiFetch('/api/scheduled/' + window.__userId + '/' + id, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('Bekor qilindi', 'success');
+        loadScheduledPosts();
+      } else {
+        showToast('Bekor qilib bo\'lmadi', 'error');
+      }
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  }
+
+  async function runNow(id) {
+    if (!confirm('Hozir yuborilsinmi?')) return;
+    try {
+      var res = await apiFetch('/api/scheduled/' + window.__userId + '/' + id + '/run-now', { method: 'POST' });
+      if (res.ok) {
+        showToast('Yuborildi!', 'success');
+        loadScheduledPosts();
+      } else {
+        showToast('Yuborib bo\'lmadi', 'error');
+      }
+    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
+  }
+
+  function viewPost(id) {
+    var p;
+    for (var i = 0; i < allPosts.length; i++) { if (Number(allPosts[i].id) === Number(id)) { p = allPosts[i]; break; } }
+    if (!p) return;
+    var details = 'Type: ' + (p.type || '') + '\n'
+      + 'Status: ' + (p.status || '') + '\n'
+      + 'Scheduled: ' + formatDateTime(p.scheduled_at) + '\n\n'
+      + 'Content:\n' + contentPreview(p.content);
+    alert(details);
+  }
+
+  async function loadScheduledPosts() {
+    if (!window.__userId) {
+      showToast('Foydalanuvchi aniqlanmadi', 'error');
+      return;
+    }
+    try {
+      var res = await apiFetch('/api/scheduled/' + window.__userId);
+      var data = await res.json();
+      var posts;
+      if (Array.isArray(data)) posts = data;
+      else if (data && Array.isArray(data.posts)) posts = data.posts;
+      else posts = [];
+      renderPosts(posts);
+      if (data && data.stats) renderStats(data.stats);
+    } catch (e) {
+      showToast('Yuklanmadi', 'error');
+      renderPosts([]);
+    }
+  }
+
+  // Search
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.id === 'search-input') {
+      searchTerm = e.target.value.trim();
+      renderList();
+    }
+  });
+
+  // Esc to close modal
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeScheduleModal();
+  });
+
+  // User info + admin link
+  apiFetch('/api/dashboard-info').then(function (r) { return r.json(); }).then(function (d) {
+    var u = d && d.user;
+    if (u) {
+      $$('.sidebar-user-name').forEach(function (el) { el.textContent = u.first_name || u.username || 'User'; });
+      $$('.sidebar-user-role').forEach(function (el) { el.textContent = u.role === 'owner' ? 'Owner' : u.role === 'admin' ? 'Admin' : 'User'; });
+      if (u.role === 'owner' || u.role === 'admin') {
+        var adminLink = document.getElementById('admin-nav-link');
+        if (adminLink) adminLink.classList.remove('hidden');
+      }
+    }
+  }).catch(function () {});
+
+  document.addEventListener('DOMContentLoaded', loadScheduledPosts);
+
+  document.querySelectorAll('button, a').forEach(function (el) {
+    el.addEventListener('click', function () { if (window.navigator.vibrate) window.navigator.vibrate(3); });
+  });
+</script>
+<script src="/js/dashboard-data-loader.js"></script>
+<script src="/js/dashboard-functions.js"></script>
+</body></html>

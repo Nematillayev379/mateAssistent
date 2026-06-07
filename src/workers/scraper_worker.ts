@@ -8,6 +8,7 @@ import { getSmartAIResponse } from '../services/ai';
 import { safeSend } from '../services/telegram';
 import { logger, sanitizeLogInput } from '../utils/logger';
 import crypto from 'crypto';
+import { Article } from '../types';
 
 // BUG-139 Fix: Cache lowercased ad keywords once to avoid mapping on every article
 const lowerAdKeywords = (CONFIG.AD_KEYWORDS || []).map(k => k.toLowerCase());
@@ -22,7 +23,7 @@ if (!connectionOptions) {
 
     try {
       logger.info(`🔍 Job ${job.id}: Scraping ${sanitizeLogInput(sourceUrl)} for user ${userId}`);
-      const articles: any[] = await ScraperService.fetchRSS(sourceUrl);
+      const articles = await ScraperService.fetchRSS(sourceUrl);
 
       for (const article of articles) {
         const isDuplicate = await DBService.isSeenOrSeenByTitle(userId, article.link, article.title);
@@ -57,8 +58,9 @@ if (!connectionOptions) {
           await DBService.markSeen(userId, article.link, article.title);
           try {
             await processArticleInline(userId, articleData, lang);
-          } catch (e: any) {
-            logger.error(`Inline processing failed, but marked as seen to prevent loop: ${e.message}`);
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            logger.error(`Inline processing failed, but marked as seen to prevent loop: ${msg}`);
           }
         }
       }
@@ -80,7 +82,7 @@ if (!connectionOptions) {
   logger.info('👷 Scraper Worker started with Redis connection options');
 }
 
-export async function processArticleInline(userId: number, article: any, sourceLang: string): Promise<void> {
+export async function processArticleInline(userId: number, article: Article, sourceLang: string): Promise<void> {
   try {
     const user = await DBService.getUser(userId);
     if (!user || !user.target_channel || !user.is_active) return;
@@ -134,8 +136,9 @@ export async function processArticleInline(userId: number, article: any, sourceL
 
     await safeSend(user, enrichedArticle);
     logger.info(`✅ [inline] Post sent to channel ${user.target_channel} in ${fullLangName}`);
-  } catch (err: any) {
-    logger.error(`❌ Inline article processing error for user ${userId}: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`❌ Inline article processing error for user ${userId}: ${message}`);
     throw err;
   }
 }

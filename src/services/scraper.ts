@@ -8,6 +8,25 @@ import { getSmartAIResponse } from "./ai";
 import { FinanceService } from "./finance";
 import { CONFIG } from "../config/config";
 
+interface RssItem {
+  title: string;
+  link: string;
+  contentSnippet: string;
+  content?: string;
+  pubDate: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  audioUrl?: string;
+}
+
+interface ProductResult {
+  store: string;
+  name: string;
+  price: number;
+  url: string;
+  image?: string;
+}
+
 const cookieJar = new CookieJar();
 const httpClient = wrapper(axios.create({
   jar: cookieJar,
@@ -23,7 +42,7 @@ async function fetchWithRetry(url: string, retries = 3): Promise<string> {
     try {
       const { data } = await httpClient.get(url, { headers: { "User-Agent": USER_AGENT } });
       return data;
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (i === retries - 1) return "";
       await new Promise(r => setTimeout(r, 1000 * (i + 1)));
     }
@@ -101,8 +120,8 @@ export const ScraperService = {
       let videoUrl = resolveUrl($("meta[property='og:video']").attr("content") || $("enclosure[type^='video']").attr("url") || $("a[href$='.mp4']").first().attr("href"), url);
 
       return { title, content: paragraphs.join("\n\n"), imageUrl, audioUrl, videoUrl };
-    } catch (e: any) {
-      logger.warn(`Maqolani o'qishda xato: ${sanitizeLogInput(url)} - ${e.message}`);
+    } catch (e: unknown) {
+      logger.warn(`Maqolani o'qishda xato: ${sanitizeLogInput(url)} - ${e instanceof Error ? e.message : String(e)}`);
       return null;
     }
   },
@@ -186,11 +205,11 @@ export const ScraperService = {
     return { imageUrl, videoUrl, audioUrl };
   },
 
-  async fetchRSS(url: string): Promise<any[]> {
+  async fetchRSS(url: string): Promise<RssItem[]> {
     try {
       const xml = await fetchWithRetry(url);
       const $ = cheerio.load(xml, { xmlMode: true });
-      const items: any[] = [];
+      const items: RssItem[] = [];
 
       const entries = $("item").length ? $("item") : $("entry");
       entries.slice(0, 50).each((_, el) => {
@@ -206,12 +225,14 @@ export const ScraperService = {
                         $(el).find("updated").text().trim();
                         
         const media = this.extractMedia(el, $);
+        const fullContent = $(el).find("content").text().trim() || '';
 
         if (title && link) {
           items.push({
             title,
             link,
             contentSnippet: description,
+            content: fullContent || description,
             pubDate,
             ...media
           });
@@ -219,8 +240,8 @@ export const ScraperService = {
       });
 
       return items;
-    } catch (e: any) {
-      logger.error(`RSS fetch error (${sanitizeLogInput(url)}): ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`RSS fetch error (${sanitizeLogInput(url)}): ${e instanceof Error ? e.message : String(e)}`);
       return [];
     }
   },
@@ -268,8 +289,8 @@ export const ScraperService = {
           return null;
         }
       }
-    } catch (e: any) {
-      logger.warn(`discoverRSS failed for ${sanitizeLogInput(websiteUrl)}: ${e.message}`);
+    } catch (e: unknown) {
+      logger.warn(`discoverRSS failed for ${sanitizeLogInput(websiteUrl)}: ${e instanceof Error ? e.message : String(e)}`);
     }
     return null;
   },
@@ -362,8 +383,8 @@ export const ScraperService = {
               name = parsed.name || name;
               priceText = parsed.priceText || priceText;
             }
-          } catch (err: any) {
-            logger.error(`AI price parsing failed: ${err.message}`);
+          } catch (err: unknown) {
+            logger.error(`AI price parsing failed: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
       }
@@ -381,15 +402,15 @@ export const ScraperService = {
       }
 
       return { price, name, imageUrl };
-    } catch (e: any) {
-      logger.error(`Price scrape failed for ${sanitizeLogInput(url)}: ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`Price scrape failed for ${sanitizeLogInput(url)}: ${e instanceof Error ? e.message : String(e)}`);
       throw e;
     }
   },
 
   /** Smart Search Aggregator */
-  async searchProducts(query: string): Promise<any[]> {
-    const results: any[] = [];
+  async searchProducts(query: string): Promise<ProductResult[]> {
+    const results: ProductResult[] = [];
     
     // 1. OLX API
     try {
@@ -419,8 +440,8 @@ export const ScraperService = {
           });
         }
       }
-    } catch (e: any) {
-      logger.warn(`OLX Search failed: ${e.message}`);
+    } catch (e: unknown) {
+      logger.warn(`OLX Search failed: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     // 2. Asaxiy Scraper
@@ -454,8 +475,8 @@ export const ScraperService = {
            });
         }
       }
-    } catch (e: any) {
-      logger.warn(`Asaxiy Search failed: ${e.message}`);
+    } catch (e: unknown) {
+      logger.warn(`Asaxiy Search failed: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     return results.sort((a, b) => a.price - b.price).filter(r => r.price > 0);

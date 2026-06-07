@@ -48,16 +48,18 @@ export interface NewsSource {
 
 export interface Article {
   title: string;
-  content: string;
+  content?: string;
   url: string;
-  imageUrl?: string;
-  videoUrl?: string;
-  audioUrl?: string;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  audioUrl?: string | null;
   emoji?: string;
-  source: string;
+  source?: string;
   category?: string;
   sentiment?: 'positive' | 'negative' | 'neutral';
   summary?: string;
+  link?: string;
+  pubDate?: string;
 }
 
 export interface ApiKey {

@@ -19,8 +19,8 @@ export async function startBot() {
   bot.on("channel_post", async (msg) => {
     try {
       await TelegramMonitorService.handleChannelPost(msg);
-    } catch (e: any) {
-      logger.error(`channel_post handler: ${e.message}`);
+    } catch (e: unknown) {
+      logger.error(`channel_post handler: ${e instanceof Error ? e.message : String(e)}`);
     }
   });
 
@@ -35,8 +35,8 @@ export async function startBot() {
       { command: "help", description: "Yordam / Help Guide" },
       { command: "admin", description: "Admin panel / Admin" },
     ]);
-  } catch (e: any) {
-    logger.warn(`setMyCommands error: ${e.message}`);
+  } catch (e: unknown) {
+    logger.warn(`setMyCommands error: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   if (CONFIG.PUBLIC_URL && process.env.NODE_ENV !== "development") {
@@ -52,9 +52,10 @@ export async function startBot() {
       } else {
         throw new Error(`Webhook not confirmed (got: ${whInfo.url})`);
       }
-    } catch (err: any) {
-      logger.error(`setWebHook error: ${err.message}`);
-      if (err.message.includes('409') || err.message.includes('Conflict')) {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.error(`setWebHook error: ${errMsg}`);
+      if (errMsg.includes('409') || errMsg.includes('Conflict')) {
         logger.warn('Webhook conflict — not falling back to polling');
       } else {
         await bot.deleteWebHook().catch(() => {});
@@ -63,7 +64,7 @@ export async function startBot() {
       }
     }
   } else {
-    await bot.deleteWebHook().catch((delErr: any) => logger.warn(`Webhook delete error: ${delErr.message}`));
+    await bot.deleteWebHook().catch((delErr: unknown) => logger.warn(`Webhook delete error: ${delErr instanceof Error ? delErr.message : String(delErr)}`));
     initPolling();
     logger.info("Polling started (no PUBLIC_URL)");
   }
@@ -71,8 +72,8 @@ export async function startBot() {
   if (CONFIG.OWNER_ID != null) {
     try {
       await notify(CONFIG.OWNER_ID, `<b>mateAssistent Bot v11.0</b> is live!`);
-    } catch (e: any) {
-      logger.warn(`Owner notify failed: ${e.message}`);
+    } catch (e: unknown) {
+      logger.warn(`Owner notify failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 }
@@ -80,13 +81,13 @@ export async function startBot() {
 function initPolling() {
   startPollingSafe();
   if (!pollingErrorHandlerAttached) {
-    bot.on("polling_error", (error: any) => { handlePollingError(error); });
+    bot.on("polling_error", (error: Error) => { handlePollingError(error); });
     pollingErrorHandlerAttached = true;
   }
 }
 
-function getPollingErrorMessage(error: any): string {
-  return String(error?.message || error || "Unknown polling error");
+function getPollingErrorMessage(error: Error | string): string {
+  return String(error instanceof Error ? error.message : error || "Unknown polling error");
 }
 
 function isFatalPollingError(message: string): boolean {
@@ -110,13 +111,13 @@ function startPollingSafe() {
     const maybePromise = bot.startPolling();
     Promise.resolve(maybePromise)
       .then(() => { pollingRestartAttempts = 0; })
-      .catch((error: any) => { logger.error(`startPolling error: ${getPollingErrorMessage(error)}`); });
-  } catch (error: any) {
-    logger.error(`startPolling throw: ${getPollingErrorMessage(error)}`);
+      .catch((error: unknown) => { logger.error(`startPolling error: ${getPollingErrorMessage(error instanceof Error ? error : String(error))}`); });
+  } catch (error: unknown) {
+    logger.error(`startPolling throw: ${getPollingErrorMessage(error instanceof Error ? error : String(error))}`);
   }
 }
 
-function handlePollingError(error: any) {
+function handlePollingError(error: Error | string) {
   const message = getPollingErrorMessage(error);
   logger.error(`Polling error: ${message}`);
 

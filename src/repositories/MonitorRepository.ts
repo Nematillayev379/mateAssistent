@@ -1,20 +1,33 @@
 import { getSupabase } from "./BaseRepository";
 import { logger } from "../utils/logger";
 
+export type MonitoredChannelRecord = {
+  id: number;
+  user_id: number;
+  platform: string;
+  channel_id: string;
+  name: string;
+  forward_mode: string;
+  use_ai: number;
+  is_active: number;
+  last_post_id?: string;
+  last_check?: string;
+};
+
 export const MonitorRepository = {
-  async getByUser(userId: number) {
+  async getByUser(userId: number): Promise<MonitoredChannelRecord[]> {
     const { data, error } = await getSupabase().from('monitored_channels').select('*').eq('user_id', userId);
     if (error) logger.error(`getUserMonitoredChannels error: ${error.message}`);
-    return data || [];
+    return (data || []) as MonitoredChannelRecord[];
   },
 
   async add(userId: number, platform: string, channelId: string, name: string, opts?: { forward_mode?: string; use_ai?: number }) {
-    const row: Record<string, any> = { user_id: userId, platform, channel_id: channelId, name, forward_mode: opts?.forward_mode || 'copy', use_ai: opts?.use_ai ?? 0, is_active: 1 };
+    const row: Record<string, unknown> = { user_id: userId, platform, channel_id: channelId, name, forward_mode: opts?.forward_mode || 'copy', use_ai: opts?.use_ai ?? 0, is_active: 1 };
     const { error } = await getSupabase().from('monitored_channels').insert(row);
     if (error) logger.error(`addMonitoredChannel error: ${error.message}`);
   },
 
-  async updateSettings(id: number, userId: number, updates: Record<string, any>) {
+  async updateSettings(id: number, userId: number, updates: Record<string, unknown>) {
     const { error } = await getSupabase().from('monitored_channels').update(updates).eq('id', id).eq('user_id', userId);
     if (error) logger.error(`updateMonitoredChannelSettings error: ${error.message}`);
   },
@@ -49,12 +62,14 @@ export const TelegramMessageRepository = {
 };
 
 export const TrendsRepository = {
-  async saveSnapshot(topics: any[], summary: string) {
-    await getSupabase().from('trends_snapshots').insert({ topics, summary });
+  async saveSnapshot(topics: Array<{ topic: string; score: number }>, summary: string) {
+    const { error } = await getSupabase().from('trends_snapshots').insert({ topics, summary });
+    if (error) logger.error(`saveTrendsSnapshot error: ${error.message}`);
   },
 
   async getLatest() {
-    const { data } = await getSupabase().from('trends_snapshots').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+    const { data, error } = await getSupabase().from('trends_snapshots').select('*').order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (error) logger.error(`getLatestTrendsSnapshot error: ${error.message}`);
     return data;
   },
 };

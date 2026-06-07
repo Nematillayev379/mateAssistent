@@ -13,7 +13,7 @@ export const trackCommand: BotCommand = {
     if (!url) {
       const items = await DBService.getTrackedPrices(chatId);
       const list = items.length > 0 
-        ? items.map((i: any, idx: number) => `${idx + 1}. <a href="${i.url}">${i.item_name}</a> — ${(i.last_price || 0).toLocaleString()} UZS`).join('\n') 
+        ? items.map((i: { url: string; item_name: string; last_price?: number }, idx: number) => `${idx + 1}. <a href="${i.url}">${i.item_name}</a> — ${(i.last_price || 0).toLocaleString()} UZS`).join('\n') 
         : "Hozircha kuzatilayotgan tovarlar yo'q.";
       
       const text = `🔔 <b>Price Tracker</b>\n\n` +
@@ -30,8 +30,8 @@ export const trackCommand: BotCommand = {
         await DBService.addTrackedPrice(chatId, url, result.name, result.price);
         await bot.sendMessage(chatId, `✅ <b>Tovar kuzatuvga olindi!</b>\n\n📦 ${result.name}\n💰 Boshlang'ich narx: <b>${result.price.toLocaleString()} UZS</b>`, { parse_mode: 'HTML' });
       }
-    } catch (e: any) {
-      await bot.sendMessage(chatId, `❌ Xato: ${e.message}`);
+    } catch (e: unknown) {
+      await bot.sendMessage(chatId, `❌ Xato: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 };

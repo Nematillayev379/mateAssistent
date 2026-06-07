@@ -1,10 +1,24 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import os from 'os';
 import { DBService } from '../../services/database';
 import { logger } from '../../utils/logger';
 import { checkAuth } from '../auth';
 
-function safeNum(v: any, def = 0): number {
+interface PostRecord {
+  created_at?: string;
+  status?: string;
+  ai_used?: boolean;
+  title?: string;
+  text?: string;
+  views?: number;
+  target_channel?: string;
+}
+
+interface AutoSearchRecord {
+  is_active?: boolean;
+}
+
+function safeNum(v: unknown, def = 0): number {
   const n = Number(v);
   return Number.isFinite(n) ? n : def;
 }
@@ -18,18 +32,18 @@ function formatUptime(seconds: number): string {
   return `${m}m`;
 }
 
-async function safeGetUserPosts(uid: number, limit: number): Promise<any[]> {
+async function safeGetUserPosts(uid: number, limit: number): Promise<PostRecord[]> {
   try {
-    const fn = (DBService as any).getUserPosts;
+    const fn = (DBService as Record<string, unknown>)['getUserPosts'] as ((uid: number, limit: number) => Promise<PostRecord[]>) | undefined;
     if (typeof fn !== 'function') return [];
     const r = await fn(uid, limit);
     return Array.isArray(r) ? r : [];
   } catch { return []; }
 }
 
-async function safeGetAutoSearches(uid: number): Promise<any[]> {
+async function safeGetAutoSearches(uid: number): Promise<AutoSearchRecord[]> {
   try {
-    const fn = (DBService as any).getAutoSearches;
+    const fn = (DBService as Record<string, unknown>)['getAutoSearches'] as ((uid: number) => Promise<AutoSearchRecord[]>) | undefined;
     if (typeof fn !== 'function') return [];
     const r = await fn(uid);
     return Array.isArray(r) ? r : [];
@@ -39,22 +53,22 @@ async function safeGetAutoSearches(uid: number): Promise<any[]> {
 export function registerDashboardRoutes(app: express.Application) {
   const processStart = Date.now();
 
-  app.get('/api/overview/:userId', checkAuth, async (req: any, res: any) => {
+  app.get('/api/overview/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
-      const uid = parseInt(req.authenticatedUserId);
+      const uid = parseInt(req.authenticatedUserId as string);
       const user = await DBService.getUser(uid);
       if (!user) return res.status(404).json({ error: 'Not found' });
 
       const sources = await DBService.getUserSources(uid);
-      const activeSources = sources.filter((s: any) => s.is_active !== false).length;
+      const activeSources = sources.filter((s: Record<string, unknown>) => s.is_active !== false).length;
       const posts = await safeGetUserPosts(uid, 50);
-      const postsWeek = posts.filter((p: any) => p.created_at && (Date.now() - new Date(p.created_at).getTime()) < 7 * 86400 * 1000).length;
+      const postsWeek = posts.filter((p: PostRecord) => p.created_at && (Date.now() - new Date(p.created_at).getTime()) < 7 * 86400 * 1000).length;
 
-      const userStats = await DBService.getStats(uid).catch(() => ({ total_posts: 0, total_duplicates: 0 })) as any;
+      const userStats = await DBService.getStats(uid).catch(() => ({ total_posts: 0, total_duplicates: 0 })) as Record<string, unknown>;
       const totalDuplicates = Number(userStats?.total_duplicates) || 0;
 
       const activity = await safeGetUserPosts(uid, 8);
-      const activityFeed = activity.map((p: any) => ({
+      const activityFeed = activity.map((p: PostRecord) => ({
         icon: p.status === 'failed' ? 'error' : (p.ai_used ? 'auto_awesome' : 'send'),
         text: p.title ? p.title.substring(0, 80) : (p.text ? String(p.text).substring(0, 80) : 'Post yuborildi'),
         time: p.created_at ? new Date(p.created_at).toLocaleString('uz-UZ', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : ''
@@ -76,44 +90,46 @@ export function registerDashboardRoutes(app: express.Application) {
         bot_status: 'ACTIVE',
         activity: activityFeed
       });
-    } catch (e: any) {
-      logger.error(`overview error: ${e.message}`);
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`overview error: ${msg}`);
+      res.status(500).json({ error: 'Internal error' });
     }
   });
 
-  app.get('/api/studio/:userId', checkAuth, async (req: any, res: any) => {
+  app.get('/api/studio/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
-      const uid = parseInt(req.authenticatedUserId);
+      const uid = parseInt(req.authenticatedUserId as string);
       const posts = await safeGetUserPosts(uid, 50);
       const now = Date.now();
       const dayMs = 86400 * 1000;
-      const postsToday = posts.filter((p: any) => p.created_at && (now - new Date(p.created_at).getTime()) < dayMs).length;
-      const postsWeek = posts.filter((p: any) => p.created_at && (now - new Date(p.created_at).getTime()) < 7 * dayMs).length;
-      const lastAi = posts.find((p: any) => p.ai_used);
+      const postsToday = posts.filter((p: PostRecord) => p.created_at && (now - new Date(p.created_at).getTime()) < dayMs).length;
+      const postsWeek = posts.filter((p: PostRecord) => p.created_at && (now - new Date(p.created_at).getTime()) < 7 * dayMs).length;
+      const lastAi = posts.find((p: PostRecord) => p.ai_used);
       res.json({
         posts_today: postsToday,
         posts_week: postsWeek,
         ai_credits: 100,
         last_ai_use: lastAi && lastAi.created_at ? new Date(lastAi.created_at).toLocaleString('uz-UZ') : '—',
-        recent: posts.slice(0, 10).map((p: any) => ({
+        recent: posts.slice(0, 10).map((p: PostRecord) => ({
           title: p.title || (p.text ? String(p.text).substring(0, 60) : '(no title)'),
           time: p.created_at ? new Date(p.created_at).toLocaleString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : '',
           channel: p.target_channel || '',
           status: p.status || 'sent'
         }))
       });
-    } catch (e: any) {
-      logger.error(`studio error: ${e.message}`);
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`studio error: ${msg}`);
+      res.status(500).json({ error: 'Internal error' });
     }
   });
 
-  app.get('/api/automation/:userId', checkAuth, async (req: any, res: any) => {
+  app.get('/api/automation/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
-      const uid = parseInt(req.authenticatedUserId);
+      const uid = parseInt(req.authenticatedUserId as string);
       const searches = await safeGetAutoSearches(uid);
-      const active = searches.filter((s: any) => s.is_active !== false).length;
+      const active = searches.filter((s: AutoSearchRecord) => s.is_active !== false).length;
       res.json({
         active_searches: active,
         total_searches: searches.length,
@@ -121,41 +137,45 @@ export function registerDashboardRoutes(app: express.Application) {
         runs_week: 0,
         posts_generated: 0
       });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`automation error: ${msg}`);
+      res.status(500).json({ error: 'Internal error' });
     }
   });
 
-  app.get('/api/analytics/:userId', checkAuth, async (req: any, res: any) => {
+  app.get('/api/analytics/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
-      const uid = parseInt(req.authenticatedUserId);
+      const uid = parseInt(req.authenticatedUserId as string);
       const posts = await safeGetUserPosts(uid, 200);
       const now = new Date();
       const dayMs = 86400 * 1000;
       const dayBuckets = new Array(7).fill(0);
-      posts.forEach((p: any) => {
+      posts.forEach((p: PostRecord) => {
         if (!p.created_at) return;
         const diff = now.getTime() - new Date(p.created_at).getTime();
         const days = Math.floor(diff / dayMs);
         if (days >= 0 && days < 7) dayBuckets[6 - days] += 1;
       });
-      const totalViews = posts.reduce((s: number, p: any) => s + (Number(p.views) || 0), 0);
+      const totalViews = posts.reduce((s: number, p: PostRecord) => s + (Number(p.views) || 0), 0);
       res.json({
         btc_usd: 0,
         usd_uzs: 0,
-        posts_week: posts.filter((p: any) => p.created_at && (now.getTime() - new Date(p.created_at).getTime()) < 7 * dayMs).length,
+        posts_week: posts.filter((p: PostRecord) => p.created_at && (now.getTime() - new Date(p.created_at).getTime()) < 7 * dayMs).length,
         total_views: totalViews,
         engagement_pct: 0,
         daily_posts: dayBuckets
       });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`analytics error: ${msg}`);
+      res.status(500).json({ error: 'Internal error' });
     }
   });
 
-  app.get('/api/wallet/:userId', checkAuth, async (req: any, res: any) => {
+  app.get('/api/wallet/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
-      const uid = parseInt(req.authenticatedUserId);
+      const uid = parseInt(req.authenticatedUserId as string);
       const user = await DBService.getUser(uid);
       if (!user) return res.status(404).json({ error: 'Not found' });
       const monthly = await DBService.getPrice('monthly').catch(() => 0);
@@ -167,8 +187,10 @@ export function registerDashboardRoutes(app: express.Application) {
         premium_expires: user.premium_until ? new Date(user.premium_until).toLocaleDateString('uz-UZ') : '—',
         pricing: { monthly, yearly }
       });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logger.error(`wallet error: ${msg}`);
+      res.status(500).json({ error: 'Internal error' });
     }
   });
 }

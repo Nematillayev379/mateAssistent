@@ -64,10 +64,11 @@ export const setChannelCommand: BotCommand = {
           parse_mode: "HTML",
         });
       }
-    } catch (e: any) {
-      logger.warn(`Failed to link channel ${rawParam} for user ${chatId}: ${e.message}`);
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      logger.warn(`Failed to link channel ${rawParam} for user ${chatId}: ${errMsg}`);
       await bot.editMessageText(
-        `${i18n.t("setchannel_error", { lng: lang })}\n\n${i18n.t("setchannel_verify_public", { lng: lang })}\n\n${e.message}`,
+        `${i18n.t("setchannel_error", { lng: lang })}\n\n${i18n.t("setchannel_verify_public", { lng: lang })}\n\n${errMsg}`,
         { chat_id: chatId, message_id: waitMsg.message_id, parse_mode: "HTML" }
       );
     }

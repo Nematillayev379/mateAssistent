@@ -75,15 +75,16 @@ if (!connectionOptions) {
 
       await safeSend(user, enrichedArticle);
       logger.info(`✅ Post sent to channel ${user.target_channel} for user ${userId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       // BUG-120 Fix: Do not retry if error is permanent (like 400 Bad Request from AI or UI block)
-      const isPermanent = error.message?.includes('400') || error.message?.includes('Bad Request');
+      const message = error instanceof Error ? error.message : String(error);
+      const isPermanent = message.includes('400') || message.includes('Bad Request');
       if (isPermanent) {
-        logger.error(`❌ Permanent AI error for job ${job.id}: ${error.message}. Skipping.`);
+        logger.error(`❌ Permanent AI error for job ${job.id}: ${message}. Skipping.`);
         return;
       }
       
-      logger.error(`❌ AI Worker Error for job ${job.id}: ${error.message}`);
+      logger.error(`❌ AI Worker Error for job ${job.id}: ${message}`);
       throw error; // Let BullMQ handle retries for temporary errors like rate limits
     }
   }, { connection: connectionOptions });

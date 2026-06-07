@@ -8,7 +8,7 @@ export async function handleOnboardingMessage(
   bot: TelegramBot,
   chatId: number,
   text: string,
-  user: any,
+  user: { has_seen_lang?: boolean; target_channel?: string; interval_minutes?: number | string },
   lang: string,
 ): Promise<boolean> {
   if (!user.has_seen_lang) {

@@ -3,6 +3,13 @@ import { getSmartAIResponse } from './ai';
 import { DBService } from './database';
 import { logger, sanitizeLogInput } from '../utils/logger';
 
+interface ArticleForRelevance {
+  title?: string;
+  contentSnippet?: string;
+  content?: string;
+  pubDate?: string;
+}
+
 interface SearchQuery {
   id: string;
   userId: number;
@@ -39,7 +46,19 @@ function normalizeKeywords(keywords: string[] | undefined, topic: string): strin
   return fallback ? [fallback] : [];
 }
 
-function normalizeSearchRecord(search: any): SearchQuery | null {
+interface SearchRecord {
+  id?: string;
+  topic?: string;
+  mode?: string;
+  keywords?: string[];
+  maxResults?: number;
+  isActive?: boolean;
+  createdAt?: number;
+  lastRunAt?: number;
+  userId?: number;
+}
+
+function normalizeSearchRecord(search: SearchRecord): SearchQuery | null {
   if (!search || typeof search !== 'object') return null;
   const id = String(search.id || '').trim();
   const topic = String(search.topic || '').trim();
@@ -162,8 +181,8 @@ export const RssSearchService = {
             });
           }
         }
-      } catch (err: any) {
-        logger.warn(`RSS Search fetch error for ${source.name}: ${err.message}`);
+      } catch (err: unknown) {
+        logger.warn(`RSS Search fetch error for ${source.name}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -174,7 +193,7 @@ export const RssSearchService = {
     return topResults;
   },
 
-  calculateRelevance(article: any, search: SearchQuery): number {
+  calculateRelevance(article: ArticleForRelevance, search: SearchQuery): number {
     let score = 0;
     const text = `${article.title || ''} ${article.contentSnippet || article.content || ''}`.toLowerCase();
     const keywords = normalizeKeywords(search.keywords, search.topic);

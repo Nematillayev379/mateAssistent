@@ -8,6 +8,7 @@ import { PaymentService } from "../services/payment";
 import { helpCommand } from "./help";
 import { adminCommand } from "./admin";
 import { sendNextOnboardingStep } from "./start";
+import { renderScheduleList, renderScheduleView } from "./schedule";
 
 interface UserStateEntry { type: string; url: string; mediaType?: string; sendTarget?: "chat" | "channel"; createdAt: number; }
 
@@ -45,7 +46,7 @@ export async function handleCallbackQuery(
           { command: "help", description: `${i18n.t("menu_help", { lng: langCode })} / Yordam` },
           { command: "admin", description: `Admin panel / Admin` },
         ], { scope: { type: "chat", chat_id: chatId } });
-      } catch (e: any) { logger.warn(`setMyCommands error: ${e.message}`); }
+      } catch (e: unknown) { logger.warn(`setMyCommands error: ${e instanceof Error ? e.message : String(e)}`); }
 
       await bot.answerCallbackQuery(query.id, { text: "OK" });
       await bot.sendMessage(chatId, i18n.t("bot_lang_saved", { lng: langCode }));
@@ -76,6 +77,92 @@ export async function handleCallbackQuery(
 
     if (data === "schedule_media") {
       await handleScheduleMedia(bot, query, chatId, lang, userStates);
+      return;
+    }
+
+    if (data === "sched_list") {
+      try {
+        const posts = (await DBService.getUserScheduledPosts(chatId)) as Array<Record<string, unknown>>;
+        const rendered = renderScheduleList(posts, lang);
+        await bot.answerCallbackQuery(query.id, { text: rendered.text.split("\n")[0]?.slice(0, 40) || "OK" }).catch(() => {});
+        if (query.message) {
+          await bot.editMessageText(rendered.text, {
+            chat_id: chatId,
+            message_id: query.message.message_id,
+            parse_mode: "HTML",
+            reply_markup: { inline_keyboard: rendered.keyboard },
+          });
+        } else {
+          await bot.sendMessage(chatId, rendered.text, { parse_mode: "HTML", reply_markup: { inline_keyboard: rendered.keyboard } });
+        }
+      } catch (e: unknown) {
+        logger.error(`sched_list callback error: ${e instanceof Error ? e.message : String(e)}`);
+        await bot.answerCallbackQuery(query.id).catch(() => {});
+      }
+      return;
+    }
+
+    if (data.startsWith("sched_cancel_")) {
+      const idStr = data.replace("sched_cancel_", "").trim();
+      const id = parseInt(idStr, 10);
+      if (Number.isNaN(id) || id <= 0) {
+        await bot.answerCallbackQuery(query.id, { text: i18n.t("invalid_format", { lng: lang }), show_alert: true }).catch(() => {});
+        return;
+      }
+      try {
+        await DBService.cancelScheduledPost(chatId, id);
+        await bot.answerCallbackQuery(query.id, { text: i18n.t("bot_schedule_cancelled", { lng: lang }) }).catch(() => {});
+        try {
+          const posts = (await DBService.getUserScheduledPosts(chatId)) as Array<Record<string, unknown>>;
+          const rendered = renderScheduleList(posts, lang);
+          if (query.message) {
+            await bot.editMessageText(rendered.text, {
+              chat_id: chatId,
+              message_id: query.message.message_id,
+              parse_mode: "HTML",
+              reply_markup: { inline_keyboard: rendered.keyboard },
+            });
+          }
+        } catch (e: unknown) {
+          logger.warn(`sched_cancel list refresh failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      } catch (e: unknown) {
+        logger.error(`sched_cancel callback error: ${e instanceof Error ? e.message : String(e)}`);
+        await bot.answerCallbackQuery(query.id).catch(() => {});
+      }
+      return;
+    }
+
+    if (data.startsWith("sched_view_")) {
+      const idStr = data.replace("sched_view_", "").trim();
+      const id = parseInt(idStr, 10);
+      if (Number.isNaN(id) || id <= 0) {
+        await bot.answerCallbackQuery(query.id, { text: i18n.t("invalid_format", { lng: lang }), show_alert: true }).catch(() => {});
+        return;
+      }
+      try {
+        const posts = (await DBService.getUserScheduledPosts(chatId)) as Array<Record<string, unknown>>;
+        const post = posts.find((p) => Number(p.id) === id);
+        if (!post) {
+          await bot.answerCallbackQuery(query.id, { text: i18n.t("bot_schedule_list_empty", { lng: lang }), show_alert: true }).catch(() => {});
+          return;
+        }
+        const rendered = renderScheduleView(post, lang);
+        await bot.answerCallbackQuery(query.id).catch(() => {});
+        if (query.message) {
+          await bot.editMessageText(rendered.text, {
+            chat_id: chatId,
+            message_id: query.message.message_id,
+            parse_mode: "HTML",
+            reply_markup: { inline_keyboard: rendered.keyboard },
+          });
+        } else {
+          await bot.sendMessage(chatId, rendered.text, { parse_mode: "HTML", reply_markup: { inline_keyboard: rendered.keyboard } });
+        }
+      } catch (e: unknown) {
+        logger.error(`sched_view callback error: ${e instanceof Error ? e.message : String(e)}`);
+        await bot.answerCallbackQuery(query.id).catch(() => {});
+      }
       return;
     }
 
@@ -150,14 +237,14 @@ export async function handleCallbackQuery(
     }
 
     await bot.answerCallbackQuery(query.id).catch(() => {});
-  } catch (e: any) {
-    logger.error(`Callback error: ${e.message}`);
+  } catch (e: unknown) {
+    logger.error(`Callback error: ${e instanceof Error ? e.message : String(e)}`);
     await bot.answerCallbackQuery(query.id).catch(() => {});
   }
 }
 
 async function handleMediaDownload(
-  bot: TelegramBot, query: TelegramBot.CallbackQuery, chatId: number, user: any, lang: string,
+  bot: TelegramBot, query: TelegramBot.CallbackQuery, chatId: number, user: { target_channel?: string; language?: string } | null, lang: string,
   userStates: Map<number, UserStateEntry>, data: string,
 ) {
   const type = data.includes("_video_") ? "video" : data.includes("_audio_") ? "audio" : null;
@@ -182,7 +269,7 @@ async function handleMediaDownload(
   try {
     const { downloadYouTube } = await import("../services/youtube");
     const filePath = await downloadYouTube(url, type);
-    const deliveryTarget = sendTarget === "channel" ? user!.target_channel : chatId;
+    const deliveryTarget = sendTarget === "channel" ? user!.target_channel! : chatId;
     if (type === "video") await bot.sendVideo(deliveryTarget, filePath);
     else await bot.sendAudio(deliveryTarget, filePath);
     await bot.deleteMessage(chatId, waitMsg.message_id);
@@ -192,11 +279,12 @@ async function handleMediaDownload(
     const fs = await import("fs");
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     userStates.delete(chatId);
-  } catch (err: any) {
-    logger.error(`Media download error: ${err.message}`);
-    const userMsg = err.message.includes("yuklab bo'lmadi")
-      ? err.message
-      : `${i18n.t("media_download_failed", { lng: lang })}: ${err.message.slice(0, 200)}`;
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logger.error(`Media download error: ${errMsg}`);
+    const userMsg = errMsg.includes("yuklab bo'lmadi")
+      ? errMsg
+      : `${i18n.t("media_download_failed", { lng: lang })}: ${errMsg.slice(0, 200)}`;
     await bot.editMessageText(userMsg, { chat_id: chatId, message_id: waitMsg.message_id });
   }
 }
@@ -221,8 +309,8 @@ async function handlePlaylist(
     let text = `${i18n.t("playlist_header", { lng: lang }).replace("{count}", String(links.length))}\n\n`;
     links.forEach((link, index) => { text += `${index + 1}. ${link.title}\n${link.url}\n\n`; });
     await bot.editMessageText(text, { chat_id: chatId, message_id: waitMsg.message_id, disable_web_page_preview: true });
-  } catch (err: any) {
-    logger.error(`Playlist extract error: ${err.message}`);
+  } catch (err: unknown) {
+    logger.error(`Playlist extract error: ${err instanceof Error ? err.message : String(err)}`);
     await bot.editMessageText(i18n.t("playlist_error", { lng: lang }), { chat_id: chatId, message_id: waitMsg.message_id });
   }
 }
@@ -268,7 +356,7 @@ export function resolveMediaUrl(query: TelegramBot.CallbackQuery, userStates: Ma
   const pending = userStates.get(chatId);
   if (pending?.url && (pending.type === "media_download" || pending.type === "schedule_time")) return pending.url;
 
-  const msg = query.message as any;
+  const msg = query.message as TelegramBot.Message & { reply_to_message?: TelegramBot.Message } | undefined;
   const replyText = msg?.reply_to_message?.text || "";
   const match = replyText.match(/(https?:\/\/[^\s]+)/);
   if (match) return match[0];
@@ -277,8 +365,8 @@ export function resolveMediaUrl(query: TelegramBot.CallbackQuery, userStates: Ma
   if (fromMessage) return fromMessage[0];
 
   const entities = msg?.reply_to_message?.entities || [];
-  const urlEntity = entities.find((e: any) => e.type === "url" || e.type === "text_link");
+  const urlEntity = entities.find((e: TelegramBot.MessageEntity) => e.type === "url" || e.type === "text_link");
   if (!urlEntity) return null;
   if (urlEntity.type === "url") return replyText.substring(urlEntity.offset, urlEntity.offset + urlEntity.length);
-  return urlEntity.url;
+  return urlEntity.url || null;
 }

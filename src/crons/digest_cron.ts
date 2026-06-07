@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { getSmartAIResponse } from '../services/ai';
 import { bot } from '../services/bot_instance';
 import { i18n } from '../services/i18n';
+import { TelegramUser } from '../types';
 
 export async function processDailyDigests() {
   const now = new Date();
@@ -32,12 +33,13 @@ export async function processDailyDigests() {
         }
       }
     }
-  } catch (err: any) {
-    logger.error(`Digest Cron Error: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`Digest Cron Error: ${message}`);
   }
 }
 
-async function sendDigest(user: any): Promise<boolean> {
+async function sendDigest(user: TelegramUser): Promise<boolean> {
   try {
     const news = await DBService.getRecentTitlesForDigest(user.telegram_id, 24);
     if (!news || news.length === 0) return false;

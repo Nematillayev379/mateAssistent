@@ -5,8 +5,9 @@ import { getRedisOptions, getRedisPool } from './redis';
 const redisOptions = getRedisOptions();
 
 // When a queue job fails due to limit-exceeded, rotate the pool
-function handleLimitError(err: any): void {
-  if (err?.message?.includes('limit exceeded') || err?.message?.toLowerCase().includes('exceeded')) {
+function handleLimitError(err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.includes('limit exceeded') || message.toLowerCase().includes('exceeded')) {
     const pool = getRedisPool();
     if (pool && pool.markExhausted()) {
       logger.warn('Queue: limit exceeded, pool rotated');
@@ -43,7 +44,7 @@ export function isRedisAvailable(): boolean {
   const pool = getRedisPool();
   return !!pool && pool.hasAvailable();
 }
-export async function addScraperJob(data: any): Promise<boolean> {
+export async function addScraperJob(data: Record<string, unknown>): Promise<boolean> {
   if (!scraperQueue) {
     logger.debug('addScraperJob: Redis not available, skipping queue');
     return false;
@@ -56,13 +57,14 @@ export async function addScraperJob(data: any): Promise<boolean> {
   try {
     await scraperQueue.add('scrape-rss', data);
     return true;
-  } catch (err: any) {
-    logger.error(`addScraperJob failed: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`addScraperJob failed: ${message}`);
     return false;
   }
 }
 
-export async function addAIJob(data: any): Promise<boolean> {
+export async function addAIJob(data: Record<string, unknown>): Promise<boolean> {
   if (!aiQueue) {
     logger.debug('addAIJob: Redis not available, skipping queue');
     return false;
@@ -75,8 +77,9 @@ export async function addAIJob(data: any): Promise<boolean> {
   try {
     await aiQueue.add('process-ai', data);
     return true;
-  } catch (err: any) {
-    logger.error(`addAIJob failed: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(`addAIJob failed: ${message}`);
     return false;
   }
 }

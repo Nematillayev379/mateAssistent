@@ -38,7 +38,7 @@ async function getBotUsername(): Promise<string> {
 
 export async function buildChannelPostMarkup(article: {
   title?: string;
-  content?: string;
+  content?: string | null;
   source?: string;
   url?: string;
 }, opts?: { maxLength?: number }): Promise<string> {
@@ -65,7 +65,7 @@ export async function buildChannelPostMarkup(article: {
 }
 
 export async function safeSendToChannels(
-  _user: any,
+  _user: { telegram_id: number; target_channel?: string | null },
   channels: string[],
   sendFn: (normalizedChannel: string) => Promise<void>
 ): Promise<number> {
@@ -84,7 +84,7 @@ export async function safeSendToChannels(
   return results.filter((result) => result.status === "fulfilled").length;
 }
 
-export async function safeSend(user: any, article: any): Promise<void> {
+export async function safeSend(user: { telegram_id: number; target_channel?: string | null }, article: { videoUrl?: string | null; audioUrl?: string | null; imageUrl?: string | null; title?: string; content?: string | null; source?: string; url?: string; emoji?: string; category?: string; pubDate?: string }): Promise<void> {
   if (!article) {
     logger.warn("safeSend skipped: article is missing");
     return;
@@ -117,8 +117,9 @@ export async function safeSend(user: any, article: any): Promise<void> {
 
     if (sent === 0) throw new Error("All target channel sends failed");
     await DBService.incrementStat(user.telegram_id, "total_posts");
-  } catch (e: any) {
-    logger.error(`safeSend error: ${e.message}`);
+  } catch (e: unknown) {
+    const errMsg = e instanceof Error ? e.message : String(e);
+    logger.error(`safeSend error: ${errMsg}`);
     try {
       const cooldownKey = `${user.telegram_id}:${normalizeChannelId(user.target_channel || "")}`;
       const now = Date.now();
@@ -126,12 +127,12 @@ export async function safeSend(user: any, article: any): Promise<void> {
         sendFailureAlertCooldowns.set(cooldownKey, now + 30 * 60 * 1000);
         await bot.sendMessage(
           user.telegram_id,
-          `⚠️ <b>Xatolik!</b>\n\nKanalingizga xabar yuborib bo'lmadi. Iltimos, botni kanalga admin qilganingizni va kanal manzili to'g'riligini tekshiring.\n\nXato: <code>${escapeHtml(e.message)}</code>`,
+          `⚠️ <b>Xatolik!</b>\n\nKanalingizga xabar yuborib bo'lmadi. Iltimos, botni kanalga admin qilganingizni va kanal manzili to'g'riligini tekshiring.\n\nXato: <code>${escapeHtml(errMsg)}</code>`,
           { parse_mode: "HTML" }
         );
       }
-    } catch (inner: any) {
-      logger.warn(`Error alert cooldown send failed: ${inner.message}`);
+    } catch (inner: unknown) {
+      logger.warn(`Error alert cooldown send failed: ${inner instanceof Error ? inner.message : String(inner)}`);
     }
     throw e;
   }

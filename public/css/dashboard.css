@@ -80,6 +80,85 @@ body::before {
 .badge-amber { background: rgba(245, 166, 35, 0.12); color: var(--accent-amber); }
 .badge-pink { background: rgba(255, 107, 157, 0.12); color: var(--accent-pink); }
 
+/* ─── Status Badges (scheduled posts, etc.) ─── */
+.badge-pending { background: rgba(245, 166, 35, 0.14); color: var(--accent-amber); border: 1px solid rgba(245, 166, 35, 0.22); }
+.badge-sent { background: rgba(46, 213, 115, 0.14); color: var(--accent-green); border: 1px solid rgba(46, 213, 115, 0.22); }
+.badge-failed { background: rgba(255, 71, 87, 0.14); color: var(--accent-red); border: 1px solid rgba(255, 71, 87, 0.22); }
+.badge-cancelled { background: rgba(94, 94, 120, 0.14); color: var(--text-muted); border: 1px solid var(--border-subtle); }
+
+/* ─── Modal ─── */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(7, 7, 10, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.18s ease both;
+}
+.modal-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  max-width: 520px; width: 100%;
+  max-height: 92vh; overflow-y: auto;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.24s ease both;
+}
+.modal-panel textarea,
+.modal-panel input[type="text"],
+.modal-panel input[type="datetime-local"],
+.modal-panel select {
+  width: 100%;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  transition: border-color 0.15s;
+}
+.modal-panel textarea:focus,
+.modal-panel input:focus,
+.modal-panel select:focus { border-color: var(--accent-blue); outline: none; }
+.modal-panel textarea { resize: vertical; min-height: 96px; font-family: var(--font-mono); }
+
+/* ─── Schedule Type Pill (radio segmented control) ─── */
+.type-pill {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-deep);
+  color: var(--text-muted);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.type-pill.active { border-color: var(--accent-blue); background: rgba(91, 141, 239, 0.1); color: var(--accent-blue); }
+.type-pill:hover:not(.active) { border-color: var(--border-default); color: var(--text-secondary); }
+
+/* ─── Filter Tabs ─── */
+.tab-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px; font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.tab-btn:hover { color: var(--text-primary); background: var(--bg-elevated); }
+.tab-btn.active { color: var(--accent-blue); background: rgba(91, 141, 239, 0.1); border-color: rgba(91, 141, 239, 0.2); }
+
+/* ─── Schedule type icon backgrounds ─── */
+.type-icon-text { background: rgba(91, 141, 239, 0.12); color: var(--accent-blue); }
+.type-icon-video { background: rgba(255, 107, 157, 0.12); color: var(--accent-pink); }
+.type-icon-audio { background: rgba(139, 111, 255, 0.12); color: var(--accent-purple); }
+
 /* ─── Glass Panel ─── */
 .glass {
   background: rgba(17, 17, 24, 0.7);

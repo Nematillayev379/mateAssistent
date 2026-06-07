@@ -49,8 +49,9 @@ export const ReferralRepository = {
     try {
       const { error } = await getSupabase().rpc('extend_premium', { p_user_id: userId, p_days: 3 });
       if (error) logger.error(`giveReferredBonus error: ${error.message}`);
-    } catch (e: any) {
-      logger.warn(`giveReferredBonus failed: ${e.message}`);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      logger.warn(`giveReferredBonus failed: ${message}`);
     }
   },
 };
