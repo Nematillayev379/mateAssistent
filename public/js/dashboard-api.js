@@ -43,7 +43,7 @@
   window.apiFetch = function (resource, opts) {
     opts = opts || {};
     var h = {};
-    h['x-bot-token'] = token;
+    if (token) h['x-bot-token'] = token;
     if (userId) h['x-user-id'] = userId;
     if (opts.headers) {
       Object.keys(opts.headers).forEach(function (k) { h[k] = opts.headers[k]; });
@@ -51,6 +51,7 @@
     var merged = {};
     Object.keys(opts).forEach(function (k) { if (k !== 'headers') merged[k] = opts[k]; });
     merged.headers = h;
+    merged.credentials = opts.credentials || 'same-origin';
     return fetch(window.__apiBase + resource, merged);
   };
 

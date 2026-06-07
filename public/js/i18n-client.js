@@ -297,6 +297,22 @@
     membership_status: 'Membership Status',
     creator: 'Creator',
     wallet_connection_label: 'Wallet connection',
+    common_active: 'Active',
+    common_inactive: 'Inactive',
+    common_pending: 'Pending',
+    common_approved: 'Approved',
+    common_rejected: 'Rejected',
+    common_blocked: 'Blocked',
+    common_premium: 'Premium',
+    common_free: 'Free',
+    common_user: 'User',
+    common_admin: 'Admin',
+    common_owner: 'Owner',
+    common_yes: 'Yes',
+    common_no: 'No',
+    common_loading: 'Loading...',
+    nav_premium: 'Premium',
+    home_stats: 'Statistics',
     integration_pending: 'Integration pending',
     upgrade_premium: 'Upgrade to Premium ELITE',
     choose_plan: 'Choose plan',
@@ -397,6 +413,22 @@
     profile_digest_on: 'Yoqilgan',
     profile_digest_time: 'Digest Vaqti',
     profile_save: 'Saqlash',
+    common_active: 'Faol',
+    common_inactive: 'Nofaol',
+    common_pending: 'Kutilmoqda',
+    common_approved: 'Tasdiqlangan',
+    common_rejected: 'Rad etilgan',
+    common_blocked: 'Bloklangan',
+    common_premium: 'Premium',
+    common_free: 'Bepul',
+    common_user: 'Foydalanuvchi',
+    common_admin: 'Admin',
+    common_owner: 'Egasi',
+    common_yes: 'Ha',
+    common_no: "Yo'q",
+    common_loading: 'Yuklanmoqda...',
+    nav_premium: 'Premium',
+    home_stats: 'Statistika',
     premium_title: 'Premium',
     upgrade_premium: 'Premium ELITE ga o\'tish',
     premium_active: 'Premium faol',
@@ -616,6 +648,22 @@
     admin_block: 'Заблокировать',
     admin_unblock: 'Разблокировать',
     profile_save: 'Сохранить',
+    common_active: 'Активен',
+    common_inactive: 'Неактивен',
+    common_pending: 'Ожидание',
+    common_approved: 'Одобрен',
+    common_rejected: 'Отклонён',
+    common_blocked: 'Заблокирован',
+    common_premium: 'Премиум',
+    common_free: 'Бесплатно',
+    common_user: 'Пользователь',
+    common_admin: 'Админ',
+    common_owner: 'Владелец',
+    common_yes: 'Да',
+    common_no: 'Нет',
+    common_loading: 'Загрузка...',
+    nav_premium: 'Премиум',
+    home_stats: 'Статистика',
     common_saved: 'Настройки сохранены!',
   };
 
@@ -651,6 +699,7 @@
     document.documentElement.dir = RTL.includes(l) ? 'rtl' : 'ltr';
     document.title = t('app_title');
     apply();
+    autoTranslate();
   }
 
   function apply(root) {
@@ -686,9 +735,90 @@
   function init(userLang) {
     if (userLang && SUPPORTED.includes(userLang)) setLang(userLang);
     else apply();
+    autoTranslate();
     return lang;
   }
 
-  global.WebAppI18n = { t, setLang, apply, init, getLang: () => lang, SUPPORTED };
+  const NAV_MAP = {
+    'Overview': 'nav_overview',
+    'Sources': 'nav_sources',
+    'Studio': 'nav_studio',
+    'Distribution': 'nav_distribution',
+    'Automation': 'nav_automation',
+    'Analytics': 'nav_analytics',
+    'Wallet': 'nav_wallet',
+    'Wallet & Analytics': 'nav_wallet_analytics',
+    'Settings': 'nav_settings',
+    'Admin': 'nav_admin',
+    'Premium': 'nav_premium',
+    'Statistics': 'home_stats',
+    'Total Posts': 'home_posts',
+    'Duplicates': 'home_dupes',
+    'No active sources.': 'home_no_sources',
+    'Referrals': 'home_refs',
+    'Scheduled Posts': 'home_scheduled',
+    'No scheduled posts.': 'home_no_scheduled',
+    'User Info': 'home_user_info',
+    'Telegram ID': 'home_telegram_id',
+    'Username': 'home_username',
+    'Target Channel': 'home_target',
+    'Language': 'home_language',
+    'Role': 'home_role',
+    'RSS Sources': 'content_rss',
+    'Name': 'content_src_name',
+    'RSS URL': 'content_src_url',
+    'Add source': 'content_add_src',
+    'AI SMM Generator': 'content_ai',
+    'Generate image': 'content_ai_img',
+    'Create post': 'content_ai_gen',
+    'Send to channel': 'content_ai_send',
+    'Monitored Channels': 'content_channels',
+    'Add channel': 'content_ch_add',
+    'Services': 'services_hub',
+    'Media': 'services_media',
+    'Finance': 'services_finance',
+    'Tracker': 'services_tracker',
+    'Save': 'profile_save',
+    'Daily Digest': 'profile_digest',
+    'Buy': 'premium_buy',
+    'Logout': 'common_logout',
+    'Loading...': 'common_loading',
+    'Active': 'common_active',
+    'Inactive': 'common_inactive',
+    'Pending': 'common_pending',
+    'Approved': 'common_approved',
+    'Rejected': 'common_rejected',
+    'Blocked': 'common_blocked',
+    'Premium': 'common_premium',
+    'Free': 'common_free',
+    'User': 'common_user',
+    'Admin': 'common_admin',
+    'Owner': 'common_owner',
+    'Yes': 'common_yes',
+    'No': 'common_no'
+  };
+
+  function autoTranslate(root) {
+    if (lang === 'en') return;
+    const scope = root || document;
+    const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'CODE', 'PRE']);
+    function walk(el) {
+      if (SKIP.has(el.tagName)) return;
+      if (el.children && el.children.length === 0) {
+        const txt = (el.textContent || '').trim();
+        if (!txt || txt.length > 60) return;
+        const key = NAV_MAP[txt];
+        if (key) {
+          const translated = t(key);
+          if (translated && translated !== key) el.textContent = translated;
+        }
+      } else {
+        for (let i = 0; i < el.children.length; i++) walk(el.children[i]);
+      }
+    }
+    if (scope.body) walk(scope.body);
+  }
+
+  global.WebAppI18n = { t, setLang, apply, init, getLang: () => lang, SUPPORTED, autoTranslate };
   global.t = t;
 })(typeof window !== 'undefined' ? window : global);

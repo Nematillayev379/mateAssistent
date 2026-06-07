@@ -18,10 +18,27 @@
       else e.textContent = v;
     });
   }
+  function cell(tr, value, cls) {
+    var td = document.createElement('td');
+    if (cls) td.className = cls;
+    td.textContent = value != null ? String(value) : '';
+    tr.appendChild(td);
+    return td;
+  }
+  function safeJson(r) {
+    if (!r.ok) return null;
+    return r.json().catch(function () { return null; });
+  }
+  function safeIconValue(raw) {
+    var v = String(raw || '').trim();
+    if (!/^[a-zA-Z][a-zA-Z0-9_]{0,40}$/.test(v)) return '';
+    return v;
+  }
 
   var page = document.body && document.body.getAttribute('data-page');
 
-  apiFetch('/api/dashboard-info').then(function (r) { return r.json(); }).then(function (d) {
+  apiFetch('/api/dashboard-info').then(safeJson).then(function (d) {
+    if (!d) return;
     var u = d.user, s = d.stats || {};
     if (u) {
       setText('.sidebar-user-name', u.first_name || u.username || 'User');
@@ -34,7 +51,7 @@
 
     /* --- Sources page --- */
     if (page === 'sources') {
-      apiFetch('/api/sources/' + userId).then(function (r) { return r.json(); }).then(function (list) {
+      apiFetch('/api/sources/' + userId).then(safeJson).then(function (list) {
         if (!list || !list.length) return;
         var tbody = el('.sources-table tbody');
         if (!tbody) return;
@@ -42,12 +59,17 @@
         list.forEach(function (src) {
           var tr = document.createElement('tr');
           tr.className = 'border-b border-outline-variant';
-          tr.innerHTML = '<td class="py-3 px-2">' + (src.name || 'Unnamed') + '</td>' +
-            '<td class="py-3 px-2 text-on-surface-variant text-sm truncate max-w-[200px]">' + (src.url || '') + '</td>' +
-            '<td class="py-3 px-2"><span class="px-2 py-0.5 rounded-full text-[10px] ' +
-            (src.is_active !== 0 ? 'bg-secondary-container/10 text-secondary' : 'bg-surface-container-high text-on-surface-variant') +
-            '">' + (src.is_active !== 0 ? 'Active' : 'Inactive') + '</span></td>' +
-            '<td class="py-3 px-2 text-on-surface-variant text-sm">' + (src.lang || 'uz') + '</td>';
+          cell(tr, src.name || 'Unnamed', 'py-3 px-2');
+          cell(tr, src.url || '', 'py-3 px-2 text-on-surface-variant text-sm truncate max-w-[200px]');
+          var statusTd = document.createElement('td');
+          statusTd.className = 'py-3 px-2';
+          var badge = document.createElement('span');
+          badge.className = 'px-2 py-0.5 rounded-full text-[10px] ' +
+            (src.is_active !== 0 ? 'bg-secondary-container/10 text-secondary' : 'bg-surface-container-high text-on-surface-variant');
+          badge.textContent = src.is_active !== 0 ? 'Active' : 'Inactive';
+          statusTd.appendChild(badge);
+          tr.appendChild(statusTd);
+          cell(tr, src.lang || 'uz', 'py-3 px-2 text-on-surface-variant text-sm');
           tbody.appendChild(tr);
         });
       }).catch(function () {});
@@ -55,7 +77,7 @@
 
     /* --- Settings page --- */
     if (page === 'settings') {
-      apiFetch('/api/settings/' + userId + '/extended').then(function (r) { return r.json(); }).then(function (st) {
+      apiFetch('/api/settings/' + userId + '/extended').then(safeJson).then(function (st) {
         if (!st) return;
         setAllValue('set-lang', st.language || 'uz');
         setAllValue('set-channel', st.target_channel || '');
@@ -72,7 +94,7 @@
 
     /* --- Admin users page --- */
     if (page === 'admin-users') {
-      apiFetch('/api/admin/users').then(function (r) { return r.json(); }).then(function (list) {
+      apiFetch('/api/admin/users').then(safeJson).then(function (list) {
         if (!list || !list.length) return;
         var tbody = el('.admin-users-table tbody');
         if (!tbody) return;
@@ -80,14 +102,17 @@
         list.forEach(function (usr) {
           var tr = document.createElement('tr');
           tr.className = 'border-b border-outline-variant';
-          var status = usr.is_active !== 0 ? 'Active' : 'Inactive';
-          var approved = usr.is_approved ? 'Yes' : 'No';
-          var premium = usr.is_premium ? 'Premium' : 'Free';
-          tr.innerHTML = '<td class="py-3 px-2">' + (usr.telegram_id || '') + '</td>' +
-            '<td class="py-3 px-2">' + (usr.first_name || usr.username || '—') + '</td>' +
-            '<td class="py-3 px-2"><span class="px-2 py-0.5 rounded-full text-[10px] bg-secondary-container/10 text-secondary">' + status + '</span></td>' +
-            '<td class="py-3 px-2">' + approved + '</td>' +
-            '<td class="py-3 px-2 font-bold">' + premium + '</td>';
+          cell(tr, usr.telegram_id || '', 'py-3 px-2');
+          cell(tr, usr.first_name || usr.username || '—', 'py-3 px-2');
+          var statusTd = document.createElement('td');
+          statusTd.className = 'py-3 px-2';
+          var badge = document.createElement('span');
+          badge.className = 'px-2 py-0.5 rounded-full text-[10px] bg-secondary-container/10 text-secondary';
+          badge.textContent = usr.is_active !== 0 ? 'Active' : 'Inactive';
+          statusTd.appendChild(badge);
+          tr.appendChild(statusTd);
+          cell(tr, usr.is_approved ? 'Yes' : 'No', 'py-3 px-2');
+          cell(tr, usr.is_premium ? 'Premium' : 'Free', 'py-3 px-2 font-bold');
           tbody.appendChild(tr);
         });
       }).catch(function () {});
@@ -95,7 +120,7 @@
 
     /* --- Admin system page --- */
     if (page === 'admin-system') {
-      apiFetch('/api/admin/system').then(function (r) { return r.json(); }).then(function (sys) {
+      apiFetch('/api/admin/system').then(safeJson).then(function (sys) {
         if (!sys) return;
         setText('.sys-uptime', sys.uptime || '—');
         setText('.sys-version', sys.version || '—');
@@ -108,7 +133,7 @@
 
     /* --- Sources count in stats cards --- */
     if (u && (page === 'overview' || !page)) {
-      apiFetch('/api/sources/' + u.id).then(function (r) { return r.json(); }).then(function (srcs) {
+      apiFetch('/api/sources/' + userId).then(safeJson).then(function (srcs) {
         var c = srcs && srcs.length ? srcs.length : 0;
         setText('.stat-active-sources', c);
         setText('.mobile-sources', c);
@@ -117,7 +142,7 @@
 
     /* --- Analytics page --- */
     if (u && page === 'analytics') {
-      apiFetch('/api/sources/' + u.id).then(function (r) { return r.json(); }).then(function (srcs) {
+      apiFetch('/api/sources/' + userId).then(safeJson).then(function (srcs) {
         var c = srcs && srcs.length ? srcs.length : 0;
         setText('.analytics-source-total', c + (c >= 100 ? '+' : ''));
       }).catch(function () {});
@@ -139,7 +164,7 @@
 
   /* --- Studio drafts --- */
   if (page === 'studio') {
-    apiFetch('/api/posts/drafts/' + userId).then(function (r) { return r.json(); }).then(function (list) {
+    apiFetch('/api/posts/drafts/' + userId).then(safeJson).then(function (list) {
       if (!list || !list.length) return;
       var container = el('.drafts-list');
       if (!container) return;
@@ -147,9 +172,14 @@
       list.forEach(function (p) {
         var div = document.createElement('div');
         div.className = 'bg-[#111113] border border-[#1E1E22] rounded-xl p-stack-md';
-        div.innerHTML = '<p class="font-body-md font-bold">' + (p.title || 'Untitled') + '</p>' +
-          '<p class="text-on-surface-variant text-sm mt-1">' + (p.content ? p.content.substring(0, 100) : '') + '</p>' +
-          '<p class="text-[10px] text-on-surface-variant mt-2">' + (p.created_at ? new Date(p.created_at).toLocaleDateString() : '') + '</p>';
+        var t1 = document.createElement('p'); t1.className = 'font-body-md font-bold';
+        t1.textContent = p.title || 'Untitled'; div.appendChild(t1);
+        var t2 = document.createElement('p'); t2.className = 'text-on-surface-variant text-sm mt-1';
+        t2.textContent = p.content ? p.content.substring(0, 100) : '';
+        div.appendChild(t2);
+        var t3 = document.createElement('p'); t3.className = 'text-[10px] text-on-surface-variant mt-2';
+        t3.textContent = p.created_at ? new Date(p.created_at).toLocaleDateString() : '';
+        div.appendChild(t3);
         container.appendChild(div);
       });
     }).catch(function () {});
@@ -157,7 +187,7 @@
 
   /* --- Distribution channels --- */
   if (page === 'distribution') {
-    apiFetch('/api/channels/' + userId).then(function (r) { return r.json(); }).then(function (list) {
+    apiFetch('/api/channels/' + userId).then(safeJson).then(function (list) {
       if (!list || !list.length) return;
       var container = el('.channels-list');
       if (!container) return;
@@ -165,13 +195,22 @@
       list.forEach(function (ch) {
         var div = document.createElement('div');
         div.className = 'bg-[#111113] border border-[#1E1E22] rounded-xl p-stack-md flex justify-between items-center';
-        div.innerHTML = '<div><p class="font-body-md font-bold">' + (ch.channel_username || ch.channel_id || '—') + '</p>' +
-          '<p class="text-on-surface-variant text-sm">' + (ch.is_active ? 'Active' : 'Inactive') + '</p></div>' +
-          '<span class="material-symbols-outlined text-on-surface-variant">chevron_right</span>';
+        var left = document.createElement('div');
+        var p1 = document.createElement('p'); p1.className = 'font-body-md font-bold';
+        p1.textContent = ch.channel_username || ch.channel_id || '—';
+        left.appendChild(p1);
+        var p2 = document.createElement('p'); p2.className = 'text-on-surface-variant text-sm';
+        p2.textContent = ch.is_active ? 'Active' : 'Inactive';
+        left.appendChild(p2);
+        div.appendChild(left);
+        var icon = document.createElement('span');
+        icon.className = 'material-symbols-outlined text-on-surface-variant';
+        icon.textContent = safeIconValue('chevron_right') || 'chevron_right';
+        div.appendChild(icon);
         container.appendChild(div);
       });
     }).catch(function () {});
-    apiFetch('/api/workspaces/' + userId).then(function (r) { return r.json(); }).then(function (list) {
+    apiFetch('/api/workspaces/' + userId).then(safeJson).then(function (list) {
       if (!list || !list.length) return;
       var container = el('.workspaces-list');
       if (!container) return;
@@ -179,8 +218,12 @@
       list.forEach(function (w) {
         var div = document.createElement('div');
         div.className = 'bg-[#111113] border border-[#1E1E22] rounded-xl p-stack-md';
-        div.innerHTML = '<p class="font-body-md font-bold">' + (w.name || 'Workspace') + '</p>' +
-          '<p class="text-on-surface-variant text-sm">' + (w.channels || []).length + ' channels</p>';
+        var p1 = document.createElement('p'); p1.className = 'font-body-md font-bold';
+        p1.textContent = w.name || 'Workspace';
+        div.appendChild(p1);
+        var p2 = document.createElement('p'); p2.className = 'text-on-surface-variant text-sm';
+        p2.textContent = ((w.channels || []).length) + ' channels';
+        div.appendChild(p2);
         container.appendChild(div);
       });
     }).catch(function () {});
@@ -188,7 +231,7 @@
 
   /* --- Wallet / Premium --- */
   if (page === 'wallet') {
-    apiFetch('/api/premium-info').then(function (r) { return r.json(); }).then(function (info) {
+    apiFetch('/api/premium-info').then(safeJson).then(function (info) {
       if (!info) return;
       var isActive = !!info.isActive;
       var expiresAt = info.expiresAt || info.premium_until || null;
@@ -200,7 +243,7 @@
 
   /* --- Admin overview / system --- */
   if (page === 'admin-overview') {
-    apiFetch('/api/admin/system').then(function (r) { return r.json(); }).then(function (sys) {
+    apiFetch('/api/admin/system').then(safeJson).then(function (sys) {
       if (!sys) return;
       setText('.admin-stat-users', sys.user_count != null ? sys.user_count : '—');
       setText('.admin-stat-sources', sys.source_count != null ? sys.source_count : '—');

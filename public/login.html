@@ -104,15 +104,22 @@
 
       try {
         const token = await generateToken(telegramId);
-        const response = await fetch('/api/auth/verify', {
+        const verifyRes = await fetch('/api/auth/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: telegramId, token: token })
         });
 
-        if (response.ok) {
-          localStorage.setItem('dashboard_token', token);
-          localStorage.setItem('dashboard_user', telegramId);
+        if (verifyRes.ok) {
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ userId: telegramId, token: token })
+          }).catch(function () {});
+
+          localStorage.setItem('bot_token', token);
+          localStorage.setItem('bot_user_id', telegramId);
           window.location.href = '/dashboard/overview.html?token=' + token + '&user=' + telegramId;
         } else {
           errorMsg.textContent = 'Noto\'g\'ri Telegram ID yoki siz hali ro\'yxatdan o\'tmagansiz';
@@ -137,8 +144,8 @@
     }
 
     // Check if already logged in
-    const savedToken = localStorage.getItem('dashboard_token');
-    const savedUser = localStorage.getItem('dashboard_user');
+    const savedToken = localStorage.getItem('bot_token');
+    const savedUser = localStorage.getItem('bot_user_id');
     if (savedToken && savedUser) {
       window.location.href = '/dashboard/overview.html?token=' + savedToken + '&user=' + savedUser;
     }

@@ -11,7 +11,16 @@ export function getSupabase(): SupabaseClient {
     if (!url || !key) {
       throw new Error('SUPABASE_URL and SUPABASE_KEY must be set in environment variables.');
     }
-    supabase = createClient(url, key);
+    supabase = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (input: any, init: any = {}) => {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeout));
+        },
+      },
+    });
     logger.info('Supabase client initialized.');
   }
   return supabase;

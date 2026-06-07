@@ -72,3 +72,21 @@ export interface ReferralRecord {
   reward_given: boolean;
   is_active: boolean;
 }
+
+export interface ScheduledPost {
+  id: number;
+  user_id: number;
+  type: 'video' | 'audio' | 'text';
+  content: {
+    url?: string;
+    text?: string;
+    caption?: string;
+    title?: string;
+    imageUrl?: string;
+  };
+  scheduled_at: string;
+  status: 'pending' | 'sent' | 'failed' | 'cancelled';
+  created_at?: string;
+  sent_at?: string | null;
+  error_message?: string | null;
+}

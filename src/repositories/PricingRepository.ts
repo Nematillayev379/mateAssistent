@@ -1,5 +1,6 @@
 import { getSupabase } from "./BaseRepository";
 import { logger } from "../utils/logger";
+import type { ScheduledPost } from "../types";
 
 export const PriceRepository = {
   async add(userId: number, url: string, name: string, price: number) {
@@ -70,5 +71,29 @@ export const ScheduleRepository = {
 
   async updateStatus(id: number, status: string) {
     await getSupabase().from('scheduled_posts').update({ status }).eq('id', id);
+  },
+
+  async getById(userId: number, id: number): Promise<ScheduledPost | null> {
+    const { data, error } = await getSupabase()
+      .from('scheduled_posts')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) { logger.error(`getScheduledPostById error: ${error.message}`); return null; }
+    return (data as ScheduledPost | null) ?? null;
+  },
+
+  async getStats(userId: number): Promise<{ pending: number; sent: number; failed: number; cancelled: number }> {
+    const { data, error } = await getSupabase()
+      .from('scheduled_posts')
+      .select('status', { count: 'exact' })
+      .eq('user_id', userId);
+    const stats = { pending: 0, sent: 0, failed: 0, cancelled: 0 };
+    if (error) { logger.error(`getScheduledPostStats error: ${error.message}`); return stats; }
+    for (const row of (data || []) as Array<{ status: ScheduledPost['status'] }>) {
+      if (row.status in stats) stats[row.status]++;
+    }
+    return stats;
   },
 };

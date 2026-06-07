@@ -11,8 +11,13 @@ interface HealthStatus {
 }
 
 const alertCooldowns = new Map<string, number>();
-const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
+const ALERT_COOLDOWN_MS = 60 * 60 * 1000;
+const SUPABASE_FAILURE_THRESHOLD = 3;
 let redisStartupLogged = false;
+
+let supabaseConsecutiveFailures = 0;
+let supabaseLastAlertedFailureCount = 0;
+let supabaseIsDown = false;
 
 function healthAlertsEnabled(): boolean {
   return process.env.HEALTH_ALERTS_ENABLED !== 'false';
@@ -82,14 +87,17 @@ export async function checkSupabaseHealth(): Promise<boolean> {
   const result = await withTimeout((async () => {
     const { getSupabase } = await import('../repositories/BaseRepository');
     const supabase = getSupabase();
-    const { error } = await supabase.from('users').select('id', { count: 'exact', head: true }).limit(1);
+    const { error } = await supabase.from('users').select('telegram_id').limit(1).maybeSingle();
     if (error) {
       logger.warn(`Supabase health check error: ${error.message}`);
       return false;
     }
     return true;
-  })(), 4000, 'Supabase ping');
-  if (result === null) return true;
+  })(), 5000, 'Supabase ping');
+  if (result === null) {
+    logger.warn('Supabase health check timed out');
+    return false;
+  }
   return result === true;
 }
 
@@ -149,7 +157,31 @@ export async function runHealthCheck(): Promise<HealthStatus> {
   }
 
   if (!supabase) {
-    await sendAlert('Database Down', 'Supabase ulanishi buzildi. Barcha operatsiyalar to\'xtadi.');
+    supabaseConsecutiveFailures++;
+    if (supabaseConsecutiveFailures >= SUPABASE_FAILURE_THRESHOLD && supabaseConsecutiveFailures > supabaseLastAlertedFailureCount) {
+      supabaseLastAlertedFailureCount = supabaseConsecutiveFailures;
+      supabaseIsDown = true;
+      await sendAlert(
+        'Database Down',
+        `Supabase ulanishi ${supabaseConsecutiveFailures} marta ketma-ket ishlamadi. Barcha operatsiyalar to'xtatilgan bo'lishi mumkin.`
+      );
+    }
+  } else {
+    if (supabaseIsDown) {
+      supabaseIsDown = false;
+      supabaseConsecutiveFailures = 0;
+      supabaseLastAlertedFailureCount = 0;
+      if (CONFIG.OWNER_ID) {
+        try {
+          await bot.sendMessage(CONFIG.OWNER_ID, `✅ <b>Database Up</b>\n\nSupabase ulanishi tiklandi. Barcha operatsiyalar qayta faollashtirildi.`, { parse_mode: 'HTML' });
+        } catch (e: any) {
+          logger.warn(`Recovery alert send failed: ${e.message}`);
+        }
+      }
+    } else {
+      supabaseConsecutiveFailures = 0;
+      supabaseLastAlertedFailureCount = 0;
+    }
   }
 
   if (aiKeys === 0) {

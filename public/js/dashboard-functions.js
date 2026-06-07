@@ -10,7 +10,11 @@
   window.__payMethod = window.__payMethod || 'stars';
 
   // ─── Helpers ─────────────────────────────────
-  function esc(str) { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function esc(str) { return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g, '&#39;'); }
+  function safeJson(r) {
+    if (!r || !r.ok) return null;
+    return r.json().catch(function () { return null; });
+  }
   function $(s) { var els = document.querySelectorAll(s); if (els.length <= 1) return els[0]; return Array.from(els).find(function(el){ return el.offsetWidth > 0 || el.offsetHeight > 0 || el.getClientRects().length > 0; }) || els[0]; }
   function $$(s) { return document.querySelectorAll(s); }
   function setText(s, v) { var e = $(s); if (e) e.textContent = v != null ? v : ''; }
@@ -79,7 +83,7 @@
     if (st) st.textContent = 'Generatsiya...';
     try {
       var r = await apiFetch('/api/ai/voice-news', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title:title, text:text, sendToChannel:!!$('#voice-to-channel')?.checked }) });
-      var d = await r.json();
+      var d = await r.json().catch(function(){ return {}; });
       if (r.ok) { showToast('Audio yuborildi','success'); if (st) st.textContent = 'Audio yuborildi'; }
       else { showToast(d.error||'Xatolik','error'); if (st) st.textContent = d.error||'Xatolik'; }
     } catch(e) { showToast('Aloqa xatosi','error'); if (st) st.textContent='Aloqa xatosi'; }
@@ -93,7 +97,7 @@
     list.innerHTML = '<p class="text-on-surface-variant">Qidirilmoqda...</p>';
     try {
       var r = await apiFetch('/api/music/search?q='+encodeURIComponent(q));
-      var data = await r.json();
+      var data = await r.json().catch(function(){ return []; });
       list.innerHTML = '';
       if (!data || !data.length) { list.innerHTML = '<p class="text-on-surface-variant">Natija topilmadi</p>'; return; }
       data.forEach(function(m){
@@ -132,7 +136,7 @@
     if (btn) { btn.disabled=true; btn.textContent='...'; }
     try {
       var r = await apiFetch('/api/music/download/'+id+'?send=1');
-      var d = await r.json();
+      var d = await r.json().catch(function(){ return {}; });
       if (d.success) showToast(d.message||'Yuborildi!','success'); else throw new Error(d.error||'Xatolik');
     } catch(e) { showToast('Xatolik: '+e.message,'error'); }
     finally { if (btn) { btn.disabled=false; btn.textContent='Send'; } }
@@ -171,12 +175,20 @@
     if (!userId) return;
     try {
       var r = await apiFetch('/api/sources/'+userId);
-      var data = await r.json();
+      var data = await r.json().catch(function(){ return null; });
       if (!Array.isArray(data)) return;
       var list = $('#sources-list'); if (list) {
         list.innerHTML = '';
         data.forEach(function(s){
-          list.innerHTML += '<div class="flex items-center justify-between p-3 bg-[#111113] border border-[#1E1E22] rounded-xl mt-2"><div><p class="font-body-md font-bold">'+esc(s.name)+'</p><p class="text-on-surface-variant text-sm">'+esc(s.url?.substring(0,40))+'</p></div><button class="text-error text-sm px-3 py-1 border border-error/30 rounded-lg" onclick="deleteSource('+s.id+')">Delete</button></div>';
+          var sid = Number(s.id) || 0;
+          if (sid <= 0) return;
+          list.innerHTML += '<div class="flex items-center justify-between p-3 bg-[#111113] border border-[#1E1E22] rounded-xl mt-2"><div><p class="font-body-md font-bold">'+esc(s.name)+'</p><p class="text-on-surface-variant text-sm">'+esc(s.url?.substring(0,40))+'</p></div><button class="text-error text-sm px-3 py-1 border border-error/30 rounded-lg" data-del-source="'+sid+'">Delete</button></div>';
+        });
+        list.querySelectorAll('[data-del-source]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var sid = Number(btn.getAttribute('data-del-source'));
+            if (sid > 0) deleteSource(sid);
+          });
         });
       }
       setText('.stat-active-sources', data.length);
@@ -248,12 +260,20 @@
   window.loadChannels = async function () {
     try {
       var r = await apiFetch('/api/channels/'+userId);
-      var data = await r.json();
+      var data = await r.json().catch(function(){ return null; });
       var list = $('#channels-list'); if (!list) return;
       list.innerHTML = '';
       if (!Array.isArray(data) || !data.length) { list.innerHTML = '<p class="text-on-surface-variant">Kanal yo\'q</p>'; return; }
       data.forEach(function(ch){
-        list.innerHTML += '<div class="flex items-center justify-between p-3 bg-[#111113] border border-[#1E1E22] rounded-xl mt-2"><span class="font-body-md">'+esc(ch.channel_username||ch.channel_id)+'</span><button class="text-error text-sm px-3 py-1 border border-error/30 rounded-lg" onclick="removeChannel('+ch.id+')">Remove</button></div>';
+        var cid = Number(ch.id) || 0;
+        if (cid <= 0) return;
+        list.innerHTML += '<div class="flex items-center justify-between p-3 bg-[#111113] border border-[#1E1E22] rounded-xl mt-2"><span class="font-body-md">'+esc(ch.channel_username||ch.channel_id)+'</span><button class="text-error text-sm px-3 py-1 border border-error/30 rounded-lg" data-del-channel="'+cid+'">Remove</button></div>';
+      });
+      list.querySelectorAll('[data-del-channel]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var cid = Number(btn.getAttribute('data-del-channel'));
+          if (cid > 0) removeChannel(cid);
+        });
       });
     } catch(e) {}
   };
@@ -268,7 +288,8 @@
   window.loadFinance = async function () {
     try {
       var r = await apiFetch('/api/finance/prices');
-      var d = await r.json();
+      var d = await safeJson(r);
+      if (!d) return;
       setText('.btc-price', '$' + (d.btc || '—'));
       setText('.usd-price', (d.usd || '—') + ' so\'m');
     } catch(e) {}
@@ -295,7 +316,7 @@
   window.loadPremium = async function () {
     try {
       var r = await apiFetch('/api/premium-info');
-      var d = await r.json();
+      var d = await safeJson(r);
       if (d) {
         var isActive = !!d.isActive;
         var expiresAt = d.expiresAt || d.premium_until || null;
@@ -312,7 +333,7 @@
     } catch(e) {}
     try {
       var p = await apiFetch('/api/payments/methods');
-      var m = await p.json();
+      var m = await safeJson(p) || {};
       var container = $('#payment-methods');
       if (container) {
         container.innerHTML = '';
@@ -335,7 +356,8 @@
   window.buyPremium = async function (period) {
     try {
       var r = await apiFetch('/api/premium/buy', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ plan: period, method:window.__payMethod||'stars' }) });
-      var d = await r.json();
+      var d = await r.json().catch(function(){ return {}; });
+      if (!d) d = {};
       if (d.request) {
         showCryptoPaymentModal(d.request);
         return;
@@ -400,7 +422,7 @@
     if (!list) return;
     try {
       var r = await apiFetch('/api/rss-search/' + userId);
-      var d = await r.json();
+      var d = await safeJson(r) || {};
       var searches = Array.isArray(d.searches) ? d.searches : [];
       if (!searches.length) {
         list.innerHTML = 'Hozircha qidiruvlar yo\'q';
@@ -414,11 +436,17 @@
           '<p class="text-sm font-semibold truncate">' + esc(s.topic || 'RSS search') + '</p>' +
           '<p class="text-[10px] text-muted font-mono mt-1">' + esc(mode) + ' · ' + esc(active) + '</p>' +
           '</div>' +
-          '<button type="button" class="text-error hover:opacity-80" onclick="deleteRssSearch(\'' + esc(s.id) + '\')">' +
+          '<button type="button" class="text-error hover:opacity-80" data-del-rss-search="' + esc(s.id) + '">' +
           '<span class="material-symbols-outlined" style="font-size:16px">delete</span>' +
           '</button>' +
           '</div>';
       }).join('');
+      list.querySelectorAll('[data-del-rss-search]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-del-rss-search');
+          if (id) window.deleteRssSearch(id);
+        });
+      });
     } catch (e) {
       list.textContent = 'Qidiruvlar yuklanmadi';
     }
@@ -429,7 +457,7 @@
     if (!confirm('Qidiruv o\'chirilsinmi?')) return;
     try {
       var r = await apiFetch('/api/rss-search/' + userId + '/' + encodeURIComponent(searchId), { method: 'DELETE' });
-      var d = await r.json();
+      var d = await r.json().catch(function(){ return {}; });
       if (d && d.success) {
         showToast('Qidiruv o\'chirildi', 'success');
         window.loadSearchList();
@@ -465,7 +493,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: topic, keywords: keywords, maxResults: maxResults, mode: mode })
       });
-      var d = await r.json();
+      var d = await r.json().catch(function(){ return {}; });
       if (!r.ok || d.error) throw new Error(d.error || 'Qidiruv bajarilmadi');
 
       if (mode === 'instant') {
@@ -501,29 +529,59 @@
     var overlay = document.createElement('div');
     overlay.id = 'crypto-payment-modal';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-    overlay.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;">' +
-      '<h3 style="margin-bottom:12px;">' + req.currency + ' to\'lov</h3>' +
-      '<p style="color:var(--secondary);margin-bottom:6px;">Yuboriladigan summa</p>' +
-      '<div style="font-size:1.7rem;font-weight:700;color:var(--accent);margin-bottom:14px;">' + req.cryptoAmount + ' ' + req.currency + '</div>' +
-      '<p style="color:var(--secondary);margin-bottom:6px;">Hamyon manzili</p>' +
-      '<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;font-size:0.75rem;word-break:break-all;margin-bottom:10px;font-family:monospace;">' + req.walletAddress + '</div>' +
-      '<button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:0.75rem;margin-bottom:14px;" onclick="navigator.clipboard.writeText(\'' + req.walletAddress + '\').then(function(){showToast(\'Manzil nusxalandi!\',\'success\')})">📋 Nusxalash</button>' +
-      '<p style="color:var(--secondary);margin-bottom:6px;">Memo</p>' +
-      '<div style="background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;font-size:1rem;font-weight:600;margin-bottom:14px;font-family:monospace;">' + req.memo + '</div>' +
-      '<p style="font-size:0.8rem;color:var(--secondary);margin-bottom:16px;">Aynan shu memoni transfer commentiga yozing.</p>' +
-      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">' +
-      '<button class="btn btn-primary" id="crypto-verify-btn" onclick="window.__verifyCryptoPayment(\'' + req.id + '\')">To\'lov qildim</button>' +
-      '<button class="btn btn-ghost" onclick="window.__closeCryptoModal()">Yopish</button>' +
-      '</div>' +
-      '<div id="crypto-status" style="margin-top:12px;font-size:0.85rem;color:var(--secondary);"></div>' +
-      '</div>';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;';
+    var mk = function (tag, css, text) {
+      var el = document.createElement(tag);
+      if (css) el.style.cssText = css;
+      if (text != null) el.textContent = String(text);
+      return el;
+    };
+    var reqId = String(req.id == null ? '' : req.id);
+    var wallet = String(req.walletAddress == null ? '' : req.walletAddress);
+    var memo = String(req.memo == null ? '' : req.memo);
+    var currency = String(req.currency == null ? '' : req.currency);
+    var amount = String(req.cryptoAmount == null ? '' : req.cryptoAmount);
+    box.appendChild(mk('h3', 'margin-bottom:12px;', currency + " to'lov"));
+    box.appendChild(mk('p', 'color:var(--secondary);margin-bottom:6px;', 'Yuboriladigan summa'));
+    box.appendChild(mk('div', 'font-size:1.7rem;font-weight:700;color:var(--accent);margin-bottom:14px;', amount + ' ' + currency));
+    box.appendChild(mk('p', 'color:var(--secondary);margin-bottom:6px;', 'Hamyon manzili'));
+    var walletBox = mk('div', 'background:rgba(255,255,255,0.05);border-radius:10px;padding:12px;font-size:0.75rem;word-break:break-all;margin-bottom:10px;font-family:monospace;', wallet);
+    box.appendChild(walletBox);
+    var copyBtn = mk('button', 'width:auto;padding:6px 12px;font-size:0.75rem;margin-bottom:14px;', '📋 Nusxalash');
+    copyBtn.className = 'btn btn-ghost';
+    copyBtn.addEventListener('click', function () {
+      navigator.clipboard.writeText(wallet).then(function () { showToast("Manzil nusxalandi!", 'success'); }).catch(function () { showToast('Nusxalash amalga oshmadi', 'error'); });
+    });
+    box.appendChild(copyBtn);
+    box.appendChild(mk('p', 'color:var(--secondary);margin-bottom:6px;', 'Memo'));
+    box.appendChild(mk('div', 'background:rgba(255,255,255,0.05);border-radius:10px;padding:10px;font-size:1rem;font-weight:600;margin-bottom:14px;font-family:monospace;', memo));
+    box.appendChild(mk('p', 'font-size:0.8rem;color:var(--secondary);margin-bottom:16px;', 'Aynan shu memoni transfer commentiga yozing.'));
+    var row = mk('div', 'display:flex;gap:10px;justify-content:center;flex-wrap:wrap;');
+    var verifyBtn = mk('button', '', "To'lov qildim");
+    verifyBtn.className = 'btn btn-primary';
+    verifyBtn.id = 'crypto-verify-btn';
+    verifyBtn.addEventListener('click', function () { window.__verifyCryptoPayment(reqId); });
+    var closeBtn = mk('button', '', 'Yopish');
+    closeBtn.className = 'btn btn-ghost';
+    closeBtn.addEventListener('click', function () { window.__closeCryptoModal(); });
+    row.appendChild(verifyBtn);
+    row.appendChild(closeBtn);
+    box.appendChild(row);
+    var status = mk('div', 'margin-top:12px;font-size:0.85rem;color:var(--secondary);');
+    status.id = 'crypto-status';
+    box.appendChild(status);
+    overlay.appendChild(box);
     document.body.appendChild(overlay);
     cryptoPollInterval = setInterval(function () {
-      fetch('/api/crypto-payment/status/' + req.id, {
+      apiFetch('/api/crypto-payment/status/' + encodeURIComponent(reqId), {
         method: 'POST',
         headers: { 'x-bot-token': token, 'x-user-id': userId, 'Content-Type': 'application/json' }
-      }).then(function (r) { return r.json(); }).then(function (d) {
-        if (d.status === 'paid') {
+      }).then(function (r) {
+        if (!r.ok) return null;
+        return r.json();
+      }).then(function (d) {
+        if (d && d.status === 'paid') {
           showToast('Premium faollashtirildi!', 'success');
           closeCryptoModal();
           location.reload();
@@ -539,11 +597,11 @@
     if (btn) btn.disabled = true;
     if (statusEl) statusEl.textContent = 'Tekshirilmoqda...';
     try {
-      var r = await fetch('/api/crypto-payment/status/' + id, {
+      var r = await apiFetch('/api/crypto-payment/status/' + encodeURIComponent(id), {
         method: 'POST',
-        headers: { 'x-bot-token': token, 'x-user-id': userId, 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' }
       });
-      var d = await r.json();
+      var d = await r.json().catch(function(){ return {}; });
       if (d.status === 'paid') {
         showToast('Premium faollashtirildi!', 'success');
         closeCryptoModal();
@@ -561,7 +619,7 @@
   window.loadAdminUsers = async function () {
     try {
       var r = await apiFetch('/api/admin/users');
-      var data = await r.json();
+      var data = await safeJson(r);
       if (!Array.isArray(data)) return;
       var tbody = $('#admin-users-tbody');
       if (!tbody) {
@@ -590,23 +648,39 @@
         var isPremium = u.is_premium;
         var isActive = u.is_active !== false && !u.is_blocked;
         var dotClass = isActive ? 'bg-success shadow-[0_0_8px_rgba(46,213,115,0.5)]' : (u.is_blocked || !u.is_active ? 'bg-error shadow-[0_0_8px_rgba(255,71,87,0.5)]' : 'bg-muted');
+        var tid = Number(u.telegram_id) || 0;
+        if (tid <= 0) return '';
         var actions = [];
-        if (!u.is_approved) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-success" onclick="adminUserAction('+u.telegram_id+',\'approve\')">✓ Approve</button>');
-        if (u.is_active !== false && !u.is_blocked) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-error" onclick="adminUserAction('+u.telegram_id+',\'block\')">⊘ Block</button>');
-        else actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-success" onclick="adminUserAction('+u.telegram_id+',\'unblock\')">↻ Unblock</button>');
-        if (isPremium) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-error" onclick="adminUserAction('+u.telegram_id+',\'revoke\')">✕ Revoke Premium</button>');
-        else actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-primary" onclick="adminUserAction('+u.telegram_id+',\'premium\')">★ Grant Premium</button>');
+        if (!u.is_approved) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-success" data-admin-action="approve" data-tid="'+tid+'">✓ Approve</button>');
+        if (u.is_active !== false && !u.is_blocked) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-error" data-admin-action="block" data-tid="'+tid+'">⊘ Block</button>');
+        else actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-success" data-admin-action="unblock" data-tid="'+tid+'">↻ Unblock</button>');
+        if (isPremium) actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-error" data-admin-action="revoke" data-tid="'+tid+'">✕ Revoke Premium</button>');
+        else actions.push('<button class="block w-full text-left px-3 py-2 text-xs hover:bg-elevated text-primary" data-admin-action="premium" data-tid="'+tid+'">★ Grant Premium</button>');
         return '<tr class="admin-row hover:bg-elevated/50 transition-all">' +
-          '<td class="px-5 py-4 text-xs font-mono text-muted">'+u.telegram_id+'</td>' +
+          '<td class="px-5 py-4 text-xs font-mono text-muted">'+tid+'</td>' +
           '<td class="px-5 py-4"><div class="flex items-center gap-2.5"><div class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold '+initialBg+'">'+initial+'</div><span class="text-sm font-medium">@'+esc(u.username || u.first_name || 'user')+'</span></div></td>' +
           '<td class="px-5 py-4"><span class="badge" style="'+roleStyle+'">'+roleLabel+'</span></td>' +
           '<td class="px-5 py-4">'+(isPremium ? '<span class="material-symbols-outlined text-secondary" style="font-size:18px;font-variation-settings:\'FILL\' 1">verified</span>' : '<span class="material-symbols-outlined text-muted" style="font-size:18px">remove_circle</span>')+'</td>' +
           '<td class="px-5 py-4 text-sm font-mono">'+(u.source_count != null ? u.source_count : 0)+'</td>' +
           '<td class="px-5 py-4 text-sm text-muted">'+esc((u.joined || u.created_at || '').toString().substring(0,10))+'</td>' +
           '<td class="px-5 py-4"><div class="w-2 h-2 rounded-full '+dotClass+'"></div></td>' +
-          '<td class="px-5 py-4"><div class="relative"><button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" onclick="adminUserActionMenu(this,'+u.telegram_id+')"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button><div class="admin-action-menu hidden absolute right-0 mt-1 w-40 bg-card border border-outline-variant rounded-lg shadow-lg z-50 py-1">'+actions.join('')+'</div></div></td>' +
+          '<td class="px-5 py-4"><div class="relative"><button class="p-1.5 rounded-lg hover:bg-elevated transition-all text-muted" data-admin-menu="'+tid+'"><span class="material-symbols-outlined" style="font-size:18px">more_horiz</span></button><div class="admin-action-menu hidden absolute right-0 mt-1 w-40 bg-card border border-outline-variant rounded-lg shadow-lg z-50 py-1">'+actions.join('')+'</div></div></td>' +
         '</tr>';
       }).join('');
+      tbody.querySelectorAll('[data-admin-action]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopPropagation();
+          var t = Number(btn.getAttribute('data-tid'));
+          var a = btn.getAttribute('data-admin-action');
+          if (t && a) adminUserAction(t, a);
+        });
+      });
+      tbody.querySelectorAll('[data-admin-menu]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopPropagation();
+          adminUserActionMenu(btn, Number(btn.getAttribute('data-admin-menu')));
+        });
+      });
       var paginationEl = document.getElementById('admin-users-pagination');
       if (paginationEl) paginationEl.textContent = 'Jami: ' + data.length + ' ta foydalanuvchi';
     } catch(e) { console.error('loadAdminUsers:', e); }
@@ -625,6 +699,8 @@
           var username = esc(u.username || 'user_' + u.telegram_id);
           var initial = name.charAt(0).toUpperCase();
           var lang = esc(u.language || 'en');
+          var tid = Number(u.telegram_id) || 0;
+          if (tid <= 0) return '';
           return '<div class="bg-surface-container border border-outline-variant rounded-xl p-4 flex flex-col gap-4">'+
             '<div class="flex justify-between items-start">'+
               '<div class="flex gap-3">'+
@@ -634,11 +710,18 @@
               '<span class="text-[10px] text-muted font-mono">'+esc((u.created_at||'').toString().substring(0,10))+'</span>'+
             '</div>'+
             '<div class="flex gap-2">'+
-              '<button class="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-semibold" onclick="adminUserAction('+u.telegram_id+',\'approve\')">Approve</button>'+
-              '<button class="flex-1 bg-elevated text-error py-2 rounded-lg text-sm font-semibold border border-error/30" onclick="adminUserAction('+u.telegram_id+',\'reject\')">Reject</button>'+
+              '<button class="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-semibold" data-pending-action="approve" data-tid="'+tid+'">Approve</button>'+
+              '<button class="flex-1 bg-elevated text-error py-2 rounded-lg text-sm font-semibold border border-error/30" data-pending-action="reject" data-tid="'+tid+'">Reject</button>'+
             '</div>'+
           '</div>';
         }).join('');
+        pendingSection.querySelectorAll('[data-pending-action]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var t = Number(btn.getAttribute('data-tid'));
+            var a = btn.getAttribute('data-pending-action');
+            if (t && a) adminUserAction(t, a);
+          });
+        });
       }
     }
     var allSection = container.querySelector('#view-all');
@@ -711,7 +794,8 @@
   window.loadAdminSettings = async function () {
     try {
       var r = await apiFetch('/api/admin/settings');
-      var d = await r.json();
+      var d = await safeJson(r);
+      if (!d) return;
       if ($('#premium-stars')) $('#premium-stars').value = d.premium_stars_price || '500';
       if ($('#premium-monthly')) $('#premium-monthly').value = d.premium_monthly_price || '25000';
       if ($('#premium-yearly')) $('#premium-yearly').value = d.premium_yearly_price || '250000';
@@ -722,7 +806,8 @@
   window.loadSystemStatus = async function () {
     try {
       var r = await apiFetch('/api/admin/system');
-      var d = await r.json();
+      var d = await safeJson(r);
+      if (!d) return;
       if (d) {
         var hours = Math.floor((d.uptime || 0) / 3600);
         var mins = Math.floor(((d.uptime || 0) % 3600) / 60);
@@ -748,8 +833,7 @@
   window.loadAdminStats = async function () {
     try {
       var r = await apiFetch('/api/admin/stats');
-      if (!r.ok) return;
-      var d = await r.json();
+      var d = await safeJson(r);
       if (!d) return;
       setAllText('.admin-stat-users', (d.total_users || 0).toLocaleString());
       setAllText('.admin-stat-sources', (d.premium_users || 0).toLocaleString());
@@ -769,7 +853,7 @@
     if (!tbody) return;
     try {
       var r = await apiFetch('/api/admin/users?is_approved=false');
-      var list = await r.json();
+      var list = await safeJson(r);
       if (!Array.isArray(list) || !list.length) {
         tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-on-surface-variant font-mono">Kutilayotgan so\'rovlar yo\'q</td></tr>';
         if (countEl) countEl.textContent = '0 ta so\'rov';
@@ -777,20 +861,29 @@
       }
       tbody.innerHTML = list.map(function(u) {
         var lang = (u.language || 'uz').toUpperCase();
-        var flags = { UZ:'🇺🇿', RU:'🇷🇺', EN:'🇺🇸', UZ:'🇺🇿', ZH:'🇨🇳', IT:'🇮🇹', JA:'🇯🇵', TR:'🇹🇷', DE:'🇩🇪' };
+        var flags = { UZ:'🇺🇿', RU:'🇷🇺', EN:'🇺🇸', ZH:'🇨🇳', IT:'🇮🇹', JA:'🇯🇵', TR:'🇹🇷', DE:'🇩🇪' };
         var flag = flags[lang] || '🌐';
+        var tid = Number(u.telegram_id) || 0;
+        if (tid <= 0) return '';
         return '<tr class="hover:bg-surface-container transition-colors">' +
-          '<td class="px-6 py-4 font-label-sm text-primary">#'+u.telegram_id+'</td>' +
+          '<td class="px-6 py-4 font-label-sm text-primary">#'+tid+'</td>' +
           '<td class="px-6 py-4 font-medium">@'+esc(u.username || '—')+'</td>' +
           '<td class="px-6 py-4">'+esc(u.first_name || '—')+'</td>' +
           '<td class="px-6 py-4 text-on-surface-variant text-sm">'+esc((u.joined || u.created_at || '').toString().substring(0,10))+'</td>' +
           '<td class="px-6 py-4"><div class="flex items-center gap-2"><span class="text-lg">'+flag+'</span><span class="text-on-surface-variant text-sm uppercase">'+lang+'</span></div></td>' +
           '<td class="px-6 py-4 text-right"><div class="flex items-center justify-end gap-2">' +
-            '<button onclick="adminUserAction('+u.telegram_id+',\'approve\')" class="w-8 h-8 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary hover:text-white transition-all flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">check</span></button>' +
-            '<button onclick="adminUserAction('+u.telegram_id+',\'reject\')" class="w-8 h-8 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">close</span></button>' +
+            '<button data-approval-action="approve" data-tid="'+tid+'" class="w-8 h-8 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary hover:text-white transition-all flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">check</span></button>' +
+            '<button data-approval-action="reject" data-tid="'+tid+'" class="w-8 h-8 rounded-lg bg-error/10 text-error hover:bg-error hover:text-white transition-all flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">close</span></button>' +
           '</div></td>' +
         '</tr>';
       }).join('');
+      tbody.querySelectorAll('[data-approval-action]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var t = Number(btn.getAttribute('data-tid'));
+          var a = btn.getAttribute('data-approval-action');
+          if (t && a) adminUserAction(t, a);
+        });
+      });
       if (countEl) countEl.textContent = list.length + ' ta so\'rov';
     } catch (e) {
       tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-12 text-center text-error font-mono">Yuklashda xatolik</td></tr>';
@@ -878,7 +971,7 @@
             apiFetch('/api/premium/wallet-claim', {
               method:'POST', headers:{'Content-Type':'application/json'},
               body: JSON.stringify({ walletAddress: wallet.account.address })
-            }).then(function(r){ return r.json(); }).then(function(d){
+            }).then(function(r){ return r.json().catch(function(){ return {}; }); }).then(function(d){
               if (d && d.success) showToast(d.message || 'Premium activated!', 'success');
             }).catch(function(){});
           } else {
@@ -908,8 +1001,19 @@
           mode: modeEl ? modeEl.value : 'realtime'
         })
       });
-      var d = await r.json();
-      if (r.ok && d.success) {
+      if (r.status === 404) {
+        r = await apiFetch('/api/rss-search/' + userId, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: topicEl.value.trim(),
+            keywords: kwEl ? kwEl.value.trim() : '',
+            maxResults: maxEl ? parseInt(maxEl.value) || 10 : 10,
+            mode: 'daily'
+          })
+        });
+      }
+      var d = await r.json().catch(function(){ return {}; });
+      if (r.ok && (d.success || d.id || d.searchId)) {
         showToast('Auto-search yaratildi!', 'success');
         if (window.loadAutoSearches) window.loadAutoSearches();
       } else {
@@ -922,6 +1026,9 @@
     if (!confirm('Auto-search o\'chirilsinmi?')) return;
     try {
       var r = await apiFetch('/api/auto-search/' + userId + '/' + encodeURIComponent(id), { method: 'DELETE' });
+      if (r.status === 404) {
+        r = await apiFetch('/api/rss-search/' + userId + '/' + encodeURIComponent(id), { method: 'DELETE' });
+      }
       if (r.ok) {
         showToast('O\'chirildi', 'success');
         if (window.loadAutoSearches) window.loadAutoSearches();
@@ -1001,7 +1108,7 @@
 
   window.viewAffiliateStats = function () {
     if (typeof apiFetch === 'function') {
-      apiFetch('/api/referral/' + userId).then(function(r) { return r.json(); }).then(function(d) {
+      apiFetch('/api/referral/' + userId).then(function(r) { return r.json().catch(function(){ return null; }); }).then(function(d) {
         var msg = 'Referral kod: ' + (d.code || '—') + '\n';
         msg += 'Taklif qilganlar: ' + ((d.stats && d.stats.invited) || 0) + '\n';
         msg += 'Bonus: ' + ((d.stats && d.stats.bonus) || 0) + ' UZS\n';
@@ -1013,7 +1120,14 @@
 
   window.logout = function () {
     if (!confirm('Tizimdan chiqmoqchimisiz?')) return;
-    try { localStorage.removeItem('dashboard_token'); localStorage.removeItem('user_id'); } catch(e){}
+    try {
+      fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' }).catch(function () {});
+      localStorage.removeItem('bot_token');
+      localStorage.removeItem('bot_user_id');
+      localStorage.removeItem('dashboard_token');
+      localStorage.removeItem('dashboard_user');
+      localStorage.removeItem('user_id');
+    } catch(e) {}
     window.location.href = '/login.html';
   };
 
@@ -1069,14 +1183,14 @@
     apiFetch('/api/rules/' + userId + '/' + id, { method: 'DELETE' })
       .then(function(r) { if (r.ok) { showToast('O\'chirildi', 'success'); location.reload(); } });
   };
-  };
 
   window.loadAutoSearches = async function () {
     var container = document.getElementById('auto-search-list');
     if (!container) return;
     try {
       var r = await apiFetch('/api/auto-search/' + userId);
-      var list = await r.json();
+      if (r.status === 404) r = await apiFetch('/api/rss-search/' + userId);
+      var list = await r.json().catch(function(){ return []; });
       if (!Array.isArray(list) || !list.length) {
         container.innerHTML = '<p class="text-xs text-muted font-mono p-4">Auto-search mavjud emas. Yuqoridagi forma orqali yarating.</p>';
         return;
@@ -1085,9 +1199,15 @@
         return '<div class="bg-card border border-outline-variant rounded-xl p-4 flex items-center justify-between" data-id="' + esc(item.id) + '">' +
           '<div><p class="text-sm font-semibold">' + esc(item.topic || item.name || 'Untitled') + '</p>' +
           '<p class="text-[10px] text-muted font-mono mt-1">' + esc(item.keywords || '') + '</p></div>' +
-          '<button onclick="deleteAutoSearch(\'' + esc(item.id) + '\')" class="text-error/70 hover:text-error"><span class="material-symbols-outlined" style="font-size:18px">delete</span></button>' +
+          '<button data-del-auto-search="' + esc(item.id) + '" class="text-error/70 hover:text-error"><span class="material-symbols-outlined" style="font-size:18px">delete</span></button>' +
           '</div>';
       }).join('');
+      container.querySelectorAll('[data-del-auto-search]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var id = btn.getAttribute('data-del-auto-search');
+          if (id) window.deleteAutoSearch(id);
+        });
+      });
     } catch (e) {}
   };
 
@@ -1135,7 +1255,7 @@
   window.exportUsersCSV = async function () {
     try {
       var r = await apiFetch('/api/admin/users');
-      var list = await r.json();
+      var list = await r.json().catch(function(){ return []; });
       if (!Array.isArray(list) || !list.length) { showToast('Foydalanuvchi yo\'q', 'info'); return; }
       var headers = ['telegram_id','username','first_name','role','is_active','is_approved','is_premium','target_channel','referral_code'];
       var rows = [headers.join(',')];
@@ -1158,8 +1278,8 @@
   window.loadOverview = async function () {
     try {
       var r = await apiFetch('/api/overview/' + userId);
-      if (!r.ok) return;
-      var d = await r.json();
+      var d = await safeJson(r);
+      if (!d) return;
       var posts = d.total_posts ?? 0;
       var srcs = d.active_sources ?? 0;
       var blocked = d.duplicates_blocked ?? 0;
@@ -1187,9 +1307,16 @@
       });
       setText('.bot-capacity-text', cap ? (cap + '% capacity used') : '—');
       var feed = document.getElementById('activity-feed');
+      var allowedIcons = { 'error': 1, 'auto_awesome': 1, 'fiber_manual_record': 1, 'check_circle': 1, 'article': 1, 'post_add': 1, 'campaign': 1, 'schedule': 1, 'add_circle': 1, 'edit': 1, 'delete': 1, 'image': 1, 'share': 1, 'link': 1, 'bolt': 1, 'cloud': 1, 'mail': 1, 'send': 1, 'settings': 1, 'analytics': 1, 'monitoring': 1, 'workspaces': 1, 'wallet': 1, 'verified': 1, 'notifications': 1, 'person': 1, 'groups': 1, 'chat': 1, 'rss_feed': 1, 'history': 1, 'info': 1, 'warning': 1, 'pending': 1 };
+      var safeIcon = function (raw) {
+        var v = String(raw || '').trim();
+        if (!v) return 'fiber_manual_record';
+        if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(v) || v.length > 40 || !allowedIcons[v]) return 'fiber_manual_record';
+        return v;
+      };
       if (feed && Array.isArray(d.activity) && d.activity.length) {
         feed.innerHTML = d.activity.slice(0, 8).map(function (a) {
-          return '<div class="px-6 py-3 flex items-start gap-3"><span class="material-symbols-outlined text-primary mt-0.5" style="font-size:18px">'+(a.icon||'fiber_manual_record')+'</span><div class="flex-1 min-w-0"><p class="text-sm">'+esc(a.text)+'</p><p class="text-[10px] text-muted font-mono mt-0.5">'+esc(a.time||'')+'</p></div></div>';
+          return '<div class="px-6 py-3 flex items-start gap-3"><span class="material-symbols-outlined text-primary mt-0.5" style="font-size:18px">'+safeIcon(a.icon)+'</span><div class="flex-1 min-w-0"><p class="text-sm">'+esc(a.text)+'</p><p class="text-[10px] text-muted font-mono mt-0.5">'+esc(a.time||'')+'</p></div></div>';
         }).join('');
       } else if (feed) {
         feed.innerHTML = '<div class="px-6 py-6 text-center text-sm text-muted">Hozircha faollik yo\'q</div>';
@@ -1197,11 +1324,11 @@
       var mobileFeed = document.getElementById('activity-feed-mobile');
       if (mobileFeed && Array.isArray(d.activity) && d.activity.length) {
         mobileFeed.innerHTML = d.activity.slice(0, 5).map(function (a) {
-          var icon = a.icon || 'fiber_manual_record';
-          var color = a.icon === 'error' ? 'text-error' : (a.icon === 'auto_awesome' ? 'text-purple' : 'text-primary');
-          var bg = a.icon === 'error' ? 'bg-error/10' : (a.icon === 'auto_awesome' ? 'bg-purple/10' : 'bg-primary/10');
-          var badge = a.icon === 'auto_awesome' ? 'AI' : (a.icon === 'error' ? 'Skip' : 'Done');
-          var badgeClass = a.icon === 'auto_awesome' ? 'bg-purple/10 text-purple' : (a.icon === 'error' ? 'bg-elevated text-muted' : 'bg-success/10 text-success');
+          var icon = safeIcon(a.icon);
+          var color = icon === 'error' ? 'text-error' : (icon === 'auto_awesome' ? 'text-purple' : 'text-primary');
+          var bg = icon === 'error' ? 'bg-error/10' : (icon === 'auto_awesome' ? 'bg-purple/10' : 'bg-primary/10');
+          var badge = icon === 'auto_awesome' ? 'AI' : (icon === 'error' ? 'Skip' : 'Done');
+          var badgeClass = icon === 'auto_awesome' ? 'bg-purple/10 text-purple' : (icon === 'error' ? 'bg-elevated text-muted' : 'bg-success/10 text-success');
           return '<div class="p-4 flex items-center justify-between">'+
             '<div class="flex items-center gap-3">'+
               '<div class="w-8 h-8 rounded-lg '+bg+' flex items-center justify-center">'+
@@ -1222,7 +1349,7 @@
   window.publishNow = async function () {
     try {
       showToast('Yuborilmoqda...', 'success');
-      var r = await apiFetch('/api/posts/publish/' + userId, { method: 'POST' });
+      var r = await apiFetch('/api/posts/publish-now/' + userId, { method: 'POST' });
       if (r.ok) { showToast('Post yuborildi!', 'success'); if (window.loadOverview) setTimeout(loadOverview, 500); }
       else { var e = await r.json().catch(function(){ return {}; }); showToast(e.error || 'Xatolik', 'error'); }
     } catch (e) { showToast('Tarmoq xatosi', 'error'); }
@@ -1241,8 +1368,8 @@
   window.loadSettings = async function () {
     try {
       var r = await apiFetch('/api/settings/' + userId + '/extended');
-      if (!r.ok) return;
-      var s = await r.json();
+      var s = await safeJson(r);
+      if (!s) return;
       setFieldValue('set-lang', s.language || 'uz');
       setFieldValue('set-channel', s.target_channel || '');
       setFieldValue('set-keywords', s.keywords || '');
@@ -1256,8 +1383,8 @@
   window.loadStudio = async function () {
     try {
       var r = await apiFetch('/api/studio/' + userId);
-      if (!r.ok) return;
-      var d = await r.json();
+      var d = await safeJson(r);
+      if (!d) return;
       setText('.studio-posts-today', d.posts_today ?? 0);
       setText('.studio-posts-week', d.posts_week ?? 0);
       setText('.studio-credits-left', d.ai_credits ?? 0);
@@ -1277,13 +1404,20 @@
         try {
           var saved = JSON.parse(localStorage.getItem('studio_drafts') || '[]');
           if (saved.length) {
-            drafts.innerHTML = saved.slice(0, 10).map(function (d) {
-              return '<div class="min-w-[260px] bg-card border border-outline-variant rounded-xl p-4 flex-shrink-0 hover:border-primary/30 transition-all cursor-pointer" onclick="showToast('+ "'Draft: ' + '" + esc(d.text.substring(0, 50)) + "', 'success')" + '">'+
+            drafts.innerHTML = saved.slice(0, 10).map(function (d, i) {
+              return '<div class="min-w-[260px] bg-card border border-outline-variant rounded-xl p-4 flex-shrink-0 hover:border-primary/30 transition-all cursor-pointer" data-draft-idx="'+i+'">'+
                 '<div class="flex justify-between items-start mb-2"><span class="badge badge-cyan">Local</span></div>'+
                 '<p class="text-sm line-clamp-3 mb-3">'+esc(d.text.substring(0, 120))+'</p>'+
                 '<p class="text-[10px] text-muted font-mono">'+esc(new Date(d.created_at).toLocaleString('uz-UZ'))+'</p>'+
               '</div>';
             }).join('');
+            drafts.querySelectorAll('[data-draft-idx]').forEach(function (el) {
+              el.addEventListener('click', function () {
+                var idx = Number(el.getAttribute('data-draft-idx'));
+                var item = saved[idx];
+                if (item) showToast('Draft: ' + (item.text || '').substring(0, 50), 'success');
+              });
+            });
           } else { drafts.innerHTML = ''; }
         } catch (e) { drafts.innerHTML = ''; }
       }
@@ -1295,31 +1429,21 @@
     return loadChannels();
   };
 
-  // ─── Automation (auto-searches) ───────────
-  window.loadAutomation = async function () {
-    if (typeof loadAutoSearches === 'function') await loadAutoSearches();
-    try {
-      var r = await apiFetch('/api/automation/' + userId);
-      if (!r.ok) return;
-      var d = await r.json();
-      setText('.auto-active', d.active_searches ?? 0);
-      setText('.auto-runs-today', d.runs_today ?? 0);
-      setText('.auto-runs-week', d.runs_week ?? 0);
-      setText('.auto-posts-generated', d.posts_generated ?? 0);
-    } catch (e) { console.error('loadAutomation:', e); }
-  };
-
-  // ─── Analytics Page ───────────────────────
+  // ─── Analytics (charts + counters) ─────────
   window.loadAnalytics = async function () {
     try {
       var r = await apiFetch('/api/analytics/' + userId);
-      if (!r.ok) return;
-      var d = await r.json();
+      var d = await safeJson(r);
+      if (!d) return;
+      setText('.analytics-active-users', d.active_users ?? 0);
+      setText('.analytics-engagement', d.engagement_pct ?? '—');
+      setText('.analytics-error-rate', d.error_rate_pct ?? '—');
+      setText('.analytics-avg-response', d.avg_response_ms ? d.avg_response_ms + ' ms' : '—');
+      setText('.analytics-posts-week', (d.posts_week ?? 0).toLocaleString());
+      setText('.analytics-ai-saved', (d.ai_saved ?? 0).toLocaleString());
       setText('.btc-price', d.btc_usd ? ('$' + Number(d.btc_usd).toLocaleString()) : '—');
       setText('.usd-uzs', d.usd_uzs ? Number(d.usd_uzs).toLocaleString() : '—');
-      setText('.analytics-posts-week', d.posts_week ?? 0);
       setText('.analytics-views', d.total_views ? Number(d.total_views).toLocaleString() : '—');
-      setText('.analytics-engagement', d.engagement_pct ? d.engagement_pct + '%' : '—');
       var bar = document.querySelectorAll('.analytics-day-bar');
       if (Array.isArray(d.daily_posts) && bar.length) {
         var max = Math.max.apply(null, d.daily_posts.concat([1]));
@@ -1335,12 +1459,12 @@
   window.loadWallet = async function () {
     try {
       var r = await apiFetch('/api/wallet/' + userId);
-      if (!r.ok) return;
-      var d = await r.json();
-      setText('.wallet-balance', d.balance ? d.balance.toLocaleString() + ' UZS' : '0 UZS');
+      var d = await safeJson(r);
+      if (!d) return;
+      setText('.wallet-balance', d.balance != null ? d.balance.toLocaleString() + ' UZS' : '0 UZS');
       setText('.wallet-plan', d.plan || 'Free');
       setText('.wallet-status', d.is_premium ? 'Premium faol' : 'Bepul tarif');
-      setText('.wallet-expiry', d.premium_expires || '—');
+      setText('.wallet-expiry', d.premium_expires || d.expiresAt || '—');
       setText('.wallet-monthly-price', (d.pricing && d.pricing.monthly) ? (d.pricing.monthly.toLocaleString() + ' UZS') : '—');
       setText('.wallet-yearly-price', (d.pricing && d.pricing.yearly) ? (d.pricing.yearly.toLocaleString() + ' UZS') : '—');
       setText('.wallet-summary-price', d.is_premium ? 'Faol' : '—');
@@ -1374,24 +1498,12 @@
     } catch (e) { showToast('Tarmoq xatosi', 'error'); }
   };
 
-  // ─── Auto-init based on data-page ──────────
-  var page = document.body?.getAttribute('data-page');
-  if (page === 'sources') { loadSources(); }
-  if (page === 'distribution') { loadChannels(); }
-  if (page === 'wallet') { loadWallet(); }
-  if (page === 'admin-users' || page === 'admin-users-approvals') { loadAdminUsers(); }
-  if (page === 'admin-system' || page === 'admin-overview' || page === 'admin-index') { loadSystemStatus(); loadAdminStats(); }
-  if (page === 'admin-approval-queue') { loadApprovalQueue(); }
-  if (page === 'admin-broadcast' || page === 'admin-broadcast-center') { loadBroadcasts(); }
-  if (page === 'admin-system-config' || page === 'admin-pricing') { loadAdminSettings(); }
-  if (page === 'admin-ai-keys') { loadAdminKeys(); }
-
   // ─── Admin AI Keys ────────────────────────
   window.loadAdminKeys = async function () {
     try {
       var r = await apiFetch('/api/admin/ai-keys');
-      if (!r.ok) return;
-      var d = await r.json();
+      var d = await safeJson(r);
+      if (!d) return;
       var set = function (sel, v) { var el = document.querySelector(sel); if (el) el.textContent = v; };
       set('.ai-keys-total', d.total ?? 0);
       set('.ai-keys-active', d.active ?? 0);
@@ -1414,6 +1526,18 @@
       }
     } catch (e) { console.error('loadAdminKeys:', e); }
   };
+
+  // ─── Auto-init based on data-page ──────────
+  var page = document.body?.getAttribute('data-page');
+  if (page === 'sources') { loadSources(); }
+  if (page === 'distribution') { loadChannels(); }
+  if (page === 'wallet') { loadWallet(); }
+  if (page === 'admin-users' || page === 'admin-users-approvals') { loadAdminUsers(); }
+  if (page === 'admin-system' || page === 'admin-overview' || page === 'admin-index') { loadSystemStatus(); loadAdminStats(); }
+  if (page === 'admin-approval-queue') { loadApprovalQueue(); }
+  if (page === 'admin-broadcast' || page === 'admin-broadcast-center') { loadBroadcasts(); }
+  if (page === 'admin-system-config' || page === 'admin-pricing') { loadAdminSettings(); }
+  if (page === 'admin-ai-keys') { loadAdminKeys(); }
   if (page === 'analytics') { loadAnalytics(); }
   if (page === 'automation') { loadAutomation(); }
   if (page === 'overview') { loadOverview(); }

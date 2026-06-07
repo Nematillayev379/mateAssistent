@@ -164,7 +164,7 @@ export function registerDashboardRoutes(app: express.Application) {
         balance: 0,
         plan: user.is_premium ? 'Premium' : 'Free',
         is_premium: !!user.is_premium,
-        premium_expires: user.premium_expires ? new Date(user.premium_expires).toLocaleDateString('uz-UZ') : '—',
+        premium_expires: user.premium_until ? new Date(user.premium_until).toLocaleDateString('uz-UZ') : '—',
         pricing: { monthly, yearly }
       });
     } catch (e: any) {

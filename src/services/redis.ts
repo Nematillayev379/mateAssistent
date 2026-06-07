@@ -8,6 +8,7 @@ export interface RedisRuntimeConnection {
   ping(): Promise<string>;
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<string>;
+  setEx(key: string, seconds: number, value: string): Promise<string>;
   del(...keys: string[]): Promise<number>;
   incr(key: string): Promise<number>;
   pexpire(key: string, ms: number): Promise<number>;
@@ -32,6 +33,15 @@ function getMemoryConnection(): RedisRuntimeConnection {
     },
     async set(key: string, value: string) {
       store.set(key, { value, expiresAt: Infinity });
+      return 'OK';
+    },
+    async setEx(key: string, seconds: number, value: string) {
+      const expiresAt = Date.now() + seconds * 1000;
+      store.set(key, { value, expiresAt });
+      const existing = ttlTimers.get(key);
+      if (existing) clearTimeout(existing);
+      const t = setTimeout(() => { store.delete(key); ttlTimers.delete(key); }, seconds * 1000);
+      ttlTimers.set(key, t);
       return 'OK';
     },
     async del(...keys: string[]) {
@@ -478,7 +488,17 @@ export function getRedisOptions(): IORedis | null {
 /** Get pooled connection as RedisRuntimeConnection (for rate limiter, etc.) */
 export async function getRedisConnection(): Promise<RedisRuntimeConnection | null> {
   const client = getRedisOptions();
-  return client || getMemoryConnection();
+  if (!client) return getMemoryConnection();
+  return {
+    status: client.status,
+    async ping() { return client.ping(); },
+    async get(key) { return client.get(key); },
+    async set(key, value) { return client.set(key, value); },
+    async setEx(key, seconds, value) { return client.set(key, value, 'EX', seconds); },
+    async del(...keys) { return client.del(...keys); },
+    async incr(key) { return client.incr(key); },
+    async pexpire(key, ms) { return client.pexpire(key, ms); },
+  };
 }
 
 export async function getRedisClient(): Promise<RedisRuntimeConnection | null> {

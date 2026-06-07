@@ -1,6 +1,6 @@
-import { DBService } from '../src/services/database';
+process.env.SUPABASE_URL = 'https://test.supabase.co';
+process.env.SUPABASE_KEY = 'test-key';
 
-// Mock Supabase to prevent real DB connections during tests
 jest.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     from: jest.fn().mockReturnThis(),
@@ -12,6 +12,8 @@ jest.mock('@supabase/supabase-js', () => ({
     insert: jest.fn().mockResolvedValue({ error: null }),
   }),
 }));
+
+import { DBService } from '../src/services/database';
 
 describe('DBService', () => {
   it('should generate a referral code', async () => {

@@ -7,6 +7,7 @@ import { bot } from '../../services/bot_instance';
 import { checkAuth, timingSafeCompare, verifyTelegramWebAppData } from '../auth';
 import { generateDashboardToken } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
+import { createSession, setSessionCookie, clearSessionCookie, destroySession } from '../session';
 
 function hashPassword(password: string, salt: string): string {
   return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
@@ -66,6 +67,29 @@ export function registerAuthRoutes(app: express.Application) {
     }
 
     res.json({ success: true, userId: uid, role: user.role || 'user' });
+  });
+
+  app.post('/api/auth/session', authLimiter, async (req, res) => {
+    const { userId, token } = req.body || {};
+    if (!userId || !token) return res.status(400).json({ error: 'Missing userId or token' });
+    const uid = parseInt(userId);
+    if (isNaN(uid)) return res.status(400).json({ error: 'Invalid userId' });
+    const expected = generateDashboardToken(uid);
+    let authed = token === expected;
+    if (!authed && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {
+      if (CONFIG.OWNER_ID == null) return res.status(500).json({ error: 'Owner not configured' });
+      authed = true;
+    }
+    if (!authed) return res.status(401).json({ error: 'Invalid token' });
+    const session = await createSession(uid);
+    setSessionCookie(res, session.sid);
+    res.json({ success: true, userId: uid, expiresAt: session.expiresAt });
+  });
+
+  app.post('/api/auth/logout', async (req, res) => {
+    await destroySession(req);
+    clearSessionCookie(res);
+    res.json({ success: true });
   });
 
   app.post('/api/auth/master', masterLimiter, async (req, res) => {

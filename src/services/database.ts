@@ -137,6 +137,8 @@ const ScheduleService = {
   getByUser: (id: number) => ScheduleRepository.getByUser(id),
   markSent: (id: number) => ScheduleRepository.markSent(id),
   updateStatus: (id: number, s: string) => ScheduleRepository.updateStatus(id, s),
+  getById: (id: number, postId: number) => ScheduleRepository.getById(id, postId),
+  getStats: (id: number) => ScheduleRepository.getStats(id),
 };
 
 const CryptoPaymentService = {
@@ -306,6 +308,8 @@ export const DBService = {
   getUserScheduledPosts: (id: number) => ScheduleService.getByUser(id),
   markScheduledPostSent: (id: number) => ScheduleService.markSent(id),
   updateScheduledPostStatus: (id: number, s: string) => ScheduleService.updateStatus(id, s),
+  getScheduledPost: (id: number, postId: number) => ScheduleService.getById(id, postId),
+  getScheduledPostStats: (id: number) => ScheduleService.getStats(id),
   createCryptoPayment: (payment: CryptoPaymentRecord) => CryptoPaymentService.create(payment),
   getCryptoPayment: (id: string) => CryptoPaymentService.getById(id),
   updateCryptoPaymentStatus: (id: string, status: CryptoPaymentRecord['status']) => CryptoPaymentService.updateStatus(id, status),
