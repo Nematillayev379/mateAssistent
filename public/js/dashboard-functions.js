@@ -251,9 +251,9 @@
     var cid = $('#new-channel')?.value?.trim();
     if (!cid) { showToast('Channel ID kiriting','error'); return; }
     try {
-      var r = await apiFetch('/api/channels/'+userId, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ channel_id:cid }) });
+      var r = await apiFetch('/api/channels/'+userId, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ platform:'telegram', channelId:cid, name:cid }) });
       if (r.ok) { $('#new-channel').value=''; loadChannels(); showToast('Kanal qo\'shildi','success'); }
-      else showToast('Xatolik','error');
+      else { var err = await r.json().catch(function(){return{};}); showToast(err.error || 'Xatolik','error'); }
     } catch(e) { showToast('Xatolik','error'); }
   };
 
@@ -786,7 +786,7 @@
     var yearly = $('#premium-yearly')?.value;
     var requireApproval = $('#require-approval')?.checked;
     try {
-      var r = await apiFetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ premium_stars_price:stars, premium_monthly_price:monthly, premium_yearly_price:yearly, require_approval:requireApproval }) });
+      var r = await apiFetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ premium_stars_price:stars, price_monthly:monthly, price_yearly:yearly, require_approval:requireApproval }) });
       if (r.ok) showToast('Saved','success'); else showToast('Error','error');
     } catch(e) { showToast('Error','error'); }
   };
@@ -797,8 +797,8 @@
       var d = await safeJson(r);
       if (!d) return;
       if ($('#premium-stars')) $('#premium-stars').value = d.premium_stars_price || '500';
-      if ($('#premium-monthly')) $('#premium-monthly').value = d.premium_monthly_price || '25000';
-      if ($('#premium-yearly')) $('#premium-yearly').value = d.premium_yearly_price || '250000';
+      if ($('#premium-monthly')) $('#premium-monthly').value = d.price_monthly || '25000';
+      if ($('#premium-yearly')) $('#premium-yearly').value = d.price_yearly || '250000';
       if ($('#require-approval')) $('#require-approval').checked = d.require_approval !== false;
     } catch(e) {}
   };

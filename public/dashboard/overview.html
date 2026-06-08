@@ -490,12 +490,12 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
     loadActivityFeed(d.scheduled);
   }).catch(function(e) { console.error('Dashboard data:', e); });
 
-  apiFetch('/api/admin/system').then(function(r) { return r.json(); }).then(function(sys) {
+  apiFetch('/health').then(function(r) { return r.json(); }).then(function(sys) {
     if (sys) {
       var memEl = $('.bot-memory');
-      if (memEl) memEl.textContent = (sys.memory_usage || '—') + ' / — MB';
+      if (memEl) memEl.textContent = 'OK';
       var uptimeEl = $('.bot-instance');
-      if (uptimeEl && sys.uptime) uptimeEl.textContent = sys.uptime;
+      if (uptimeEl && sys.uptime) uptimeEl.textContent = Math.round(sys.uptime) + 's';
     }
   }).catch(function(){});
 
