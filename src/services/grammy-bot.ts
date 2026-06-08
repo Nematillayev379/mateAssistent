@@ -1,9 +1,9 @@
-import { Bot } from 'grammy';
 import { CONFIG } from '../config/config';
 import { logger } from '../utils/logger';
 import { botCompat } from './grammy-wrapper';
+import { getGrammyBot } from './grammy-instance';
 
-export const grammyBot = new Bot(CONFIG.TELEGRAM_TOKEN);
+export const grammyBot = getGrammyBot();
 
 grammyBot.command('start', async (ctx) => {
   const { startCommand } = await import('../commands/start');
