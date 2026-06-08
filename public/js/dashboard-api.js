@@ -64,16 +64,18 @@
     setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 3000);
   };
 
-  // Auto-login: if we have userId but no token, generate one
+  // Auto-login: if we have userId but no token, generate one via server
   if (userId && !token) {
-    var secret = '2d5b291fb6d65429eac3562da57884dab8677f3522780d87a9cb4fe54f473546';
-    var encoder = new TextEncoder();
-    var data = encoder.encode(userId + ':' + secret);
-    crypto.subtle.digest('SHA-256', data).then(function(hashBuffer) {
-      var hashArray = Array.from(new Uint8Array(hashBuffer));
-      token = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('').slice(0, 32);
-      window.__token = token;
-      setLocal('bot_token', token);
-    });
+    fetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: userId, token: '' })
+    }).then(function(resp) { return resp.json(); }).then(function(data) {
+      if (data && data.success && data.token) {
+        token = data.token;
+        window.__token = token;
+        setLocal('bot_token', token);
+      }
+    }).catch(function() {});
   }
 })();

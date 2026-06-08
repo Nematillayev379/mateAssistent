@@ -6,11 +6,13 @@ import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
 import { logger } from '../../utils/logger';
 import { MusicService } from '../../services/music';
-import { checkAuth } from '../auth';
+import { checkAuth, checkAdmin } from '../auth';
 import { i18n } from '../../services/i18n';
 import { promisify } from 'util';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { serveFileDownload } from '../utils';
+
+const execFileAsync = promisify(execFile);
 
 function getLang(user: Record<string, unknown> | null): string {
   return typeof user?.language === 'string' && user.language.trim() ? user.language.trim() : 'uz';
@@ -20,8 +22,8 @@ export function registerMediaRoutes(app: express.Application) {
   const mediaAiLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: async (req: Request) => {
-      const userId = req.headers['x-user-id'] || req.query.userId || req.body?.userId;
-      if (userId) return (await DBService.isPremiumActive(parseInt(userId as string))) ? 30 : 10;
+      const userId = req.authenticatedUserId as string;
+      if (userId) return (await DBService.isPremiumActive(parseInt(userId))) ? 30 : 10;
       return 10;
     },
     message: { error: i18n.t('ai_request_limit_exceeded', { lng: 'en' }) }
@@ -29,7 +31,7 @@ export function registerMediaRoutes(app: express.Application) {
 
   app.get('/api/music/search', checkAuth, async (req: Request, res: Response) => {
     try { res.json(await MusicService.getYouTubeVideoIds(req.query.q as string, 8)); }
-    catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
   app.get('/api/music/download/:id', checkAuth, async (req: Request, res: Response) => {
@@ -127,18 +129,27 @@ export function registerMediaRoutes(app: express.Application) {
     }
   });
 
-  app.get('/api/debug/ytdlp', checkAuth, async (req: Request, res: Response) => {
+  app.get('/api/debug/ytdlp', checkAdmin, async (req: Request, res: Response) => {
     try {
       const { resolveYtDlpPath } = await import('../../utils/ytdlp');
       const ytdlpPath = await resolveYtDlpPath();
+      let version = 'not found';
+      if (ytdlpPath) {
+        try {
+          const result = await execFileAsync(ytdlpPath, ['--version'], { timeout: 5000 });
+          version = result.stdout.trim();
+        } catch {
+          version = 'error';
+        }
+      }
       res.json({
         ytdlpPath,
         fsExists: ytdlpPath ? fs.existsSync(ytdlpPath) : false,
         size: ytdlpPath && fs.existsSync(ytdlpPath) ? fs.statSync(ytdlpPath).size : 0,
-        version: ytdlpPath ? (await promisify(exec)((ytdlpPath.includes(' ') || ytdlpPath.includes('\\') ? `"${ytdlpPath}"` : ytdlpPath) + ' --version', { timeout: 5000 }).then(r => r.stdout.trim()).catch(() => 'error')) : 'not found',
+        version,
         cwd: process.cwd(),
       });
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
   app.post('/api/ai/voice-news', checkAuth, mediaAiLimiter, async (req: Request, res: Response) => {
@@ -166,6 +177,6 @@ export function registerMediaRoutes(app: express.Application) {
       }
       if (sentCount === 0) return res.status(502).json({ error: i18n.t('voice_send_failed', { lng: lang }) });
       res.json({ success: true, sent: sentCount, script: script.slice(0, 800) });
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 }

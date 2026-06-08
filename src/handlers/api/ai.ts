@@ -11,8 +11,8 @@ export function registerAiRoutes(app: express.Application) {
   const aiLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: async (req: Request) => {
-      const userId = req.headers['x-user-id'] || req.query.userId || req.body?.userId;
-      if (userId) return (await DBService.isPremiumActive(parseInt(userId as string))) ? 30 : 10;
+      const userId = req.authenticatedUserId as string;
+      if (userId) return (await DBService.isPremiumActive(parseInt(userId))) ? 30 : 10;
       return 10;
     },
     message: { error: 'AI request limit exceeded.' }

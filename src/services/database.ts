@@ -191,6 +191,7 @@ const WorkspaceService = {
 };
 
 const RuleService = {
+  getById: (id: number) => RuleRepository.getById(id),
   getByUser: (id: number) => RuleRepository.getByUser(id),
   add: (id: number, tr: string, co: string, ac: string, av: string) => RuleRepository.add(id, tr, co, ac, av),
   toggle: (id: number, a: boolean) => RuleRepository.toggle(id, a),
@@ -353,6 +354,7 @@ export const DBService = {
   updateWorkspaceMemberRole: (w: number, u: number, r: string) => WorkspaceService.updateMemberRole(w, u, r),
 
   // ── Rules (legacy flat methods) ──
+  getRuleById: (id: number) => RuleService.getById(id),
   getUserRules: (id: number) => RuleService.getByUser(id),
   addRule: (id: number, tr: string, co: string, ac: string, av: string) => RuleService.add(id, tr, co, ac, av),
   toggleRule: (id: number, a: boolean) => RuleService.toggle(id, a),

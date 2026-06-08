@@ -47,6 +47,12 @@ export function registerPublicApiRoutes(app: express.Application) {
     try {
       const { channel, text, parse_mode } = req.body;
       if (!channel || !text) return res.status(400).json({ error: 'channel and text required' });
+      const user = await DBService.getUser(req.apiUserId as number);
+      if (!user) return res.status(404).json({ error: 'User not found' });
+      const allowedChannels = DBService.getUserOutputChannels(user);
+      if (!allowedChannels.includes(channel)) {
+        return res.status(403).json({ error: 'Not authorized to send to this channel' });
+      }
       const { bot } = await import('../../services/bot_instance');
       const sent = await bot.sendMessage(channel, text, { parse_mode: parse_mode || 'HTML' });
       await DBService.incrementStat(req.apiUserId as number, 'total_posts');

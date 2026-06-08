@@ -57,7 +57,7 @@ export function registerPremiumRoutes(app: express.Application) {
     try {
       if (!SecretManager.get('PAYME_KEY')) { res.status(200).json({ error: { code: -32504, message: 'Payment not configured' } }); return; }
       res.json(await PaymentService.handlePaymeWebhook(req.body, req.headers));
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Payme webhook failed: ${msg}`); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Payme webhook failed: ${msg}`); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
   app.post('/api/payments/click', async (req: Request, res: Response) => {

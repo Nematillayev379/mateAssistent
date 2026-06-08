@@ -25,6 +25,12 @@ export const RuleRepository = {
     return true;
   },
 
+  async getById(ruleId: number): Promise<AutomationRuleRecord | null> {
+    const { data, error } = await getSupabase().from('automation_rules').select('*').eq('id', ruleId).single();
+    if (error) { logger.error(`getRuleById error: ${error.message}`); return null; }
+    return data as AutomationRuleRecord | null;
+  },
+
   async toggle(ruleId: number, isActive: boolean): Promise<boolean> {
     const { error } = await getSupabase().from('automation_rules').update({ is_active: isActive }).eq('id', ruleId);
     if (error) { logger.error(`toggleRule error: ${error.message}`); return false; }

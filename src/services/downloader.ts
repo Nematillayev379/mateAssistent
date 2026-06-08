@@ -17,6 +17,14 @@ const execPromise = promisify(exec);
 const TEMP_DIR = path.join(os.tmpdir(), 'newsbot_media');
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
 
+const ALLOWED_VIDEO_DOMAINS = ['youtube.com', 'youtu.be', 'instagram.com', 'tiktok.com', 'twitter.com', 'x.com', 'facebook.com', 't.me'];
+function isAllowedVideoUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.replace('www.', '');
+    return ALLOWED_VIDEO_DOMAINS.some(d => hostname.endsWith(d));
+  } catch { return false; }
+}
+
 export const DownloaderService = {
   /** YouTube: Download video to temp file using yt-dlp */
   async getYouTubeVideo(url: string): Promise<string | null> {
@@ -87,6 +95,10 @@ export const DownloaderService = {
 
   /** Cobalt API fallback for any social media */
   async getCobaltMedia(url: string, opts?: { audioOnly?: boolean }): Promise<string | null> {
+    if (!isAllowedVideoUrl(url)) {
+      logger.warn(`Blocked SSRF attempt: ${sanitizeLogInput(url)}`);
+      return null;
+    }
     const audioOnly = !!opts?.audioOnly;
     const instances = [
       'https://cobaltapi.kittycat.boo',

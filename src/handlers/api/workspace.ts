@@ -5,6 +5,13 @@ import { WorkspaceService } from '../../services/workspace';
 import { checkAuth, checkAdmin } from '../auth';
 import { logger } from '../../utils/logger';
 
+async function verifyWorkspaceOwnership(uid: number, wsId: number, res: Response): Promise<boolean> {
+  const workspaces = await DBService.getUserWorkspaces(uid) as Array<Record<string, unknown>>;
+  const ws = workspaces.find((w: Record<string, unknown>) => w.id === wsId);
+  if (!ws) { res.status(403).json({ error: 'Not authorized to access this workspace' }); return false; }
+  return true;
+}
+
 export function registerWorkspaceRoutes(app: express.Application) {
   const wsLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, message: { error: 'Workspace rate limit exceeded.' } });
   app.use('/api/workspaces', wsLimiter);
@@ -55,6 +62,7 @@ export function registerWorkspaceRoutes(app: express.Application) {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
       const wsId = parseInt(req.params.id as string);
+      if (!(await verifyWorkspaceOwnership(uid, wsId, res))) return;
       const { channelId, name } = req.body;
       if (!channelId) return res.status(400).json({ error: 'channelId required' });
       const result = await WorkspaceService.addChannelToWorkspace(wsId, channelId, name || channelId);
@@ -65,7 +73,9 @@ export function registerWorkspaceRoutes(app: express.Application) {
 
   app.delete('/api/workspaces/:id/channels/:channelId', checkAuth, async (req: Request, res: Response) => {
     try {
+      const uid = parseInt(req.authenticatedUserId as string);
       const wsId = parseInt(req.params.id as string);
+      if (!(await verifyWorkspaceOwnership(uid, wsId, res))) return;
       await DBService.removeWorkspaceChannel(req.params.channelId as string, wsId);
       res.json({ success: true });
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`DELETE /api/workspaces/:id/channels/:channelId failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
@@ -74,14 +84,18 @@ export function registerWorkspaceRoutes(app: express.Application) {
   // ── Team Members ──
   app.get('/api/workspaces/:id/members', checkAuth, async (req: Request, res: Response) => {
     try {
+      const uid = parseInt(req.authenticatedUserId as string);
       const wsId = parseInt(req.params.id as string);
+      if (!(await verifyWorkspaceOwnership(uid, wsId, res))) return;
       res.json(await DBService.getWorkspaceMembers(wsId));
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/workspaces/:id/members failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
   app.post('/api/workspaces/:id/members', checkAuth, async (req: Request, res: Response) => {
     try {
+      const uid = parseInt(req.authenticatedUserId as string);
       const wsId = parseInt(req.params.id as string);
+      if (!(await verifyWorkspaceOwnership(uid, wsId, res))) return;
       const { userId, role } = req.body;
       if (!userId) return res.status(400).json({ error: 'userId required' });
       const ok = await DBService.addWorkspaceMember(wsId, parseInt(userId), role || 'editor');
@@ -93,7 +107,9 @@ export function registerWorkspaceRoutes(app: express.Application) {
 
   app.delete('/api/workspaces/:id/members/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
+      const uid = parseInt(req.authenticatedUserId as string);
       const wsId = parseInt(req.params.id as string);
+      if (!(await verifyWorkspaceOwnership(uid, wsId, res))) return;
       const memberId = parseInt(req.params.userId as string);
       await DBService.removeWorkspaceMember(wsId, memberId);
       res.json({ success: true });
@@ -102,7 +118,9 @@ export function registerWorkspaceRoutes(app: express.Application) {
 
   app.patch('/api/workspaces/:id/members/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
+      const uid = parseInt(req.authenticatedUserId as string);
       const wsId = parseInt(req.params.id as string);
+      if (!(await verifyWorkspaceOwnership(uid, wsId, res))) return;
       const memberId = parseInt(req.params.userId as string);
       const { role } = req.body;
       if (!role) return res.status(400).json({ error: 'role required' });

@@ -53,7 +53,12 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
 
     const userId = await extractUserId(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    if (token !== generateDashboardToken(userId)) return res.status(401).json({ error: 'Invalid token for this user' });
+    const expectedToken = generateDashboardToken(userId);
+    const tokenBuf = Buffer.from(token as string, 'utf8');
+    const expectedBuf = Buffer.from(expectedToken, 'utf8');
+    if (tokenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(tokenBuf, expectedBuf)) {
+      return res.status(401).json({ error: 'Invalid token for this user' });
+    }
 
     req.authenticatedUserId = userId;
     if (isOwnerId(parseInt(userId))) {
@@ -94,7 +99,12 @@ export const checkAdmin = async (req: Request, res: Response, next: NextFunction
     }
 
     if (!adminId || !token) return res.status(401).json({ error: 'Unauthorized' });
-    if (token !== generateDashboardToken(adminId)) return res.status(401).json({ error: 'Invalid admin token' });
+    const expectedAdminToken = generateDashboardToken(adminId);
+    const adminTokenBuf = Buffer.from(token as string, 'utf8');
+    const adminExpectedBuf = Buffer.from(expectedAdminToken, 'utf8');
+    if (adminTokenBuf.length !== adminExpectedBuf.length || !crypto.timingSafeEqual(adminTokenBuf, adminExpectedBuf)) {
+      return res.status(401).json({ error: 'Invalid admin token' });
+    }
 
     const adminUid = parseInt(adminId);
     const user = await DBService.getUser(adminUid);
@@ -130,7 +140,9 @@ export const verifyTelegramWebAppData = (telegramInitData: string): Record<strin
     const secretKey = crypto.createHmac('sha256', 'WebAppData').update((CONFIG.TELEGRAM_TOKEN || '').trim()).digest();
     const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
-    if (calculatedHash === hash) {
+    const hashBuf = Buffer.from(hash, 'hex');
+    const calcBuf = Buffer.from(calculatedHash, 'hex');
+    if (hashBuf.length === calcBuf.length && crypto.timingSafeEqual(hashBuf, calcBuf)) {
       const userStr = initData.get('user');
       return userStr ? JSON.parse(userStr) as Record<string, unknown> : null;
     }

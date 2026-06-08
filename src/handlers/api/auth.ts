@@ -60,15 +60,16 @@ export function registerAuthRoutes(app: express.Application) {
   app.post('/api/auth/verify', authLimiter, async (req: Request, res: Response) => {
     try {
       const { userId, token } = req.body;
-      if (!userId) return res.status(400).json({ error: 'Missing userId' });
+      if (!userId || !token) return res.status(400).json({ error: 'Missing userId or token' });
 
       const uid = parseInt(userId);
       if (isNaN(uid)) return res.status(400).json({ error: 'Invalid userId' });
 
       const generatedToken = generateDashboardToken(uid);
-
-      if (token) {
-        if (token !== generatedToken) return res.status(401).json({ error: 'Invalid token' });
+      const tokenBuf = Buffer.from(token, 'utf8');
+      const expectedBuf = Buffer.from(generatedToken, 'utf8');
+      if (tokenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(tokenBuf, expectedBuf)) {
+        return res.status(401).json({ error: 'Invalid token' });
       }
 
       let user = await DBService.getUser(uid);

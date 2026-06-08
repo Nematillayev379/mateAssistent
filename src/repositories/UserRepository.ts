@@ -55,7 +55,12 @@ export const UserRepository = {
   },
 
   async update(telegramId: number, updates: Record<string, unknown>): Promise<boolean> {
-    const safe = { ...updates };
+    const USER_UPDATABLE_FIELDS = ['language', 'target_channel', 'keywords', 'daily_digest', 'digest_time', 'schedule_times', 'interval_minutes', 'extra_channels'];
+    const safe: Record<string, unknown> = {};
+    for (const key of USER_UPDATABLE_FIELDS) {
+      if (key in updates) safe[key] = updates[key];
+    }
+    if (Object.keys(safe).length === 0) return false;
     if (typeof safe.target_channel === 'string') {
       let ch = String(safe.target_channel || '').trim();
       if (ch.includes('t.me/')) { const parts = ch.split('t.me/'); const h = parts[parts.length - 1].split('/')[0].trim(); if (h) ch = `@${h}`; }

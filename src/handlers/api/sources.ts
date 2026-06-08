@@ -6,7 +6,7 @@ import { checkAuth } from '../auth';
 export function registerSourcesRoutes(app: express.Application) {
   app.get('/api/sources/:userId', checkAuth, async (req: Request, res: Response) => {
     try { res.json(await DBService.getUserSources(parseInt(req.authenticatedUserId as string))); }
-    catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
   app.post('/api/sources/:userId', checkAuth, async (req: Request, res: Response) => {
@@ -20,7 +20,7 @@ export function registerSourcesRoutes(app: express.Application) {
       if (!(await DBService.checkUserLimit(uid, 'sources'))) return res.status(403).json({ error: 'Limit reached' });
       await DBService.addSource(uid, name, discovered, lang || 'uz');
       res.json({ success: true });
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
   app.delete('/api/sources/:userId/:id', checkAuth, async (req: Request, res: Response) => {
@@ -29,6 +29,6 @@ export function registerSourcesRoutes(app: express.Application) {
       if (!sourceId || sourceId <= 0 || isNaN(sourceId)) return res.status(400).json({ error: 'Invalid ID' });
       await DBService.removeSource(parseInt(req.authenticatedUserId as string), sourceId);
       res.json({ success: true });
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 }

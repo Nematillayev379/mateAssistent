@@ -39,6 +39,10 @@ const httpClient = wrapper(axios.create({
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
 async function fetchWithRetry(url: string, retries = 3): Promise<string> {
+  const parsed = new URL(url);
+  if (['127.0.0.1', 'localhost', '10.', '192.168.', '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.', '0.', '169.254.'].some(b => parsed.hostname.startsWith(b))) {
+    throw new Error('Private/internal URLs are blocked');
+  }
   for (let i = 0; i < retries; i++) {
     try {
       const { data } = await httpClient.get(url, { headers: { "User-Agent": USER_AGENT } });
