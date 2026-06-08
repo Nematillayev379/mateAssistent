@@ -38,6 +38,24 @@ export function registerSystemRoutes(app: express.Application) {
    */
   app.get('/health', (_req: Request, res: Response) => res.json({ status: 'ok', bot: 'active', uptime: process.uptime() }));
 
+  app.get('/api/debug/webhook', async (_req: Request, res: Response) => {
+    try {
+      const whInfo = await grammyBot.api.getWebhookInfo();
+      res.json({
+        url: whInfo.url,
+        has_custom_certificate: whInfo.has_custom_certificate,
+        pending_update_count: whInfo.pending_update_count,
+        last_error_date: whInfo.last_error_date,
+        last_error_message: whInfo.last_error_message,
+        max_connections: whInfo.max_connections,
+        secret_configured: !!CONFIG.WEBHOOK_SECRET,
+        secret_len: CONFIG.WEBHOOK_SECRET?.length,
+      });
+    } catch (e: unknown) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    }
+  });
+
   /**
    * @swagger
    * /api/redis/status:
@@ -136,10 +154,15 @@ export function registerSystemRoutes(app: express.Application) {
    */
   app.post('/api/bot/webhook', rateLimit({ windowMs: 1000, max: 100, keyGenerator: () => 'webhook' }), async (req: Request, res: Response) => {
     const secret = req.headers['x-telegram-bot-api-secret-token'];
-    if (secret !== CONFIG.WEBHOOK_SECRET) return res.sendStatus(403);
-    if (!req.body || !req.body.update_id) return res.sendStatus(400);
+    if (secret !== CONFIG.WEBHOOK_SECRET) {
+      logger.warn(`Webhook 403: secret mismatch (got: "${secret}", expected len: ${CONFIG.WEBHOOK_SECRET?.length})`);
+      return res.sendStatus(403);
+    }
+    if (!req.body || !req.body.update_id) {
+      logger.warn(`Webhook 400: missing update_id (body: ${JSON.stringify(req.body)?.slice(0, 200)})`);
+      return res.sendStatus(400);
+    }
 
-    // Try grammy first, fall back to old bot
     try {
       if (grammyBot) {
         await grammyBot.handleUpdate(req.body);
@@ -148,8 +171,8 @@ export function registerSystemRoutes(app: express.Application) {
       }
       res.sendStatus(200);
     } catch (e: unknown) {
-      logger.warn(`Webhook process error: ${e instanceof Error ? e.message : String(e)}`);
-      res.sendStatus(200); // Still return 200 to Telegram to prevent retries
+      logger.error(`Webhook process error: ${e instanceof Error ? e.message : String(e)}`, { stack: e instanceof Error ? e.stack : undefined });
+      res.sendStatus(200);
     }
   });
 

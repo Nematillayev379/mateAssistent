@@ -6,14 +6,19 @@ import { getGrammyBot } from './grammy-instance';
 export const grammyBot = getGrammyBot();
 
 grammyBot.command('start', async (ctx) => {
-  const { startCommand } = await import('../commands/start');
-  const msg = {
-    chat: { id: ctx.chat.id },
-    from: ctx.from,
-    text: ctx.message?.text || '',
-    message_id: ctx.message?.message_id || 0,
-  } as any;
-  await startCommand.handler(botCompat, msg, null);
+  logger.info(`Grammy /start from user ${ctx.from?.id} in chat ${ctx.chat?.id}`);
+  try {
+    const { startCommand } = await import('../commands/start');
+    const msg = {
+      chat: { id: ctx.chat.id },
+      from: ctx.from,
+      text: ctx.message?.text || '',
+      message_id: ctx.message?.message_id || 0,
+    } as any;
+    await startCommand.handler(botCompat, msg, null);
+  } catch (e: unknown) {
+    logger.error(`Grammy /start error: ${e instanceof Error ? e.message : String(e)}`, { stack: e instanceof Error ? e.stack : undefined });
+  }
 });
 
 grammyBot.command('status', async (ctx) => {
@@ -121,11 +126,17 @@ export async function startGrammyBot() {
 
   if (CONFIG.PUBLIC_URL && process.env.NODE_ENV !== 'development') {
     const webhookUrl = `${CONFIG.PUBLIC_URL}/api/bot/webhook`;
-    await grammyBot.api.setWebhook(webhookUrl, {
-      secret_token: CONFIG.WEBHOOK_SECRET,
-      max_connections: 100,
-    });
-    logger.info(`Grammy webhook set: ${webhookUrl}`);
+    try {
+      await grammyBot.api.setWebhook(webhookUrl, {
+        secret_token: CONFIG.WEBHOOK_SECRET,
+        max_connections: 100,
+      });
+      logger.info(`Grammy webhook set: ${webhookUrl} (secret len: ${CONFIG.WEBHOOK_SECRET?.length})`);
+      const whInfo = await grammyBot.api.getWebhookInfo();
+      logger.info(`Webhook info: url=${whInfo.url}, pending=${whInfo.pending_update_count}, last_error=${whInfo.last_error_message || 'none'}`);
+    } catch (e: unknown) {
+      logger.error(`setWebhook FAILED: ${e instanceof Error ? e.message : String(e)}`);
+    }
   } else {
     grammyBot.start({
       onStart: () => { logger.info('Grammy bot started (polling)'); },
