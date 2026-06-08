@@ -354,9 +354,6 @@
 </nav>
 
 <script>
-  function $(sel) { return document.querySelector(sel); }
-  function $$(sel) { return document.querySelectorAll(sel); }
-
   apiFetch('/api/dashboard-info').then(function(r) { return r.json(); }).then(function(d) {
     var u = d.user;
     if (u) {

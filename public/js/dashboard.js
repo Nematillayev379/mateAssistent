@@ -1,3 +1,5 @@
+// DEPRECATED: This file is legacy SPA code. Do not load in new multi-page architecture.
+// Use dashboard-functions.js + dashboard-api.js + dashboard-data-loader.js instead.
 
         function escapeHtml(str) {
             if (!str) return '';

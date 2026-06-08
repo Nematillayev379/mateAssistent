@@ -412,9 +412,6 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
     });
   });
 
-  function $(sel) { return document.querySelector(sel); }
-  function $$(sel) { return document.querySelectorAll(sel); }
-
   apiFetch('/api/dashboard-info').then(function(r) { return r.json(); }).then(function(d) {
     var u = d.user, s = d.stats || {};
     if (u) {

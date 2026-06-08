@@ -473,9 +473,6 @@
 </nav>
 
 <script>
-  function $(sel) { return document.querySelector(sel); }
-  function $$(sel) { return document.querySelectorAll(sel); }
-
   apiFetch('/api/dashboard-info').then(function(r) { return r.json(); }).then(function(d) {
     var u = d.user;
     if (u) {
@@ -487,27 +484,6 @@
       }
     }
   }).catch(function(){});
-
-  async function createAutoSearch() {
-    var topic = document.getElementById('auto-search-topic').value.trim();
-    var keywordsStr = document.getElementById('auto-search-keywords').value.trim();
-    var mode = document.getElementById('auto-search-mode').value;
-    if (!topic) { showToast('Mavzuni kiriting', 'error'); return; }
-    var keywords = keywordsStr ? keywordsStr.split(',').map(function(k) { return k.trim(); }).filter(Boolean) : [topic];
-    try {
-      var res = await apiFetch('/api/rss-search/' + window.__userId, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topic, keywords: keywords, maxResults: 10, mode: mode })
-      });
-      var data = await res.json();
-      if (data.success) {
-        showToast('Qidiruv yaratildi!', 'success');
-        document.getElementById('auto-search-topic').value = '';
-        document.getElementById('auto-search-keywords').value = '';
-        loadAutoSearchList();
-      }
-    } catch(e) { showToast('Xatolik', 'error'); }
-  }
 
   async function loadAutoSearchList() {
     try {
@@ -529,19 +505,6 @@
       }
       listDiv.innerHTML = html;
     } catch(e) {}
-  }
-
-  async function deleteAutoSearch(searchId) {
-    try {
-      await apiFetch('/api/rss-search/' + window.__userId + '/' + searchId, { method: 'DELETE' });
-      loadAutoSearchList();
-      showToast('Qidiruv o\'chirildi', 'success');
-    } catch(e) { showToast('Xatolik', 'error'); }
-  }
-
-  function escapeHtml(text) {
-    if (!text) return '';
-    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   document.addEventListener('DOMContentLoaded', loadAutoSearchList);

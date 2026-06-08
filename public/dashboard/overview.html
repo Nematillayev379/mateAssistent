@@ -406,9 +406,6 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
     });
   });
 
-  function $(sel) { return document.querySelector(sel); }
-  function $$(sel) { return document.querySelectorAll(sel); }
-
   function timeAgo(dateStr) {
     if (!dateStr) return '';
     var d = new Date(dateStr);

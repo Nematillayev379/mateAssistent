@@ -10,8 +10,6 @@
   }
 
   function el(c) { var e = document.querySelector(c); return e; }
-  function setText(c, v) { var e = el(c); if (e) e.textContent = v != null ? v : ''; }
-  function setAllText(c, v) { document.querySelectorAll(c).forEach(function (e) { e.textContent = v != null ? v : ''; }); }
   function setAllValue(id, v) {
     document.querySelectorAll('[id="' + id + '"]').forEach(function (e) {
       if ('value' in e) e.value = v;
@@ -24,10 +22,6 @@
     td.textContent = value != null ? String(value) : '';
     tr.appendChild(td);
     return td;
-  }
-  function safeJson(r) {
-    if (!r.ok) return null;
-    return r.json().catch(function () { return null; });
   }
   function safeIconValue(raw) {
     var v = String(raw || '').trim();

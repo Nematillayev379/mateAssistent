@@ -360,14 +360,6 @@
   var currentType = 'text';
   var searchTerm = '';
 
-  function $(sel) { return document.querySelector(sel); }
-  function $$(sel) { return document.querySelectorAll(sel); }
-
-  function escapeHtml(text) {
-    if (text == null) return '';
-    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
-
   function formatDateTime(iso) {
     if (!iso) return '—';
     try {

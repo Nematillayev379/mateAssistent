@@ -140,9 +140,6 @@ async function sendMusic(videoId, title, btnEl) {
     finally { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i>'; } }
 }
 
-async function downloadM(videoId, title, btnEl) { return downloadMusic(videoId, title, btnEl); }
-async function downloadAndSendMusic(videoId, title, btnEl) { return sendMusic(videoId, title, btnEl); }
-
 async function downloadMedia(type, btnEl) {
     var url = $('#dl-url').value.trim();
     if (!url) { showToast(tt('video_download_hint', 'Share a YouTube, Instagram, or TikTok link.'), 'error'); return; }

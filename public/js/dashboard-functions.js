@@ -992,26 +992,15 @@
     var modeEl = document.getElementById('rss-search-mode');
     if (!topicEl || !topicEl.value.trim()) { showToast('Mavzu kiriting!', 'error'); return; }
     try {
-      var r = await apiFetch('/api/auto-search/' + userId, {
+      var r = await apiFetch('/api/rss-search/' + userId, {
         method: 'POST', headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
           topic: topicEl.value.trim(),
           keywords: kwEl ? kwEl.value.trim() : '',
-          max_results: maxEl ? parseInt(maxEl.value) || 10 : 10,
+          maxResults: maxEl ? parseInt(maxEl.value) || 10 : 10,
           mode: modeEl ? modeEl.value : 'realtime'
         })
       });
-      if (r.status === 404) {
-        r = await apiFetch('/api/rss-search/' + userId, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            topic: topicEl.value.trim(),
-            keywords: kwEl ? kwEl.value.trim() : '',
-            maxResults: maxEl ? parseInt(maxEl.value) || 10 : 10,
-            mode: 'daily'
-          })
-        });
-      }
       var d = await r.json().catch(function(){ return {}; });
       if (r.ok && (d.success || d.id || d.searchId)) {
         showToast('Auto-search yaratildi!', 'success');
@@ -1025,10 +1014,7 @@
   window.deleteAutoSearch = async function (id) {
     if (!confirm('Auto-search o\'chirilsinmi?')) return;
     try {
-      var r = await apiFetch('/api/auto-search/' + userId + '/' + encodeURIComponent(id), { method: 'DELETE' });
-      if (r.status === 404) {
-        r = await apiFetch('/api/rss-search/' + userId + '/' + encodeURIComponent(id), { method: 'DELETE' });
-      }
+      var r = await apiFetch('/api/rss-search/' + userId + '/' + encodeURIComponent(id), { method: 'DELETE' });
       if (r.ok) {
         showToast('O\'chirildi', 'success');
         if (window.loadAutoSearches) window.loadAutoSearches();
@@ -1168,7 +1154,7 @@
   window.trackProduct = function () {
     var url = prompt('Mahsulot URL (olx.uz, market yoki ijtimoiy tarmoq):');
     if (!url) return;
-    apiFetch('/api/tracker/' + userId, {
+    apiFetch('/api/rss-search/' + userId, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: url, interval_minutes: 60 })
     }).then(function(r) {
@@ -1188,8 +1174,7 @@
     var container = document.getElementById('auto-search-list');
     if (!container) return;
     try {
-      var r = await apiFetch('/api/auto-search/' + userId);
-      if (r.status === 404) r = await apiFetch('/api/rss-search/' + userId);
+      var r = await apiFetch('/api/rss-search/' + userId);
       var list = await r.json().catch(function(){ return []; });
       if (!Array.isArray(list) || !list.length) {
         container.innerHTML = '<p class="text-xs text-muted font-mono p-4">Auto-search mavjud emas. Yuqoridagi forma orqali yarating.</p>';
@@ -1473,22 +1458,6 @@
     } catch (e) { console.error('loadWallet:', e); }
   };
 
-  // ─── Admin Broadcast (send) ───────────────
-  window.sendBroadcast = async function (formEl) {
-    var fd = new FormData(formEl);
-    var body = {
-      message: fd.get('message') || '',
-      target: fd.get('target') || 'all',
-      filter_role: fd.get('filter_role') || 'all'
-    };
-    if (!body.message || !body.message.trim()) { showToast('Xabar bo\'sh', 'error'); return; }
-    try {
-      var r = await apiFetch('/api/admin/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (r.ok) { showToast('Yuborildi!', 'success'); formEl.reset(); loadBroadcasts(); }
-      else { var e = await r.json(); showToast(e.error || 'Xatolik', 'error'); }
-    } catch (e) { showToast('Tarmoq xatosi', 'error'); }
-  };
-
   // ─── Admin User Actions (block/unblock/approve/premium) ────
   window.adminUserAction = async function (uid, action) {
     try {
@@ -1547,4 +1516,7 @@
   // Backward-compat for old SPA-style onclick
   window.$ = $;
   window.$$= $$;
+  window.setText = setText;
+  window.setAllText = setAllText;
+  window.safeJson = safeJson;
 })();

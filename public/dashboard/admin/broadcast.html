@@ -521,24 +521,6 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
     inputMob.addEventListener('input', function() { input.value = inputMob.value; });
   }
 
-  // Formatting helper
-  function wrapTag(tag) {
-    var ta = input || inputMob;
-    if (!ta) return;
-    var start = ta.selectionStart;
-    var end = ta.selectionEnd;
-    var selected = ta.value.substring(start, end);
-    var replacement;
-    if (tag === 'a') {
-      replacement = '<a href="url">' + (selected || 'link text') + '</a>';
-    } else {
-      replacement = '<' + tag + '>' + (selected || tag) + '</' + tag + '>';
-    }
-    ta.setRangeText(replacement, start, end, 'end');
-    ta.focus();
-    ta.dispatchEvent(new Event('input'));
-  }
-
   // Modal Logic
   var trigger = document.getElementById('broadcastTrigger');
   var triggerMob = document.getElementById('broadcastTrigger-mobile');
@@ -573,15 +555,6 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
 
   if (cancel) cancel.addEventListener('click', closeModal);
   if (modal) modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
-
-  function sendBroadcast() {
-    var ta = input || inputMob;
-    if (!ta || ta.value.trim().length === 0) {
-      if (ta) { ta.classList.add('border-error'); setTimeout(function() { ta.classList.remove('border-error'); }, 500); }
-      return;
-    }
-    openModal();
-  }
 
   if (confirmBtn) {
     confirmBtn.addEventListener('click', function() {
@@ -642,9 +615,6 @@ tailwind.config = { darkMode: "class", theme: { extend: {} } }
       this.classList.remove('text-muted');
     });
   });
-
-  function $(sel) { return document.querySelector(sel); }
-  function $$(sel) { return document.querySelectorAll(sel); }
 
   apiFetch('/api/dashboard-info').then(function(r) { return r.json(); }).then(function(d) {
     var u = d.user, s = d.stats || {};

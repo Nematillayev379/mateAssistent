@@ -414,52 +414,6 @@
 <script>
   window.__selectedPlan = 'monthly';
 
-  function selectPlan(plan) {
-    var mCard = document.getElementById('plan-monthly-card');
-    var yCard = document.getElementById('plan-yearly-card');
-    window.__selectedPlan = plan;
-    if (plan === 'monthly') {
-      if (mCard) mCard.className = 'gradient-border-card cursor-pointer active:scale-[0.97] transition-transform';
-      if (yCard) yCard.className = 'bg-card border border-outline-variant rounded-xl cursor-pointer hover:border-primary/50 active:scale-[0.97] transition-all';
-      var mRad = document.getElementById('plan-monthly');
-      if (mRad) mRad.checked = true;
-    } else {
-      if (yCard) yCard.className = 'gradient-border-card cursor-pointer active:scale-[0.97] transition-transform';
-      if (mCard) mCard.className = 'bg-card border border-outline-variant rounded-xl cursor-pointer hover:border-primary/50 active:scale-[0.97] transition-all';
-      var yRad = document.getElementById('plan-yearly');
-      if (yRad) yRad.checked = true;
-    }
-    var summary = document.querySelector('.wallet-summary-price');
-    var mPrice = document.querySelector('.wallet-monthly-price');
-    var yPrice = document.querySelector('.wallet-yearly-price');
-    if (summary) summary.textContent = plan === 'monthly' ? (mPrice ? mPrice.textContent.trim() : '125,000 UZS') : (yPrice ? yPrice.textContent.trim() : '1,200,000 UZS');
-  }
-
-  function copyRef(btn) {
-    if (!btn) return;
-    var span = btn.querySelector('.material-symbols-outlined');
-    if (span) { span.textContent = 'done'; setTimeout(function() { span.textContent = 'content_copy'; }, 2000); }
-    var link = document.getElementById('referral-link');
-    if (link) {
-      if (navigator.clipboard) navigator.clipboard.writeText(link.textContent);
-    }
-  }
-
-  function shareRef() {
-    var link = document.getElementById('referral-link');
-    if (!link) return;
-    var refUrl = window.location.origin + '/register?ref=' + (link.textContent.replace('nexus.ref/', '') || '');
-    if (navigator.share) {
-      navigator.share({ title: 'mateAssistent', text: 'Join mateAssistent!', url: refUrl }).catch(function(){});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(refUrl);
-      showToast('Referral link copied!', 'success');
-    }
-  }
-
-  function $(sel) { return document.querySelector(sel); }
-  function $$(sel) { return document.querySelectorAll(sel); }
-
   apiFetch('/api/dashboard-info').then(function(r) { return r.json(); }).then(function(d) {
     var u = d.user;
     if (u) {
@@ -521,32 +475,6 @@
 
   function getTonConnectCtor() {
     return window.TonConnectUI || (window.TON_CONNECT_UI && window.TON_CONNECT_UI.TonConnectUI) || null;
-  }
-
-  async function connectTonWallet() {
-    var TonConnectCtor = getTonConnectCtor();
-    if (tonConnectUi || !TonConnectCtor) return;
-    try {
-      tonConnectUi = new TonConnectCtor({
-        manifestUrl: window.location.origin + '/tonconnect-manifest.json',
-        buttonRootId: 'ton-connect',
-      });
-      updateWalletState(tonConnectUi.wallet ? tonConnectUi.wallet.account : null);
-      tonConnectUi.onStatusChange(function(wallet) {
-        updateWalletState(wallet ? wallet.account : null);
-        if (wallet && wallet.account && wallet.account.address) {
-          apiFetch('/api/premium/wallet-claim', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ walletAddress: wallet.account.address })
-          }).then(function(r) { return r.json(); }).then(function(d) {
-            if (d.success) showToast(d.message || 'Premium activated!', 'success');
-          }).catch(function(){});
-        }
-      });
-    } catch(e) {
-      showToast('TON Connect failed', 'error');
-    }
   }
 
   document.addEventListener('DOMContentLoaded', function() {
