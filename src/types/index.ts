@@ -36,6 +36,8 @@ export interface TelegramUser {
   digest_time: string;
   digest_last_sent: string | null;
   has_seen_lang: boolean;
+  trial_used: boolean;
+  created_at: string;
 }
 
 export interface NewsSource {

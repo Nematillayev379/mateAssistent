@@ -18,6 +18,38 @@ export function registerAiRoutes(app: express.Application) {
     message: { error: 'AI request limit exceeded.' }
   });
 
+  /**
+   * @swagger
+   * /api/ai/smm:
+   *   post:
+   *     tags: [AI]
+   *     summary: Generate SMM post with AI
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [prompt]
+   *             properties:
+   *               prompt:
+   *                 type: string
+   *               withImage:
+   *                 type: boolean
+   *               language:
+   *                 type: string
+   *               size:
+   *                 type: string
+   *                 enum: [short, medium, long]
+   *     responses:
+   *       200:
+   *         description: Generated post
+   *       400:
+   *         description: Empty prompt
+   */
   app.post('/api/ai/smm', checkAuth, aiLimiter, async (req: Request, res: Response) => {
     try {
       const { prompt, withImage, language, size } = req.body;
@@ -30,6 +62,37 @@ export function registerAiRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`SMM generate error: ${msg}`); res.status(500).json({ error: 'AI xatolik' }); }
   });
 
+  /**
+   * @swagger
+   * /api/ai/post-to-channel:
+   *   post:
+   *     tags: [AI]
+   *     summary: Post AI-generated content to channel
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [text]
+   *             properties:
+   *               text:
+   *                 type: string
+   *               imageUrl:
+   *                 type: string
+   *               imageBase64:
+   *                 type: string
+   *               prompt:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Post sent
+   *       400:
+   *         description: No channel configured
+   */
   app.post('/api/ai/post-to-channel', checkAuth, async (req: Request, res: Response) => {
     try {
       const { text, imageUrl, imageBase64, prompt } = req.body;

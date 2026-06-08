@@ -4,14 +4,68 @@ import path from 'path';
 import { CONFIG } from '../../config/config';
 import { DBService } from '../../services/database';
 import { bot } from '../../services/bot_instance';
+import { grammyBot } from '../../services/grammy-bot';
 import { logger } from '../../utils/logger';
 import { FinanceService } from '../../services/finance';
 import { validateKey } from '../../services/ai';
 import { checkAuth, checkAdmin } from '../auth';
 
 export function registerSystemRoutes(app: express.Application) {
+  /**
+   * @swagger
+   * /health:
+   *   get:
+   *     tags: [System]
+   *     summary: Health check
+   *     description: Returns bot status and uptime
+   *     operationId: getHealth
+   *     responses:
+   *       200:
+   *         description: Service is healthy
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                 bot:
+   *                   type: string
+   *                 uptime:
+   *                   type: number
+   *       401:
+   *         description: Unauthorized
+   */
   app.get('/health', (_req: Request, res: Response) => res.json({ status: 'ok', bot: 'active', uptime: process.uptime() }));
 
+  /**
+   * @swagger
+   * /api/redis/status:
+   *   get:
+   *     tags: [System]
+   *     summary: Get Redis connection status
+   *     description: Returns Redis pool configuration, connection state, and mode (redis or in-memory)
+   *     operationId: getRedisStatus
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Redis status details
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 configured:
+   *                   type: boolean
+   *                 live:
+   *                   type: boolean
+   *                 mode:
+   *                   type: string
+   *       401:
+   *         description: Unauthorized
+   */
   app.get('/api/redis/status', checkAdmin, async (_req: Request, res: Response) => {
     try {
       const envSet = Boolean(
@@ -55,27 +109,147 @@ export function registerSystemRoutes(app: express.Application) {
     }
   });
 
-  app.post('/api/bot/webhook', rateLimit({ windowMs: 1000, max: 100, keyGenerator: () => 'webhook' }), (req: Request, res: Response) => {
+  /**
+   * @swagger
+   * /api/bot/webhook:
+   *   post:
+   *     tags: [System]
+   *     summary: Telegram bot webhook endpoint
+   *     description: Receives Telegram updates via webhook. Secured with x-telegram-bot-api-secret-token header.
+   *     operationId: postBotWebhook
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               update_id:
+   *                 type: integer
+   *     responses:
+   *       200:
+   *         description: Update processed
+   *       403:
+   *         description: Invalid secret token
+   *       400:
+   *         description: Invalid payload
+   */
+  app.post('/api/bot/webhook', rateLimit({ windowMs: 1000, max: 100, keyGenerator: () => 'webhook' }), async (req: Request, res: Response) => {
     const secret = req.headers['x-telegram-bot-api-secret-token'];
     if (secret !== CONFIG.WEBHOOK_SECRET) return res.sendStatus(403);
     if (!req.body || !req.body.update_id) return res.sendStatus(400);
-    res.sendStatus(200);
-    setImmediate(async () => {
-      try { await bot.processUpdate(req.body); }
-      catch (e: unknown) { logger.warn(`Webhook process error: ${e instanceof Error ? e.message : String(e)}`); }
-    });
+
+    // Try grammy first, fall back to old bot
+    try {
+      if (grammyBot) {
+        await grammyBot.handleUpdate(req.body);
+      } else {
+        await bot.processUpdate(req.body);
+      }
+      res.sendStatus(200);
+    } catch (e: unknown) {
+      logger.warn(`Webhook process error: ${e instanceof Error ? e.message : String(e)}`);
+      res.sendStatus(200); // Still return 200 to Telegram to prevent retries
+    }
   });
 
+  /**
+   * @swagger
+   * /api/finance/prices:
+   *   get:
+   *     tags: [System]
+   *     summary: Get crypto and USD prices
+   *     description: Returns current BTC and USD exchange rate
+   *     operationId: getFinancePrices
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Price data
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 btc:
+   *                   type: string
+   *                 usd:
+   *                   type: string
+   *       401:
+   *         description: Unauthorized
+   */
   app.get('/api/finance/prices', checkAuth, async (_req: Request, res: Response) => {
     try { const crypto = await FinanceService.getCryptoPrices(); const usd = await FinanceService.getUSDRate(); res.json({ btc: crypto.BTC || 'N/A', usd: usd || 'N/A' }); }
     catch { res.json({ btc: 'N/A', usd: 'N/A' }); }
   });
 
+  /**
+   * @swagger
+   * /api/keys/{userId}:
+   *   get:
+   *     tags: [System]
+   *     summary: Get user API keys
+   *     description: Returns all API keys for a user
+   *     operationId: getUserApiKeys
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of API keys
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *       401:
+   *         description: Unauthorized
+   */
   app.get('/api/keys/:userId', checkAuth, async (req: Request, res: Response) => {
     try { res.json(await DBService.getUserApiKeys(parseInt(req.authenticatedUserId as string))); }
     catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/keys/:userId failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/keys:
+   *   post:
+   *     tags: [System]
+   *     summary: Add an API key
+   *     description: Validates and adds an API key for a user
+   *     operationId: addApiKey
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [key, type]
+   *             properties:
+   *               userId:
+   *                 type: number
+   *               key:
+   *                 type: string
+   *               type:
+   *                 type: string
+   *                 enum: [openai, google]
+   *     responses:
+   *       200:
+   *         description: Key added
+   *       400:
+   *         description: Invalid key payload
+   *       401:
+   *         description: Unauthorized
+   */
   app.post('/api/keys', checkAdmin, async (req: Request, res: Response) => {
     try {
       const userIdForKey = Number(req.body?.userId || req.authenticatedUserId);
@@ -89,6 +263,44 @@ export function registerSystemRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/keys failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/keys/{userId}:
+   *   post:
+   *     tags: [System]
+   *     summary: Add API key for specific user
+   *     description: Validates and adds an API key for a specific user
+   *     operationId: addApiKeyForUser
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [key, type]
+   *             properties:
+   *               key:
+   *                 type: string
+   *               type:
+   *                 type: string
+   *                 enum: [openai, google]
+   *     responses:
+   *       200:
+   *         description: Key added
+   *       400:
+   *         description: Invalid key payload
+   *       401:
+   *         description: Unauthorized
+   */
   app.post('/api/keys/:userId', checkAdmin, async (req: Request, res: Response) => {
     try {
       const { key, type } = req.body;
@@ -100,6 +312,31 @@ export function registerSystemRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/keys/:userId failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/keys/{id}:
+   *   delete:
+   *     tags: [System]
+   *     summary: Delete an API key
+   *     description: Removes an API key by its ID
+   *     operationId: deleteApiKey
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Key deleted
+   *       400:
+   *         description: Invalid key ID
+   *       401:
+   *         description: Unauthorized
+   */
   app.delete('/api/keys/:id', checkAdmin, async (req: Request, res: Response) => {
     try {
       const id = Number(req.params.id);

@@ -35,6 +35,42 @@ export function registerAuthRoutes(app: express.Application) {
   const authLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: 'Too many attempts. Try again later.' } });
   const masterLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { error: 'Too many attempts. Try again later.' } });
 
+  /**
+   * @swagger
+   * /api/auth/telegram:
+   *   post:
+   *     tags: [Auth]
+   *     summary: Authenticate via Telegram Mini App
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [initData]
+   *             properties:
+   *               initData:
+   *                 type: string
+   *                 description: Telegram WebApp init_data
+   *     responses:
+   *       200:
+   *         description: Auth token returned
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 token:
+   *                   type: string
+   *                 userId:
+   *                   type: number
+   *                 role:
+   *                   type: string
+   *       400:
+   *         description: Missing initData
+   *       401:
+   *         description: Invalid Telegram data
+   */
   app.post('/api/auth/telegram', async (req: Request, res: Response) => {
     try {
       const { initData } = req.body;
@@ -57,6 +93,44 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/auth/verify:
+   *   post:
+   *     tags: [Auth]
+   *     summary: Verify user identity and get token
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [userId, token]
+   *             properties:
+   *               userId:
+   *                 type: string
+   *                 example: "123456789"
+   *               token:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Success
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 userId:
+   *                   type: number
+   *                 token:
+   *                   type: string
+   *                 role:
+   *                   type: string
+   *       401:
+   *         description: Invalid token
+   */
   app.post('/api/auth/verify', authLimiter, async (req: Request, res: Response) => {
     try {
       const { userId, token } = req.body;
@@ -91,6 +165,41 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/auth/session:
+   *   post:
+   *     tags: [Auth]
+   *     summary: Create a session cookie
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [userId, token]
+   *             properties:
+   *               userId:
+   *                 type: string
+   *               token:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Session created
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 userId:
+   *                   type: number
+   *                 expiresAt:
+   *                   type: string
+   *       401:
+   *         description: Invalid token
+   */
   app.post('/api/auth/session', authLimiter, async (req: Request, res: Response) => {
     try {
       const { userId, token } = req.body || {};
@@ -116,6 +225,23 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/auth/logout:
+   *   post:
+   *     tags: [Auth]
+   *     summary: Destroy session and clear cookie
+   *     responses:
+   *       200:
+   *         description: Logged out
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   */
   app.post('/api/auth/logout', async (req: Request, res: Response) => {
     try {
       await destroySession(req);
@@ -128,6 +254,39 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/auth/master:
+   *   post:
+   *     tags: [Auth]
+   *     summary: Master token authentication (admin bypass)
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [token]
+   *             properties:
+   *               token:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Auth success
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 token:
+   *                   type: string
+   *                 userId:
+   *                   type: number
+   *                 role:
+   *                   type: string
+   *       401:
+   *         description: Invalid master token
+   */
   app.post('/api/auth/master', masterLimiter, async (req: Request, res: Response) => {
     try {
       const { token } = req.body;
@@ -148,6 +307,21 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/dashboard-info:
+   *   get:
+   *     tags: [Auth]
+   *     summary: Get dashboard info for authenticated user
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Dashboard data
+   *       404:
+   *         description: User not found
+   */
   app.get('/api/dashboard-info', checkAuth, async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.authenticatedUserId as string);
@@ -181,6 +355,27 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/user/{userId}:
+   *   get:
+   *     tags: [Auth]
+   *     summary: Get user profile
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: User profile
+   *       404:
+   *         description: User not found
+   */
   app.get('/api/user/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const u = await DBService.getUser(parseInt(req.authenticatedUserId as string));
@@ -192,6 +387,31 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/auth/web-register:
+   *   post:
+   *     tags: [Auth]
+   *     summary: Register a new web account
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [email, password]
+   *             properties:
+   *               email:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *                 minLength: 6
+   *     responses:
+   *       200:
+   *         description: Account created
+   *       409:
+   *         description: Email already registered
+   */
   app.post('/api/auth/web-register', async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
@@ -231,6 +451,41 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/auth/web-login:
+   *   post:
+   *     tags: [Auth]
+   *     summary: Login with email and password
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [email, password]
+   *             properties:
+   *               email:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Login success with token
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 token:
+   *                   type: string
+   *                 userId:
+   *                   type: number
+   *                 role:
+   *                   type: string
+   *       401:
+   *         description: Invalid credentials
+   */
   app.post('/api/auth/web-login', authLimiter, async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
@@ -259,6 +514,21 @@ export function registerAuthRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/auth/web-users:
+   *   get:
+   *     tags: [Auth]
+   *     summary: List all web-registered users (admin only)
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: List of web users
+   *       403:
+   *         description: Forbidden
+   */
   app.get('/api/auth/web-users', checkAuth, async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.authenticatedUserId as string);

@@ -2,6 +2,7 @@ import WebSocket from 'ws';
 import { CONFIG } from "./config/config";
 import { logger } from "./utils/logger";
 import { bot, startBot } from "./services/telegram";
+import { startGrammyBot } from "./services/grammy-bot";
 import { startDashboardServer } from "./services/dashboard";
 import { startWorkers, setupSystemCrons } from "./jobs";
 import { setupRSSCron } from "./jobs/rss_cron";
@@ -61,8 +62,9 @@ async function bootstrap() {
     }
 
     const PORT = parseInt(process.env.PORT || '3000', 10);
-    startDashboardServer(PORT, bot);
+    const { server } = startDashboardServer(PORT, bot);
     await startBot();
+    await startGrammyBot();
     await startWorkers();
     if (shouldRunSingletonJobs()) {
       const { SchedulerService } = await import('./services/scheduler');

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
   digest_time TEXT DEFAULT '20:00',
   digest_last_sent TEXT,
   has_seen_lang BOOLEAN DEFAULT FALSE,
+  trial_used BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   last_post_time BIGINT DEFAULT 0
 );

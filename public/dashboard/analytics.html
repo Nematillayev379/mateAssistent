@@ -12,6 +12,12 @@
 <style>
   body { background:#07070a; font-family:'Inter',sans-serif; color:#ededf2; }
   .chart-bar { transition: height 1s cubic-bezier(0.4,0,0.2,1); }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #41eec2; animation: pulse 2s infinite; display: inline-block; margin-right: 6px; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .activity-item .material-symbols-outlined { font-size: 18px; color: var(--accent-cyan); margin-top: 2px; }
+  .activity-item p { font-size: 12px; margin: 0; }
+  .activity-item small { font-size: 10px; color: #5e5e78; }
 </style></head>
 <body data-page="analytics" class="min-h-screen">
 
@@ -36,7 +42,7 @@
 </aside>
 
 <header class="hidden lg:flex fixed top-0 right-0 w-[calc(100%-16rem)] h-14 items-center justify-between px-6 z-40" style="background:rgba(13,13,18,0.8);backdrop-filter:blur(16px);border-bottom:1px solid var(--border-subtle)">
-  <div class="flex items-center gap-4"><h2 class="text-lg font-bold tracking-tight">Analytics</h2><div class="h-5 w-px bg-border-subtle"></div><span class="text-xs text-muted font-mono">Real-time metrics</span></div>
+  <div class="flex items-center gap-4"><h2 class="text-lg font-bold tracking-tight">Analytics</h2><div class="h-5 w-px bg-border-subtle"></div><span class="live-dot"></span><span class="text-xs text-muted font-mono">Real-time metrics</span></div>
   <div class="flex gap-2">
     <button class="px-3 py-1.5 text-xs rounded-lg border border-outline-variant flex items-center gap-1 hover:bg-elevated transition-all"><span class="material-symbols-outlined" style="font-size:14px">calendar_today</span> 7D</button>
     <button class="px-3 py-1.5 text-xs rounded-lg bg-primary text-white font-semibold flex items-center gap-1"><span class="material-symbols-outlined" style="font-size:14px">download</span> Export</button>
@@ -101,6 +107,16 @@
           <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-sm" style="background:var(--accent-cyan)"></span><div><p class="text-xs font-medium">Webhooks</p><p class="text-[10px] text-muted">25%</p></div></div>
           <div class="flex items-center gap-3"><span class="w-3 h-3 rounded-sm" style="background:var(--accent-amber)"></span><div><p class="text-xs font-medium">Social RSS</p><p class="text-[10px] text-muted">30%</p></div></div>
         </div>
+      </div>
+    </div>
+
+    <div class="bg-card border border-outline-variant rounded-xl overflow-hidden">
+      <div class="px-6 py-4 border-b border-outline-variant flex justify-between items-center">
+        <h4 class="text-sm font-semibold">Live Activity</h4>
+        <span class="live-dot"></span>
+      </div>
+      <div id="activityFeed" class="px-6 py-3 max-h-64 overflow-y-auto">
+        <p class="text-xs text-muted font-mono py-4 text-center">Waiting for events...</p>
       </div>
     </div>
 
@@ -218,5 +234,86 @@ apiFetch('/api/finance/prices').then(function(r) { return r.json(); }).then(func
     document.querySelectorAll('.usd-price').forEach(function(el) { el.textContent = p.usd ? Number(p.usd).toLocaleString() + ' UZS' : '—'; });
   }
 }).catch(function(){});
+
+// Real-time WebSocket
+(function() {
+  var userId = window.__userId;
+  var token = window.__token || localStorage.getItem('bot_token');
+  if (!userId || !token) return;
+
+  var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var ws = new WebSocket(protocol + '//' + window.location.host + '/ws/analytics');
+
+  ws.onopen = function() {
+    ws.send(JSON.stringify({ type: 'auth', userId: userId }));
+  };
+
+  ws.onmessage = function(event) {
+    try {
+      var msg = JSON.parse(event.data);
+
+      if (msg.type === 'stats_update') {
+        animateCounter('stat-total-posts', msg.data.total_posts);
+        animateCounter('stat-total-duplicates', msg.data.total_duplicates);
+      }
+
+      if (msg.type === 'new_post') {
+        addLiveActivity('send', msg.data.title, new Date(msg.data.timestamp));
+      }
+
+      if (msg.type === 'duplicate_blocked') {
+        addLiveActivity('block', msg.data.title, new Date(msg.data.timestamp));
+      }
+
+      if (msg.type === 'source_added') {
+        addLiveActivity('rss_feed', msg.data.name, new Date(msg.data.timestamp));
+      }
+    } catch (e) {}
+  };
+
+  ws.onclose = function() {
+    setTimeout(function() {
+      var ws2 = new WebSocket(protocol + '//' + window.location.host + '/ws/analytics');
+      ws2.onopen = function() { ws2.send(JSON.stringify({ type: 'auth', userId: userId })); };
+      ws2.onmessage = ws.onmessage;
+      ws2.onclose = ws.onclose;
+      ws2.onerror = ws.onerror;
+    }, 5000);
+  };
+
+  function animateCounter(selector, target) {
+    var els = document.querySelectorAll('.' + selector);
+    els.forEach(function(el) {
+      var current = parseInt(el.textContent.replace(/,/g, '')) || 0;
+      if (current === target) return;
+      var duration = 500;
+      var steps = 20;
+      var increment = (target - current) / steps;
+      var step = 0;
+      var interval = setInterval(function() {
+        step++;
+        el.textContent = Math.round(current + increment * step).toLocaleString();
+        if (step >= steps) {
+          el.textContent = target.toLocaleString();
+          clearInterval(interval);
+        }
+      }, duration / steps);
+    });
+  }
+
+  function addLiveActivity(type, text, time) {
+    var feed = document.getElementById('activityFeed');
+    if (!feed) return;
+    var item = document.createElement('div');
+    item.className = 'activity-item';
+    item.innerHTML = '<span class="material-symbols-outlined">' + type + '</span><div><p>' + escapeHtml(text) + '</p><small>' + time.toLocaleTimeString() + '</small></div>';
+    feed.insertBefore(item, feed.firstChild);
+    while (feed.children.length > 10) feed.removeChild(feed.lastChild);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+})();
 </script>
 </body></html>

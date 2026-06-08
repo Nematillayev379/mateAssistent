@@ -17,6 +17,19 @@ export function registerWorkspaceRoutes(app: express.Application) {
   app.use('/api/workspaces', wsLimiter);
 
   // ── Workspace CRUD ──
+  /**
+   * @swagger
+   * /api/workspaces:
+   *   get:
+   *     tags: [Workspaces]
+   *     summary: Get all workspaces for user
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: List of workspaces
+   */
   app.get('/api/workspaces', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -29,6 +42,31 @@ export function registerWorkspaceRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/workspaces failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces:
+   *   post:
+   *     tags: [Workspaces]
+   *     summary: Create a new workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [name]
+   *             properties:
+   *               name:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Workspace created
+   *       400:
+   *         description: Name required
+   */
   app.post('/api/workspaces', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -42,6 +80,25 @@ export function registerWorkspaceRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/workspaces failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{id}:
+   *   delete:
+   *     tags: [Workspaces]
+   *     summary: Delete a workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Workspace deleted
+   */
   app.delete('/api/workspaces/:id', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -58,6 +115,37 @@ export function registerWorkspaceRoutes(app: express.Application) {
   });
 
   // ── Channels in Workspace ──
+  /**
+   * @swagger
+   * /api/workspaces/{id}/channels:
+   *   post:
+   *     tags: [Workspaces]
+   *     summary: Add channel to workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [channelId]
+   *             properties:
+   *               channelId:
+   *                 type: string
+   *               name:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Channel added
+   */
   app.post('/api/workspaces/:id/channels', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -71,6 +159,32 @@ export function registerWorkspaceRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/workspaces/:id/channels failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{id}/channels/{channelId}:
+   *   delete:
+   *     tags: [Workspaces]
+   *     summary: Remove channel from workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: channelId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Channel removed
+   *       403:
+   *         description: Not authorized
+   */
   app.delete('/api/workspaces/:id/channels/:channelId', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -82,6 +196,27 @@ export function registerWorkspaceRoutes(app: express.Application) {
   });
 
   // ── Team Members ──
+  /**
+   * @swagger
+   * /api/workspaces/{id}/members:
+   *   get:
+   *     tags: [Workspaces]
+   *     summary: Get workspace members
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of workspace members
+   *       403:
+   *         description: Not authorized
+   */
   app.get('/api/workspaces/:id/members', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -91,6 +226,41 @@ export function registerWorkspaceRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/workspaces/:id/members failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{id}/members:
+   *   post:
+   *     tags: [Workspaces]
+   *     summary: Add member to workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [userId]
+   *             properties:
+   *               userId:
+   *                 type: string
+   *               role:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Member added
+   *       400:
+   *         description: userId required
+   *       403:
+   *         description: Not authorized
+   */
   app.post('/api/workspaces/:id/members', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -105,6 +275,32 @@ export function registerWorkspaceRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/workspaces/:id/members failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{id}/members/{userId}:
+   *   delete:
+   *     tags: [Workspaces]
+   *     summary: Remove member from workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Member removed
+   *       403:
+   *         description: Not authorized
+   */
   app.delete('/api/workspaces/:id/members/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -116,6 +312,44 @@ export function registerWorkspaceRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`DELETE /api/workspaces/:id/members/:userId failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{id}/members/{userId}:
+   *   patch:
+   *     tags: [Workspaces]
+   *     summary: Update member role
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [role]
+   *             properties:
+   *               role:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Role updated
+   *       400:
+   *         description: role required
+   *       403:
+   *         description: Not authorized
+   */
   app.patch('/api/workspaces/:id/members/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);

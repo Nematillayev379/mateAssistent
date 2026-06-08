@@ -16,6 +16,25 @@ export function registerSettingsRoutes(app: express.Application) {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
 
+  /**
+   * @swagger
+   * /api/settings/{userId}/toggle:
+   *   post:
+   *     tags: [Settings]
+   *     summary: Toggle bot active state
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Toggle result
+   */
   app.post('/api/settings/:userId/toggle', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -27,6 +46,25 @@ export function registerSettingsRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/settings/{userId}:
+   *   get:
+   *     tags: [Settings]
+   *     summary: Get user settings
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: User settings
+   */
   app.get('/api/settings/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const u = await DBService.getUser(parseInt(req.authenticatedUserId as string));
@@ -44,6 +82,44 @@ export function registerSettingsRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/settings/{userId}:
+   *   post:
+   *     tags: [Settings]
+   *     summary: Update user settings
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               language:
+   *                 type: string
+   *               target_channel:
+   *                 type: string
+   *               keywords:
+   *                 type: string
+   *               daily_digest:
+   *                 type: boolean
+   *               digest_time:
+   *                 type: string
+   *               interval_minutes:
+   *                 type: number
+   *     responses:
+   *       200:
+   *         description: Settings updated
+   */
   app.post('/api/settings/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const { language, target_channel, keywords, daily_digest, digest_time, interval_minutes } = req.body;
@@ -75,6 +151,25 @@ export function registerSettingsRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/settings/{userId}/extended:
+   *   get:
+   *     tags: [Settings]
+   *     summary: Get extended user settings
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Extended settings
+   */
   app.get('/api/settings/:userId/extended', checkAuth, async (req: Request, res: Response) => {
     try {
       const u = await DBService.getUser(parseInt(req.authenticatedUserId as string));
@@ -84,6 +179,46 @@ export function registerSettingsRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/settings/{userId}/extended:
+   *   post:
+   *     tags: [Settings]
+   *     summary: Update extended user settings
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               language:
+   *                 type: string
+   *               target_channel:
+   *                 type: string
+   *               keywords:
+   *                 type: string
+   *               daily_digest:
+   *                 type: boolean
+   *               digest_time:
+   *                 type: string
+   *               schedule_times:
+   *                 type: string
+   *               interval_minutes:
+   *                 type: number
+   *     responses:
+   *       200:
+   *         description: Settings updated
+   */
   app.post('/api/settings/:userId/extended', checkAuth, async (req: Request, res: Response) => {
     try {
       const { language, target_channel, keywords, daily_digest, digest_time, schedule_times, interval_minutes } = req.body;
@@ -119,6 +254,25 @@ export function registerSettingsRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/output-channels/{userId}:
+   *   get:
+   *     tags: [Settings]
+   *     summary: Get output channels
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Output channels
+   */
   app.get('/api/output-channels/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const u = await DBService.getUser(parseInt(req.authenticatedUserId as string));
@@ -127,6 +281,37 @@ export function registerSettingsRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/output-channels/{userId}:
+   *   post:
+   *     tags: [Settings]
+   *     summary: Set output channels
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [channels]
+   *             properties:
+   *               channels:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *     responses:
+   *       200:
+   *         description: Channels updated
+   */
   app.post('/api/output-channels/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       if (!Array.isArray(req.body.channels)) return res.status(400).json({ error: 'channels array required' });

@@ -12,6 +12,19 @@ export function registerAdminRoutes(app: express.Application) {
     windowMs: 60 * 1000, max: 30, message: { error: 'Admin AI request limit exceeded.' }
   });
 
+  /**
+   * @swagger
+   * /api/admin/users:
+   *   get:
+   *     tags: [Admin]
+   *     summary: List all users with sources
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Array of users
+   */
   app.get('/api/admin/users', checkAdmin, async (_req: Request, res: Response) => {
     try {
       const users = await DBService.getAllUsers();
@@ -20,6 +33,19 @@ export function registerAdminRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/admin/users failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/settings:
+   *   get:
+   *     tags: [Admin]
+   *     summary: Get bot settings
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Bot settings
+   */
   app.get('/api/admin/settings', checkAdmin, async (_req: Request, res: Response) => {
     try {
       res.json({
@@ -31,6 +57,34 @@ export function registerAdminRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/admin/settings failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/settings:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Update bot settings
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               premium_stars_price:
+   *                 type: string
+   *               price_monthly:
+   *                 type: number
+   *               price_yearly:
+   *                 type: number
+   *               require_approval:
+   *                 type: boolean
+   *     responses:
+   *       200:
+   *         description: Settings updated
+   */
   app.post('/api/admin/settings', checkAdmin, async (req: Request, res: Response) => {
     try {
       const { premium_stars_price, price_monthly, price_yearly, require_approval } = req.body;
@@ -42,6 +96,38 @@ export function registerAdminRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/settings failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/users/{telegramId}/role:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Update user role
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: telegramId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [role]
+   *             properties:
+   *               role:
+   *                 type: string
+   *                 enum: [owner, admin, user, premium]
+   *     responses:
+   *       200:
+   *         description: Role updated
+   *       403:
+   *         description: Forbidden
+   */
   app.post('/api/admin/users/:telegramId/role', checkAdmin, async (req: Request, res: Response) => {
     try {
       const role = req.body.role;
@@ -54,11 +140,54 @@ export function registerAdminRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/users/:telegramId/role failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/prices:
+   *   get:
+   *     tags: [Admin]
+   *     summary: Get pricing info
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Pricing details
+   */
   app.get('/api/admin/prices', checkAdmin, async (_req: Request, res: Response) => {
     try { res.json({ monthly: await DBService.getPrice('monthly'), yearly: await DBService.getPrice('yearly'), stars: await DBService.getSetting('premium_stars_price') || '500' }); }
     catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/admin/prices failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/users/{telegramId}/premium:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Set or revoke user premium
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: telegramId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [days]
+   *             properties:
+   *               days:
+   *                 type: number
+   *                 description: Days to set premium (0 to revoke)
+   *     responses:
+   *       200:
+   *         description: Premium updated
+   */
   app.post('/api/admin/users/:telegramId/premium', checkAdmin, async (req: Request, res: Response) => {
     try {
       const days = parseInt(req.body.days);
@@ -69,12 +198,120 @@ export function registerAdminRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/users/:telegramId/premium failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/users/{telegramId}/approve:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Approve a user
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: telegramId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: User approved
+   */
   app.post('/api/admin/users/:telegramId/approve', checkAdmin, async (req: Request, res: Response) => { try { await DBService.updateUser(parseInt(req.params.telegramId as string), { is_approved: 1 }); res.json({ success: true }); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/users/:telegramId/approve failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); } });
+  /**
+   * @swagger
+   * /api/admin/users/{telegramId}/block:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Block a user
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: telegramId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: User blocked
+   */
   app.post('/api/admin/users/:telegramId/block', checkAdmin, async (req: Request, res: Response) => { try { await DBService.updateUser(parseInt(req.params.telegramId as string), { is_active: 0 }); res.json({ success: true }); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/users/:telegramId/block failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); } });
+  /**
+   * @swagger
+   * /api/admin/users/{telegramId}/unblock:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Unblock a user
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: telegramId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: User unblocked
+   */
   app.post('/api/admin/users/:telegramId/unblock', checkAdmin, async (req: Request, res: Response) => { try { await DBService.updateUser(parseInt(req.params.telegramId as string), { is_active: 1 }); res.json({ success: true }); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/users/:telegramId/unblock failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); } });
+  /**
+   * @swagger
+   * /api/admin/users/{telegramId}/reject:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Reject a user
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: telegramId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: User rejected
+   */
   app.post('/api/admin/users/:telegramId/reject', checkAdmin, async (req: Request, res: Response) => { try { await DBService.updateUser(parseInt(req.params.telegramId as string), { is_approved: 0 }); res.json({ success: true }); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/users/:telegramId/reject failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); } });
+  /**
+   * @swagger
+   * /api/admin/users/{telegramId}/revoke:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Revoke user premium
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: telegramId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Premium revoked
+   */
   app.post('/api/admin/users/:telegramId/revoke', checkAdmin, async (req: Request, res: Response) => { try { await DBService.revokePremium(parseInt(req.params.telegramId as string)); res.json({ success: true }); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/users/:telegramId/revoke failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); } });
 
+  /**
+   * @swagger
+   * /api/admin/users/approve-all:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Approve all pending users
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: All users approved
+   */
   app.post('/api/admin/users/approve-all', checkAdmin, async (_req: Request, res: Response) => {
     try {
       const users = await DBService.getAllUsers();
@@ -86,11 +323,37 @@ export function registerAdminRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/users/approve-all failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/sources:
+   *   get:
+   *     tags: [Admin]
+   *     summary: Get all RSS sources
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: All sources
+   */
   app.get('/api/admin/sources', checkAdmin, async (_req: Request, res: Response) => {
     try { res.json(await DBService.getAllSources()); }
     catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/admin/sources failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/system:
+   *   get:
+   *     tags: [Admin]
+   *     summary: Get system status and metrics
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: System status
+   */
   app.get('/api/admin/system', checkAdmin, async (_req: Request, res: Response) => {
     try {
       const { getRedisPool } = await import('../../services/redis');
@@ -138,6 +401,19 @@ export function registerAdminRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/admin/system failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/admin/stats:
+   *   get:
+   *     tags: [Admin]
+   *     summary: Get user and revenue statistics
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Statistics overview
+   */
   app.get('/api/admin/stats', checkAdmin, async (_req: Request, res: Response) => {
     try {
       const allUsers = await DBService.getAllUsers();
@@ -160,8 +436,34 @@ export function registerAdminRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/admin/ai-keys/refresh:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Refresh AI key pool
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Keys refreshed
+   */
   app.post('/api/admin/ai-keys/refresh', checkAdmin, async (_req: Request, res: Response) => { try { await refreshKeyPool(); res.json({ success: true, ...getActiveKeyStats() }); } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/admin/ai-keys/refresh failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); } });
 
+  /**
+   * @swagger
+   * /api/admin/ai-keys:
+   *   get:
+   *     tags: [Admin]
+   *     summary: Get AI key stats and details
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: AI key information
+   */
   app.get('/api/admin/ai-keys', checkAdmin, async (_req: Request, res: Response) => {
     try {
       const stats = getActiveKeyStats();
@@ -197,6 +499,29 @@ export function registerAdminRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/admin/broadcast:
+   *   post:
+   *     tags: [Admin]
+   *     summary: Broadcast message to all users
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [message]
+   *             properties:
+   *               message:
+   *                 type: string
+   *     responses:
+   *       202:
+   *         description: Broadcast queued
+   */
   app.post('/api/admin/broadcast', checkAdmin, adminAiLimiter, async (req: Request, res: Response) => {
     try {
       const { message } = req.body;

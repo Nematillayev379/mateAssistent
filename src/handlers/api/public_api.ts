@@ -28,6 +28,41 @@ export function registerPublicApiRoutes(app: express.Application) {
   app.use('/api/v1', publicLimiter);
   app.use('/api/v1', checkApiKey);
 
+  /**
+   * @swagger
+   * /api/v1/me:
+   *   get:
+   *     tags: [Public]
+   *     summary: Get current API user profile
+   *     description: Returns the profile of the authenticated API user.
+   *     operationId: getApiUser
+   *     security:
+   *       - apiKeyAuth: []
+   *     responses:
+   *       200:
+   *         description: User profile
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 id:
+   *                   type: number
+   *                 username:
+   *                   type: string
+   *                 role:
+   *                   type: string
+   *                 is_premium:
+   *                   type: boolean
+   *                 premium_until:
+   *                   type: string
+   *                 language:
+   *                   type: string
+   *       401:
+   *         description: API key required
+   *       404:
+   *         description: User not found
+   */
   app.get('/api/v1/me', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const user = await DBService.getUser(req.apiUserId as number);
@@ -43,6 +78,49 @@ export function registerPublicApiRoutes(app: express.Application) {
     } catch (e: unknown) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : String(e)) }); }
   });
 
+  /**
+   * @swagger
+   * /api/v1/publish:
+   *   post:
+   *     tags: [Public]
+   *     summary: Publish message to a channel
+   *     description: Sends a text message to an authorized Telegram channel.
+   *     operationId: publishMessage
+   *     security:
+   *       - apiKeyAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [channel, text]
+   *             properties:
+   *               channel:
+   *                 type: string
+   *               text:
+   *                 type: string
+   *               parse_mode:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Message sent
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 message_id:
+   *                   type: number
+   *       400:
+   *         description: channel and text required
+   *       401:
+   *         description: API key required
+   *       403:
+   *         description: Not authorized to send to channel
+   */
   app.post('/api/v1/publish', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { channel, text, parse_mode } = req.body;
@@ -62,6 +140,37 @@ export function registerPublicApiRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/v1/sources:
+   *   get:
+   *     tags: [Public]
+   *     summary: Get user's RSS sources
+   *     description: Returns the list of RSS sources configured by the user.
+   *     operationId: getSources
+   *     security:
+   *       - apiKeyAuth: []
+   *     responses:
+   *       200:
+   *         description: List of sources
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   id:
+   *                     type: number
+   *                   name:
+   *                     type: string
+   *                   url:
+   *                     type: string
+   *                   lang:
+   *                     type: string
+   *       401:
+   *         description: API key required
+   */
   app.get('/api/v1/sources', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const sources = await DBService.getUserSources(req.apiUserId as number);
@@ -69,6 +178,31 @@ export function registerPublicApiRoutes(app: express.Application) {
     } catch (e: unknown) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : String(e)) }); }
   });
 
+  /**
+   * @swagger
+   * /api/v1/stats:
+   *   get:
+   *     tags: [Public]
+   *     summary: Get user's posting statistics
+   *     description: Returns statistics including total posts and duplicates.
+   *     operationId: getStats
+   *     security:
+   *       - apiKeyAuth: []
+   *     responses:
+   *       200:
+   *         description: Stats data
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 total_posts:
+   *                   type: number
+   *                 total_duplicates:
+   *                   type: number
+   *       401:
+   *         description: API key required
+   */
   app.get('/api/v1/stats', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const stats = await DBService.getStats(req.apiUserId as number);
@@ -76,6 +210,29 @@ export function registerPublicApiRoutes(app: express.Application) {
     } catch (e: unknown) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : String(e)) }); }
   });
 
+  /**
+   * @swagger
+   * /api/v1/referral:
+   *   get:
+   *     tags: [Public]
+   *     summary: Get referral stats and link
+   *     description: Returns the user's referral statistics and referral link.
+   *     operationId: getReferral
+   *     security:
+   *       - apiKeyAuth: []
+   *     responses:
+   *       200:
+   *         description: Referral info
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 link:
+   *                   type: string
+   *       401:
+   *         description: API key required
+   */
   app.get('/api/v1/referral', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const stats = await DBService.getReferralStats(req.apiUserId as number);

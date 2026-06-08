@@ -171,6 +171,15 @@ const en = {
   bot_schedule_btn_refresh: "🔄 Refresh",
   bot_schedule_btn_view: "👁 View",
   bot_schedule_btn_cancel: "❌ Cancel",
+  renewal_3_days: "3 days until premium expires!",
+  renewal_1_day: "1 day until premium expires!",
+  renewal_reminder: "Your premium subscription is expiring soon. Renew now to keep all your premium features active!",
+  premium_expired: "Premium Expired",
+  premium_expired_body: "Your premium subscription has expired. Renew now to continue enjoying premium features!",
+  upsell_title: "Upgrade to Premium",
+  upsell_body: "You're using the free plan to its limits! Upgrade to premium for more sources, channels, and AI features.",
+  conversion_title: "Upgrade to Premium",
+  conversion_body: "You've been using mateAssistent for {{days}} days. Upgrade to premium to unlock all features!",
 };
 
 const uz = {
@@ -304,6 +313,15 @@ const uz = {
   bot_schedule_btn_refresh: "🔄 Yangilash",
   bot_schedule_btn_view: "👁 Ko'rish",
   bot_schedule_btn_cancel: "❌ Bekor qilish",
+  renewal_3_days: "Premium pullik muddati 3 kun qoldi!",
+  renewal_1_day: "Premium pullik muddati 1 kun qoldi!",
+  renewal_reminder: "Premium obunangiz tugash arafasida. Hozir yangilang, barcha premium imkoniyatlarni saqlab qoling!",
+  premium_expired: "Premium tugadi",
+  premium_expired_body: "Premium obunangiz tugadi. Hozir yangilang, premium imkoniyatlaridan foydalanishni davom eting!",
+  upsell_title: "Premium ga o'ting",
+  upsell_body: "Bepul tarifni to'liq ishlatyapsiz! Premium ga o'ting, ko'proq manbalar, kanallar va AI imkoniyatlariga ega bo'ling.",
+  conversion_title: "Premium ga o'ting",
+  conversion_body: "Siz mateAssistent dan {{days}} kun foydalanmoqdasiz. Premium ga o'ting, barcha imkoniyatlarni oching!",
 };
 
 const ru = {
@@ -437,6 +455,15 @@ const ru = {
   bot_schedule_btn_refresh: "🔄 Обновить",
   bot_schedule_btn_view: "👁 Просмотр",
   bot_schedule_btn_cancel: "❌ Отмена",
+  renewal_3_days: "3 дня до истечения премиума!",
+  renewal_1_day: "1 день до истечения премиума!",
+  renewal_reminder: "Ваша премиум-подписка скоро истечёт. Продлите сейчас, чтобы сохранить все премиум-функции!",
+  premium_expired: "Премиум истёк",
+  premium_expired_body: "Ваша премиум-подписка истекла. Продлите сейчас, чтобы продолжить использование премиум-функций!",
+  upsell_title: "Обновитесь до Премиум",
+  upsell_body: "Вы используете бесплатный тариф на максимуме! Обновитесь до премиума для большего количества источников, каналов и AI-функций.",
+  conversion_title: "Обновитесь до Премиум",
+  conversion_body: "Вы пользуетесь mateAssistent уже {{days}} дней. Обновитесь до премиума, чтобы открыть все функции!",
 };
 
 const shortSets: Record<string, Record<string, string>> = {

@@ -27,6 +27,7 @@ export function setupSystemCrons() {
   scheduleWorkspaceRebalance();
   scheduleKeyPoolRefresh();
   scheduleDailyRssSearch();
+  scheduleRenewalReminders();
 }
 
 function scheduleSelfPing() {
@@ -159,4 +160,17 @@ function scheduleKeyPoolRefresh() {
       logger.error(`Key Pool Refresh Error: ${message}`);
     }
   });
+}
+
+function scheduleRenewalReminders() {
+  cron.schedule("0 10 * * *", async () => {
+    try {
+      const { checkAndSendRenewalReminders } = await import("../services/renewal-reminder");
+      await checkAndSendRenewalReminders();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error(`Renewal Reminder Error: ${message}`);
+    }
+  });
+  logger.info("Renewal reminder cron scheduled daily at 10 AM");
 }

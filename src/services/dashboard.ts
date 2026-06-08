@@ -5,6 +5,10 @@ import { logger } from '../utils/logger';
 import { CONFIG } from '../config/config';
 import { registerRoutes } from '../handlers/dashboard';
 import TelegramBot from 'node-telegram-bot-api';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from '../config/swagger';
+import { initAnalyticsWS } from './analytics-ws';
+import type { Server } from 'http';
 
 export function startDashboardServer(port: number | string, _bot?: TelegramBot) {
   const app = express();
@@ -42,8 +46,15 @@ export function startDashboardServer(port: number | string, _bot?: TelegramBot) 
     res.json({ url: publicBase, name: 'mateAssistent', iconUrl: `${publicBase}/tonconnect-icon.svg`, termsOfUseUrl: `${publicBase}/dashboard`, privacyPolicyUrl: `${publicBase}/dashboard` });
   });
 
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'mateAssistent API Docs',
+  }));
+  app.get('/api/docs.json', (_req, res) => res.json(swaggerSpec));
+
   registerRoutes(app);
 
-  app.listen(port, () => logger.info(`🖥 Dashboard on ${port}`));
-  return app;
+  const server: Server = app.listen(port, () => logger.info(`🖥 Dashboard on ${port}`));
+  initAnalyticsWS(server);
+  return { app, server };
 }

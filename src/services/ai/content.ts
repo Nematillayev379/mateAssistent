@@ -6,6 +6,7 @@ import { DBService } from "../database";
 import { getSmartAIResponse } from "./core";
 import { activeKeys, withKeyMutex, embeddingKeyIndex } from "./key-pool";
 import type { GeminiEmbeddingResponse } from "./key-pool";
+import { notifyDuplicateBlocked } from "../analytics-ws";
 
 export async function isDuplicateAI(userId: number, title: string, content: string): Promise<boolean> {
   const lastTitles = await DBService.getLastTitles(userId, 20);
@@ -18,7 +19,10 @@ export async function isDuplicateAI(userId: number, title: string, content: stri
     );
     
     const isDup = res.toUpperCase().includes("DUPLICATE");
-    if (isDup) logger.info(`🚫 AI Dublikat aniqlandi (User: ${userId}): ${title.slice(0, 40)}...`);
+    if (isDup) {
+      logger.info(`🚫 AI Dublikat aniqlandi (User: ${userId}): ${title.slice(0, 40)}...`);
+      notifyDuplicateBlocked(userId, title);
+    }
     return isDup;
   } catch (err: unknown) {
     logger.error(`Dublikat tekshirishda AI xatosi: ${err instanceof Error ? err.message : String(err)}`);

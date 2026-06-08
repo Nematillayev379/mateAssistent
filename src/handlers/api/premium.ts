@@ -11,11 +11,37 @@ import { checkAuth } from '../auth';
 export function registerPremiumRoutes(app: express.Application) {
   const buyLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, message: { error: 'Too many purchase attempts.' } });
   const claimLimiter = rateLimit({ windowMs: 60 * 1000, max: 5, message: { error: 'Too many claim attempts.' } });
+  /**
+   * @swagger
+   * /api/payments/methods:
+   *   get:
+   *     tags: [Premium]
+   *     summary: Get available payment methods
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Available payment methods
+   */
   app.get('/api/payments/methods', checkAuth, async (_req: Request, res: Response) => {
     try { res.json(CryptoPaymentService.getAvailableMethods()); }
     catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/payments/methods failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/premium-info:
+   *   get:
+   *     tags: [Premium]
+   *     summary: Get premium info and pricing
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Premium info with pricing
+   */
   app.get('/api/premium-info', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -32,6 +58,35 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/premium-info failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/premium/buy:
+   *   post:
+   *     tags: [Premium]
+   *     summary: Initiate premium purchase
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [method, plan]
+   *             properties:
+   *               method:
+   *                 type: string
+   *                 enum: [stars, usdt, ton]
+   *               plan:
+   *                 type: string
+   *                 enum: [monthly, yearly]
+   *     responses:
+   *       200:
+   *         description: Payment link or request
+   *       400:
+   *         description: Unsupported method
+   */
   app.post('/api/premium/buy', buyLimiter, checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -53,6 +108,22 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/premium/buy failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/payments/payme:
+   *   post:
+   *     tags: [Premium]
+   *     summary: Payme payment webhook
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *     responses:
+   *       200:
+   *         description: Webhook response
+   */
   app.post('/api/payments/payme', async (req: Request, res: Response) => {
     try {
       if (!SecretManager.get('PAYME_KEY')) { res.status(200).json({ error: { code: -32504, message: 'Payment not configured' } }); return; }
@@ -60,6 +131,22 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.warn(`Payme webhook failed: ${msg}`); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/payments/click:
+   *   post:
+   *     tags: [Premium]
+   *     summary: Click payment webhook
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *     responses:
+   *       200:
+   *         description: Webhook response
+   */
   app.post('/api/payments/click', async (req: Request, res: Response) => {
     try {
       res.status(200).json(await PaymentService.handleClickWebhook(req.body || {}));
@@ -68,6 +155,25 @@ export function registerPremiumRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/crypto-payment/status/{id}:
+   *   post:
+   *     tags: [Premium]
+   *     summary: Check crypto payment status
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Payment status
+   */
   app.post('/api/crypto-payment/status/:id', checkAuth, async (req: Request, res: Response) => {
     try {
       const reqData = await CryptoPaymentService.getRequest(req.params.id as string);
@@ -83,6 +189,31 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/crypto-payment/status/:id failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/premium/wallet-claim:
+   *   post:
+   *     tags: [Premium]
+   *     summary: Claim premium via TON wallet
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [walletAddress]
+   *             properties:
+   *               walletAddress:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Premium claimed
+   *       409:
+   *         description: Already claimed
+   */
   app.post('/api/premium/wallet-claim', claimLimiter, checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -128,6 +259,19 @@ export function registerPremiumRoutes(app: express.Application) {
   });
 
   // ── Affiliate Dashboard ──
+  /**
+   * @swagger
+   * /api/affiliate:
+   *   get:
+   *     tags: [Premium]
+   *     summary: Get affiliate dashboard
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Affiliate stats
+   */
   app.get('/api/affiliate', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -149,6 +293,19 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/affiliate failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/agency/info:
+   *   get:
+   *     tags: [Premium]
+   *     summary: Get agency tier info
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Agency info
+   */
   app.get('/api/agency/info', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -180,6 +337,35 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/agency/info failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/agency/subscribe:
+   *   post:
+   *     tags: [Premium]
+   *     summary: Subscribe to agency plan
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [plan, method]
+   *             properties:
+   *               plan:
+   *                 type: string
+   *                 enum: [monthly, quarterly, yearly]
+   *               method:
+   *                 type: string
+   *                 enum: [stars, usdt, ton]
+   *     responses:
+   *       200:
+   *         description: Payment link
+   *       400:
+   *         description: Invalid plan
+   */
   app.post('/api/agency/subscribe', buyLimiter, checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -211,6 +397,21 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`POST /api/agency/subscribe failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/agency/channels:
+   *   get:
+   *     tags: [Premium]
+   *     summary: Get agency channels
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: Agency channels
+   *       403:
+   *         description: Agency subscription required
+   */
   app.get('/api/agency/channels', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -223,6 +424,34 @@ export function registerPremiumRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); logger.error(`GET /api/agency/channels failed: ${msg}`); res.status(500).json({ error: 'Internal error' }); }
   });
 
+  /**
+   * @swagger
+   * /api/agency/branding:
+   *   post:
+   *     tags: [Premium]
+   *     summary: Update agency branding
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               brandName:
+   *                 type: string
+   *               logoUrl:
+   *                 type: string
+   *               primaryColor:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Branding updated
+   *       403:
+   *         description: Agency subscription required
+   */
   app.post('/api/agency/branding', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);

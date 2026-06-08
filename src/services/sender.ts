@@ -2,6 +2,7 @@ import { bot } from "./bot_instance";
 import { DBService } from "./database";
 import { ScraperService } from "./scraper";
 import { logger } from "../utils/logger";
+import { notifyPostSent } from "./analytics-ws";
 
 const sendFailureAlertCooldowns = new Map<string, number>();
 let cachedBotUser: string | null = null;
@@ -117,6 +118,7 @@ export async function safeSend(user: { telegram_id: number; target_channel?: str
 
     if (sent === 0) throw new Error("All target channel sends failed");
     await DBService.incrementStat(user.telegram_id, "total_posts");
+    notifyPostSent(user.telegram_id, { title: article.title || 'Post', channel: targets[0] || '' });
   } catch (e: unknown) {
     const errMsg = e instanceof Error ? e.message : String(e);
     logger.error(`safeSend error: ${errMsg}`);

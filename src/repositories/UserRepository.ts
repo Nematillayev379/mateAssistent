@@ -55,7 +55,7 @@ export const UserRepository = {
   },
 
   async update(telegramId: number, updates: Record<string, unknown>): Promise<boolean> {
-    const USER_UPDATABLE_FIELDS = ['language', 'target_channel', 'keywords', 'daily_digest', 'digest_time', 'schedule_times', 'interval_minutes', 'extra_channels'];
+    const USER_UPDATABLE_FIELDS = ['language', 'target_channel', 'keywords', 'daily_digest', 'digest_time', 'schedule_times', 'interval_minutes', 'extra_channels', 'trial_used'];
     const safe: Record<string, unknown> = {};
     for (const key of USER_UPDATABLE_FIELDS) {
       if (key in updates) safe[key] = updates[key];

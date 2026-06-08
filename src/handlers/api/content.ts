@@ -9,6 +9,35 @@ function escapeTelegramHtml(text: string): string {
 }
 
 export function registerContentRoutes(app: express.Application) {
+  /**
+   * @swagger
+   * /api/posts/publish:
+   *   post:
+   *     tags: [Content]
+   *     summary: Publish a post to output channels
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [text]
+   *             properties:
+   *               text:
+   *                 type: string
+   *               imageUrl:
+   *                 type: string
+   *               channels:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *     responses:
+   *       200:
+   *         description: Post published
+   */
   app.post('/api/posts/publish', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -28,6 +57,27 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/posts/publish-now/{userId}:
+   *   post:
+   *     tags: [Content]
+   *     summary: Publish latest news immediately
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: News published
+   *       400:
+   *         description: No news available
+   */
   app.post('/api/posts/publish-now/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -59,6 +109,27 @@ export function registerContentRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/posts/generate/{userId}:
+   *   post:
+   *     tags: [Content]
+   *     summary: Generate and publish AI news post
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: AI post generated and published
+   *       400:
+   *         description: No news available
+   */
   app.post('/api/posts/generate/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -91,6 +162,37 @@ export function registerContentRoutes(app: express.Application) {
     }
   });
 
+  /**
+   * @swagger
+   * /api/posts/draft:
+   *   post:
+   *     tags: [Content]
+   *     summary: Save a post draft
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [body]
+   *             properties:
+   *               title:
+   *                 type: string
+   *               body:
+   *                 type: string
+   *               image_url:
+   *                 type: string
+   *               channels:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *     responses:
+   *       200:
+   *         description: Draft saved
+   */
   app.post('/api/posts/draft', checkAuth, async (req: Request, res: Response) => {
     try {
       const { title, body, image_url, channels } = req.body;
@@ -100,21 +202,102 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/posts/drafts/{userId}:
+   *   get:
+   *     tags: [Content]
+   *     summary: Get user's post drafts
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of drafts
+   */
   app.get('/api/posts/drafts/:userId', checkAuth, async (req: Request, res: Response) => {
     try { res.json(await DBService.getUserPostDrafts(parseInt(req.authenticatedUserId as string))); }
     catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/tickets/all:
+   *   get:
+   *     tags: [Content]
+   *     summary: Get all support tickets (admin)
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     responses:
+   *       200:
+   *         description: All tickets
+   */
   app.get('/api/tickets/all', checkAdmin, async (_req: Request, res: Response) => {
     try { res.json(await DBService.getTickets()); }
     catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/tickets/{userId}:
+   *   get:
+   *     tags: [Content]
+   *     summary: Get user's tickets
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: User tickets
+   */
   app.get('/api/tickets/:userId', checkAuth, async (req: Request, res: Response) => {
     try { res.json(await DBService.getUserTickets(parseInt(req.authenticatedUserId as string))); }
     catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/tickets/{userId}:
+   *   post:
+   *     tags: [Content]
+   *     summary: Create a support ticket
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               subject:
+   *                 type: string
+   *               message:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Ticket created
+   */
   app.post('/api/tickets/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const { subject, message } = req.body;
@@ -122,6 +305,25 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/referral/{userId}:
+   *   get:
+   *     tags: [Content]
+   *     summary: Get referral stats and link
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Referral info
+   */
   app.get('/api/referral/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const code = await DBService.ensureReferralCode(parseInt(req.authenticatedUserId as string));
@@ -131,11 +333,66 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/rules/{userId}:
+   *   get:
+   *     tags: [Content]
+   *     summary: Get user's filtering rules
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of rules
+   */
   app.get('/api/rules/:userId', checkAuth, async (req: Request, res: Response) => {
     try { res.json(await DBService.getUserRules(parseInt(req.authenticatedUserId as string))); }
     catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/rules/{userId}:
+   *   post:
+   *     tags: [Content]
+   *     summary: Add a filtering rule
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [trigger, condition, action]
+   *             properties:
+   *               trigger:
+   *                 type: string
+   *                 enum: [keyword, source, time, category]
+   *               condition:
+   *                 type: string
+   *               action:
+   *                 type: string
+   *               actionValue:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Rule added
+   */
   app.post('/api/rules/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const { trigger, condition, action, actionValue } = req.body;
@@ -145,6 +402,39 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/rules/{userId}/{id}:
+   *   patch:
+   *     tags: [Content]
+   *     summary: Toggle a rule's active state
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               isActive:
+   *                 type: boolean
+   *     responses:
+   *       200:
+   *         description: Rule toggled
+   */
   app.patch('/api/rules/:userId/:id', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -155,6 +445,30 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/rules/{userId}/{id}:
+   *   delete:
+   *     tags: [Content]
+   *     summary: Delete a rule
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Rule deleted
+   */
   app.delete('/api/rules/:userId/:id', checkAuth, async (req: Request, res: Response) => {
     try {
       const uid = parseInt(req.authenticatedUserId as string);
@@ -165,6 +479,25 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/rules/{userId}/suggest:
+   *   get:
+   *     tags: [Content]
+   *     summary: Get AI-suggested rules
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Suggested rules
+   */
   app.get('/api/rules/:userId/suggest', checkAuth, async (req: Request, res: Response) => {
     try {
       const { RuleEngine } = await import('../../services/rule_engine');
@@ -173,6 +506,25 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{userId}:
+   *   get:
+   *     tags: [Content]
+   *     summary: Get user's workspaces
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: List of workspaces
+   */
   app.get('/api/workspaces/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const workspaces = await DBService.getUserWorkspaces(parseInt(req.authenticatedUserId as string));
@@ -185,6 +537,34 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{userId}:
+   *   post:
+   *     tags: [Content]
+   *     summary: Create a workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               name:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Workspace created
+   */
   app.post('/api/workspaces/:userId', checkAuth, async (req: Request, res: Response) => {
     try {
       const { WorkspaceService } = await import('../../services/workspace');
@@ -193,6 +573,41 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{userId}/{id}/channel:
+   *   post:
+   *     tags: [Content]
+   *     summary: Add channel to workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               channelId:
+   *                 type: string
+   *               name:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Channel added
+   */
   app.post('/api/workspaces/:userId/:id/channel', checkAuth, async (req: Request, res: Response) => {
     try {
       const { WorkspaceService } = await import('../../services/workspace');
@@ -201,6 +616,35 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{userId}/{wid}/channel/{chId}:
+   *   delete:
+   *     tags: [Content]
+   *     summary: Remove channel from workspace
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: wid
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: chId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Channel removed
+   */
   app.delete('/api/workspaces/:userId/:wid/channel/:chId', checkAuth, async (req: Request, res: Response) => {
     try {
       await DBService.removeWorkspaceChannel(req.params.chId as string, parseInt(req.params.wid as string));
@@ -208,6 +652,30 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/workspaces/{userId}/{id}/rebalance:
+   *   post:
+   *     tags: [Content]
+   *     summary: Rebalance workspace content
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Content rebalanced
+   */
   app.post('/api/workspaces/:userId/:id/rebalance', checkAuth, async (req: Request, res: Response) => {
     try {
       const { WorkspaceService } = await import('../../services/workspace');
@@ -216,6 +684,24 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/clusters/today:
+   *   get:
+   *     tags: [Content]
+   *     summary: Get today's news clusters
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: refresh
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: News clusters
+   */
   app.get('/api/clusters/today', checkAuth, async (req: Request, res: Response) => {
     try {
       const { ClusteringService } = await import('../../services/clustering');
@@ -224,6 +710,35 @@ export function registerContentRoutes(app: express.Application) {
     } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : msg }); }
   });
 
+  /**
+   * @swagger
+   * /api/visual/post:
+   *   post:
+   *     tags: [Content]
+   *     summary: Generate visual post image
+   *     security:
+   *       - bearerAuth: []
+   *       - sessionAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [title]
+   *             properties:
+   *               title:
+   *                 type: string
+   *               content:
+   *                 type: string
+   *               sourceUrl:
+   *                 type: string
+   *               category:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Visual post data
+   */
   app.post('/api/visual/post', checkAuth, async (req: Request, res: Response) => {
     try {
       const { VisualBuilder } = await import('../../services/visual_builder');
