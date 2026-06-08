@@ -1,11 +1,9 @@
-import { Bot, Context, webhookCallback } from 'grammy';
+import { Bot } from 'grammy';
 import { CONFIG } from '../config/config';
 import { logger } from '../utils/logger';
 
-// Grammy bot instance
 export const grammyBot = new Bot(CONFIG.TELEGRAM_TOKEN);
 
-// Register command handlers
 grammyBot.command('start', async (ctx) => {
   const { startCommand } = await import('../commands/start');
   const msg = {
@@ -73,7 +71,6 @@ grammyBot.command('schedule', async (ctx) => {
   await scheduleCommand.handler(grammyBot as any, msg, match as any);
 });
 
-// Callback query handler
 grammyBot.on('callback_query:data', async (ctx) => {
   const { handleCallbackQuery } = await import('../commands/callbacks');
   const query = {
@@ -90,19 +87,26 @@ grammyBot.on('callback_query:data', async (ctx) => {
   await handleCallbackQuery(grammyBot as any, query, userStates);
 });
 
-// Message handler for non-command messages
-grammyBot.on('message', async (ctx) => {
-  const msg = ctx.message;
-  if (!msg) return;
-
-  // Delegate to existing registerCommands message handler
-  const { registerCommands } = await import('../commands');
-  // The message handler is already registered via registerCommands in telegram.ts
-  // We skip duplicate handling here
+grammyBot.on('channel_post', async (ctx) => {
+  try {
+    const { TelegramMonitorService } = await import('./telegram_monitor');
+    const msg = {
+      chat: { id: ctx.channelPost.chat.id },
+      message_id: ctx.channelPost.message_id,
+      text: ctx.channelPost.text || '',
+      caption: (ctx.channelPost as any).caption || '',
+      entities: ctx.channelPost.entities || [],
+      caption_entities: (ctx.channelPost as any).caption_entities || [],
+      photo: (ctx.channelPost as any).photo || [],
+      document: (ctx.channelPost as any).document || null,
+    } as any;
+    await TelegramMonitorService.handleChannelPost(msg);
+  } catch (e: unknown) {
+    logger.error(`grammy channel_post: ${e instanceof Error ? e.message : String(e)}`);
+  }
 });
 
 export async function startGrammyBot() {
-  // Set bot commands
   await grammyBot.api.setMyCommands([
     { command: 'start', description: 'Boshlash / Main Menu' },
     { command: 'status', description: 'Statistika / Stats' },
@@ -114,10 +118,9 @@ export async function startGrammyBot() {
     { command: 'admin', description: 'Admin panel / Admin' },
   ]);
 
-  // Webhook or polling
   if (CONFIG.PUBLIC_URL && process.env.NODE_ENV !== 'development') {
     const webhookUrl = `${CONFIG.PUBLIC_URL}/api/bot/webhook`;
-    grammyBot.api.setWebhook(webhookUrl, {
+    await grammyBot.api.setWebhook(webhookUrl, {
       secret_token: CONFIG.WEBHOOK_SECRET,
       max_connections: 100,
     });
