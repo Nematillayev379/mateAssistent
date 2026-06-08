@@ -40,7 +40,7 @@ export function registerPublicApiRoutes(app: express.Application) {
         premium_until: user.premium_until,
         language: user.language,
       });
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : String(e)) }); }
   });
 
   app.post('/api/v1/publish', async (req: AuthenticatedRequest, res: Response) => {
@@ -58,8 +58,7 @@ export function registerPublicApiRoutes(app: express.Application) {
       await DBService.incrementStat(req.apiUserId as number, 'total_posts');
       res.json({ success: true, message_id: sent.message_id });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      res.status(500).json({ error: msg });
+      res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : String(e)) });
     }
   });
 
@@ -67,14 +66,14 @@ export function registerPublicApiRoutes(app: express.Application) {
     try {
       const sources = await DBService.getUserSources(req.apiUserId as number);
       res.json(sources.map((s: Record<string, unknown>) => ({ id: s.id, name: s.name, url: s.url, lang: s.lang })));
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : String(e)) }); }
   });
 
   app.get('/api/v1/stats', async (req: AuthenticatedRequest, res: Response) => {
     try {
       const stats = await DBService.getStats(req.apiUserId as number);
       res.json(stats || { total_posts: 0, total_duplicates: 0 });
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : String(e)) }); }
   });
 
   app.get('/api/v1/referral', async (req: AuthenticatedRequest, res: Response) => {
@@ -83,6 +82,6 @@ export function registerPublicApiRoutes(app: express.Application) {
       const code = await DBService.ensureReferralCode(req.apiUserId as number);
       const refLink = `https://t.me/${process.env.BOT_USERNAME || 'bot'}?start=ref_${code}`;
       res.json({ link: refLink, ...stats });
-    } catch (e: unknown) { const msg = e instanceof Error ? e.message : String(e); res.status(500).json({ error: msg }); }
+    } catch (e: unknown) { res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Internal server error' : (e instanceof Error ? e.message : String(e)) }); }
   });
 }
