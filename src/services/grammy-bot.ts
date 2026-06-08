@@ -1,6 +1,7 @@
 import { Bot } from 'grammy';
 import { CONFIG } from '../config/config';
 import { logger } from '../utils/logger';
+import { botCompat } from './grammy-wrapper';
 
 export const grammyBot = new Bot(CONFIG.TELEGRAM_TOKEN);
 
@@ -12,25 +13,25 @@ grammyBot.command('start', async (ctx) => {
     text: ctx.message?.text || '',
     message_id: ctx.message?.message_id || 0,
   } as any;
-  await startCommand.handler(grammyBot as any, msg, null);
+  await startCommand.handler(botCompat, msg, null);
 });
 
 grammyBot.command('status', async (ctx) => {
   const { statusCommand } = await import('../commands/status');
   const msg = { chat: { id: ctx.chat.id }, from: ctx.from, message_id: ctx.message?.message_id || 0 } as any;
-  await statusCommand.handler(grammyBot as any, msg, null);
+  await statusCommand.handler(botCompat, msg, null);
 });
 
 grammyBot.command('help', async (ctx) => {
   const { helpCommand } = await import('../commands/help');
   const msg = { chat: { id: ctx.chat.id }, from: ctx.from, message_id: ctx.message?.message_id || 0 } as any;
-  await helpCommand.handler(grammyBot as any, msg, null);
+  await helpCommand.handler(botCompat, msg, null);
 });
 
 grammyBot.command('admin', async (ctx) => {
   const { adminCommand } = await import('../commands/admin');
   const msg = { chat: { id: ctx.chat.id }, from: ctx.from, text: ctx.message?.text || '', message_id: ctx.message?.message_id || 0 } as any;
-  await adminCommand.handler(grammyBot as any, msg, null);
+  await adminCommand.handler(botCompat, msg, null);
 });
 
 grammyBot.command('setchannel', async (ctx) => {
@@ -38,7 +39,7 @@ grammyBot.command('setchannel', async (ctx) => {
   const text = ctx.message?.text || '';
   const match = text.match(/^\/setchannel(?:\s+(.*))?$/i);
   const msg = { chat: { id: ctx.chat.id }, from: ctx.from, text, message_id: ctx.message?.message_id || 0 } as any;
-  await setChannelCommand.handler(grammyBot as any, msg, match as any);
+  await setChannelCommand.handler(botCompat, msg, match as any);
 });
 
 grammyBot.command('track', async (ctx) => {
@@ -46,7 +47,7 @@ grammyBot.command('track', async (ctx) => {
   const text = ctx.message?.text || '';
   const match = text.match(/^\/track\s*(.*)|\/kuzatish\s*(.*)|\/manba\s*(.*)$/i);
   const msg = { chat: { id: ctx.chat.id }, from: ctx.from, text, message_id: ctx.message?.message_id || 0 } as any;
-  await trackCommand.handler(grammyBot as any, msg, match as any);
+  await trackCommand.handler(botCompat, msg, match as any);
 });
 
 grammyBot.command('workspace', async (ctx) => {
@@ -54,13 +55,13 @@ grammyBot.command('workspace', async (ctx) => {
   const text = ctx.message?.text || '';
   const match = text.match(/^\/workspace(?:\s+(.*))?$/i);
   const msg = { chat: { id: ctx.chat.id }, from: ctx.from, text, message_id: ctx.message?.message_id || 0 } as any;
-  await workspaceCommand.handler(grammyBot as any, msg, match as any);
+  await workspaceCommand.handler(botCompat, msg, match as any);
 });
 
 grammyBot.command('lang', async (ctx) => {
   const { langCommand } = await import('../commands/lang');
   const msg = { chat: { id: ctx.chat.id }, from: ctx.from, message_id: ctx.message?.message_id || 0 } as any;
-  await langCommand.handler(grammyBot as any, msg, null);
+  await langCommand.handler(botCompat, msg, null);
 });
 
 grammyBot.command('schedule', async (ctx) => {
@@ -68,7 +69,7 @@ grammyBot.command('schedule', async (ctx) => {
   const text = ctx.message?.text || '';
   const match = text.match(/^\/schedule(?:@\w+)?(?:\s+(.+))?$/i);
   const msg = { chat: { id: ctx.chat.id }, from: ctx.from, text, message_id: ctx.message?.message_id || 0 } as any;
-  await scheduleCommand.handler(grammyBot as any, msg, match as any);
+  await scheduleCommand.handler(botCompat, msg, match as any);
 });
 
 grammyBot.on('callback_query:data', async (ctx) => {
@@ -84,7 +85,7 @@ grammyBot.on('callback_query:data', async (ctx) => {
     } : undefined,
   } as any;
   const userStates = new Map();
-  await handleCallbackQuery(grammyBot as any, query, userStates);
+  await handleCallbackQuery(botCompat, query, userStates);
 });
 
 grammyBot.on('channel_post', async (ctx) => {
