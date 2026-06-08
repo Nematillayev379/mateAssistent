@@ -4,13 +4,12 @@ import path from 'path';
 import { logger } from '../utils/logger';
 import { CONFIG } from '../config/config';
 import { registerRoutes } from '../handlers/dashboard';
-import TelegramBot from 'node-telegram-bot-api';
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from '../config/swagger';
 import { initAnalyticsWS } from './analytics-ws';
 import type { Server } from 'http';
 
-export function startDashboardServer(port: number | string, _bot?: TelegramBot) {
+export function startDashboardServer(port: number | string) {
   const app = express();
   app.set('trust proxy', 1);
   app.use(express.json());

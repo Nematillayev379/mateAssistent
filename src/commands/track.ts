@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage } from "../types/telegram";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { ScraperService } from "../services/scraper";
@@ -7,7 +7,7 @@ import { logger } from "../utils/logger";
 export const trackCommand: BotCommand = {
   pattern: /^\/track\s*(.*)|\/kuzatish\s*(.*)|\/manba\s*(.*)$/i,
   description: '🔔 Narx kuzatish',
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
+  handler: async (bot: any, msg: TgMessage, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
     const url = (match?.[1] || match?.[2] || match?.[3])?.trim();
 

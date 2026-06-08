@@ -39,7 +39,6 @@
     "i18next": "^26.1.0",
     "ioredis": "^5.10.1",
     "node-cron": "^3.0.3",
-    "node-telegram-bot-api": "^0.67.0",
     "openai": "^6.34.0",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",

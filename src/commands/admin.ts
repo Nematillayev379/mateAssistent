@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage, InlineKeyboard } from "../types/telegram";
 import { BotCommand } from "../types";
 import { isOwnerId } from "../config/config";
 import { DBService } from "../services/database";
@@ -8,7 +8,7 @@ import { logger } from "../utils/logger";
 export const adminCommand: BotCommand = {
   pattern: /^\/(admin|promote)\b/i,
   description: "🛡 Admin Panel & Promotion",
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message) => {
+  handler: async (bot: any, msg: TgMessage) => {
     const chatId = msg.chat.id;
     try {
       const user = await DBService.getUser(chatId);
@@ -60,7 +60,7 @@ export const adminCommand: BotCommand = {
         `🛠 Rolni o'zgartirish: <code>/promote [ID] [ROL]</code>\n\n` +
         `mateAssistent Dashboard orqali to'liq boshqarishingiz mumkin:`;
 
-      const inline_keyboard: TelegramBot.InlineKeyboardButton[][] = [];
+      const inline_keyboard: InlineKeyboard = [];
       if (dashboardUrl) {
         inline_keyboard.push([{ text: "🖥 mateAssistent Dashboard (Admin Mode)", web_app: { url: dashboardUrl } }]);
       }

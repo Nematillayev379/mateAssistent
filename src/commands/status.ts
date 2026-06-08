@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage } from "../types/telegram";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
@@ -6,7 +6,7 @@ import { logger } from "../utils/logger";
 export const statusCommand: BotCommand = {
   pattern: /^\/(status|statistika)$/i,
   description: '📊 Statistika va holat',
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message) => {
+  handler: async (bot: any, msg: TgMessage) => {
     const chatId = msg.chat.id;
     try {
       const stats = await DBService.getStats(chatId);

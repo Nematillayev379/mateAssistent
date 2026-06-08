@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage } from "../types/telegram";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { i18n } from "../services/i18n";
@@ -7,7 +7,7 @@ import { logger } from "../utils/logger";
 export const workspaceCommand: BotCommand = {
   pattern: /^\/workspace(?:\s+(.*))?$/i,
   description: '📋 Workspace boshqaruvi / Workspace management',
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
+  handler: async (bot: any, msg: TgMessage, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
     let lang = 'uz';
     try {

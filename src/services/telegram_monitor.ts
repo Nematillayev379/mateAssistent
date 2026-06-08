@@ -1,4 +1,4 @@
-import TelegramBot from 'node-telegram-bot-api';
+import { TgMessage, TgUser } from '../types/telegram';
 import { bot } from './bot_instance';
 import { CONFIG } from '../config/config';
 import { DBService } from './database';
@@ -44,11 +44,11 @@ export const TelegramMonitorService = {
     await DBService.markTelegramMessageSeen(userId, sourceChatId, messageId);
   },
 
-  extractText(msg: TelegramBot.Message): string {
+  extractText(msg: TgMessage): string {
     return msg.text || msg.caption || '';
   },
 
-  async handleChannelPost(msg: TelegramBot.Message) {
+  async handleChannelPost(msg: TgMessage) {
     if (!msg.chat?.id || !msg.message_id) return;
 
     const chatId = msg.chat.id;

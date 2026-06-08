@@ -62,7 +62,7 @@ async function bootstrap() {
     }
 
     const PORT = parseInt(process.env.PORT || '3000', 10);
-    const { server } = startDashboardServer(PORT, bot);
+    const { server } = startDashboardServer(PORT);
     await startBot();
     await startGrammyBot();
     await startWorkers();

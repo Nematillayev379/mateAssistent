@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage } from "../types/telegram";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
@@ -7,7 +7,7 @@ import { i18n } from "../services/i18n";
 export const setChannelCommand: BotCommand = {
   pattern: /^\/setchannel(?:\s+(.*))?$/i,
   description: "📢 Kanalni sozlash yoki o'zgartirish / Set channel",
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
+  handler: async (bot: any, msg: TgMessage, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
     const user = await DBService.getUser(chatId);
     if (!user) return;

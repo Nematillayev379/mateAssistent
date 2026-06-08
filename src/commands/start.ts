@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage, InlineKeyboard } from "../types/telegram";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { isOwnerId } from "../config/config";
@@ -6,7 +6,7 @@ import { buildDashboardUrl } from "../services/bot_instance";
 import { i18n, WEBAPP_LANGS } from "../services/i18n";
 import { logger } from "../utils/logger";
 
-function getLanguageKeyboard(): TelegramBot.InlineKeyboardButton[][] {
+function getLanguageKeyboard(): InlineKeyboard {
   const labels: Record<string, string> = {
     uz: "O'zbek 🇺🇿",
     ru: "Русский 🇷🇺",
@@ -28,7 +28,7 @@ function getLanguageKeyboard(): TelegramBot.InlineKeyboardButton[][] {
     az: "Azərbaycanca 🇦🇿",
   };
 
-  const rows: TelegramBot.InlineKeyboardButton[][] = [];
+  const rows: InlineKeyboard = [];
   for (let i = 0; i < WEBAPP_LANGS.length; i += 2) {
     rows.push(
       WEBAPP_LANGS.slice(i, i + 2).map((lang) => ({
@@ -41,7 +41,7 @@ function getLanguageKeyboard(): TelegramBot.InlineKeyboardButton[][] {
 }
 
 async function sendWelcomeMenu(
-  bot: TelegramBot,
+  bot: any,
   chatId: number,
   user: { is_premium?: number | boolean; language?: string },
   role: string
@@ -50,7 +50,7 @@ async function sendWelcomeMenu(
   const dashboardUrl = buildDashboardUrl(chatId);
   const publicBase = String(process.env.PUBLIC_URL || "").trim();
   const introUrl = /^https?:\/\/[^/]+/i.test(publicBase) ? `${publicBase.replace(/\/$/, "")}/intro/` : null;
-  const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
+  const inlineKeyboard: InlineKeyboard = [];
 
   if (dashboardUrl) {
     inlineKeyboard.push([{ text: `🖥  ${i18n.t("menu_dashboard", { lng: lang })}`, web_app: { url: dashboardUrl } }]);
@@ -91,7 +91,7 @@ async function sendWelcomeMenu(
   await bot.sendMessage(chatId, menuText, { parse_mode: "HTML", reply_markup: { inline_keyboard: inlineKeyboard } });
 }
 
-export async function sendLanguageStep(bot: TelegramBot, chatId: number): Promise<void> {
+export async function sendLanguageStep(bot: any, chatId: number): Promise<void> {
   const introText =
     `🤖 <b>${i18n.t("start_intro_title", { lng: "en" })}</b>\n` +
     `<i>${i18n.t("start_intro_subtitle", { lng: "en" })}</i>\n\n` +
@@ -112,7 +112,7 @@ export async function sendLanguageStep(bot: TelegramBot, chatId: number): Promis
   });
 }
 
-async function sendChannelStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
+async function sendChannelStep(bot: any, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
     `<b>📤 ${i18n.t("onboarding_step_channel", { lng: lang })}</b>\n\n` +
@@ -123,7 +123,7 @@ async function sendChannelStep(bot: TelegramBot, chatId: number, lang: string): 
   );
 }
 
-async function sendSourceStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
+async function sendSourceStep(bot: any, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
     `<b>📡 ${i18n.t("onboarding_step_source", { lng: lang })}</b>\n\n` +
@@ -134,7 +134,7 @@ async function sendSourceStep(bot: TelegramBot, chatId: number, lang: string): P
   );
 }
 
-async function sendIntervalStep(bot: TelegramBot, chatId: number, lang: string): Promise<void> {
+async function sendIntervalStep(bot: any, chatId: number, lang: string): Promise<void> {
   await bot.sendMessage(
     chatId,
     `<b>⏱ ${i18n.t("onboarding_step_interval", { lng: lang })}</b>\n\n` +
@@ -160,7 +160,7 @@ async function sendIntervalStep(bot: TelegramBot, chatId: number, lang: string):
 }
 
 export async function sendNextOnboardingStep(
-  bot: TelegramBot,
+  bot: any,
   chatId: number,
   userOverride?: { language?: string; has_seen_lang?: boolean; target_channel?: string; interval_minutes?: number | string; role?: string; is_premium?: number | boolean; is_approved?: number } | null
 ): Promise<"language" | "channel" | "source" | "interval" | "menu"> {
@@ -195,7 +195,7 @@ export async function sendNextOnboardingStep(
 export const startCommand: BotCommand = {
   pattern: /\/start\s*(.*)|\/boshlash\s*(.*)|\/\u043d\u0430\u0447\u0430\u0442\u044c\s*(.*)/i,
   description: "Botni boshlash / Start",
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
+  handler: async (bot: any, msg: TgMessage, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
     const isOwner = isOwnerId(chatId);
 

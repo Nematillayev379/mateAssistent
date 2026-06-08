@@ -1,4 +1,3 @@
-import TelegramBot from "node-telegram-bot-api";
 import { DBService } from "../services/database";
 import { ScraperService } from "../services/scraper";
 import { i18n } from "../services/i18n";
@@ -6,7 +5,7 @@ import { logger } from "../utils/logger";
 import { sendNextOnboardingStep } from "./start";
 
 export async function handleOnboardingMessage(
-  bot: TelegramBot,
+  bot: any,
   chatId: number,
   text: string,
   user: { has_seen_lang?: boolean; target_channel?: string; interval_minutes?: number | string },
@@ -37,7 +36,7 @@ export async function handleOnboardingMessage(
   return false;
 }
 
-async function handleChannelStep(bot: TelegramBot, chatId: number, text: string, lang: string) {
+async function handleChannelStep(bot: any, chatId: number, text: string, lang: string) {
   let targetText = text.trim();
   if (targetText.includes("t.me/")) {
     const parts = targetText.split("t.me/");
@@ -77,7 +76,7 @@ async function handleChannelStep(bot: TelegramBot, chatId: number, text: string,
   }
 }
 
-async function handleRssStep(bot: TelegramBot, chatId: number, text: string, lang: string) {
+async function handleRssStep(bot: any, chatId: number, text: string, lang: string) {
   const trimmed = text.trim();
   let websiteInput = extractUrl(trimmed);
   if (!websiteInput) {
@@ -115,7 +114,7 @@ async function handleRssStep(bot: TelegramBot, chatId: number, text: string, lan
   await sendNextOnboardingStep(bot, chatId);
 }
 
-async function handleIntervalStep(bot: TelegramBot, chatId: number, text: string, lang: string) {
+async function handleIntervalStep(bot: any, chatId: number, text: string, lang: string) {
   const minutes = Number(text.trim());
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
     await bot.sendMessage(chatId, i18n.t("quick_invalid_interval", { lng: lang }));

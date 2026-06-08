@@ -1,9 +1,9 @@
-import TelegramBot from "node-telegram-bot-api";
+import { TgMessage, TgUser, InlineKeyboard } from "./telegram";
 
 export interface BotCommand {
   pattern: RegExp;
   description: string;
-  handler: (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => Promise<void>;
+  handler: (bot: any, msg: TgMessage, match: RegExpExecArray | null) => Promise<void>;
 }
 
 export interface UserState {

@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage, TgUser, InlineKeyboard, TgPreCheckoutQuery, TgCallbackQuery } from "../types/telegram";
 import { helpCommand } from "./help";
 import { adminCommand } from "./admin";
 import { setChannelCommand } from "./setchannel";
@@ -39,7 +39,7 @@ export interface UserStateEntry {
   createdAt: number;
 }
 
-let cachedBotInfo: TelegramBot.User | null = null;
+let cachedBotInfo: TgUser | null = null;
 
 function extractUrlFromText(text: string): string | null {
   const match = text.match(/(https?:\/\/[^\s]+)/);
@@ -52,7 +52,7 @@ function pickLocaleForFormat(lang: string): string {
   return "en-GB";
 }
 
-export function registerCommands(bot: TelegramBot) {
+export function registerCommands(bot: any) {
   const userStates = new Map<number, UserStateEntry>();
 
   const getBotInfo = async () => {
@@ -68,7 +68,7 @@ export function registerCommands(bot: TelegramBot) {
     }
   }, 60_000);
 
-  bot.on("message", async (msg) => {
+  bot.on("message", async (msg: TgMessage) => {
     const chatId = msg.chat.id;
     const userId = msg.from?.id || chatId;
     if (!await checkRateLimit(userId)) {
@@ -178,7 +178,7 @@ export function registerCommands(bot: TelegramBot) {
       }
 
       const isPlaylist = text.includes("playlist") || text.includes("list=") || text.includes("/sets/");
-      const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
+      const inlineKeyboard: InlineKeyboard = [];
       if (isPlaylist) {
         inlineKeyboard.push([{ text: i18n.t("media_bulk_download", { lng: lang }), callback_data: "dl_playlist_all" }]);
       }
@@ -201,7 +201,7 @@ export function registerCommands(bot: TelegramBot) {
   });
 
   for (const cmd of commands) {
-    bot.onText(cmd.pattern, async (msg: TelegramBot.Message, match: RegExpExecArray | null) => {
+    bot.onText(cmd.pattern, async (msg: TgMessage, match: RegExpExecArray | null) => {
       try {
         const userId = msg.from?.id ?? msg.chat.id;
         if (!await checkCommandRateLimit(userId)) {
@@ -217,7 +217,7 @@ export function registerCommands(bot: TelegramBot) {
     });
   }
 
-  bot.on("pre_checkout_query", async (query) => {
+  bot.on("pre_checkout_query", async (query: TgPreCheckoutQuery) => {
     try {
       const payload = query.invoice_payload;
       if (!payload || !payload.startsWith("premium_sub_")) {
@@ -235,7 +235,7 @@ export function registerCommands(bot: TelegramBot) {
     }
   });
 
-  bot.on("successful_payment", async (msg) => {
+  bot.on("successful_payment", async (msg: TgMessage) => {
     const chatId = msg.chat.id;
     const payment = msg.successful_payment;
     if (!payment) return;
@@ -259,7 +259,7 @@ export function registerCommands(bot: TelegramBot) {
     }
   });
 
-  bot.on("callback_query", async (query) => {
+  bot.on("callback_query", async (query: TgCallbackQuery) => {
     const chatId = query.message?.chat.id;
     if (!chatId || !query.data) return;
     const userId = query.from?.id ?? chatId ?? 0;

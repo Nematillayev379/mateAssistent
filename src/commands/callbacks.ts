@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage, TgCallbackQuery, InlineKeyboard, TgMessageEntity } from "../types/telegram";
 import { DBService } from "../services/database";
 import { logger } from "../utils/logger";
 import { i18n, WEBAPP_LANGS } from "../services/i18n";
@@ -18,8 +18,8 @@ function buildDashboardUrl(chatId: number): string | null {
 }
 
 export async function handleCallbackQuery(
-  bot: TelegramBot,
-  query: TelegramBot.CallbackQuery,
+  bot: any,
+  query: TgCallbackQuery,
   userStates: Map<number, UserStateEntry>,
 ) {
   const chatId = query.message?.chat.id;
@@ -174,7 +174,7 @@ export async function handleCallbackQuery(
 
     if (data === "cmd_settings") {
       const dashUrl = buildDashboardUrl(chatId);
-      const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
+      const inlineKeyboard: InlineKeyboard = [];
       if (dashUrl) inlineKeyboard.push([{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
       inlineKeyboard.push([{ text: i18n.t("language_change", { lng: lang }), callback_data: "cmd_lang" }]);
       await bot.sendMessage(chatId, i18n.t("bot_settings_panel", { lng: lang }), { reply_markup: { inline_keyboard: inlineKeyboard } });
@@ -210,7 +210,7 @@ export async function handleCallbackQuery(
 
     if (data === "cmd_admin") {
       if (user?.role === "owner" || user?.role === "admin") {
-        await adminCommand.handler(bot, query.message as TelegramBot.Message, null);
+        await adminCommand.handler(bot, query.message as TgMessage, null);
       } else {
         await bot.answerCallbackQuery(query.id, { text: i18n.t("bot_no_permission", { lng: lang }), show_alert: true });
       }
@@ -225,14 +225,14 @@ export async function handleCallbackQuery(
 
     if (data === "cmd_sources" || data === "cmd_studio" || data === "cmd_channel" || data === "cmd_automation") {
       const dashUrl = buildDashboardUrl(chatId);
-      const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
+      const inlineKeyboard: InlineKeyboard = [];
       if (dashUrl) inlineKeyboard.push([{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashUrl } }]);
       await bot.sendMessage(chatId, i18n.t("bot_open_dashboard", { lng: lang }), { reply_markup: { inline_keyboard: inlineKeyboard } });
       return;
     }
 
     if (data === "cmd_help") {
-      await helpCommand.handler(bot, query.message as TelegramBot.Message, null);
+      await helpCommand.handler(bot, query.message as TgMessage, null);
       return;
     }
 
@@ -244,7 +244,7 @@ export async function handleCallbackQuery(
 }
 
 async function handleMediaDownload(
-  bot: TelegramBot, query: TelegramBot.CallbackQuery, chatId: number, user: { target_channel?: string; language?: string } | null, lang: string,
+  bot: any, query: TgCallbackQuery, chatId: number, user: { target_channel?: string; language?: string } | null, lang: string,
   userStates: Map<number, UserStateEntry>, data: string,
 ) {
   const type = data.includes("_video_") ? "video" : data.includes("_audio_") ? "audio" : null;
@@ -290,7 +290,7 @@ async function handleMediaDownload(
 }
 
 async function handlePlaylist(
-  bot: TelegramBot, query: TelegramBot.CallbackQuery, chatId: number, lang: string, userStates: Map<number, UserStateEntry>,
+  bot: any, query: TgCallbackQuery, chatId: number, lang: string, userStates: Map<number, UserStateEntry>,
 ) {
   const url = resolveMediaUrl(query, userStates, chatId);
   if (!url) {
@@ -316,7 +316,7 @@ async function handlePlaylist(
 }
 
 async function handleScheduleMedia(
-  bot: TelegramBot, query: TelegramBot.CallbackQuery, chatId: number, lang: string,
+  bot: any, query: TgCallbackQuery, chatId: number, lang: string,
   userStates: Map<number, UserStateEntry>,
 ) {
   const canSchedule = await DBService.checkUserLimit(chatId, "scheduled");
@@ -335,7 +335,7 @@ async function handleScheduleMedia(
   await bot.sendMessage(chatId, i18n.t("bot_schedule_prompt", { lng: lang }));
 }
 
-async function handleBuyPremium(bot: TelegramBot, chatId: number, lang: string) {
+async function handleBuyPremium(bot: any, chatId: number, lang: string) {
   const monthlyPrice = await DBService.getPrice("monthly");
   const yearlyPrice = await DBService.getPrice("yearly");
   const paymeLink = await PaymentService.generatePaymeLink(chatId, monthlyPrice);
@@ -343,7 +343,7 @@ async function handleBuyPremium(bot: TelegramBot, chatId: number, lang: string) 
 
   const dashUrl = buildDashboardUrl(chatId);
   const text = `${i18n.t("bot_premium_title", { lng: lang })}\n\n${i18n.t("monthly_plan", { lng: lang })}: ${monthlyPrice.toLocaleString()} UZS\n${i18n.t("yearly_plan", { lng: lang })}: ${yearlyPrice.toLocaleString()} UZS`;
-  const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [
+  const inlineKeyboard: InlineKeyboard = [
     [{ text: `Payme (${monthlyPrice.toLocaleString()} UZS)`, url: paymeLink || "https://payme.uz" }],
     [{ text: `Click (${monthlyPrice.toLocaleString()} UZS)`, url: clickLink || "https://click.uz" }],
   ];
@@ -352,11 +352,11 @@ async function handleBuyPremium(bot: TelegramBot, chatId: number, lang: string) 
   await bot.sendMessage(chatId, text, { reply_markup: { inline_keyboard: inlineKeyboard } });
 }
 
-export function resolveMediaUrl(query: TelegramBot.CallbackQuery, userStates: Map<number, UserStateEntry>, chatId: number): string | null {
+export function resolveMediaUrl(query: TgCallbackQuery, userStates: Map<number, UserStateEntry>, chatId: number): string | null {
   const pending = userStates.get(chatId);
   if (pending?.url && (pending.type === "media_download" || pending.type === "schedule_time")) return pending.url;
 
-  const msg = query.message as TelegramBot.Message & { reply_to_message?: TelegramBot.Message } | undefined;
+  const msg = query.message as TgMessage & { reply_to_message?: TgMessage } | undefined;
   const replyText = msg?.reply_to_message?.text || "";
   const match = replyText.match(/(https?:\/\/[^\s]+)/);
   if (match) return match[0];
@@ -365,7 +365,7 @@ export function resolveMediaUrl(query: TelegramBot.CallbackQuery, userStates: Ma
   if (fromMessage) return fromMessage[0];
 
   const entities = msg?.reply_to_message?.entities || [];
-  const urlEntity = entities.find((e: TelegramBot.MessageEntity) => e.type === "url" || e.type === "text_link");
+  const urlEntity = entities.find((e: TgMessageEntity) => e.type === "url" || e.type === "text_link");
   if (!urlEntity) return null;
   if (urlEntity.type === "url") return replyText.substring(urlEntity.offset, urlEntity.offset + urlEntity.length);
   return urlEntity.url || null;

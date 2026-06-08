@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage } from "../types/telegram";
 import { BotCommand } from "../types";
 import { sendLanguageStep } from "./start";
 import { logger } from "../utils/logger";
@@ -6,7 +6,7 @@ import { logger } from "../utils/logger";
 export const langCommand: BotCommand = {
   pattern: /^\/(lang|language|til|язык)$/i,
   description: "🌐 Tilni o'zgartirish / Change language",
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message) => {
+  handler: async (bot: any, msg: TgMessage) => {
     const chatId = msg.chat.id;
     try {
       await sendLanguageStep(bot, chatId);

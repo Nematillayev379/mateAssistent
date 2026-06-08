@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage, InlineKeyboard } from "../types/telegram";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { i18n } from "../services/i18n";
@@ -58,8 +58,8 @@ function extractContentText(content: unknown): string {
 export function buildScheduleListKeyboard(
   posts: Array<{ id: number | string }>,
   lang: string,
-): TelegramBot.InlineKeyboardButton[][] {
-  const rows: TelegramBot.InlineKeyboardButton[][] = posts.map((post) => [
+): InlineKeyboard {
+  const rows: InlineKeyboard = posts.map((post) => [
     { text: `${i18n.t("bot_schedule_btn_view", { lng: lang })} #${post.id}`, callback_data: `sched_view_${post.id}` },
     { text: `${i18n.t("bot_schedule_btn_cancel", { lng: lang })} #${post.id}`, callback_data: `sched_cancel_${post.id}` },
   ]);
@@ -70,7 +70,7 @@ export function buildScheduleListKeyboard(
 export function renderScheduleList(
   posts: Array<Record<string, unknown>>,
   lang: string,
-): { text: string; keyboard: TelegramBot.InlineKeyboardButton[][] } {
+): { text: string; keyboard: InlineKeyboard } {
   const pending = posts.filter((p) => p.status === "pending");
   if (pending.length === 0) {
     return {
@@ -94,7 +94,7 @@ export function renderScheduleList(
   return { text: lines.join("\n"), keyboard: buildScheduleListKeyboard(slice as unknown as { id: string | number }[], lang) };
 }
 
-export function renderScheduleView(post: Record<string, unknown>, lang: string): { text: string; keyboard: TelegramBot.InlineKeyboardButton[][] } {
+export function renderScheduleView(post: Record<string, unknown>, lang: string): { text: string; keyboard: InlineKeyboard } {
   const id = String(post.id);
   const when = formatScheduleTime(String(post.scheduled_at), lang);
   const type = String(post.type || "text");
@@ -113,7 +113,7 @@ export function renderScheduleView(post: Record<string, unknown>, lang: string):
     escapeHtml(content),
   ].join("\n");
 
-  const keyboard: TelegramBot.InlineKeyboardButton[][] = [
+  const keyboard: InlineKeyboard = [
     [{ text: i18n.t("bot_schedule_btn_cancel", { lng: lang }), callback_data: `sched_cancel_${id}` }],
     [{ text: i18n.t("bot_schedule_btn_list", { lng: lang }), callback_data: "sched_list" }],
   ];
@@ -133,7 +133,7 @@ function buildNextScheduleDate(h: number, m: number): Date {
 export const scheduleCommand: BotCommand = {
   pattern: /^\/schedule(?:@\w+)?(?:\s+(.+))?$/i,
   description: "📅 Schedule a post",
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message, match: RegExpExecArray | null) => {
+  handler: async (bot: any, msg: TgMessage, match: RegExpExecArray | null) => {
     const chatId = msg.chat.id;
     const user = await DBService.getUser(chatId);
     const lang = (user?.language || "uz") as string;
@@ -211,7 +211,7 @@ export const scheduleCommand: BotCommand = {
         "<i>Tip: Reply to any message with the word <code>schedule</code> to schedule it for +1 hour.</i>",
       ].join("\n");
 
-      const keyboard: TelegramBot.InlineKeyboardButton[][] = [
+      const keyboard: InlineKeyboard = [
         [{ text: i18n.t("bot_schedule_btn_list", { lng: lang }), callback_data: "sched_list" }],
       ];
       await bot.sendMessage(chatId, helpText, {

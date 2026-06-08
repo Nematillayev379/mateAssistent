@@ -1,4 +1,4 @@
-import TelegramBot from "node-telegram-bot-api";
+import type { TgMessage, InlineKeyboard } from "../types/telegram";
 import { BotCommand } from "../types";
 import { DBService } from "../services/database";
 import { buildDashboardUrl } from "../services/bot_instance";
@@ -8,7 +8,7 @@ import { logger } from "../utils/logger";
 export const helpCommand: BotCommand = {
   pattern: /^\/(help|yordam|помощь)$/i,
   description: "ℹ️ Yordam va yo'riqnoma / Help guide",
-  handler: async (bot: TelegramBot, msg: TelegramBot.Message) => {
+  handler: async (bot: any, msg: TgMessage) => {
     const chatId = msg.chat.id;
     try {
       const user = await DBService.getUser(chatId);
@@ -37,7 +37,7 @@ export const helpCommand: BotCommand = {
         i18n.t("help_dashboard_body", { lng: lang }),
       ].join("\n");
 
-      const inlineKeyboard: TelegramBot.InlineKeyboardButton[][] = [];
+      const inlineKeyboard: InlineKeyboard = [];
       if (dashboardUrl) {
         inlineKeyboard.push([{ text: i18n.t("bot_open_dashboard", { lng: lang }), web_app: { url: dashboardUrl } }]);
       }
