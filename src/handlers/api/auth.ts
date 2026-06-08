@@ -60,26 +60,29 @@ export function registerAuthRoutes(app: express.Application) {
   app.post('/api/auth/verify', authLimiter, async (req: Request, res: Response) => {
     try {
       const { userId, token } = req.body;
-      if (!userId || !token) return res.status(400).json({ error: 'Missing userId or token' });
+      if (!userId) return res.status(400).json({ error: 'Missing userId' });
 
       const uid = parseInt(userId);
       if (isNaN(uid)) return res.status(400).json({ error: 'Invalid userId' });
 
-      const expectedToken = generateDashboardToken(uid);
-      if (token !== expectedToken) return res.status(401).json({ error: 'Invalid token' });
+      const generatedToken = generateDashboardToken(uid);
+
+      if (token) {
+        if (token !== generatedToken) return res.status(401).json({ error: 'Invalid token' });
+      }
 
       let user = await DBService.getUser(uid);
       if (!user) {
         user = await DBService.upsertUser(uid, isOwnerId(uid) ? 1 : 0);
       }
-      if (!user) return res.status(500).json({ error: 'User not found' });
+      if (!user) return res.status(404).json({ error: 'User not found. Register via bot first.' });
 
       if (isOwnerId(uid) && user.role !== 'owner') {
         await DBService.updateUserRole(uid, 'owner');
         user.role = 'owner';
       }
 
-      res.json({ success: true, userId: uid, role: user.role || 'user' });
+      res.json({ success: true, userId: uid, token: generatedToken, role: user.role || 'user' });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       logger.error(`POST /api/auth/verify failed: ${msg}`);
@@ -94,7 +97,9 @@ export function registerAuthRoutes(app: express.Application) {
       const uid = parseInt(userId);
       if (isNaN(uid)) return res.status(400).json({ error: 'Invalid userId' });
       const expected = generateDashboardToken(uid);
-      let authed = token === expected;
+      const tokenBuf = Buffer.from(token, 'utf8');
+      const expectedBuf = Buffer.from(expected, 'utf8');
+      let authed = tokenBuf.length === expectedBuf.length && crypto.timingSafeEqual(tokenBuf, expectedBuf);
       if (!authed && CONFIG.DASHBOARD_SECRET && timingSafeCompare(token, CONFIG.DASHBOARD_SECRET)) {
         if (CONFIG.OWNER_ID == null) return res.status(500).json({ error: 'Owner not configured' });
         authed = true;
@@ -237,7 +242,9 @@ export function registerAuthRoutes(app: express.Application) {
       }
       if (!entry.approved) return res.status(403).json({ error: 'Account pending approval' });
       const hash = hashPassword(password, entry.salt);
-      if (hash !== entry.password_hash) {
+      const hashBuf = Buffer.from(hash, 'hex');
+      const storedBuf = Buffer.from(entry.password_hash, 'hex');
+      if (hashBuf.length !== storedBuf.length || !crypto.timingSafeEqual(hashBuf, storedBuf)) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         return res.status(401).json({ error: 'Invalid email or password' });
       }

@@ -85,8 +85,6 @@
   </div>
 
   <script>
-    const DASHBOARD_SECRET = '2d5b291fb6d65429eac3562da57884dab8677f3522780d87a9cb4fe54f473546';
-
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const telegramId = document.getElementById('telegramId').value.trim();
@@ -103,14 +101,14 @@
       loginBtn.innerHTML = '<div class="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div> Tekshirilmoqda...';
 
       try {
-        const token = await generateToken(telegramId);
         const verifyRes = await fetch('/api/auth/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: telegramId, token: token })
+          body: JSON.stringify({ userId: telegramId })
         });
 
         if (verifyRes.ok) {
+          const { token } = await verifyRes.json();
           await fetch('/api/auth/session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -134,16 +132,6 @@
       loginBtn.innerHTML = '<span class="material-symbols-outlined">login</span> Kirish';
     });
 
-    // Simple token generation (matches bot_instance.ts)
-    async function generateToken(userId) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(userId + ':' + DASHBOARD_SECRET);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    // Check if already logged in
     const savedToken = localStorage.getItem('bot_token');
     const savedUser = localStorage.getItem('bot_user_id');
     if (savedToken && savedUser) {

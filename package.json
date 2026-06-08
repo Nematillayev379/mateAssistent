@@ -1,8 +1,8 @@
 {
-  "name": "uzbekistan-newsroom-bot",
+  "name": "mate-assistent-bot",
   "version": "2.0.0",
   "private": true,
-  "description": "Uzbekistan mateAssistent Telegram Bot",
+  "description": "AI-powered Telegram bot with Web3 dashboard",
   "scripts": {
     "dev": "npx tsx src/main.ts",
     "build": "node scripts/build.js",

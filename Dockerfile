@@ -26,6 +26,9 @@ COPY --from=build /app/dist ./dist
 COPY public ./public
 COPY package*.json ./
 
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 3000
 
 CMD ["node", "--max-old-space-size=1024", "dist/main.js"]
